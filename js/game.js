@@ -1,16 +1,19 @@
 // js/game.js
 class Game {
     constructor(canvasId) {
-        // ... (properties as before) ...
         this.canvas = document.getElementById(canvasId);
         this.canvasContainer = document.getElementById('canvas-container'); 
         this.ctx = this.canvas.getContext('2d');
         
+        this.masterRoster = [];          
+        this.deployedSquadRoster = [];   
+        this.fallenRaccoonsGlobal = [];  
+        this.fallenRaccoonsThisMission = []; 
+        this.tempSelectedForDeployment = []; 
+
         this.gameObjects = []; 
-        this.playerSquad = []; 
-        this.fallenRaccoonsThisMission = []; // NEW: To track who died in current mission for debrief
         this.enemyUnits = [];
-        this.selectedUnits = [];
+        this.selectedUnits = []; 
         this.visualEffects = []; 
         
         this.isDragging = false;
@@ -29,34 +32,127 @@ class Game {
         this.cameraX = 0;
         this.cameraY = 0;
         
+        this.level = new Level(this); 
         this.inputHandler = new InputHandler(this.canvas, this); 
         this.ui = new UI(this); 
-        this.level = new Level(this); 
 
         this.campaignData = CAMPAIGN_DATA; 
         this.currentPhaseIndex = 0;
         this.currentMissionIndex = 0;
         this.currentMissionParams = null; 
         
-        this.gameState = 'PRE_CAMPAIGN'; 
+        this.gameState = 'PRE_CAMPAIGN_INIT'; 
         this.missionObjective = null;
         this.isObjectiveComplete = false;
         this.initialEnemyCount = 0; 
         this.missionStartedAndPopulated = false; 
-        this.missionStartTime = 0; // NEW: For mission timer
+        this.missionStartTime = 0; 
 
         this.resizeCanvas(); 
         window.addEventListener('resize', () => this.resizeCanvas());
         
         this.lastTime = 0;
         this.gameLoop = this.gameLoop.bind(this); 
+
+        // Initialize and start the game flow
+        this.initializeNewCampaign(); 
+        this.start(); 
     }
 
-    // ... (resizeCanvas, clampCamera, start, loadMissionData) ...
+    initializeNewCampaign() {
+        console.log("[Game.initializeNewCampaign] Initializing new campaign roster...");
+        this.masterRoster = []; // Ensure it's truly empty
+        this.fallenRaccoonsGlobal = []; 
+        this.currentPhaseIndex = 0;
+        this.currentMissionIndex = 0;
+        this.deployedSquadRoster = []; // Clear deployed squad too
+        this.selectedUnits = [];       // And selection
+        
+        const availableFaceImages = [...CONFIG.RACCOON_FACE_IMAGES];
+        let nextRaccoonIdNum = 1;
+
+        for (let i = 0; i < CONFIG.INITIAL_ROSTER_SIZE; i++) {
+            let faceImageFile = CONFIG.RACCOON_FACE_IMAGES[0];
+            if (availableFaceImages.length > 0) {
+                const randomIndex = Math.floor(Math.random() * availableFaceImages.length);
+                faceImageFile = availableFaceImages.splice(randomIndex, 1)[0];
+            } else if (CONFIG.RACCOON_FACE_IMAGES.length > 0) {
+                faceImageFile = CONFIG.RACCOON_FACE_IMAGES[(this.masterRoster.length + nextRaccoonIdNum) % CONFIG.RACCOON_FACE_IMAGES.length];
+            }
+            const faceImageUrl = CONFIG.RACCOON_FACE_IMAGE_PATH + faceImageFile;
+            
+            // Create Raccoon with initial 0 XP, default rank, 0 kills
+            const newRecruit = new Raccoon(0, 0, this, `RCN-MR${nextRaccoonIdNum++}`, faceImageUrl, 0, null, 0);
+            this.masterRoster.push(newRecruit);
+            console.log(`    Added ${newRecruit.id} to masterRoster. HP: ${newRecruit.hp}, Alive: ${newRecruit.isAlive()}`);
+        }
+        console.log(`[Game.initializeNewCampaign] Initial master roster created with ${this.masterRoster.length} recruits.`);
+        this.gameState = 'PRE_CAMPAIGN'; // Set state to allow progression to pre-mission screen
+    }
+    
+    getAvailableRecruits() {
+        return this.masterRoster.filter(r => r.isAlive());
+    }
+
+    start() { 
+        console.log(`[Game.start] Called. Current gameState: ${this.gameState}`);
+        // If it's still in PRE_CAMPAIGN_INIT, something went wrong, or it's the very first call.
+        if (this.gameState === 'PRE_CAMPAIGN_INIT') { 
+             this.initializeNewCampaign(); // Should have been called by constructor, but as a safeguard.
+        }
+
+        const availableRecruits = this.getAvailableRecruits();
+        console.log(`[Game.start] Available recruits: ${availableRecruits.length}, Master roster size: ${this.masterRoster.length}`);
+
+        if (availableRecruits.length === 0 && this.masterRoster.length > 0) {
+            console.error("[Game.start] GAME OVER - No available recruits in master roster!");
+            this.gameState = 'GAME_OVER_NO_RECRUITS';
+            if (this.ui) this.ui.showGameOverScreen("All Raccoons KIA! Operation Failed Utterly.");
+            return;
+        } else if (this.masterRoster.length === 0 ) { // No recruits AT ALL (e.g., INITIAL_ROSTER_SIZE was 0)
+             console.error("[Game.start] FATAL: Master roster is empty. Cannot start campaign.");
+             // This case should ideally show an error and not let player proceed
+             if (this.ui) this.ui.showGameOverScreen("Roster catastrophically empty. Please check CONFIG.");
+             return;
+        }
+
+        // Proceed to load mission data for the pre-mission screen
+        if (this.loadMissionData(this.currentPhaseIndex, this.currentMissionIndex)) {
+            console.log("[Game.start] Mission data loaded. Showing recruit selection screen.");
+            if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
+                this.ui.showPreMissionScreen_RecruitSelect(
+                    this.campaignData[this.currentPhaseIndex], 
+                    this.currentMissionParams,
+                    availableRecruits // Pass the filtered available recruits
+                );
+            } else {
+                console.error("[Game.start] UI or campaign data not ready for preMissionScreen_RecruitSelect.");
+                 if (this.ui) this.ui.showGameOverScreen("Error preparing mission briefing.");
+            }
+        } else {
+            console.log("[Game.start] Failed to load mission data. Assuming end of campaign.");
+            this.gameState = 'CAMPAIGN_COMPLETE'; 
+            if (this.ui) this.ui.showGameOverScreen("Campaign Concluded or Error Loading Next Mission!", true);
+        }
+    }
+    
+    // ... (rest of Game.js: loadMissionData, confirmSquadAndStartMission, etc. as previously provided)
+    // Ensure they are the versions from the last successful "persistent roster" implementation.
+    // Key parts of confirmSquadAndStartMission:
+    //   - this.deployedSquadRoster = selectedRecruitReferences;
+    //   - Reset HP/ammo for deployed units.
+    //   - Call this.level.generateLevelAndGetPlayerSpawns(...)
+    //   - Place deployed raccoons using returned spawn locations.
+    //   - Set this.selectedUnits = [...this.deployedSquadRoster];
+    //   - Initialize camera based on deployed squad.
+    //   - Call ui.showHUD(), ui.updateSquadPanel(this.deployedSquadRoster)
     resizeCanvas() {
         if (!this.canvasContainer) { 
             this.canvasContainer = document.getElementById('canvas-container');
-            if (!this.canvasContainer) return;
+            if (!this.canvasContainer) {
+                console.error("Canvas container not found for resize!");
+                return;
+            }
         }
         const containerWidth = this.canvasContainer.offsetWidth;
         const containerHeight = this.canvasContainer.offsetHeight;
@@ -72,47 +168,54 @@ class Game {
     clampCamera() {
         const currentViewportWidth = this.canvas.width;
         const currentViewportHeight = this.canvas.height;
-        this.cameraX = Math.max(0, Math.min(this.cameraX, CONFIG.WORLD_WIDTH - currentViewportWidth));
-        this.cameraY = Math.max(0, Math.min(this.cameraY, CONFIG.WORLD_HEIGHT - currentViewportHeight));
-    }
+        const worldWidth = typeof CONFIG.WORLD_WIDTH === 'number' ? CONFIG.WORLD_WIDTH : 0;
+        const worldHeight = typeof CONFIG.WORLD_HEIGHT === 'number' ? CONFIG.WORLD_HEIGHT : 0;
 
-
-    start() { 
-        this.loadMissionData(this.currentPhaseIndex, this.currentMissionIndex);
-        if (this.ui && this.currentMissionParams && this.campaignData[this.currentPhaseIndex]) { 
-             this.ui.showPreMissionScreen(this.campaignData[this.currentPhaseIndex], this.currentMissionParams);
-        } else {
-            console.error("Failed to load initial mission data or UI not ready for preMissionScreen.");
-        }
+        this.cameraX = Math.max(0, Math.min(this.cameraX, worldWidth - currentViewportWidth));
+        this.cameraY = Math.max(0, Math.min(this.cameraY, worldHeight - currentViewportHeight));
     }
     
     loadMissionData(phaseIdx, missionIdx) {
-        if (this.campaignData && this.campaignData[phaseIdx] && this.campaignData[phaseIdx].missions[missionIdx]) {
+        if (this.campaignData && this.campaignData[phaseIdx] && this.campaignData[phaseIdx].missions && this.campaignData[phaseIdx].missions[missionIdx]) {
             this.currentPhaseIndex = phaseIdx;
             this.currentMissionIndex = missionIdx;
             this.currentMissionParams = this.campaignData[phaseIdx].missions[missionIdx];
+            this.tempSelectedForDeployment = []; 
             return true;
         }
-        console.error(`Failed to load mission data for Phase ${phaseIdx}, Mission ${missionIdx}`);
         this.currentMissionParams = null; 
         return false; 
     }
 
-    startMission() { 
-        if (!this.currentMissionParams) {
-            console.error("No current mission parameters loaded. Attempting to reload first mission.");
-            if (!this.loadMissionData(0,0)) { 
-                alert("Error: Campaign data is missing or corrupted. Cannot start game.");
-                this.gameState = "ERROR"; 
-                return;
+    confirmSquadAndStartMission(selectedRecruitsForDeployment) {
+        if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > CONFIG.MAX_SQUAD_SIZE_MVP) {
+            alert(`Invalid squad size. Select 1 to ${CONFIG.MAX_SQUAD_SIZE_MVP} recruits.`);
+            if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
+                this.ui.showPreMissionScreen_RecruitSelect( 
+                    this.campaignData[this.currentPhaseIndex], 
+                    this.currentMissionParams,
+                    this.getAvailableRecruits()
+                );
             }
+            return;
         }
+
+        this.deployedSquadRoster = selectedRecruitsForDeployment;
+        this.deployedSquadRoster.forEach(r => { 
+            r.hp = r.maxHp; 
+            r.grenadeAmmo = (r.rank === "Sergeant" ? 2 : CONFIG.RACCOON_STARTING_GRENADES + (r.rank === "Corporal" ? 1: 0)); 
+            r.isMoving = false;
+            r.manualTarget = null;
+            r.autoTarget = null;
+            r.actionTimer = 0;
+            r.isAimingGrenade = false;
+        });
 
         this.gameState = 'RUNNING';
         this.isObjectiveComplete = false;
         this.missionStartedAndPopulated = false; 
-        this.fallenRaccoonsThisMission = []; // Clear for new mission
-        this.missionStartTime = performance.now(); // Start timer
+        this.fallenRaccoonsThisMission = []; 
+        this.missionStartTime = performance.now(); 
         
         const worldWidth = CONFIG.BASE_WORLD_WIDTH * (this.currentMissionParams.worldSizeFactor || 1);
         const worldHeight = CONFIG.BASE_WORLD_HEIGHT * (this.currentMissionParams.worldSizeFactor || 1);
@@ -120,50 +223,56 @@ class Game {
         CONFIG.WORLD_WIDTH = worldWidth; 
         CONFIG.WORLD_HEIGHT = worldHeight; 
 
-        this.level.generateLevel(worldWidth, worldHeight, this.currentMissionParams); 
+        const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(
+            worldWidth, worldHeight, 
+            this.currentMissionParams, 
+            this.deployedSquadRoster.length 
+        ); 
         this.initialEnemyCount = this.enemyUnits.length; 
-        
-        // Player squad state should persist from a roster eventually.
-        // For now, level.generateLevel creates a new squad.
-        // We need to ensure existing Raccoon objects (if we had a persistent roster)
-        // are used or their stats are transferred to newly spawned ones.
-        // For MVP of campaign, a fresh squad per mission is simpler than full roster management.
-        
-        // Ensure any Raccoons in playerSquad are initialized for XP if they weren't from a roster
-        this.playerSquad.forEach(r => {
-            if (r.xp === undefined) r.xp = 0;
-            if (!r.rank) r.rank = (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[0]) ? CONFIG.RANK_THRESHOLDS[0].rankName : "Recruit";
-            if (r.killCount === undefined) r.killCount = 0;
+
+        this.deployedSquadRoster.forEach((raccoon, index) => {
+            if (playerSpawnLocations[index]) {
+                raccoon.x = playerSpawnLocations[index].x;
+                raccoon.y = playerSpawnLocations[index].y;
+                raccoon.targetX = raccoon.x; 
+                raccoon.targetY = raccoon.y;
+                raccoon.game = this; 
+            } else {
+                raccoon.x = 100 + index * 30; raccoon.y = (CONFIG.WORLD_HEIGHT || this.canvas.height) / 2; 
+            }
         });
-
-
-        this.selectedUnits = [...this.playerSquad]; 
+        
+        this.selectedUnits = [...this.deployedSquadRoster]; 
         
         this.gameObjects = [];   
         this.visualEffects = []; 
         this.isDragging = false; 
         this.draggedFarEnough = false;
 
-        if (this.playerSquad && this.playerSquad.length > 0) {
+        // Initialize camera position based on the NOW DEPLOYED squad
+        if (this.deployedSquadRoster && this.deployedSquadRoster.length > 0) { // Check deployedSquadRoster
             let avgX = 0, avgY = 0;
-            this.playerSquad.forEach(unit => { avgX += unit.x; avgY += unit.y; });
-            avgX /= this.playerSquad.length;
+            this.deployedSquadRoster.forEach(unit => { avgX += unit.x; avgY += unit.y; });
+            avgX /= this.deployedSquadRoster.length;
             
             this.cameraX = avgX - this.canvas.width / 2; 
             this.cameraY = avgY - this.canvas.height / 2; 
             this.clampCamera(); 
         } else { 
+            // Fallback if no units deployed (shouldn't happen if confirmSquadAndStartMission validates squad size)
             this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2;
             this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2;
             this.clampCamera();
         }
 
-        this.ui.hidePreMissionScreen();
-        this.ui.showHUD(); 
-        this.ui.updateObjective(this.currentMissionParams.name); 
-        this.ui.updateSquadPanel(); 
-        this.ui.updateFormationButton(this.currentFormationType); 
-        this.inputHandler.updateMouseCursor(); 
+        if (this.ui) {
+            this.ui.hidePreMissionScreen();
+            this.ui.showHUD(); 
+            this.ui.updateObjective(this.currentMissionParams.name); 
+            this.ui.updateSquadPanel(this.deployedSquadRoster); 
+            this.ui.updateFormationButton(this.currentFormationType); 
+        }
+        if (this.inputHandler) this.inputHandler.updateMouseCursor(); 
 
         if (!this.lastTime) { 
             this.lastTime = performance.now();
@@ -173,99 +282,145 @@ class Game {
         }
     }
     
-    // Method to be called by Unit.die() for Raccoons
     recordRaccoonFallen(raccoon) {
         if (raccoon && raccoon.team === 'player') {
-            this.fallenRaccoonsThisMission.push({
-                id: raccoon.id, // Or name if they have one
-                rank: raccoon.rank 
-                // Add other relevant info if needed for memorial
-            });
-            // console.log(`Raccoon ${raccoon.id} recorded as fallen.`);
-        }
-    }
-
-    endMission(isVictory) {
-        console.log(`[Game.endMission] Called. Victory: ${isVictory}`);
-        this.gameState = 'POST_MISSION_DEBRIEF'; 
-        const missionDuration = (performance.now() - this.missionStartTime) / 1000; // seconds
-        
-        let enemiesKilledThisMission = 0;
-        this.enemyUnits.forEach(e => { if (!e.isAlive()) enemiesKilledThisMission++;});
-
-        if (isVictory) {
-            const survivalXp = CONFIG.XP_PER_MISSION_SURVIVED || 0;
-            if (survivalXp > 0 && this.playerSquad) { 
-                this.playerSquad.forEach(raccoon => {
-                    if (raccoon.isAlive() && typeof raccoon.addXp === 'function') {
-                        // console.log(`Awarding ${survivalXp} survival XP to ${raccoon.id}`);
-                        raccoon.addXp(survivalXp); // addXp will call checkPromotion
-                    }
+            if (!this.fallenRaccoonsThisMission.find(r => r.id === raccoon.id)) {
+                this.fallenRaccoonsThisMission.push({
+                    id: raccoon.id, 
+                    rank: raccoon.rank,
+                    faceImageUrl: raccoon.faceImageUrl 
+                });
+            }
+            const alreadyInGlobalFallen = this.fallenRaccoonsGlobal.find(r => r.id === raccoon.id);
+            if (!alreadyInGlobalFallen) {
+                this.fallenRaccoonsGlobal.push({
+                    id: raccoon.id, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl,
+                    missionDied: this.currentMissionParams ? this.currentMissionParams.name : "Unknown Mission",
+                    phaseDied: (this.campaignData && this.campaignData[this.currentPhaseIndex]) ? this.campaignData[this.currentPhaseIndex].name : "Unknown Phase"
                 });
             }
         }
+    }
 
-        // Prepare data for the debrief screen
+    addNewRecruitToMasterRoster() {
+        if (!this.game) return; 
+        const availableFaceImages = [...CONFIG.RACCOON_FACE_IMAGES];
+        let faceImageFile = CONFIG.RACCOON_FACE_IMAGES[0]; 
+        
+        let attempts = 0;
+        do {
+            const randomIndex = Math.floor(Math.random() * CONFIG.RACCOON_FACE_IMAGES.length);
+            faceImageFile = CONFIG.RACCOON_FACE_IMAGES[randomIndex];
+            attempts++;
+        } while (this.masterRoster.find(r => r.faceImageUrl && r.faceImageUrl.endsWith(faceImageFile)) && attempts < CONFIG.RACCOON_FACE_IMAGES.length * 2);
+
+
+        const faceImageUrl = CONFIG.RACCOON_FACE_IMAGE_PATH + faceImageFile;
+        const newRecruitId = `RCN-MR${this.masterRoster.length + this.fallenRaccoonsGlobal.length + 1 + Math.floor(Math.random()*100)}`;
+        
+        const newRecruit = new Raccoon(0, 0, this, newRecruitId, faceImageUrl); 
+        this.masterRoster.push(newRecruit);
+    }
+
+    endMission(isVictory) {
+        this.gameState = 'POST_MISSION_DEBRIEF'; 
+        const missionDuration = (performance.now() - this.missionStartTime) / 1000; 
+        
+        let enemiesKilledThisMission = 0;
+        if(this.enemyUnits) this.enemyUnits.forEach(e => { if (!e.isAlive()) enemiesKilledThisMission++;});
+
+        if (isVictory) {
+            const survivalXp = CONFIG.XP_PER_MISSION_SURVIVED || 0;
+            if (survivalXp > 0 && this.deployedSquadRoster) { 
+                this.deployedSquadRoster.forEach(raccoon => {
+                    if (raccoon.isAlive() && typeof raccoon.addXp === 'function') {
+                        raccoon.addXp(survivalXp); 
+                    }
+                });
+            }
+            if (this.masterRoster.length < (CONFIG.MAX_TOTAL_ROSTER_SIZE || 20)) { 
+                 for (let i=0; i < (CONFIG.NEW_RECRUITS_PER_MISSION_WIN || 0); i++) {
+                    this.addNewRecruitToMasterRoster();
+                }
+            }
+        }
+
         const debriefData = {
             isVictory: isVictory,
-            phaseData: this.campaignData[this.currentPhaseIndex],
-            missionData: this.currentMissionParams,
-            survivingRaccoons: this.playerSquad.filter(r => r.isAlive()),
-            fallenRaccoons: this.fallenRaccoonsThisMission, // Use the list populated during mission
+            phaseData: this.campaignData && this.campaignData[this.currentPhaseIndex] ? this.campaignData[this.currentPhaseIndex] : {name: "Unknown Phase"},
+            missionData: this.currentMissionParams || {name: "Unknown Mission"},
+            survivingRaccoons: this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [],
+            fallenRaccoons: this.fallenRaccoonsThisMission, 
             enemiesKilled: enemiesKilledThisMission,
-            timeTaken: missionDuration.toFixed(1)
+            timeTaken: missionDuration.toFixed(1),
+            campaignComplete: false 
         };
 
         if (this.ui) {
             this.ui.hideHUD(); 
-            this.ui.showPostMissionScreen(debriefData); // Pass all data to UI
+            this.ui.showPostMissionScreen_Debrief(debriefData); 
             if (this.inputHandler) this.inputHandler.updateMouseCursor(); 
         }
-        // Actual advancement to next mission/phase will be triggered by UI button now.
     }
     
-    // Called by "Next Mission" or "Start Phase" button on post-mission screen
-    proceedToNextLogicalStep() {
+    proceedToNextLogicalStep() { 
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
-            console.log("Campaign already complete. No next step.");
-            // Here you might take player to a "You Win!" screen or main menu
-            this.ui.showPreMissionScreen({name: "VICTORY!"}, {name:"You beat all Possums!", briefing: "Thanks for playing!"}); // Placeholder
+            if(this.ui) this.ui.showGameOverScreen("Campaign Already Complete! You Win!", true);
             return;
         }
-
-        let wasVictory = this.isObjectiveComplete; // Need to know if the *last* mission was a win
-
-        if (wasVictory) {
+        
+        if (this.isObjectiveComplete) { 
             this.currentMissionIndex++;
-            const currentPhase = this.campaignData[this.currentPhaseIndex];
-            if (!currentPhase || this.currentMissionIndex >= currentPhase.missions.length) {
+            const currentPhaseData = this.campaignData ? this.campaignData[this.currentPhaseIndex] : null;
+            if (!currentPhaseData || this.currentMissionIndex >= currentPhaseData.missions.length) {
                 this.currentPhaseIndex++;
                 this.currentMissionIndex = 0;
-                if (!this.campaignData[this.currentPhaseIndex]) {
+                if (!this.campaignData || !this.campaignData[this.currentPhaseIndex]) {
                     console.log("ENTIRE CAMPAIGN COMPLETE!");
                     this.gameState = 'CAMPAIGN_COMPLETE'; 
-                    this.ui.showPostMissionScreen({ // Show a final "victory" screen
-                        isVictory: true, 
-                        campaignComplete: true,
-                        phaseData: {name: "Campaign Over"}, 
-                        missionData: {name: "All Possums Defeated!"}
-                    });
+                    if(this.ui) this.ui.showGameOverScreen("Campaign Victorious!", true, true); 
                     return;
                 }
             }
         }
-        // If it was a loss, currentMissionIndex/PhaseIndex are NOT incremented, so we retry current one.
+
+        if (this.getAvailableRecruits().length === 0) {
+            console.log("GAME OVER - No available recruits for next mission!");
+            this.gameState = 'GAME_OVER_NO_RECRUITS';
+            if(this.ui) this.ui.showGameOverScreen("All Raccoons KIA. Operation Failed.");
+            return;
+        }
 
         if (this.loadMissionData(this.currentPhaseIndex, this.currentMissionIndex)) {
-            this.ui.showPreMissionScreen(this.campaignData[this.currentPhaseIndex], this.currentMissionParams);
+             if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
+                this.ui.showPreMissionScreen_RecruitSelect(
+                    this.campaignData[this.currentPhaseIndex], 
+                    this.currentMissionParams,
+                    this.getAvailableRecruits()
+                );
+            } else {
+                console.error("UI or campaign data not ready for preMissionScreen_RecruitSelect after proceeding.");
+                 if(this.ui) this.ui.showGameOverScreen("Error preparing next mission briefing.");
+            }
         } else {
-            console.error("Failed to load data for the next mission/phase. Ending campaign.");
-            this.gameState = 'CAMPAIGN_COMPLETE'; // Or an error state
-            this.ui.showPreMissionScreen({name: "Error"}, {name:"Could not load next mission.", briefing: ""});
+            console.error("Failed to load data for the next mission/phase. Assuming end of campaign.");
+            this.gameState = 'CAMPAIGN_COMPLETE'; 
+            if(this.ui) this.ui.showGameOverScreen("Campaign Concluded (or data error)!", true);
         }
     }
+    
+    toggleFormation() {
+        if (this.gameState !== 'RUNNING') return;
+        this.currentFormationIndex = (this.currentFormationIndex + 1) % this.FORMATION_TYPES.length;
+        this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
+        if(this.ui) this.ui.updateFormationButton(this.currentFormationType); 
+    }
 
-    // ... (update, render, gameLoop, handleMapClick etc. as before) ...
+    setFormationSpacing(multiplier) {
+        if (this.gameState !== 'RUNNING') return;
+        this.formationSpacingMultiplier = parseFloat(multiplier);
+    }
+    
     update(deltaTime) {
         if (this.gameState !== 'RUNNING') return;
 
@@ -301,7 +456,7 @@ class Game {
         } 
 
         const allUnitsInGame = [];
-        if(this.playerSquad) allUnitsInGame.push(...this.playerSquad);
+        if(this.deployedSquadRoster) allUnitsInGame.push(...this.deployedSquadRoster); 
         if(this.enemyUnits) allUnitsInGame.push(...this.enemyUnits);
 
         allUnitsInGame.forEach(unit => {
@@ -390,11 +545,11 @@ class Game {
             }
         });
 
-        const unitsToRender = [];
-        if(this.playerSquad) unitsToRender.push(...this.playerSquad);
-        if(this.enemyUnits) unitsToRender.push(...this.enemyUnits);
+        const unitsToRenderOnMap = [];
+        if(this.deployedSquadRoster) unitsToRenderOnMap.push(...this.deployedSquadRoster);
+        if(this.enemyUnits) unitsToRenderOnMap.push(...this.enemyUnits);
 
-        unitsToRender.forEach(unit => {
+        unitsToRenderOnMap.forEach(unit => {
             if (unit && typeof unit.render === 'function') {
                 unit.render(this.ctx);
             }
@@ -493,7 +648,7 @@ class Game {
         this.render();
         
         if (this.gameState === 'RUNNING' && this.ui) { 
-            this.ui.updateSquadPanel(); 
+            this.ui.updateSquadPanel(this.deployedSquadRoster); 
         }
 
         requestAnimationFrame(this.gameLoop);
@@ -578,7 +733,7 @@ class Game {
                 });
             } else { 
                 let clickedOnPlayerUnit = null;
-                if(this.playerSquad) this.playerSquad.forEach(playerUnit => { 
+                if(this.deployedSquadRoster) this.deployedSquadRoster.forEach(playerUnit => { 
                      if (playerUnit.isAlive() && distance(worldX, worldY, playerUnit.x, playerUnit.y) < playerUnit.size + 5) { 
                         clickedOnPlayerUnit = playerUnit;
                     }
@@ -649,7 +804,7 @@ class Game {
 
         let newlySelectedUnits = [];
         
-        if(this.playerSquad) this.playerSquad.forEach(unit => { 
+        if(this.deployedSquadRoster) this.deployedSquadRoster.forEach(unit => { 
             if (unit.isAlive()) {
                 if (unit.x >= rectX && unit.x <= rectX + rectWidth &&
                     unit.y >= rectY && unit.y <= rectY + rectHeight) {
@@ -668,7 +823,7 @@ class Game {
             }
         });
 
-        if(this.ui) this.ui.updateSquadPanel(); 
+        if(this.ui) this.ui.updateSquadPanel(this.deployedSquadRoster); 
     }
     
     deselectAllUnits() {
@@ -679,7 +834,7 @@ class Game {
             }
         });
         this.selectedUnits = [];
-        if(this.ui) this.ui.updateSquadPanel(); 
+        if(this.ui) this.ui.updateSquadPanel(this.deployedSquadRoster); 
         if (wasAiming || (this.inputHandler && this.inputHandler.mousePos)) { 
              if (this.inputHandler) this.inputHandler.updateMouseCursor();
         } else {
@@ -687,15 +842,15 @@ class Game {
         }
     }
     
-    selectAllPlayerUnits() {
+    selectAllPlayerUnits() { 
         const wasAiming = this.selectedUnits && this.selectedUnits.some(unit => unit instanceof Raccoon && unit.isAimingGrenade); 
-        this.selectedUnits = this.playerSquad ? this.playerSquad.filter(unit => unit.isAlive()) : []; 
+        this.selectedUnits = this.deployedSquadRoster ? this.deployedSquadRoster.filter(unit => unit.isAlive()) : []; 
         if(this.selectedUnits) this.selectedUnits.forEach(unit => { 
             if (unit instanceof Raccoon && unit.isAimingGrenade) {
                 unit.cancelGrenadeAim();
             }
         });
-        if(this.ui) this.ui.updateSquadPanel(); 
+        if(this.ui) this.ui.updateSquadPanel(this.deployedSquadRoster); 
         if (wasAiming || (this.inputHandler && this.inputHandler.mousePos)) {
             if (this.inputHandler) this.inputHandler.updateMouseCursor();
         } else {
@@ -711,7 +866,7 @@ class Game {
         if (type === 'explosion') {
             this.visualEffects.push(new ExplosionEffect(x, y, radius));
         } else if (type === 'promotion') {
-            const unit = this.playerSquad && this.playerSquad.find(r => r.id === radius);  
+            const unit = this.deployedSquadRoster && this.deployedSquadRoster.find(r => r.id === radius);  
             if (unit) { 
                 this.visualEffects.push(new PromotionEffect(unit.x, unit.y - unit.size - 10, "PROMOTED!"));
             }
@@ -740,7 +895,7 @@ class Game {
         if (this.isObjectiveComplete) {
             this.endMission(true);
         } else {
-            const allPlayerUnitsLost = this.playerSquad && this.playerSquad.length > 0 && this.playerSquad.every(unit => !unit.isAlive());
+            const allPlayerUnitsLost = this.deployedSquadRoster && this.deployedSquadRoster.length > 0 && this.deployedSquadRoster.every(unit => !unit.isAlive());
             if (allPlayerUnitsLost) {
                 this.endMission(false);
             }
@@ -748,7 +903,7 @@ class Game {
     }
 }
 
-// ... (PromotionEffect, ExplosionEffect, window.onload) ...
+// ... (PromotionEffect, ExplosionEffect classes, and window.onload)
 class PromotionEffect { 
     constructor(x, y, text) {
         this.x = x;
@@ -822,5 +977,5 @@ class ExplosionEffect {
 
 window.addEventListener('DOMContentLoaded', () => {
     const game = new Game('gameCanvas');
-    game.start(); // This will show pre-mission screen for first mission
+    // game.start(); // Game.start() is now called at the end of the Game constructor
 });

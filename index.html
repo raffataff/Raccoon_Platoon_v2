@@ -9,10 +9,23 @@
 </head>
 <body>
     <div id="preMissionScreen" class="ui-panel">
-        <h3 id="preMissionPhaseTitle">Phase Title</h3>
+        <h3 id="preMissionPhaseTitle">Phase Title</h3> 
         <h2 id="preMissionTitle">Mission Title</h2>
-        <p id="preMissionBriefing" style="text-align: left; max-height: 100px; overflow-y: auto;"></p>
-        <button id="startMissionButton">Deploy Platoon!</button>
+        <p id="preMissionBriefing" style="text-align: left; max-height: 100px; overflow-y: auto; white-space: pre-wrap;">Briefing text.</p>
+        
+        <div style="display: flex; justify-content: space-around; margin-top: 15px; max-height: 200px;">
+            <div id="availableRecruitsContainer" style="width: 45%; text-align: left;">
+                <h4>Available Recruits (Click to Select):</h4>
+                <ul id="availableRecruitsList" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto; border: 1px solid #444;">
+                </ul>
+            </div>
+            <div id="deployedSquadContainer" style="width: 45%; text-align: left;">
+                <h4>Deploying Squad (Max <span id="maxSquadSizeDisplay">4</span>):</h4>
+                <ul id="deployedSquadList" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto; border: 1px solid #444;">
+                </ul>
+            </div>
+        </div>
+        <button id="startMissionButton">Deploy Selected Squad</button>
     </div>
 
     <div id="postMissionScreen" class="ui-panel">
@@ -28,13 +41,11 @@
         <div id="survivingRaccoons" style="text-align: left; margin: 15px 0;">
             <h4>Surviving Raccoons:</h4>
             <ul id="survivorList" style="list-style: none; padding-left: 0;">
-                {/* <!-- Populated by JS --> */}
             </ul>
         </div>
         <div id="fallenRaccoons" style="text-align: left; margin: 15px 0;">
             <h4>Fallen Heroes:</h4>
             <ul id="fallenList" style="list-style: none; padding-left: 0;">
-                {/* <!-- Populated by JS --> */}
             </ul>
         </div>
         
@@ -42,11 +53,17 @@
         <button id="retryMissionButton" style="display:none;">Retry Mission</button>
     </div>
 
+    <div id="gameOverScreen" class="ui-panel" style="display: none; width: 400px; text-align: center;">
+        <h2 id="gameOverTitle">GAME OVER</h2>
+        <p id="gameOverMessage">The Possum menace has prevailed...</p>
+        <button id="restartCampaignButton">Restart Campaign</button>
+    </div>
+
+
     <div id="game-container">
-        <div id="left-hud-panel" class.ui-panel"> 
+        <div id="left-hud-panel" class="ui-panel"> 
             <div id="hud-squad">
             </div>
-
             <div id="hud-controls"> 
                 <div id="hud-controls-left">
                     <div class="hud-control-group">

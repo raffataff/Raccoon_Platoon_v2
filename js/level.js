@@ -1,6 +1,6 @@
 // js/level.js
 class Level {
-    // ... (constructor, isRectOverlappingList, isSpawnPointClear, damageObstacle as before) ...
+    // ... (constructor, isRectOverlappingList, isSpawnPointClear, damageObstacle) ...
     constructor(game) {
         this.game = game;
         this.obstacles = [];
@@ -63,7 +63,7 @@ class Level {
                         }
                     }
                 });
-                const allUnits = [...this.game.playerSquad, ...this.game.enemyUnits];
+                const allUnits = [...this.game.deployedSquadRoster, ...this.game.enemyUnits]; // Use deployedSquadRoster
                 allUnits.forEach(unit => {
                     if (unit.isAlive()) {
                         const distToUnit = distance(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, unit.x, unit.y);
@@ -76,19 +76,16 @@ class Level {
         }
     }
 
-    generateLevel(worldWidth, worldHeight, missionParams = {}) { // Added missionParams
-        // console.log(`Generating procedural level. World: ${worldWidth}x${worldHeight}, Params:`, missionParams);
+    // --- MODIFIED: generateLevelAndGetPlayerSpawns ---
+    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded) {
         this.obstacles = []; 
         if (this.game) {
-            this.game.playerSquad = []; // Clear existing squad for new mission
-            this.game.enemyUnits = [];
+            // this.game.playerSquad = []; // Game now manages this via deployedSquadRoster
+            this.game.enemyUnits = [];    // Clear enemies for new level
             this.game.gameObjects = []; 
         }
 
-        // --- Use missionParams to adjust generation ---
-        const enemyDensityFactor = missionParams.enemyDensityFactor || 1.0;
-        // const obstacleTheme = missionParams.obstacleTheme || 'generic'; // For later
-
+        // ... (border wall and internal obstacle generation logic is the same) ...
         const worldMargin = 50; 
         const borderWidth = 30; 
 
@@ -121,7 +118,7 @@ class Level {
         const playableWidth = playableMaxX - playableMinX;
         const playableHeight = playableMaxY - playableMinY;
 
-        const baseNumObstacles = 30; // Base, adjust with a factor later if needed
+        const baseNumObstacles = 30; 
         const numInternalObstacles = Math.floor(baseNumObstacles * (missionParams.worldSizeFactor || 1.5)) + Math.floor(Math.random() * 15);
 
 
@@ -160,48 +157,42 @@ class Level {
             this.obstacles.push(newObstacle);
         }
 
+
+        // --- Player Spawn Point GENERATION ---
+        const playerSpawnLocations = []; // Array of {x, y}
         const playerUnitSize = CONFIG.RACCOON_SIZE;
         const playerStartX = playableMinX + 50; 
         const playerStartY = playableMaxY - 100; 
-        // Player squad is now managed by Game based on roster.
-        // Level generator just provides spawn points.
-        // For now, we still create them here as roster isn't implemented.
-        if (this.game) { // Ensure game object exists
-            const availableFaceImages = [...CONFIG.RACCOON_FACE_IMAGES];
-            for (let i = 0; i < CONFIG.MAX_SQUAD_SIZE_MVP; i++) {
-                let spawnX, spawnY, isClear;
-                let placementAttempts = 0;
-                do {
-                    spawnX = playerStartX + i * (playerUnitSize * 3); 
-                    spawnY = playerStartY + (Math.random() * 20 - 10); 
-                    spawnX = Math.max(playableMinX + playerUnitSize, Math.min(spawnX, playableMaxX - playerUnitSize));
-                    spawnY = Math.max(playableMinY + playerUnitSize, Math.min(spawnY, playableMaxY - playerUnitSize));
-                    isClear = this.isSpawnPointClear(spawnX, spawnY, playerUnitSize, this.obstacles);
-                    placementAttempts++;
-                    if (!isClear) { 
-                        spawnX += (Math.random() - 0.5) * 20; 
-                        spawnY += (Math.random() - 0.5) * 20;
-                    }
-                } while (!isClear && placementAttempts < 20);
 
-                let faceImageFile = CONFIG.RACCOON_FACE_IMAGES[0]; 
-                if (availableFaceImages.length > 0) {
-                    const randomIndex = Math.floor(Math.random() * availableFaceImages.length);
-                    faceImageFile = availableFaceImages.splice(randomIndex, 1)[0]; 
-                } else if (CONFIG.RACCOON_FACE_IMAGES.length > 0) { 
-                    faceImageFile = CONFIG.RACCOON_FACE_IMAGES[i % CONFIG.RACCOON_FACE_IMAGES.length];
+        for (let i = 0; i < numPlayerSpawnsNeeded; i++) {
+            let spawnX, spawnY, isClear;
+            let placementAttempts = 0;
+            do {
+                spawnX = playerStartX + i * (playerUnitSize * 3); 
+                spawnY = playerStartY + (Math.random() * 20 - 10); 
+                spawnX = Math.max(playableMinX + playerUnitSize, Math.min(spawnX, playableMaxX - playerUnitSize));
+                spawnY = Math.max(playableMinY + playerUnitSize, Math.min(spawnY, playableMaxY - playerUnitSize));
+                isClear = this.isSpawnPointClear(spawnX, spawnY, playerUnitSize, this.obstacles);
+                placementAttempts++;
+                if (!isClear) { 
+                    spawnX += (Math.random() - 0.5) * 20; 
+                    spawnY += (Math.random() - 0.5) * 20;
                 }
-                const faceImageUrl = CONFIG.RACCOON_FACE_IMAGE_PATH + faceImageFile;
+            } while (!isClear && placementAttempts < 20);
 
-                const raccoon = new Raccoon(spawnX, spawnY, this.game, `RCN-${i+1}`, faceImageUrl);
-                this.game.playerSquad.push(raccoon);
+            if (isClear) {
+                playerSpawnLocations.push({ x: spawnX, y: spawnY });
+            } else {
+                // Fallback if clear spot not found
+                playerSpawnLocations.push({ x: playerStartX + i * (playerUnitSize * 3), y: playerStartY });
             }
         }
+        // console.log(`Generated ${playerSpawnLocations.length} player spawn points.`);
 
-
+        // --- Enemy Spawning (uses missionParams.enemyDensityFactor) ---
+        const enemyDensityFactor = missionParams.enemyDensityFactor || 1.0;
         const baseNumEnemies = 8;
         const totalEnemiesToSpawn = Math.floor(baseNumEnemies * enemyDensityFactor) + Math.floor(Math.random() * 5 * enemyDensityFactor);
-        // console.log(`[Level.generateLevel] Attempting to spawn ${totalEnemiesToSpawn} enemies.`);
         let enemiesSpawnedCount = 0; 
         const enemyUnitSize = CONFIG.POSSUM_GRUNT_SIZE;
         const enemyMinSpawnX = playerStartX + playableWidth * 0.25; 
@@ -232,8 +223,8 @@ class Level {
                     let currentEnemyUnitSize = CONFIG.POSSUM_GRUNT_SIZE; 
 
                     let isHeavy = false;
-                    const heavySpawnChance = missionParams.heavyChance || 0.2; // Default 20% if not specified by mission
-                    if (m === 0 && groupSize > 1 && Math.random() < heavySpawnChance + 0.2) { // Higher chance for leader
+                    const heavySpawnChance = missionParams.heavyChance || 0.2; 
+                    if (m === 0 && groupSize > 1 && Math.random() < heavySpawnChance + 0.2) { 
                         isHeavy = true;
                     } else if (groupSize === 1 && Math.random() < heavySpawnChance) { 
                         isHeavy = true;
@@ -268,16 +259,14 @@ class Level {
                 }
             }
         }
-        // console.log(`[Level.generateLevel] Finished spawning. Actual enemies spawned: ${this.game.enemyUnits.length} (Target was ${totalEnemiesToSpawn})`);
-        if (this.game.enemyUnits.length === 0 && totalEnemiesToSpawn > 0) {
-            // console.error("SERIOUS WARNING: No enemies were spawned, but target was > 0. Check spawning logic and obstacle density!");
-        }
+        // console.log(`[Level.generateLevel] Finished spawning enemies. Actual enemies: ${this.game.enemyUnits.length}`);
 
         if (this.game) {
             this.game.missionObjective = {
                 type: missionParams.objectiveType || 'EXTERMINATE',
-                description: missionParams.name || 'Eliminate all Possums!', // Use mission name for description
+                description: missionParams.name || 'Eliminate all Possums!', 
             };
         }
+        return playerSpawnLocations; // Return the generated spawn points
     }
 }

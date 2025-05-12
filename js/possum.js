@@ -1,11 +1,8 @@
 // js/possum.js
 class PossumGrunt extends Unit {
+    // ... (constructor, generateSecondPatrolPoint remain the same)
     constructor(x, y, game, id) {
-        // --- ADD LOG in super() call or right after ---
-        // The Unit constructor already logs, so this might be redundant unless Possum does something special with HP
         super(x, y, game, 'enemy', CONFIG.POSSUM_GRUNT_HP, CONFIG.POSSUM_GRUNT_SPEED, CONFIG.POSSUM_GRUNT_SIZE, CONFIG.POSSUM_GRUNT_COLOR, id);
-        // console.log(`[PossumGrunt Constructor] ${this.id} finished super(). HP: ${this.hp}`);
-        // ---------------------------------------------
         this.weapon = WEAPONS.POSSUM_RIFLE;
         this.detectionRange = CONFIG.POSSUM_DETECTION_RANGE;
 
@@ -23,7 +20,7 @@ class PossumGrunt extends Unit {
             this.isMoving = true;
         }
     }
-    // ... (rest of PossumGrunt is fine from previous version with stuck logic)
+
     generateSecondPatrolPoint(originX, originY, minRadius, maxRadius) {
         const angle = Math.random() * Math.PI * 2;
         const radius = minRadius + Math.random() * (maxRadius - minRadius);
@@ -34,9 +31,10 @@ class PossumGrunt extends Unit {
         pX = Math.max(margin, Math.min(pX, CONFIG.WORLD_WIDTH - margin));
         pY = Math.max(margin, Math.min(pY, CONFIG.WORLD_HEIGHT - margin));
         
-        if (this.game && this.game.level) {
+        if (this.game && this.game.level && typeof this.game.level.isSpawnPointClear === 'function') { // Added typeof check
             let attempts = 0;
-            while(this.game.level.isSpawnPointClear && !this.game.level.isSpawnPointClear(pX, pY, this.size, this.game.level.obstacles) && attempts < 10) {
+            // Check if spawn point is clear using the level's method
+            while(!this.game.level.isSpawnPointClear(pX, pY, this.size, this.game.level.obstacles) && attempts < 10) {
                 const newAngle = Math.random() * Math.PI * 2;
                 const newRadius = minRadius + Math.random() * (maxRadius-minRadius) * 0.5; 
                 pX = originX + Math.cos(newAngle) * newRadius;
@@ -49,6 +47,7 @@ class PossumGrunt extends Unit {
         return { x: pX, y: pY };
     }
 
+
     update(deltaTime) { 
         if (!this.isAlive()) return;
         
@@ -58,11 +57,13 @@ class PossumGrunt extends Unit {
             return; 
         }
 
-        this.aiLogic(deltaTime, this.game.playerSquad, this.game.level.obstacles);
+        // Critical: Pass the game's DEPLOYED player squad to aiLogic for targeting
+        this.aiLogic(deltaTime, this.game.deployedSquadRoster, this.game.level.obstacles);
         super.update(deltaTime); 
     }
 
     onStuck() {
+        // ... (onStuck logic from previous version)
         if (this.aiState === 'PATROLLING') {
             if (this.currentTargetPatrolPoint === this.patrolPoint1) {
                 this.currentTargetPatrolPoint = this.patrolPoint2;
@@ -86,11 +87,13 @@ class PossumGrunt extends Unit {
         }
     }
 
-    aiLogic(deltaTime, playerSquad, obstacles) {
+    // playerUnitsOnMap is actually this.game.deployedSquadRoster passed from PossumGrunt.update
+    aiLogic(deltaTime, playerUnitsOnMap, obstacles) { 
         let engagableTarget = this.manualTarget; 
         if (!engagableTarget || !engagableTarget.isAlive()) {
             this.manualTarget = null; 
-            this.findAutoTarget(playerSquad, obstacles); 
+            // Use the passed playerUnitsOnMap for finding a target
+            this.findAutoTarget(playerUnitsOnMap, obstacles); 
             engagableTarget = this.autoTarget;
         }
 
@@ -105,7 +108,7 @@ class PossumGrunt extends Unit {
                 this.manualTarget = null;
                 this.targetX = this.currentTargetPatrolPoint.x; 
                 this.targetY = this.currentTargetPatrolPoint.y;
-                if (distance(this.x, this.y, this.targetX, this.targetY) > 1) this.isMoving = true;
+                if (distance(this.x, this.y, this.targetX, this.targetY) > 1) this.isMoving = true; else this.isMoving = false;
             }
         }
 
@@ -119,7 +122,7 @@ class PossumGrunt extends Unit {
                         this.targetX = this.currentTargetPatrolPoint.x;
                         this.targetY = this.currentTargetPatrolPoint.y;
                     }
-                     if (distance(this.x, this.y, this.targetX, this.targetY) > 1) this.isMoving = true;
+                     if (distance(this.x, this.y, this.targetX, this.targetY) > 1) this.isMoving = true; else this.isMoving = false;
                     
                     const distToPatrolTarget = distance(this.x, this.y, this.targetX, this.targetY);
                     if (distToPatrolTarget < 5) { 

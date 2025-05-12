@@ -224,8 +224,14 @@ class Unit {
         let closestTarget = null;
         let minDistance = this.weapon ? this.weapon.range : (this.detectionRange || 150);
 
+        if (!potentialTargets || !Array.isArray(potentialTargets)) {
+            // console.warn(`[Unit ${this.id} findAutoTarget] potentialTargets is invalid:`, potentialTargets);
+            this.autoTarget = null;
+            return;
+        }
+
         potentialTargets.forEach(target => {
-            if (target.isAlive() && target.team !== this.team) { 
+            if (target && target.isAlive() && target.team !== this.team) {
                 const d = distance(this.x, this.y, target.x, target.y);
                 if (d <= minDistance) { 
                     if (hasLineOfSight(this.x, this.y, target.x, target.y, obstacles)) {

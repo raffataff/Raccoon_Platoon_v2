@@ -1,21 +1,109 @@
 // js/raccoon.js
 class Raccoon extends Unit {
-    constructor(x, y, game, id, faceImageUrl) { // Added faceImageUrl parameter
+    constructor(x, y, game, id, faceImageUrl, existingXP = 0, existingRank = null, existingKills = 0) {
         super(x, y, game, 'player', CONFIG.RACCOON_HP, CONFIG.RACCOON_SPEED, CONFIG.RACCOON_SIZE, CONFIG.RACCOON_COLOR, id);
         this.weapon = WEAPONS.RACCOON_MACHINE_GUN;
         this.grenadeAmmo = CONFIG.RACCOON_STARTING_GRENADES; 
         this.isAimingGrenade = false; 
         this.grenadeTargetUnit = null; 
 
-        this.xp = 0;
-        this.rank = (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[0]) ? CONFIG.RANK_THRESHOLDS[0].rankName : "Recruit";
-        this.xpToNextRank = (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[1]) ? CONFIG.RANK_THRESHOLDS[1].xpNeeded : Infinity;
-        this.killCount = 0;
-
-        this.faceImageUrl = faceImageUrl || `${CONFIG.RACCOON_FACE_IMAGE_PATH}${CONFIG.RACCOON_FACE_IMAGES[0]}`; // Assign or default
+        this.xp = existingXP;
+        this.rank = existingRank || (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[0] ? CONFIG.RANK_THRESHOLDS[0].rankName : "Recruit");
+        this.killCount = existingKills;
+        this.faceImageUrl = faceImageUrl || `${CONFIG.RACCOON_FACE_IMAGE_PATH}${CONFIG.RACCOON_FACE_IMAGES[0]}`;
+        
+        // Calculate xpToNextRank based on current rank
+        this.updateXpToNextRank(); 
+        this.applyRankBonuses(true); // Apply initial bonuses based on starting rank (if any)
     }
 
-    // ... (rest of Raccoon methods: update, addXp, checkPromotion, etc. remain the same) ...
+    updateXpToNextRank() {
+        if (!CONFIG.RANK_THRESHOLDS || CONFIG.RANK_THRESHOLDS.length === 0) {
+            this.xpToNextRank = Infinity;
+            return;
+        }
+        const currentRankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
+        const currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
+
+        if (currentRankData && currentRankIndex < CONFIG.RANK_THRESHOLDS.length - 1) {
+            this.xpToNextRank = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1].xpNeeded;
+        } else {
+            this.xpToNextRank = Infinity; // Max rank or rank not found
+        }
+    }
+    
+    applyRankBonuses(isInitialSetup = false) {
+        if (!CONFIG.RANK_THRESHOLDS) return;
+        const rankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
+        if (rankData && rankData.statBoosts) {
+            if (isInitialSetup) { // Only apply base HP from config on initial setup
+                this.maxHp = CONFIG.RACCOON_HP;
+            }
+            if (rankData.statBoosts.maxHpBonus) {
+                // Ensure we don't re-add bonus if already applied due to multiple promotions
+                // This simple cumulative way can lead to very high HP if not capped or designed carefully
+                // For now, let's make it a flat bonus ON TOP of base, not cumulative from previous rank bonus
+                const baseHp = CONFIG.RACCOON_HP;
+                const newMaxHp = baseHp + (rankData.statBoosts.maxHpBonus || 0);
+                const hpDiff = newMaxHp - this.maxHp;
+                this.maxHp = newMaxHp;
+                if (isInitialSetup || hpDiff > 0) { // Only add HP if it's an increase
+                   this.hp += hpDiff; // Heal by the amount of maxHP increase
+                   if (this.hp > this.maxHp) this.hp = this.maxHp;
+                }
+            }
+            if (rankData.statBoosts.accuracyBonus && this.weapon) {
+                // This assumes weapon accuracy is reset each time or based on a base weapon stat
+                // For simplicity, let's assume a base accuracy for the weapon type
+                // And this is an *additional* bonus.
+                // This is tricky if weapons change. Better to modify 'effectiveAccuracy' calc.
+                // For now, we'll skip direct weapon stat modification via rank here
+                // and assume it's handled in accuracy calculation if needed.
+            }
+        }
+    }
+
+
+    addXp(amount) {
+        if (!this.isAlive() || (CONFIG.MAX_RANK_NAME && this.rank === CONFIG.MAX_RANK_NAME)) return;
+        this.xp += amount;
+        this.checkPromotion();
+    }
+
+    incrementKillCount() {
+        this.killCount = (this.killCount || 0) + 1;
+    }
+
+    checkPromotion() {
+        if (!CONFIG.RANK_THRESHOLDS || CONFIG.RANK_THRESHOLDS.length === 0) return;
+        let currentRankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
+        let currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
+
+        if (currentRankIndex === -1) { 
+            currentRankIndex = 0; 
+            this.rank = CONFIG.RANK_THRESHOLDS[0].rankName;
+        }
+
+        // Loop to handle multiple promotions from a large XP gain
+        while (currentRankIndex < CONFIG.RANK_THRESHOLDS.length - 1) {
+            const nextRankData = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1];
+            if (this.xp >= nextRankData.xpNeeded) {
+                this.rank = nextRankData.rankName;
+                // console.log(`PROMOTION! ${this.id} promoted to ${this.rank}!`);
+                if (this.game && this.game.addVisualEffect) {
+                    this.game.addVisualEffect('promotion', this.x, this.y - this.size, this.id); 
+                }
+                this.applyRankBonuses(); // Apply new rank bonuses
+                currentRankData = nextRankData;
+                currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
+                this.updateXpToNextRank(); // Update for the *new* current rank
+                 if (this.game && this.game.ui) this.game.ui.updateSquadPanel(); 
+            } else {
+                break; // Not enough XP for the next rank in the list
+            }
+        }
+    }
+    // ... (rest of Raccoon methods as before)
     update(deltaTime) {
         if (this.actionTimer > 0) {
             if(this.isAimingGrenade) this.cancelGrenadeAim(); 
@@ -63,50 +151,6 @@ class Raccoon extends Unit {
         }
         super.update(deltaTime); 
     }
-
-    addXp(amount) {
-        if (!this.isAlive() || (CONFIG.MAX_RANK_NAME && this.rank === CONFIG.MAX_RANK_NAME)) return;
-
-        this.xp += amount;
-        this.checkPromotion();
-    }
-
-    incrementKillCount() {
-        this.killCount = (this.killCount || 0) + 1;
-    }
-
-    checkPromotion() {
-        if (!CONFIG.RANK_THRESHOLDS || CONFIG.RANK_THRESHOLDS.length === 0) return;
-
-        let currentRankIndex = CONFIG.RANK_THRESHOLDS.findIndex(r => r.rankName === this.rank);
-        if (currentRankIndex === -1) { 
-            console.warn(`Raccoon ${this.id} has unknown rank: ${this.rank}`);
-            currentRankIndex = 0; 
-            this.rank = CONFIG.RANK_THRESHOLDS[0].rankName;
-        }
-
-        if (currentRankIndex >= CONFIG.RANK_THRESHOLDS.length - 1) {
-            return; 
-        }
-
-        const nextRankData = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1];
-        if (this.xp >= nextRankData.xpNeeded) {
-            this.rank = nextRankData.rankName;
-            this.xpToNextRank = (currentRankIndex + 2 < CONFIG.RANK_THRESHOLDS.length) ? CONFIG.RANK_THRESHOLDS[currentRankIndex + 2].xpNeeded : Infinity;
-            
-            console.log(`PROMOTION! ${this.id} promoted to ${this.rank}!`);
-            if (this.game && this.game.addVisualEffect) {
-                this.game.addVisualEffect('promotion', this.x, this.y - this.size, this.id); 
-            }
- 
-            if (this.rank === "Private" && this.maxHp < (CONFIG.RACCOON_HP + 2) ) { this.maxHp += 2; this.hp +=2; }
-            else if (this.rank === "Corporal" && this.maxHp < (CONFIG.RACCOON_HP + 5) ) { this.maxHp += 3; this.hp +=3; } 
-            
-            if (this.game && this.game.ui) this.game.ui.updateSquadPanel(); 
-        }
-    }
-
-
     startGrenadeAim(targetUnit = null) { 
         if (this.grenadeAmmo > 0 && this.actionTimer <= 0) {
             this.isAimingGrenade = true;

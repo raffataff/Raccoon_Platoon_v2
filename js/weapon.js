@@ -47,10 +47,10 @@ const WEAPONS = {
 };
 
 // js/weapon.js
-// ... (Weapon class and WEAPONS constant) ...
+// ... (Weapon class, WEAPONS constant) ...
 
 class Projectile {
-    constructor(startX, startY, targetX, targetY, damage, speed, color, game, shooterUnit, effectiveAccuracy) { // Added shooterUnit
+    constructor(startX, startY, targetX, targetY, damage, speed, color, game, shooterUnit, effectiveAccuracy) {
         this.x = startX;
         this.y = startY;
         this.damage = damage;
@@ -58,10 +58,11 @@ class Projectile {
         this.color = color;
         this.size = CONFIG.PROJECTILE_SIZE;
         this.game = game;
-        this.shooterUnit = shooterUnit; // Store the actual shooter unit
-        this.shooterTeam = shooterUnit ? shooterUnit.team : null; // Store team for convenience
+        this.shooterUnit = shooterUnit; 
+        this.shooterTeam = shooterUnit ? shooterUnit.team : null; 
         this.effectiveAccuracy = effectiveAccuracy;
 
+        // ... (accuracy and velocity calculation as before) ...
         let actualTargetX = targetX;
         let actualTargetY = targetY;
 
@@ -95,47 +96,41 @@ class Projectile {
             return;
         }
 
-        // Determine potential targets based on shooter's team
-        let potentialTargets;
-        if (this.shooterTeam === 'player') {
+        let potentialTargets = []; // Initialize as empty array
+        if (this.shooterTeam === 'player' && this.game && this.game.enemyUnits) {
             potentialTargets = this.game.enemyUnits;
-        } else if (this.shooterTeam === 'enemy') {
-            potentialTargets = this.game.playerSquad;
-        } else {
-            potentialTargets = []; // No targets if shooterTeam is unknown
+        } else if (this.shooterTeam === 'enemy' && this.game && this.game.deployedSquadRoster) { // Use deployedSquadRoster
+            potentialTargets = this.game.deployedSquadRoster;
         }
+        // If potentialTargets is still empty (e.g. no enemies, or no deployed squad), the loop won't run.
 
-        for (const targetUnit of potentialTargets) { // Changed loop variable name for clarity
-            if (targetUnit.isAlive()) { // No need to check targetUnit.team !== this.shooterTeam, potentialTargets already filtered by opposition
+        for (const targetUnit of potentialTargets) { 
+            if (targetUnit && targetUnit.isAlive()) { // Added null check for targetUnit
                 const distToTarget = distance(this.x, this.y, targetUnit.x, targetUnit.y);
                 if (distToTarget < targetUnit.size + this.size) { 
-                    // --- HIT CONFIRMED ---
-                    // Apply damage, passing the shooterUnit as the attacker
                     targetUnit.takeDamage(this.damage, this.shooterUnit); 
-
-                    // Award XP for hit if shooter is a player Raccoon
                     if (this.shooterUnit && this.shooterUnit.team === 'player' && typeof this.shooterUnit.addXp === 'function') {
-                        this.shooterUnit.addXp(CONFIG.XP_PER_HIT || 1); // Default to 1 XP if not defined
+                        this.shooterUnit.addXp(CONFIG.XP_PER_HIT || 1); 
                     }
-                    
                     this.isMarkedForDeletion = true;
-                    return; // Projectile is done
+                    return; 
                 }
             }
         }
         
-        // Check collision with obstacles (barrel damage logic is here)
-        for (const obs of this.game.level.obstacles) {
-            if (!obs.isDestroyed) { 
-                if (this.x >= obs.x && this.x <= obs.x + obs.width &&
-                    this.y >= obs.y && this.y <= obs.y + obs.height) {
-                    if (obs.destructible && obs.type === 'explosive_barrel') {
-                        // Pass this.shooterUnit so barrel explosion could potentially award XP/credit later
-                        this.game.level.damageObstacle(obs, this.damage, this.shooterUnit); 
-                    }
-                    if (obs.providesCover) {
-                        this.isMarkedForDeletion = true;
-                        return; 
+        // ... (obstacle collision and world boundary checks as before) ...
+        if (this.game && this.game.level && this.game.level.obstacles) { // Guard access
+            for (const obs of this.game.level.obstacles) {
+                if (!obs.isDestroyed) { 
+                    if (this.x >= obs.x && this.x <= obs.x + obs.width &&
+                        this.y >= obs.y && this.y <= obs.y + obs.height) {
+                        if (obs.destructible && obs.type === 'explosive_barrel') {
+                            this.game.level.damageObstacle(obs, this.damage, this.shooterUnit); 
+                        }
+                        if (obs.providesCover) {
+                            this.isMarkedForDeletion = true;
+                            return; 
+                        }
                     }
                 }
             }
@@ -150,6 +145,7 @@ class Projectile {
     }
 
     render(ctx) {
+        // ... (render is fine) ...
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -157,12 +153,11 @@ class Projectile {
     }
 }
 
-// ... (GrenadeProjectile class)
-// GrenadeProjectile.explode() should also pass the grenade thrower to takeDamage if possible
-// For now, grenade damage is anonymous.
+// ... (GrenadeProjectile class, ensure its shooterUnit is correctly passed for XP on kill) ...
+// The GrenadeProjectile constructor already takes shooterUnit.
+// Its explode method calls unit.takeDamage(this.damage, this.shooterUnit); which is correct.
 class GrenadeProjectile {
-    // ... (constructor and update are fine from previous version)
-    constructor(startX, startY, targetX, targetY, game, shooterUnit) { // Pass shooterUnit
+    constructor(startX, startY, targetX, targetY, game, shooterUnit) { 
         this.startX = startX;
         this.startY = startY;
         this.x = startX;
@@ -170,7 +165,7 @@ class GrenadeProjectile {
         this.targetX = targetX;
         this.targetY = targetY;
         this.game = game;
-        this.shooterUnit = shooterUnit; // Store the raccoon who threw it
+        this.shooterUnit = shooterUnit; 
         this.shooterTeam = shooterUnit ? shooterUnit.team : null; 
 
         this.damage = CONFIG.RACCOON_GRENADE_DAMAGE;
@@ -227,25 +222,26 @@ class GrenadeProjectile {
         this.exploded = true;
         this.isMarkedForDeletion = true; 
 
-        this.game.addVisualEffect('explosion', this.x, this.y, this.aoeRadius);
+        if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('explosion', this.x, this.y, this.aoeRadius);
 
-        const allUnits = [...this.game.playerSquad, ...this.game.enemyUnits];
-        allUnits.forEach(unit => {
-            if (unit.isAlive()) {
+        const unitsToDamage = [];
+        if (this.game && this.game.deployedSquadRoster) unitsToDamage.push(...this.game.deployedSquadRoster);
+        if (this.game && this.game.enemyUnits) unitsToDamage.push(...this.game.enemyUnits);
+        
+        unitsToDamage.forEach(unit => {
+            if (unit && unit.isAlive()) { // Guard unit
                 const distToUnit = distance(this.x, this.y, unit.x, unit.y);
                 if (distToUnit <= this.aoeRadius + unit.size) { 
-                    // Pass this.shooterUnit (the raccoon who threw it) as the attacker
                     unit.takeDamage(this.damage, this.shooterUnit); 
                 }
             }
         });
 
-        this.game.level.obstacles.forEach(obstacle => {
+        if(this.game && this.game.level && this.game.level.obstacles) this.game.level.obstacles.forEach(obstacle => { // Guard
             if (obstacle.destructible && !obstacle.isDestroyed && obstacle.hp > 0) {
-                let testX = this.x; // Explosion center X
-                let testY = this.y; // Explosion center Y
+                let testX = this.x; 
+                let testY = this.y; 
 
-                // Find closest point in/on obstacle rectangle to explosion center
                 if (this.x < obstacle.x) testX = obstacle.x; 
                 else if (this.x > obstacle.x + obstacle.width) testX = obstacle.x + obstacle.width; 
                 if (this.y < obstacle.y) testY = obstacle.y; 
@@ -263,7 +259,6 @@ class GrenadeProjectile {
     }
 
     render(ctx) {
-        // ... (render logic same)
         if (this.exploded) return;
         
         const shadowSize = this.size * (1 - Math.min(this.currentHeight / (this.peakHeight * 1.5), 0.8)); 
