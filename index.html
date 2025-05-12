@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raccoon Platoon</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="js/campaignData.js"></script> 
+</head>
+<body>
+    <div id="preMissionScreen" class="ui-panel">
+        <h3 id="preMissionPhaseTitle">Phase Title</h3>
+        <h2 id="preMissionTitle">Mission Title</h2>
+        <p id="preMissionBriefing" style="text-align: left; max-height: 100px; overflow-y: auto;"></p>
+        <button id="startMissionButton">Deploy Platoon!</button>
+    </div>
+
+    <div id="postMissionScreen" class="ui-panel">
+        <h2 id="missionOutcome">MISSION OUTCOME</h2>
+        <p id="postMissionInfo">Phase X - Mission Y</p>
+        
+        <div id="missionStats" style="text-align: left; margin: 15px 0;">
+            <h4>Mission Stats:</h4>
+            <p>Time Taken: <span id="statTimeTaken">0.0</span>s</p>
+            <p>Enemies Eliminated: <span id="statEnemiesKilled">0</span></p>
+        </div>
+
+        <div id="survivingRaccoons" style="text-align: left; margin: 15px 0;">
+            <h4>Surviving Raccoons:</h4>
+            <ul id="survivorList" style="list-style: none; padding-left: 0;">
+                {/* <!-- Populated by JS --> */}
+            </ul>
+        </div>
+        <div id="fallenRaccoons" style="text-align: left; margin: 15px 0;">
+            <h4>Fallen Heroes:</h4>
+            <ul id="fallenList" style="list-style: none; padding-left: 0;">
+                {/* <!-- Populated by JS --> */}
+            </ul>
+        </div>
+        
+        <button id="nextMissionButton" style="display:none;">Next</button>
+        <button id="retryMissionButton" style="display:none;">Retry Mission</button>
+    </div>
+
+    <div id="game-container">
+        <div id="left-hud-panel" class.ui-panel"> 
+            <div id="hud-squad">
+            </div>
+
+            <div id="hud-controls"> 
+                <div id="hud-controls-left">
+                    <div class="hud-control-group">
+                        <button id="toggleFormationButton">Formation: Horizontal</button>
+                    </div>
+                    <div class="hud-control-group">
+                        <label for="formationSpacingSlider">Spacing:</label>
+                        <input type="range" id="formationSpacingSlider" min="1.5" max="6.0" step="0.1" value="3.5">
+                        <span id="spacingValueDisplay">3.5</span>
+                    </div>
+                </div>
+                <div id="hud-controls-right">
+                </div>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="gameCanvas"></canvas>
+            <div id="hud-objective" class="ui-panel"> 
+                Objective: <span id="objectiveText"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/input.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/weapon.js"></script>
+    <script src="js/unit.js"></script>
+    <script src="js/raccoon.js"></script>
+    <script src="js/possum.js"></script>
+    <script src="js/possumHeavy.js"></script>
+    <script src="js/level.js"></script>
+    <script src="js/game.js"></script>
+</body>
+</html>

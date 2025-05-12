@@ -1,0 +1,344 @@
+/* style.css */
+html, body { 
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden; 
+    background-color: #383632; 
+    color: #D8D8C8; 
+    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace; 
+    font-size: 14px;
+}
+
+#game-container {
+    display: flex;
+    flex-direction: row; 
+    width: 100vw;
+    height: 100vh;
+    align-items: stretch; 
+    background-color: #1c1a17; 
+}
+
+#left-hud-panel {
+    width: 260px; 
+    min-width: 220px; 
+    height: 100%;   
+    box-sizing: border-box; 
+    display: flex;
+    flex-direction: column; 
+    align-items: center; 
+    padding: 10px;
+    overflow-y: auto; 
+    position: static; 
+    border-right: 3px ridge #201E1A; 
+    /* .ui-panel styles for background etc. are still applied via class in HTML */
+}
+
+#left-hud-panel.ui-panel { /* This is to override .ui-panel's position:absolute */
+    position: static; 
+    box-shadow: none; 
+}
+
+
+#canvas-container {
+    flex-grow: 1; 
+    height: 100%;
+    display: flex; /* Keep flex to center canvas if needed, or remove if canvas is 100% */
+    justify-content: center; /* Centers canvas if its max-width is hit */
+    align-items: center;   /* Centers canvas if its max-height is hit */
+    background-color: #2E2D2A; 
+    position: relative; 
+    overflow: hidden; 
+}
+
+canvas#gameCanvas { 
+    border: 3px ridge #201E1A; 
+    background-color: #4A4843; /* This will be drawn over by game's world fill if world is smaller */
+    box-shadow: 0 0 20px rgba(0,0,0,0.6) inset, 0 0 5px rgba(0,0,0,0.5);
+    /* --- NEW: Make canvas element responsive --- */
+    display: block; /* Good practice for canvas responsiveness */
+    width: 100%;    /* Fill container width */
+    height: 100%;   /* Fill container height */
+    /* object-fit: contain; /* Or cover, depending on how you want aspect ratio handled if forced */
+    /* ----------------------------------------- */
+}
+
+
+/* --- UI Panels (General - for pre/post screens) --- */
+.ui-panel { /* This will now mostly apply to pre/post mission screens */
+    position: absolute;
+    background-color: #2A2825; 
+    border: 1px solid #1C1A17;
+    border-top-color: #48443D; 
+    border-left-color: #48443D;
+    color: #C8C6B8; 
+    padding: 12px; 
+    border-radius: 2px; 
+    box-shadow: 2px 2px 0px #12110F, 4px 4px 8px rgba(0,0,0,0.7); 
+    text-align: center;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.4); 
+}
+
+/* Ensure pre/post screens are on top */
+#preMissionScreen, #postMissionScreen {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 450px; 
+    z-index: 100; /* Higher z-index */
+    padding: 20px;
+}
+
+#preMissionScreen h2, #postMissionScreen h2 {
+    /* ... (same as before) ... */
+    color: #D09040; 
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 2px groove #4F4A3F; 
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+    font-size: 1.4em;
+}
+
+/* --- HUD Elements within #left-hud-panel --- */
+/* #hud is no longer the main container for these, #left-hud-panel is */
+/* We remove the old #hud style */
+
+#toggleFormationButton {
+    width: 100%; /* Full width of the panel */
+}
+
+#hud-controls { 
+    margin-bottom: 15px; /* Remove or change to margin-top if needed */
+    margin-top: 15px;    /* Add space above if it's now at the bottom */
+    display: flex;
+    flex-direction: column; 
+    gap: 8px; 
+    align-items: stretch; 
+    padding: 8px 0; 
+    border-top: 2px groove #403B30;  /* Changed to border-top */
+    border-bottom: none;            /* Remove bottom border */
+    width: 100%; 
+    box-sizing: border-box;
+}
+
+#hud-squad { 
+    display: flex; 
+    flex-direction: column; 
+    gap: 8px; 
+    align-items: center; 
+    width: 100%;
+    overflow-y: auto; 
+    flex-grow: 1; /* This is important: squad list takes available space, pushing controls down */
+    padding: 5px 0;
+}
+.hud-control-group { 
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Space out label and control */
+    gap: 8px;
+    padding: 6px 8px; /* Adjusted padding */
+    background-color: rgba(10,10,5,0.3); 
+    border-radius: 3px;
+    border: 1px solid #302D2A;
+}
+.hud-control-group label { /* Ensure label and value are spaced */
+    margin-right: auto;
+}
+
+
+
+.squad-member { 
+    border: 1px solid #111; 
+    border-top-color: #55524A; 
+    border-left-color: #55524A;
+    padding: 0; 
+    background-color: #312E2B; 
+    border-radius: 3px; 
+    width: calc(100% - 10px); 
+    margin: 0 5px; 
+    box-sizing: border-box;
+    box-shadow: 1px 1px 0px #0A0A08, 2px 2px 4px rgba(0,0,0,0.5);
+    display: flex; 
+    flex-direction: column;
+    position: relative; 
+    min-height: 150px; /* Adjust this based on your desired card height */
+
+    /* === MODIFY THESE LINES FOR IMAGE SIZING === */
+    background-size: contain;  /* CURRENT: Try 'contain', '80px auto', 'auto 100%', etc. */
+    background-position: center center; /* Usually good, but can be top, bottom, etc. */
+    background-repeat: no-repeat; /* Usually keep this as no-repeat */
+    /* ========================================= */
+}
+.squad-member.selected { 
+    border-color: #D09040; 
+    border-width: 2px; /* Make selected border more prominent */
+    border-style: solid;
+    /* background-color: #4A4030; */ /* Base color if image fails or for tint */
+    box-shadow: 0 0 10px #D09040, 1px 1px 0px #0A0A08;
+}
+
+/* --- NEW: Overlay for text readability over background image --- */
+.squad-member-info-overlay {
+    background-color: rgba(20, 20, 15, 0.75); 
+    padding: 8px 10px; 
+    width: 100%; /* Make it take full width of parent */
+    height: 100%; /* Make it take full height of parent */
+    box-sizing: border-box; /* Include padding in width/height calculation */
+    display: flex;
+    flex-direction: column;
+    font-size: 0.88em;
+    text-align: left;
+    color: #E0DDCF; 
+    position: absolute; /* If you want it to overlay perfectly and parent is relative */
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+/* ------------------------------------------------------------- */
+
+
+.squad-member div { 
+    margin-bottom: 3px; 
+    display: flex; 
+    justify-content: space-between; 
+}
+.squad-member .label { 
+    text-transform: uppercase;
+    font-size: 0.8em;
+    color: #A8A498; /* Slightly adjusted label color for overlay */
+    margin-right: 5px;
+    white-space: nowrap;
+}
+.squad-member .value { 
+    text-align: right;
+    color: #E8E4D8; /* Slightly brighter value color */
+    font-weight: bold;
+}
+
+.squad-member .status-kia { 
+    color: #C87070; /* Brighter red for KIA on dark overlay */
+    font-weight: bold;
+}
+
+.health-bar-container { 
+    /* ... (health bar styles same) ... */
+    background-color: #1C1A17; 
+    height: 8px;
+    border-radius: 2px;
+    padding: 1px;
+    border: 1px solid #0F0E0C;
+    margin-top: 3px; 
+    margin-bottom: 3px;
+}
+.health-bar-fill { 
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.2s ease-out;
+}
+
+
+#hud-objective { 
+    /* This is now positioned relative to #canvas-container or body */
+    position: absolute; 
+    top: 20px; 
+    right: 20px; 
+    background-color: #2A2825; 
+    padding: 8px 12px; 
+    border-radius: 2px; 
+    font-size: 0.9em;
+    border: 1px solid #1C1A17;
+    border-top: 1px solid #48443D;
+    border-left: 1px solid #48443D;
+    text-transform: uppercase;
+    box-shadow: 2px 2px 0px #12110F, 3px 3px 5px rgba(0,0,0,0.6);
+    letter-spacing: 0.5px;
+    z-index: 50; /* Ensure it's above canvas but below pre/post screens */
+}
+
+/* Button, Slider, Label, SpacingValueDisplay styles mostly same but ensure they fit new layout */
+button { 
+    padding: 7px 10px; /* Slightly less horizontal padding if space is tight */
+    /* ... rest of button styles same ... */
+    background-image: linear-gradient(to bottom, #62584C, #4A4235); 
+    color: #E0DDCF; 
+    border: 1px solid #25231F; 
+    border-top-color: #786F60;
+    border-left-color: #786F60;
+    border-radius: 2px; 
+    cursor: pointer; 
+    font-size: 0.9em;
+    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.1s ease-in-out;
+    box-shadow: 1px 1px 0 #111, 2px 2px 3px rgba(0,0,0,0.5); 
+}
+button:hover { 
+    background-image: linear-gradient(to bottom, #7A7060, #5C5245); 
+    color: #FFF;
+}
+button:active {
+    background-image: linear-gradient(to top, #62584C, #4A4235); 
+    transform: translateY(1px) translateX(1px); 
+    box-shadow: 0px 0px 1px rgba(0,0,0,0.5); 
+}
+
+label[for="formationSpacingSlider"] { 
+    font-size: 0.85em; 
+    text-transform: uppercase;
+    color: #9A968A;
+}
+
+input[type="range"] {
+    width: 80px; /* Make slider a bit smaller */
+    /* ... rest of slider styles same ... */
+    height: 8px;
+    -webkit-appearance: none; 
+    appearance: none;
+    background: #1C1A17; 
+    outline: none;
+    border-radius: 4px;
+    border: 1px inset #0F0E0C; 
+}
+input[type="range"]::-webkit-slider-thumb {
+    /* ... same ... */
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: #786F60; 
+    border-radius: 2px; 
+    cursor: pointer;
+    border: 1px outset #9A8F78;
+    margin-top: -5px; 
+    box-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+}
+input[type="range"]::-moz-range-thumb {
+    /* ... same ... */
+    width: 14px; 
+    height: 14px;
+    background: #786F60;
+    border-radius: 2px;
+    cursor: pointer;
+    border: 1px outset #9A8F78;
+    box-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+}
+
+#spacingValueDisplay {
+    /* ... same ... */
+    min-width: 30px; 
+    text-align: right;
+    font-weight: bold;
+    color: #D09040; 
+    background-color: rgba(0,0,0,0.3);
+    padding: 2px 4px;
+    border-radius: 2px;
+    font-size: 0.9em;
+}
+
+/* Cursor classes */
+.cursor-default { cursor: default; }
+.cursor-attack { cursor: url('assets/cursors/crosshair.png') 16 16, crosshair; }
+.cursor-cell { cursor: cell; }
