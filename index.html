@@ -8,55 +8,85 @@
     <script src="js/campaignData.js"></script> 
 </head>
 <body>
+    <div id="mainMenuScreen" class="ui-panel" style="display: none;">
+        <h1 id="gameTitle">RACCOON PLATOON</h1>
+        <div class="main-menu-buttons">
+            <button id="newCampaignButton">New Campaign</button>
+            <button id="mainMenuMemorialButton">Recruit Memorial</button>
+            <button id="optionsButton" disabled>Options</button> <!-- Disabled for now -->
+        </div>
+        <p class="game-version">v0.1.0 Alpha</p> <!-- Optional version display -->
+    </div>
+    
     <div id="preMissionScreen" class="ui-panel">
-        <h3 id="preMissionPhaseTitle">Phase Title</h3> 
+        <h3 id="preMissionPhaseTitle">Phase Title</h3>
         <h2 id="preMissionTitle">Mission Title</h2>
         <p id="preMissionBriefing" style="text-align: left; max-height: 100px; overflow-y: auto; white-space: pre-wrap;">Briefing text.</p>
-        
-        <div style="display: flex; justify-content: space-around; margin-top: 15px; max-height: 200px;">
-            <div id="availableRecruitsContainer" style="width: 45%; text-align: left;">
-                <h4>Available Recruits (Click to Select):</h4>
-                <ul id="availableRecruitsList" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto; border: 1px solid #444;">
+
+        <!-- NEW WRAPPER for the two columns -->
+        <div class="roster-columns-container">
+            <div id="availableRecruitsContainer"> <!-- Removed inline style, handled by CSS -->
+                <h4 id="availableRecruitsTitle">Available Recruits (Click to Select):</h4>
+                <ul id="availableRecruitsList">
+                    <!-- Populated by JS -->
                 </ul>
             </div>
-            <div id="deployedSquadContainer" style="width: 45%; text-align: left;">
-                <h4>Deploying Squad (Max <span id="maxSquadSizeDisplay">4</span>):</h4>
-                <ul id="deployedSquadList" style="list-style: none; padding: 0; max-height: 150px; overflow-y: auto; border: 1px solid #444;">
+            <div id="deployedSquadContainer"> <!-- Removed inline style, handled by CSS -->
+                <h4 id="deployedSquadTitle">Deploying Squad (<span id="deployedCountDisplay">0</span> / <span id="maxSquadSizeDisplay">4</span>):</h4>
+                <ul id="deployedSquadList">
+                    <!-- Populated by JS -->
                 </ul>
             </div>
         </div>
+        <!-- END NEW WRAPPER -->
+
         <button id="startMissionButton">Deploy Selected Squad</button>
     </div>
 
     <div id="postMissionScreen" class="ui-panel">
         <h2 id="missionOutcome">MISSION OUTCOME</h2>
         <p id="postMissionInfo">Phase X - Mission Y</p>
-        
-        <div id="missionStats" style="text-align: left; margin: 15px 0;">
-            <h4>Mission Stats:</h4>
-            <p>Time Taken: <span id="statTimeTaken">0.0</span>s</p>
-            <p>Enemies Eliminated: <span id="statEnemiesKilled">0</span></p>
-        </div>
 
-        <div id="survivingRaccoons" style="text-align: left; margin: 15px 0;">
-            <h4>Surviving Raccoons:</h4>
-            <ul id="survivorList" style="list-style: none; padding-left: 0;">
-            </ul>
+        <!-- NEW WRAPPER for details -->
+        <div class="post-mission-details">
+            <div id="missionStats"> <!-- Removed inline style -->
+                <h4>Mission Stats:</h4>
+                <p>Time Taken: <span id="statTimeTaken">0.0</span>s</p>
+                <p>Enemies Eliminated: <span id="statEnemiesKilled">0</span></p>
+            </div>
+
+            <div id="survivingRaccoons"> <!-- Removed inline style -->
+                <h4>Surviving Raccoons:</h4>
+                <ul id="survivorList"> <!-- Removed inline style -->
+                </ul>
+            </div>
+            <div id="fallenRaccoons"> <!-- Removed inline style -->
+                <h4>Fallen Heroes:</h4>
+                <ul id="fallenList"> <!-- Removed inline style -->
+                </ul>
+            </div>
         </div>
-        <div id="fallenRaccoons" style="text-align: left; margin: 15px 0;">
-            <h4>Fallen Heroes:</h4>
-            <ul id="fallenList" style="list-style: none; padding-left: 0;">
-            </ul>
+        <!-- END WRAPPER for details -->
+
+        <!-- NEW WRAPPER for buttons -->
+        <div class="post-mission-buttons">
+            <button id="retryMissionButton" style="display:none;">Retry Mission</button>
+            <button id="viewMemorialButton" style="display:none;">View Recruit Memorial</button> <!-- Removed margin-top -->
+            <button id="nextMissionButton" style="display:none;">Next</button>
         </div>
-        
-        <button id="nextMissionButton" style="display:none;">Next</button>
-        <button id="retryMissionButton" style="display:none;">Retry Mission</button>
+        <!-- END WRAPPER for buttons -->
     </div>
 
     <div id="gameOverScreen" class="ui-panel" style="display: none; width: 400px; text-align: center;">
         <h2 id="gameOverTitle">GAME OVER</h2>
         <p id="gameOverMessage">The Possum menace has prevailed...</p>
         <button id="restartCampaignButton">Restart Campaign</button>
+    </div>
+
+    <div id="recruitMemorialScreen" class="ui-panel" style="display: none; width: 600px; max-height: 700px; overflow-y: auto;">
+        <h2 id="memorialTitle">Wall of the Fallen</h2>
+        <div id="memorialEntriesContainer" style="text-align: left; margin: 20px 0;">...</div>
+        <button id="backFromMemorialButton">Back</button>
     </div>
 
 
@@ -71,8 +101,8 @@
                     </div>
                     <div class="hud-control-group">
                         <label for="formationSpacingSlider">Spacing:</label>
-                        <input type="range" id="formationSpacingSlider" min="1.5" max="6.0" step="0.1" value="3.5">
-                        <span id="spacingValueDisplay">3.5</span>
+                        <input type="range" id="formationSpacingSlider" min="1.5" max="6.0" step="0.1" value="1.5">
+                        <span id="spacingValueDisplay"></span>
                     </div>
                 </div>
                 <div id="hud-controls-right">
@@ -88,9 +118,10 @@
         </div>
     </div>
 
-    <script src="js/config.js"></script>
+    <script src="js/raccoonNames.js"></script>
     <script src="js/utils.js"></script>
     <script src="js/input.js"></script>
+    <script src="js/config.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/weapon.js"></script>
     <script src="js/unit.js"></script>

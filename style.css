@@ -1,251 +1,465 @@
 /* style.css */
-html, body { 
+html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    overflow: hidden; 
-    background-color: #383632; 
-    color: #D8D8C8; 
-    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace; 
+    overflow: hidden;
+    background-color: transparent; /* Keep a fallback color */
+    color: #D8D8C8;
+    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
     font-size: 14px;
+
+    /* --- APPLY FULL SCREEN BACKGROUND HERE (Updated Path/Ext) --- */
+    background-image: url('assets/images/ui/main_menu_bg.jpg'); /* If style.css is ROOT */
+    /* background-image: url('../assets/images/ui/main_menu_bg.jpg'); /* If style.css is in css/ */
+    background-size: cover;       /* Fill the entire screen */
+    background-position: center center; /* Center the image */
+    background-repeat: no-repeat; /* Do not tile */
+    /* --- END FULL SCREEN BACKGROUND --- */
+}
+
+body, canvas {
+    -webkit-user-select: none; /* Safari */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE10+/Edge */
+    user-select: none;         /* Standard */
 }
 
 #game-container {
     display: flex;
-    flex-direction: row; 
+    flex-direction: row;
     width: 100vw;
     height: 100vh;
-    align-items: stretch; 
-    background-color: #1c1a17; 
+    align-items: stretch;
+    background-color: #1c1a17; /* This will cover the body bg during gameplay */
 }
 
 #left-hud-panel {
-    width: 260px; 
-    min-width: 220px; 
-    height: 100%;   
-    box-sizing: border-box; 
+    width: 260px;
+    min-width: 220px;
+    height: 100%;
+    box-sizing: border-box;
     display: flex;
-    flex-direction: column; 
-    align-items: center; 
+    flex-direction: column;
+    align-items: center;
     padding: 10px;
-    overflow-y: auto; 
-    position: static; 
-    border-right: 3px ridge #201E1A; 
-    /* .ui-panel styles for background etc. are still applied via class in HTML */
+    overflow-y: auto;
+    position: static;
+    border-right: 3px ridge #201E1A;
+    /* Add a background for the HUD itself to ensure it covers the body background */
+    background-color: #2A2825; /* Match panel color or choose another */
 }
 
 #left-hud-panel.ui-panel { /* This is to override .ui-panel's position:absolute */
-    position: static; 
-    box-shadow: none; 
+    position: static;
+    box-shadow: none;
 }
 
 
 #canvas-container {
-    flex-grow: 1; 
+    flex-grow: 1;
     height: 100%;
     display: flex; /* Keep flex to center canvas if needed, or remove if canvas is 100% */
     justify-content: center; /* Centers canvas if its max-width is hit */
     align-items: center;   /* Centers canvas if its max-height is hit */
-    background-color: #2E2D2A; 
-    position: relative; 
-    overflow: hidden; 
+    background-color: #2E2D2A; /* This will cover the body bg during gameplay */
+    position: relative;
+    overflow: hidden;
 }
 
-canvas#gameCanvas { 
-    border: 3px ridge #201E1A; 
+canvas#gameCanvas {
+    border: 3px ridge #201E1A;
     background-color: #4A4843; /* This will be drawn over by game's world fill if world is smaller */
     box-shadow: 0 0 20px rgba(0,0,0,0.6) inset, 0 0 5px rgba(0,0,0,0.5);
-    /* --- NEW: Make canvas element responsive --- */
     display: block; /* Good practice for canvas responsiveness */
     width: 100%;    /* Fill container width */
     height: 100%;   /* Fill container height */
-    /* object-fit: contain; /* Or cover, depending on how you want aspect ratio handled if forced */
-    /* ----------------------------------------- */
 }
 
+/* --- Main Menu Screen --- */
+#mainMenuScreen {
+    /* Reset background properties here */
+    background-image: none;
 
-/* --- UI Panels (General - for pre/post screens) --- */
-.ui-panel { /* This will now mostly apply to pre/post mission screens */
-    position: absolute;
-    background-color: #2A2825; 
+    /* Keep original panel styling */
+    background-color: #2A2825;
     border: 1px solid #1C1A17;
-    border-top-color: #48443D; 
+    border-top-color: #48443D;
     border-left-color: #48443D;
-    color: #C8C6B8; 
-    padding: 12px; 
-    border-radius: 2px; 
-    box-shadow: 2px 2px 0px #12110F, 4px 4px 8px rgba(0,0,0,0.7); 
+    color: #C8C6B8;
+    padding: 40px 30px; /* Specific padding for this panel */
+    border-radius: 2px;
+    box-shadow: 2px 2px 0px #12110F, 4px 4px 8px rgba(0,0,0,0.7);
     text-align: center;
-    text-shadow: 1px 1px 1px rgba(0,0,0,0.4); 
-}
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
 
-/* Ensure pre/post screens are on top */
-#preMissionScreen, #postMissionScreen {
+    /* Keep positioning and layout */
+    position: absolute; /* Keep this to position over the body */
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 450px; 
-    z-index: 100; /* Higher z-index */
-    padding: 20px;
+    width: 550px; /* Or adjust as needed */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 150; /* Ensure it's above the body background */
 }
 
-#preMissionScreen h2, #postMissionScreen h2 {
-    /* ... (same as before) ... */
-    color: #D09040; 
+
+#gameTitle {
+    font-size: 3.5em; /* Large title */
+    color: #E0A060; /* Raccoon-ish orange/brown */
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-top: 0;
+    margin-bottom: 40px;
+    text-shadow: 2px 2px 0px #12110F, 4px 4px 5px rgba(0,0,0,0.5);
+    font-family: 'Impact', 'Arial Black', sans-serif; /* More impactful font */
+}
+
+.main-menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 18px; /* Space between buttons */
+    width: 70%; /* Control button width relative to panel */
+    margin-bottom: 30px;
+}
+
+.main-menu-buttons button {
+    padding: 12px 20px;
+    font-size: 1.2em; /* Larger button text */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.main-menu-buttons button:disabled {
+    background-image: linear-gradient(to bottom, #4a4235, #383025);
+    color: #786F60;
+    cursor: not-allowed;
+    box-shadow: 1px 1px 0 #080807;
+}
+
+.game-version {
+    position: absolute;
+    bottom: 15px;
+    right: 20px;
+    font-size: 0.8em;
+    color: #786F60;
+    opacity: 0.7;
+}
+
+/* --- UI Panels (General - for pre/post screens) --- */
+.ui-panel {
+    position: absolute;
+    background-color: #2A2825; /* Make sure all panels have a background */
+    border: 1px solid #1C1A17;
+    border-top-color: #48443D;
+    border-left-color: #48443D;
+    color: #C8C6B8;
+    padding: 12px;
+    border-radius: 2px;
+    box-shadow: 2px 2px 0px #12110F, 4px 4px 8px rgba(0,0,0,0.7);
+    text-align: center;
+    text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+}
+
+
+#preMissionScreen {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 750px;
+    min-height: 580px;
+    max-height: 90vh;
+    z-index: 100;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+}
+
+#preMissionScreen h2, #preMissionScreen h3 {
+    color: #D09040;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    border-bottom: 2px groove #4F4A3F; 
     padding-bottom: 10px;
-    margin-bottom: 20px;
+    margin-bottom: 5px;
     font-size: 1.4em;
 }
-
-/* --- HUD Elements within #left-hud-panel --- */
-/* #hud is no longer the main container for these, #left-hud-panel is */
-/* We remove the old #hud style */
-
-#toggleFormationButton {
-    width: 100%; /* Full width of the panel */
+#preMissionScreen h3 {
+    font-size: 1.1em;
+    color: #B0A090;
+    margin-bottom: 15px;
+    border-bottom: 2px groove #4F4A3F;
+}
+#preMissionScreen h2 {
+    border-bottom: none;
+     margin-bottom: 15px;
 }
 
-#hud-controls { 
-    margin-bottom: 15px; /* Remove or change to margin-top if needed */
-    margin-top: 15px;    /* Add space above if it's now at the bottom */
+
+#preMissionBriefing {
+    text-align: left;
+    max-height: 80px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    margin-bottom: 20px;
+    padding: 10px;
+    background-color: rgba(0,0,0,0.15);
+    border: 1px solid #403B30;
+    border-radius: 3px;
+    font-size: 0.9em;
+}
+
+.roster-columns-container {
     display: flex;
-    flex-direction: column; 
-    gap: 8px; 
-    align-items: stretch; 
-    padding: 8px 0; 
-    border-top: 2px groove #403B30;  /* Changed to border-top */
-    border-bottom: none;            /* Remove bottom border */
-    width: 100%; 
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 20px;
+    flex-grow: 1;
+    margin-bottom: 20px;
+    overflow: hidden;
+}
+
+#availableRecruitsContainer,
+#deployedSquadContainer {
+    width: calc(50% - 10px);
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+}
+
+#availableRecruitsContainer h4,
+#deployedSquadContainer h4 {
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-size: 0.95em;
+    color: #C8C6B8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding-left: 5px;
+}
+
+#availableRecruitsList, #deployedSquadList {
+    list-style: none;
+    padding: 5px;
+    margin: 0;
+    flex-grow: 1;
+    height: 500px;
+    overflow-y: auto;
+    border: 1px solid #444;
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 3px;
+}
+
+.recruit-selection-card {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    margin-bottom: 6px;
+    background-color: #3A3733;
+    border: 1px solid #2A2825;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.recruit-selection-card:hover {
+    background-color: #4B4844;
+    border-color: #5C5854;
+}
+
+.recruit-selection-card.selected-for-deploy {
+    background-color: #3F4E3A;
+    border-left: 5px solid #60A050;
+    padding-left: 3px;
+}
+#availableRecruitsList .recruit-selection-card.selected-for-deploy {
+    background-color: #3F4E3A;
+    border-left: 5px solid #60A050;
+    padding-left: 3px;
+}
+
+
+.recruit-card-face {
+    width: 96px;
+    height: 96px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 3px;
+    margin-right: 12px;
+    border: 1px solid #222;
+    flex-shrink: 0;
+}
+
+.recruit-card-info {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.9em;
+    flex-grow: 1;
+}
+
+.recruit-card-info div {
+    margin-bottom: 3px;
+    line-height: 1.4;
+}
+.recruit-card-info .id-name {
+    font-weight: bold;
+    font-size: 1.15em;
+    color: #E8E4D8;
+}
+.recruit-card-info .rank {
+    color: #C8B8A8;
+}
+.recruit-card-info .xp, .recruit-card-info .hp {
+    color: #B0A8A0;
+    font-size: 0.9em;
+}
+
+#startMissionButton {
+    margin-top: auto;
+    padding: 10px 20px;
+    width: 50%;
+    align-self: center;
+}
+
+
+
+#toggleFormationButton {
+    width: 100%;
+}
+
+#hud-controls {
+    margin-bottom: 15px;
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+    padding: 8px 0;
+    border-top: 2px groove #403B30;
+    border-bottom: none;
+    width: 100%;
     box-sizing: border-box;
 }
 
-#hud-squad { 
-    display: flex; 
-    flex-direction: column; 
-    gap: 8px; 
-    align-items: center; 
+#hud-squad {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
     width: 100%;
-    overflow-y: auto; 
-    flex-grow: 1; /* This is important: squad list takes available space, pushing controls down */
+    overflow-y: auto;
+    flex-grow: 1;
     padding: 5px 0;
 }
-.hud-control-group { 
+.hud-control-group {
     display: flex;
     align-items: center;
-    justify-content: space-between; /* Space out label and control */
+    justify-content: space-between;
     gap: 8px;
-    padding: 6px 8px; /* Adjusted padding */
-    background-color: rgba(10,10,5,0.3); 
+    padding: 6px 8px;
+    background-color: rgba(10,10,5,0.3);
     border-radius: 3px;
     border: 1px solid #302D2A;
 }
-.hud-control-group label { /* Ensure label and value are spaced */
+.hud-control-group label {
     margin-right: auto;
 }
 
 
 
-.squad-member { 
-    border: 1px solid #111; 
-    border-top-color: #55524A; 
+.squad-member {
+    border: 1px solid #111;
+    border-top-color: #55524A;
     border-left-color: #55524A;
-    padding: 0; 
-    background-color: #312E2B; 
-    border-radius: 3px; 
-    width: calc(100% - 10px); 
-    margin: 0 5px; 
+    padding: 0;
+    background-color: #312E2B;
+    border-radius: 3px;
+    width: calc(100% - 10px);
+    margin: 0 5px;
     box-sizing: border-box;
     box-shadow: 1px 1px 0px #0A0A08, 2px 2px 4px rgba(0,0,0,0.5);
-    display: flex; 
+    display: flex;
     flex-direction: column;
-    position: relative; 
-    min-height: 150px; /* Adjust this based on your desired card height */
+    position: relative;
+    min-height: 150px;
 
-    /* === MODIFY THESE LINES FOR IMAGE SIZING === */
-    background-size: contain;  /* CURRENT: Try 'contain', '80px auto', 'auto 100%', etc. */
-    background-position: center center; /* Usually good, but can be top, bottom, etc. */
-    background-repeat: no-repeat; /* Usually keep this as no-repeat */
-    /* ========================================= */
+    background-size: contain;
+    background-position: center center;
+    background-repeat: no-repeat;
 }
-.squad-member.selected { 
-    border-color: #D09040; 
-    border-width: 2px; /* Make selected border more prominent */
+.squad-member.selected {
+    border-color: #D09040;
+    border-width: 2px;
     border-style: solid;
-    /* background-color: #4A4030; */ /* Base color if image fails or for tint */
     box-shadow: 0 0 10px #D09040, 1px 1px 0px #0A0A08;
 }
 
-/* --- NEW: Overlay for text readability over background image --- */
 .squad-member-info-overlay {
-    background-color: rgba(20, 20, 15, 0.75); 
-    padding: 8px 10px; 
-    width: 100%; /* Make it take full width of parent */
-    height: 100%; /* Make it take full height of parent */
-    box-sizing: border-box; /* Include padding in width/height calculation */
+    background-color: rgba(20, 20, 15, 0.75);
+    padding: 8px 10px;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     font-size: 0.88em;
     text-align: left;
-    color: #E0DDCF; 
-    position: absolute; /* If you want it to overlay perfectly and parent is relative */
+    color: #E0DDCF;
+    position: absolute;
     top: 0;
     left: 0;
     pointer-events: none;
 }
-/* ------------------------------------------------------------- */
 
 
-.squad-member div { 
-    margin-bottom: 3px; 
-    display: flex; 
-    justify-content: space-between; 
+.squad-member div {
+    margin-bottom: 3px;
+    display: flex;
+    justify-content: space-between;
 }
-.squad-member .label { 
+.squad-member .label {
     text-transform: uppercase;
     font-size: 0.8em;
-    color: #A8A498; /* Slightly adjusted label color for overlay */
+    color: #A8A498;
     margin-right: 5px;
     white-space: nowrap;
 }
-.squad-member .value { 
+.squad-member .value {
     text-align: right;
-    color: #E8E4D8; /* Slightly brighter value color */
+    color: #E8E4D8;
     font-weight: bold;
 }
 
-.squad-member .status-kia { 
-    color: #C87070; /* Brighter red for KIA on dark overlay */
+.squad-member .status-kia {
+    color: #C87070;
     font-weight: bold;
 }
 
-.health-bar-container { 
-    /* ... (health bar styles same) ... */
-    background-color: #1C1A17; 
+.health-bar-container {
+    background-color: #1C1A17;
     height: 8px;
     border-radius: 2px;
     padding: 1px;
     border: 1px solid #0F0E0C;
-    margin-top: 3px; 
+    margin-top: 3px;
     margin-bottom: 3px;
 }
-.health-bar-fill { 
+.health-bar-fill {
     height: 100%;
     border-radius: 1px;
     transition: width 0.2s ease-out;
 }
 
 
-#hud-objective { 
-    /* This is now positioned relative to #canvas-container or body */
-    position: absolute; 
-    top: 20px; 
-    right: 20px; 
-    background-color: #2A2825; 
-    padding: 8px 12px; 
-    border-radius: 2px; 
+#hud-objective {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background-color: #2A2825;
+    padding: 8px 12px;
+    border-radius: 2px;
     font-size: 0.9em;
     border: 1px solid #1C1A17;
     border-top: 1px solid #48443D;
@@ -253,71 +467,66 @@ canvas#gameCanvas {
     text-transform: uppercase;
     box-shadow: 2px 2px 0px #12110F, 3px 3px 5px rgba(0,0,0,0.6);
     letter-spacing: 0.5px;
-    z-index: 50; /* Ensure it's above canvas but below pre/post screens */
+    z-index: 50;
 }
 
-/* Button, Slider, Label, SpacingValueDisplay styles mostly same but ensure they fit new layout */
-button { 
-    padding: 7px 10px; /* Slightly less horizontal padding if space is tight */
-    /* ... rest of button styles same ... */
-    background-image: linear-gradient(to bottom, #62584C, #4A4235); 
-    color: #E0DDCF; 
-    border: 1px solid #25231F; 
+button {
+    padding: 7px 10px;
+    background-image: linear-gradient(to bottom, #62584C, #4A4235);
+    color: #E0DDCF;
+    border: 1px solid #25231F;
     border-top-color: #786F60;
     border-left-color: #786F60;
-    border-radius: 2px; 
-    cursor: pointer; 
+    border-radius: 2px;
+    cursor: pointer;
     font-size: 0.9em;
     font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 1px;
     transition: all 0.1s ease-in-out;
-    box-shadow: 1px 1px 0 #111, 2px 2px 3px rgba(0,0,0,0.5); 
+    box-shadow: 1px 1px 0 #111, 2px 2px 3px rgba(0,0,0,0.5);
 }
-button:hover { 
-    background-image: linear-gradient(to bottom, #7A7060, #5C5245); 
+button:hover {
+    background-image: linear-gradient(to bottom, #7A7060, #5C5245);
     color: #FFF;
 }
 button:active {
-    background-image: linear-gradient(to top, #62584C, #4A4235); 
-    transform: translateY(1px) translateX(1px); 
-    box-shadow: 0px 0px 1px rgba(0,0,0,0.5); 
+    background-image: linear-gradient(to top, #62584C, #4A4235);
+    transform: translateY(1px) translateX(1px);
+    box-shadow: 0px 0px 1px rgba(0,0,0,0.5);
 }
 
-label[for="formationSpacingSlider"] { 
-    font-size: 0.85em; 
+label[for="formationSpacingSlider"] {
+    font-size: 0.85em;
     text-transform: uppercase;
     color: #9A968A;
 }
 
 input[type="range"] {
-    width: 80px; /* Make slider a bit smaller */
-    /* ... rest of slider styles same ... */
+    width: 80px;
     height: 8px;
-    -webkit-appearance: none; 
+    -webkit-appearance: none;
     appearance: none;
-    background: #1C1A17; 
+    background: #1C1A17;
     outline: none;
     border-radius: 4px;
-    border: 1px inset #0F0E0C; 
+    border: 1px inset #0F0E0C;
 }
 input[type="range"]::-webkit-slider-thumb {
-    /* ... same ... */
     -webkit-appearance: none;
     appearance: none;
     width: 16px;
     height: 16px;
-    background: #786F60; 
-    border-radius: 2px; 
+    background: #786F60;
+    border-radius: 2px;
     cursor: pointer;
     border: 1px outset #9A8F78;
-    margin-top: -5px; 
+    margin-top: -5px;
     box-shadow: 1px 1px 1px rgba(0,0,0,0.5);
 }
 input[type="range"]::-moz-range-thumb {
-    /* ... same ... */
-    width: 14px; 
+    width: 14px;
     height: 14px;
     background: #786F60;
     border-radius: 2px;
@@ -327,11 +536,10 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #spacingValueDisplay {
-    /* ... same ... */
-    min-width: 30px; 
+    min-width: 30px;
     text-align: right;
     font-weight: bold;
-    color: #D09040; 
+    color: #D09040;
     background-color: rgba(0,0,0,0.3);
     padding: 2px 4px;
     border-radius: 2px;
@@ -342,3 +550,233 @@ input[type="range"]::-moz-range-thumb {
 .cursor-default { cursor: default; }
 .cursor-attack { cursor: url('assets/cursors/crosshair.png') 16 16, crosshair; }
 .cursor-cell { cursor: cell; }
+
+/* --- Post-Mission Screen Enhancements --- */
+#postMissionScreen {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 650px;
+    min-height: 550px;
+    max-height: 90vh;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+#postMissionScreen h2#missionOutcome {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+    padding-bottom: 15px;
+    border-bottom: 2px groove #4F4A3F;
+    color: #D09040;
+}
+
+#postMissionScreen p#postMissionInfo {
+    font-size: 0.9em;
+    color: #A8A498;
+    margin-bottom: 25px;
+    text-align: center;
+}
+
+.post-mission-details {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    overflow-y: auto;
+    flex-grow: 1;
+    padding: 10px;
+    background-color: rgba(0,0,0,0.05);
+    border-radius: 3px;
+}
+
+#missionStats,
+#survivingRaccoons,
+#fallenRaccoons {
+    background-color: rgba(10,10,5,0.2);
+    padding: 15px;
+    border-radius: 3px;
+    border: 1px solid #302D2A;
+    text-align: left;
+    margin: 0;
+}
+
+#missionStats h4,
+#survivingRaccoons h4,
+#fallenRaccoons h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    color: #C8C6B8;
+    border-bottom: 1px solid #403B30;
+    padding-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+#missionStats p,
+#survivingRaccoons ul,
+#fallenRaccoons ul {
+    font-size: 0.95em;
+    margin-bottom: 5px;
+}
+#survivingRaccoons ul,
+#fallenRaccoons ul {
+    list-style: none;
+    padding-left: 0;
+    max-height: 150px;
+    overflow-y: auto;
+}
+#survivingRaccoons li,
+#fallenRaccoons li {
+    padding: 4px 0;
+    border-bottom: 1px dotted #383632;
+}
+#survivingRaccoons li:last-child,
+#fallenRaccoons li:last-child {
+    border-bottom: none;
+}
+
+
+.post-mission-buttons {
+    margin-top: auto;
+    padding-top: 20px;
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    border-top: 1px solid #403B30;
+}
+
+#postMissionScreen button {
+    padding: 10px 18px;
+    min-width: 150px;
+}
+
+/* --- Recruit Memorial Screen Enhancements --- */
+#recruitMemorialScreen {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 700px;
+    min-height: 500px;
+    max-height: 85vh;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    z-index: 110;
+}
+
+#recruitMemorialScreen h2#memorialTitle {
+    color: #B0A090;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    border-bottom: 2px groove #4F4A3F;
+    padding-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 1.6em;
+}
+
+#memorialEntriesContainer {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 15px;
+    background-color: rgba(0,0,0,0.15);
+    border: 1px solid #403B30;
+    border-radius: 3px;
+    margin-bottom: 20px;
+}
+
+.memorial-entry {
+    padding: 12px 10px;
+    border-bottom: 1px dashed #4F4A3F;
+    font-size: 0.95em;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 15px;
+}
+.memorial-entry:last-child {
+    border-bottom: none;
+}
+
+.memorial-entry-face {
+    width: 66px;
+    height: 66px;
+    background-size: cover;
+    background-position: center;
+    border-radius: 3px;
+    border: 1px solid #2A2825;
+    flex-shrink: 0;
+    filter: grayscale(80%) sepia(20%);
+}
+
+.memorial-entry-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.memorial-entry .field-label {
+    font-weight: bold;
+    color: #A8A498;
+    min-width: 120px;
+    display: inline-block;
+    margin-right: 5px;
+}
+.memorial-entry .field-value {
+    color: #D8D8C8;
+}
+.memorial-entry div {
+    margin-bottom: 4px;
+}
+
+
+#backFromMemorialButton {
+    margin-top: auto;
+    padding: 10px 18px;
+    align-self: center;
+    min-width: 120px;
+}
+
+
+/* --- Game Over Screen Enhancements --- */
+#gameOverScreen {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 500px;
+    padding: 30px 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+    z-index: 120;
+}
+
+#gameOverScreen h2#gameOverTitle {
+    font-size: 2.2em;
+    color: #C87070;
+    margin-top: 0;
+    margin-bottom: 20px;
+    text-shadow: 1px 1px 0px #000, 2px 2px 3px rgba(0,0,0,0.7);
+}
+#gameOverScreen h2#gameOverTitle.victory {
+    color: #D0B040;
+}
+
+
+#gameOverScreen p#gameOverMessage {
+    font-size: 1.1em;
+    color: #B8B6A8;
+    margin-bottom: 30px;
+    line-height: 1.6;
+    max-width: 90%;
+}
+
+#restartCampaignButton {
+    padding: 12px 25px;
+    font-size: 1.1em;
+    min-width: 200px;
+}

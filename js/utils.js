@@ -38,3 +38,15 @@ function lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
 
     return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 }
+
+function rectOverlap(rect1, rect2) {
+    // Check if one rectangle is on left side of other
+    if (rect1.x + rect1.width < rect2.x || rect2.x + rect2.width < rect1.x) {
+        return false;
+    }
+    // Check if one rectangle is above other
+    if (rect1.y + rect1.height < rect2.y || rect2.y + rect2.height < rect1.y) {
+        return false;
+    }
+    return true; // Rectangles overlap
+}
