@@ -124,6 +124,12 @@ class Raccoon extends Unit {
      }
 
     startGrenadeAim(targetUnit = null) {
+        if (this.isContinuousFiring) { // Check inherited property
+            this.setContinuousFire(false); // Call inherited method
+            if (this.game && this.game.inputHandler && this.game.inputHandler.isShiftHoldFiring) {
+                this.game.inputHandler.isShiftHoldFiring = false; // Reset input handler flag
+            }
+        }
         if (this.grenadeAmmo > 0 && this.actionTimer <= 0) {
             this.isAimingGrenade = true; this.manualTarget = null; this.autoTarget = null; this.isMoving = false;
             this.grenadeTargetUnit = targetUnit;
@@ -142,6 +148,7 @@ class Raccoon extends Unit {
     }
 
     confirmThrowGrenade(targetX, targetY) {
+        
         if (!this.isAimingGrenade || this.grenadeAmmo <= 0 || this.actionTimer > 0) return false;
         this.grenadeAmmo--; this.isAimingGrenade = false; this.grenadeTargetUnit = null;
         this.actionTimer = CONFIG.RACCOON_GRENADE_THROW_COOLDOWN || 1.0;

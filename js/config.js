@@ -10,6 +10,7 @@ const CONFIG = {
 
     // --- Input ---
     INPUT_DRAG_THRESHOLD: 5,
+    INPUT_TAP_THRESHOLD_MS: 30,
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 30,
@@ -26,7 +27,7 @@ const CONFIG = {
     RACCOON_GRENADE_DAMAGE: 50,
     RACCOON_GRENADE_AOE_RADIUS: 45,
     RACCOON_GRENADE_FUSE_TIME: 2.5,
-    RACCOON_GRENADE_THROW_RANGE_MAX: 220,
+    RACCOON_GRENADE_THROW_RANGE_MAX: 270,
     RACCOON_GRENADE_THROW_COOLDOWN: 1.0,
     RACCOON_GRENADE_PROJECTILE_SPEED: 120,
     RACCOON_GRENADE_PREFERRED_THROW_RANGE_FACTOR: 0.9,
@@ -142,6 +143,7 @@ const CONFIG = {
     GRENADE_BONUS_SERGEANT: 1,
 
     // --- Visuals & UI ---
+    DEFAULT_WORLD_BACKGROUND_COLOR: '#417021',
     RACCOON_FACE_IMAGE_PATH: 'assets/images/raccoons/',
     RACCOON_FACE_IMAGES: [
         'face1.png', 'face2.png', 'face3.png', 'face4.png',
@@ -181,7 +183,7 @@ const CONFIG = {
             INTERNAL_PADDING_FACTOR: 1.5 
         },
         OBSTACLES: { 
-            BASE_COUNT: 100, 
+            BASE_COUNT: 150, 
             WORLD_SIZE_FALLBACK_FACTOR: 1.0, 
             RANDOM_ADDITION_MAX: 8, 
             PLACEMENT_MAX_ATTEMPTS: 15 
@@ -204,15 +206,71 @@ const CONFIG = {
     },
 
     GRASS_SPRITE_FILES: [ // Add all your grass sprite filenames here
-        '1.png',
-        '2.png',
-        '3.png',
-        '4.png',
-        '5.png',
-        '6.png'
-        // ... etc.
+        
     ],
     GRASS_SPRITE_PATH: 'assets/images/objects/grass/', // Path to the grass folder
+
+    // NEW: Bush Sprite Definitions
+    BUSH_SPRITES_32PX_PATH: 'assets/images/objects/bushes/32/',
+    BUSH_SPRITES_32PX_FILES: [
+        'Autumn_bush2.png',
+        'Bush_orange_flowers2.png',
+        'Bush_pink_flowers2.png',
+        'Bush_red_flowers2.png', // Note: some names have "2" but are in 32px list per your image
+        'Bush_simple1_1.png',
+        'Bush_simple1_2.png',
+        'Bush_simple2_1.png',
+        'Bush_simple2_2.png',
+        'Fern1_2.png',
+        'Fern2_2.png'
+    ],
+    BUSH_SPRITES_64PX_PATH: 'assets/images/objects/bushes/64/',
+    BUSH_SPRITES_64PX_FILES: [
+        'Autumn_bush1.png',
+        'Bush_orange_flowers1.png',
+        'Bush_pink_flowers1.png',
+        'Bush_red_flowers1.png',
+        'Fern1_1.png',
+        'Fern2_1.png'
+    ],
+
+    // NEW: Rock Sprite Definitions
+    ROCK_SPRITES_16PX_PATH: 'assets/images/objects/rocks/grassy/16/',
+    ROCK_SPRITES_16PX_FILES: [
+        'Rock1_small.png'
+    ],
+    ROCK_SPRITES_32PX_PATH: 'assets/images/objects/rocks/grassy/32/',
+    ROCK_SPRITES_32PX_FILES: [
+        'Rock1_medium.png'
+    ],
+    ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/64/',
+    ROCK_SPRITES_64PX_FILES: [
+        'rock1_large.png',
+        'rock2_large.png',
+    ],
+
+    // NEW: Palm Tree Sprite Definitions
+    //PALM_TREE_TALL_SPRITE_DESTROYED: 'assets/images/objects/biomes/tropical/trees/palm_stump.png',
+    PALM_TREE_MEDIUM_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    PALM_TREE_MEDIUM_SPRITE_FILES: [
+        'palm1_medium_single.png',
+        'palm2_medium_single.png',
+        // Add more palm tree variations here if you have them, e.g., 'palm2_cluster.png'
+    ],
+    PALM_TREE_TALL_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    PALM_TREE_TALL_SPRITE_FILES: [
+        'palm1_single.png',
+        'palm1_double.png',
+        'palm1_triple.png',
+        // Add more palm tree variations here if you have them, e.g., 'palm2_cluster.png'
+    ],
+
+    // NEW: Possum Huts
+    POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
+    POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/.png',
+    POSSUM_HUT_SPRITE_FILES: [
+        'possum_hut_1.png'
+    ],
 
     OBSTACLE_DEFINITIONS: [
         {
@@ -224,33 +282,131 @@ const CONFIG = {
             providesCover: false,
             width: 15, height: 16, // Define a base size for placement, sprite can vary
                                    // Or use minW/maxW if grass patches should have varied footprints
-            spawnWeight: 100,       // Make grass fairly common
+            spawnWeight: 0,       // Make grass fairly common
             isDecoration: true,    // Custom flag to identify it as purely visual
             // Sprites will be chosen randomly from GRASS_SPRITE_FILES
         },
+        // --- NEW BUSH DEFINITIONS ---
         {
-            type: 'rock_large', name: 'Large Rock', color: '#504840', destructible: false, hp: Infinity, maxHp: Infinity,
-            blocksMovement: true, providesCover: true,
-            minW: 70, maxW: 160, minH: 70, maxH: 160, // Varied size
-            spawnWeight: 5
+            type: 'bush_medium', name: 'Medium Bush', color: '#228B22', // Fallback color
+            destructible: true, hp: 30, maxHp: 30, // Example: Medium bushes can be destroyed
+            blocksMovement: false,       // Typically bushes don't block movement but provide cover
+            providesCover: true,
+            width: 32, height: 32,    // Fixed size for this type
+            collisionShape: {
+                type: 'circle', // This rock is best represented by a circle
+                offsetX: 16,    // Offset from sprite's top-left to circle's center X
+                offsetY: 16,    // Offset from sprite's top-left to circle's center Y
+                radius: 14      // Radius of the collision circle
+            },
+            spawnWeight: 15,           // Adjust spawn frequency
+            isDecoration: false,       // It's gameplay relevant (cover)
+            // Sprites will be chosen randomly from BUSH_SPRITES_32PX_FILES
         },
         {
-            type: 'rock_small', name: 'Small Rock', color: '#605850', destructible: true, hp: 150, maxHp: 150,
+            type: 'bush_large', name: 'Large Bush', color: '#006400', // Fallback color
+            destructible: true, hp: 50, maxHp: 50, // Example: Larger bushes tougher
+            blocksMovement: true,        // Large dense bushes might block movement
+            providesCover: true,
+            width: 64, height: 64,    // Fixed size for this type
+            collisionShape: {
+                type: 'circle', // This rock is best represented by a circle
+                offsetX: 32,    // Offset from sprite's top-left to circle's center X
+                offsetY: 32,    // Offset from sprite's top-left to circle's center Y
+                radius: 16      // Radius of the collision circle
+            },
+            spawnWeight: 10,           // Adjust spawn frequency
+            isDecoration: false,
+            // Sprites will be chosen randomly from BUSH_SPRITES_64PX_FILES
+        },
+        
+        // --- UPDATED/NEW ROCK DEFINITIONS ---
+        {
+            type: 'rock_small', name: 'Small Grassy Rock', color: '#708090', // Slate gray fallback
+            destructible: true, hp: 100, maxHp: 100, // Small rocks might be destructible
             blocksMovement: true, providesCover: true,
-            minW: 30, maxW: 60, minH: 30, maxH: 60, // Varied size
-            spawnWeight: 10
+            width: 32, height: 32,    // Fixed size for this type
+                collisionShape: {
+                type: 'circle', // This rock is best represented by a circle
+                offsetX: 16,    // Offset from sprite's top-left to circle's center X
+                offsetY: 16,    // Offset from sprite's top-left to circle's center Y
+                radius: 30      // Radius of the collision circle
+            },
+            spawnWeight: 0,           // Adjust spawn frequency
+            isDecoration: false,       // Gameplay relevant
+            // Sprites will be chosen randomly from ROCK_SPRITES_16PX_FILES
         },
         {
-            type: 'tree_dense', name: 'Dense Tree', color: '#285020', destructible: true, hp: 80, maxHp: 80,
+            type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969', // Dim gray fallback
+            destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            minW: 40, maxW: 90, minH: 40, maxH: 90, // Varied size
-            spawnWeight: 8
+            width: 124, height: 88,    // Fixed size for this type
+                collisionShape: {
+                type: 'circle', // This rock is best represented by a circle
+                offsetX: 62,    // Offset from sprite's top-left to circle's center X
+                offsetY: 45,    // Offset from sprite's top-left to circle's center Y
+                radius: 45      // Radius of the collision circle
+            },
+            spawnWeight: 15,
+            isDecoration: false,
+            // Sprites will be chosen randomly from ROCK_SPRITES_32PX_FILES
         },
         {
-            type: 'bush_light', name: 'Light Bush', color: '#3A6B35', destructible: true, hp: 20, maxHp: 20,
-            blocksMovement: false, providesCover: true,
-            minW: 30, maxW: 70, minH: 30, maxH: 70, // Varied size
-            spawnWeight: 12
+            type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9', // Dark gray fallback
+            destructible: false, hp: Infinity, maxHp: Infinity, // Large rocks often indestructible
+            blocksMovement: true, providesCover: true,
+            width: 336, height: 268,    // Fixed size for this type
+            collisionShape: {
+                type: 'circle', // This rock is best represented by a circle
+                offsetX: 140,    // Offset from sprite's top-left to circle's center X
+                offsetY: 124,    // Offset from sprite's top-left to circle's center Y
+                radius: 120      // Radius of the collision circle
+            },
+            spawnWeight: 5,
+            isDecoration: false,
+            // Sprites will be chosen randomly from ROCK_SPRITES_64PX_FILES
+        },
+
+        // --- NEW PALM TREE DEFINITION ---
+        {
+            type: 'tree_palm_tall',
+            name: 'Palm Tree',
+            color: '#005522', // Fallback color if sprite fails
+            destructible: true, hp: 100, maxHp: 100, // Example: Palm trees can be shot down
+            blocksMovement: true,       // Trunk will block movement
+            providesCover: true,        // Canopy and trunk can provide cover
+            width: 125, height: 225,    // << ADJUST TO YOUR 'palm1_single.png' ACTUAL RENDER SIZE
+            spawnWeight: 20,             // Adjust frequency
+            isDecoration: false,        // Gameplay relevant (blocks, cover)
+            // Sprites will be chosen randomly from PALM_TREE__TALL_SPRITE_FILES
+            // Define a collision shape for the trunk primarily
+            collisionShape: {
+                type: 'rectangle',
+                offsetX: 23,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
+                offsetY: 180,  // Example: if trunk starts some way down
+                width: 44,    // Example: width of the trunk
+                height: 35    // Example: height of the trunk part that collides
+            },
+            // spriteDestroyed: 'assets/images/objects/biomes/trees/palm_stump.png' // Optional
+        },
+        {
+            type: 'tree_palm_medium',
+            name: 'Palm Tree Medium',
+            color: '#005522', // Fallback color if sprite fails
+            destructible: true, hp: 50, maxHp: 50, // Example: Palm trees can
+            blocksMovement: true,       // Trunk will block movement
+            providesCover: true,        // Canopy and trunk can provide cover
+            width: 64, height: 128,    // << ADJUST TO YOUR 'palm1__small_single.png' ACTUAL RENDER SIZE
+            spawnWeight: 80,             // Adjust frequency
+            isDecoration: false,        // Gameplay relevant (blocks, cover)
+            collisionShape: {
+                type: 'rectangle',
+                offsetX: 23,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
+                offsetY: 100,  // Example: if trunk starts some way down
+                width: 25,    // Example: width of the trunk
+                height: 30    // Example: height of the trunk part that collides
+            },
+            // spriteDestroyed: 'assets/images/objects/biomes/trees/palm_stump.png' // Optional
         },
         {
             type: 'fence_wood', name: 'Wooden Fence', color: '#8B4513', destructible: true, hp: 40, maxHp: 40,
@@ -260,18 +416,11 @@ const CONFIG = {
             // minW: 80, maxW: 180, height: 15, // Fixed height, varied width
             spawnWeight: 7
         },
-        {
-            type: 'building_shed', name: 'Shed', color: '#787860', destructible: true, hp: 200, maxHp: 200,
-            blocksMovement: true, providesCover: true,
-            width: 120, height: 100, // Fixed size for sheds
-            // Or use minW/maxW, minH/maxH if sheds should vary
-            spawnWeight: 8
-        },
         { // EXPLOSIVE BARREL - Fixed size
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
-            width: 25, height: 35, // <<-- FIXED SIZE
+            width: 20, height: 30, // <<-- FIXED SIZE
             spawnWeight: 5,
             explosionDamage: 50, explosionAoeRadius: 80,
             spriteNormal: 'assets/images/objects/barrel_red.png',
@@ -283,9 +432,40 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             width: 32, height: 32, // <<-- FIXED SIZE (was minW:64, minH:32 - adjusted to be square for example)
             spawnWeight: 2,
-            pickupType: 'grenade', pickupQuantity: 3,
+            pickupType: 'grenade', pickupQuantity: 2,
             spriteNormal: 'assets/images/objects/crate_full.png',
-            spriteDestroyed: 'assets/images/objects/crate_empty.png'
+            spriteDestroyed: 'assets/images/objects/crate_empty.png',
+            collisionShape: {
+                type: 'rectangle', // This crate is best represented by a rectangle
+                offsetX: 2,  // Offset from sprite's top-left to rectangle's top-left
+                offsetY: 2,  // Offset from sprite's top-left to rectangle's top-left
+                width: 28,   // Width of the collision rectangle
+                height: 27   // Height of the collision rectangle
+            },
+        },
+        // Buildings
+        { // Possum Huts
+            type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
+            destructible: true, hp: 300, maxHp: 300,
+            blocksMovement: true, providesCover: true,
+            width: 250, height: 190, // Example of fixed size for huts
+            spawnWeight: 1,
+            spriteNormal: 'assets/images/objects/possums/huts/possum_hut_1.png',
+            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
+            collisionShape: {
+                type: 'circle', // This hut is best represented by a circle
+                offsetX: 120,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
+                offsetY: 80,  // Example: if trunk starts some way down
+                radius: 80      // Radius of the collision circle
+            },
+            isDecoration: false,  
+        },
+        {
+            type: 'building_shed', name: 'Shed', color: '#787860', destructible: true, hp: 200, maxHp: 200,
+            blocksMovement: true, providesCover: true,
+            width: 120, height: 100, // Fixed size for sheds
+            // Or use minW/maxW, minH/maxH if sheds should vary
+            spawnWeight: 0
         }
     ],
     ENEMY_SPAWNING: {

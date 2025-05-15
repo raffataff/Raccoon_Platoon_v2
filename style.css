@@ -1,4 +1,10 @@
 /* style.css */
+test {
+    background-color: #1c8107;
+    color: #C8C6B8;
+    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
+    font-size: 14px;
+}
 html, body {
     margin: 0;
     padding: 0;

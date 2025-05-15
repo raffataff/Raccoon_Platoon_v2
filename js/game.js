@@ -11,11 +11,11 @@ class Game {
         this.fallenRaccoonsThisMission = [];
         this.tempSelectedForDeployment = [];
 
-        this.gameObjects = [];
+        this.gameObjects = []; // Projectiles, grenades
         this.enemyUnits = [];
         this.selectedUnits = [];
-        this.visualEffects = [];
-        this.preloadedImages = {}; // To store loaded image objects
+        this.visualEffects = []; // Explosions, promotion text
+        this.preloadedImages = {}; // For sprites
 
         this.isDragging = false;
         this.draggedFarEnough = false;
@@ -61,325 +61,206 @@ class Game {
     async preloadLevelAssets() {
         const obstacleDefs = CONFIG.OBSTACLE_DEFINITIONS || [];
         const imagePromises = [];
-        // this.preloadedImages is already a class member, initialized in constructor
+        // console.log("[Game] Preloading level assets..."); // Keep for debugging if needed
 
-        console.log("[Game] Preloading level assets...");
-
-        // Preload Obstacle Sprites (existing logic)
         obstacleDefs.forEach(def => {
-            const spritesToLoad = [];
-            if (def.spriteNormal) spritesToLoad.push({ path: def.spriteNormal, key: def.spriteNormal });
-            if (def.spriteDestroyed) spritesToLoad.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
-
-            spritesToLoad.forEach(spriteInfo => {
+            let handledByDedicatedList = false;
+            if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) ||
+                (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) ||
+                (def.type === 'bush_large' && CONFIG.BUSH_SPRITES_64PX_FILES) ||
+                (def.type === 'rock_small' && CONFIG.ROCK_SPRITES_16PX_FILES) ||
+                (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) ||
+                (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) ||
+                (def.type === 'tree_palm_tall' && CONFIG.PALM_TREE_TALL_SPRITE_FILES) ||
+                (def.type === 'tree_palm_medium' && CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES) ||
+                (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES)
+            ) {
+                handledByDedicatedList = true;
+            }
+            const spritesToLoadOnTemplate = [];
+            if (!handledByDedicatedList) {
+                if (def.spriteNormal) spritesToLoadOnTemplate.push({ path: def.spriteNormal, key: def.spriteNormal });
+                if (def.spriteDestroyed) spritesToLoadOnTemplate.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
+            }
+            spritesToLoadOnTemplate.forEach(spriteInfo => {
                 if (spriteInfo.path && !this.preloadedImages[spriteInfo.key]) {
-                    const promise = new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[spriteInfo.key] = img; resolve(); };
-                        img.onerror = () => { console.error(`Failed to load asset: ${spriteInfo.path}`); this.preloadedImages[spriteInfo.key] = null; resolve(); };
-                        img.src = spriteInfo.path;
-                    });
-                    imagePromises.push(promise);
+                    imagePromises.push(new Promise((resolve) => { const img = new Image(); img.onload = () => { this.preloadedImages[spriteInfo.key] = img; resolve(); }; img.onerror = () => { console.error(`[Preload] Failed to load template asset: ${spriteInfo.path}`); this.preloadedImages[spriteInfo.key] = null; resolve(); }; img.src = spriteInfo.path; }));
                 }
             });
         });
 
-        // --- NEW: Preload Grass Sprites ---
-        const grassSpriteFiles = CONFIG.GRASS_SPRITE_FILES || [];
-        const grassSpritePath = CONFIG.GRASS_SPRITE_PATH || 'assets/images/objects/grass/';
-        grassSpriteFiles.forEach(fileName => {
-            const fullPath = grassSpritePath + fileName;
-            if (!this.preloadedImages[fullPath]) { // Check if already loaded/attempted
-                const promise = new Promise((resolve) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        this.preloadedImages[fullPath] = img;
-                        // console.log(`Loaded grass: ${fullPath}`);
-                        resolve();
-                    };
-                    img.onerror = () => {
-                        console.error(`Failed to load grass asset: ${fullPath}`);
-                        this.preloadedImages[fullPath] = null; // Mark as failed
-                        resolve(); // Don't block game
-                    };
-                    img.src = fullPath;
-                });
-                imagePromises.push(promise);
-            }
-        });
-        // --- END NEW ---
+        const listBasedSprites = [
+            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
+            { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
+            { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
+            { files: CONFIG.ROCK_SPRITES_16PX_FILES, path: CONFIG.ROCK_SPRITES_16PX_PATH, name: "rock16" },
+            { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" },
+            { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" },
+            { files: CONFIG.PALM_TREE_TALL_SPRITE_FILES, path: CONFIG.PALM_TREE_TALL_SPRITE_PATH, name: "palm_tall" },
+            { files: CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES, path: CONFIG.PALM_TREE_MEDIUM_SPRITE_PATH, name: "palm_medium" },
+            { files: CONFIG.POSSUM_HUT_SPRITE_FILES, path: CONFIG.POSSUM_HUT_SPRITE_PATH, name: "possum_hut" }
+        ];
 
-        await Promise.all(imagePromises);
-        console.log("[Game] Level assets preloading complete.");
-    }
-
-
-    start() { // No async needed here if preload is called before confirmSquadAndStartMission
-        if (!this.masterRoster || this.masterRoster.length === 0) {
-            console.error("Campaign not initialized before starting.");
-            this.gameState = 'MAIN_MENU';
-            if (this.ui) this.ui.showMainMenuScreen();
-            return;
-        }
-        if (this.getAvailableRecruits().length === 0) {
-            this.gameState = 'GAME_OVER_NO_RECRUITS';
-            if(this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.ERROR_NO_INITIAL_RECRUITS);
-            return;
-         }
-        if (this.loadMissionData(0, 0)) {
-            if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
-                 this.ui.showPreMissionScreen_RecruitSelect(
-                     this.campaignData[this.currentPhaseIndex], this.currentMissionParams, this.getAvailableRecruits()
-                 );
-                 this.gameState = 'PRE_MISSION_SELECT';
-            } else {
-                 this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen();
-            }
-        } else {
-            this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen();
-            alert(CONFIG.UI_TEXT_STRINGS.ERROR_LOAD_FIRST_MISSION_FAILED);
-        }
-    }
-
-    async confirmSquadAndStartMission(selectedRecruitsForDeployment) { // Made async
-        const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
-        // ... (validation logic) ...
-        if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 ||
-            selectedRecruitsForDeployment.length > maxSquadSize) {
-            // ... (alert logic using CONFIG.UI_TEXT_STRINGS) ...
-            let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
-            if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0) {
-                alertMsg = CONFIG.UI_TEXT_STRINGS.NO_RECRUITS_SELECTED_ALERT || "Select at least one Raccoon for the mission!";
-            } else if (selectedRecruitsForDeployment.length > maxSquadSize) {
-                 alertMsg = (CONFIG.UI_TEXT_STRINGS.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
-            }
-            alert(alertMsg);
-            if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
-                this.ui.showPreMissionScreen_RecruitSelect( this.campaignData[this.currentPhaseIndex], this.currentMissionParams, this.getAvailableRecruits() );
-            }
-            return;
-        }
-
-
-        // Optional: Show a loading indicator
-        this.gameState = 'LOADING_MISSION'; // Example new state
-        if (this.ui && typeof this.ui.showLoadingScreen === 'function') { // You'd create this UI method
-            this.ui.showLoadingScreen("Preparing battlefield...");
-        } else {
-            console.log("Loading mission..."); // Fallback log
-        }
-
-        await this.preloadLevelAssets(); // Wait for assets to load
-
-        // --- Resume original logic after preloading ---
-        this.deployedSquadRoster = selectedRecruitsForDeployment;
-        this.deployedSquadRoster.forEach(r => {
-            r.hp = r.maxHp;
-            let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-            if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0);
-            if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
-            r.grenadeAmmo = startGrenades;
-            r.isMoving = false; r.manualTarget = null; r.autoTarget = null;
-            r.actionTimer = 0; r.isAimingGrenade = false;
-        });
-
-        this.gameState = 'RUNNING'; // Set to RUNNING after loading and setup
-        this.isObjectiveComplete = false;
-        this.missionStartedAndPopulated = false;
-        this.fallenRaccoonsThisMission = [];
-        this.missionStartTime = performance.now();
-
-        const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.worldSizeFactor || 1);
-        const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
-        CONFIG.WORLD_WIDTH = worldWidth; CONFIG.WORLD_HEIGHT = worldHeight;
-
-        // Pass the preloaded images map to the level generator
-        const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(
-            worldWidth, worldHeight,
-            this.currentMissionParams,
-            this.deployedSquadRoster.length,
-            this.preloadedImages // Pass the map of loaded Image objects
-        );
-        this.initialEnemyCount = this.enemyUnits ? this.enemyUnits.length : 0;
-
-        this.deployedSquadRoster.forEach((raccoon, index) => {
-            // ... (positioning logic)
-            if (playerSpawnLocations[index]) {
-                raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y;
-                raccoon.targetX = raccoon.x; raccoon.targetY = raccoon.y; raccoon.game = this;
-            } else {
-                console.warn(`No spawn location for Raccoon ${index}. Fallback.`);
-                raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3);
-                raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2;
-            }
-        });
-        this.selectedUnits = [...this.deployedSquadRoster];
-        this.gameObjects = []; this.visualEffects = [];
-        this.isDragging = false; this.draggedFarEnough = false;
-
-        if (this.deployedSquadRoster.length > 0) {
-            // ... (camera setup) ...
-            let avgX = 0, avgY = 0; this.deployedSquadRoster.forEach(unit => { avgX += unit.x; avgY += unit.y; });
-            avgX /= this.deployedSquadRoster.length; avgY /= this.deployedSquadRoster.length;
-            this.cameraX = avgX - this.canvas.width / 2; this.cameraY = avgY - this.canvas.height / 2;
-            this.clampCamera();
-        } else {
-            this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2;
-            this.clampCamera();
-        }
-
-        // Optional: Hide loading indicator
-        if (this.ui && typeof this.ui.hideLoadingScreen === 'function') {
-            this.ui.hideLoadingScreen();
-        }
-
-        if (this.ui) {
-            this.ui.hidePreMissionScreen(); this.ui.showHUD();
-            this.ui.updateObjective(this.currentMissionParams.name);
-            this.ui.updateFormationButton(this.currentFormationType);
-        }
-        if (this.inputHandler) this.inputHandler.updateMouseCursor();
-
-        if (!this.lastTime || this.gameState !== 'RUNNING') { // Should be 'RUNNING' now
-            this.lastTime = performance.now();
-            // gameLoop is already running, just ensure lastTime is reset for deltaTime
-        }
-        this.lastTime = performance.now(); // Reset for first accurate deltaTime
-    }
-
-    // ... (Rest of Game class methods: handle clicks, initializeNewCampaign, getAvailableRecruits, resizeCanvas, clampCamera, loadMissionData, recordRaccoonFallen, addNewRecruitToMasterRoster, endMission, proceedToNextLogicalStep, toggleFormation, setFormationSpacing, selectUnitsInDragRectangle, deselectAllUnits, selectAllPlayerUnits, addProjectile, addVisualEffect, checkMissionStatus, update, render, gameLoop, calculateFormationPoints)
-    // (These methods were provided in full previously and mostly only had CONFIG value replacements, no major structural changes for this step)
-    // Ensure all previously provided full methods are used.
-    handlePrimaryLeftClick(worldX, worldY) {
-        if (this.gameState !== 'RUNNING') return;
-        let selectionChanged = false;
-
-        const aimingRaccoons = this.selectedUnits ? this.selectedUnits.filter(
-            unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive()
-        ) : [];
-        if (aimingRaccoons.length > 0) {
-            const leaderAimer = aimingRaccoons[0];
-            let clickedOnEnemyUnitForGrenade = null;
-            if(this.enemyUnits) this.enemyUnits.forEach(enemy => {
-                if (enemy.isAlive() && distance(worldX, worldY, enemy.x, enemy.y) < enemy.size + 5) {
-                    clickedOnEnemyUnitForGrenade = enemy;
-                }
-            });
-            const distToClickPoint = distance(leaderAimer.x, leaderAimer.y, worldX, worldY);
-
-            if (distToClickPoint <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
-                leaderAimer.confirmThrowGrenade(worldX, worldY);
-            } else if (clickedOnEnemyUnitForGrenade) {
-                leaderAimer.moveToGrenadeRange(clickedOnEnemyUnitForGrenade);
-            }
-            if(this.inputHandler) this.inputHandler.updateMouseCursor();
-            return;
-        }
-
-        let clickedOnPlayerUnit = null;
-        if (this.deployedSquadRoster) {
-             for (const unit of this.deployedSquadRoster) {
-                if (unit.isAlive() && distance(worldX, worldY, unit.x, unit.y) < unit.size + 7) {
-                    clickedOnPlayerUnit = unit;
-                    break;
-                }
-            }
-        }
-
-        if (clickedOnPlayerUnit) {
-            if (this.selectedUnits.length !== 1 || this.selectedUnits[0] !== clickedOnPlayerUnit) {
-                this.selectedUnits = [clickedOnPlayerUnit];
-                selectionChanged = true;
-            }
-        } else {
-            let clickedOnEnemyUnit = null;
-            if(this.enemyUnits) this.enemyUnits.forEach(enemy => {
-                if (enemy.isAlive() && distance(worldX, worldY, enemy.x, enemy.y) < enemy.size + 5) {
-                    clickedOnEnemyUnit = enemy;
-                }
-            });
-
-            if (clickedOnEnemyUnit) {
-                if(this.selectedUnits) this.selectedUnits.forEach(playerUnit => {
-                    if (playerUnit.isAlive() && playerUnit.team === 'player') {
-                        playerUnit.setManualTarget(clickedOnEnemyUnit);
+        listBasedSprites.forEach(spriteSet => {
+            const spriteFiles = spriteSet.files || []; const spritePathBase = spriteSet.path || '';
+            if (spritePathBase && spriteFiles.length > 0) {
+                spriteFiles.forEach(fileName => {
+                    const fullPath = spritePathBase + fileName;
+                    if (!this.preloadedImages[fullPath]) {
+                        imagePromises.push(new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
+                            img.onerror = () => { console.error(`[Preload] Failed to load ${spriteSet.name} asset: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
+                            img.src = fullPath;
+                        }));
                     }
                 });
-            } else {
-                if (this.selectedUnits.length > 0) {
-                    this.deselectAllUnits();
-                }
             }
-        }
+        });
+        await Promise.all(imagePromises);
+        console.log("[Game] Level assets preloading complete. Preloaded unique image paths:", Object.keys(this.preloadedImages).length);
+    }
 
-        if (selectionChanged && this.ui) {
-            this.ui.updateSquadPanel();
+    start() {
+        if (!this.masterRoster || this.masterRoster.length === 0) {
+            console.error("Campaign not initialized before starting."); this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen(); return;
         }
+        if (this.getAvailableRecruits().length === 0) {
+            this.gameState = 'GAME_OVER_NO_RECRUITS'; if(this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.ERROR_NO_INITIAL_RECRUITS); return;
+        }
+        if (this.loadMissionData(0, 0)) {
+            if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
+                this.ui.showPreMissionScreen_RecruitSelect(this.campaignData[this.currentPhaseIndex], this.currentMissionParams, this.getAvailableRecruits());
+                this.gameState = 'PRE_MISSION_SELECT';
+            } else { this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen(); }
+        } else {
+            this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen(); alert(CONFIG.UI_TEXT_STRINGS.ERROR_LOAD_FIRST_MISSION_FAILED);
+        }
+    }
+
+    async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
+        const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
+        if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
+            let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
+            if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0) { alertMsg = CONFIG.UI_TEXT_STRINGS.NO_RECRUITS_SELECTED_ALERT || "Select at least one Raccoon for the mission!"; }
+            else if (selectedRecruitsForDeployment.length > maxSquadSize) { alertMsg = (CONFIG.UI_TEXT_STRINGS.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());}
+            alert(alertMsg);
+            if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) { this.ui.showPreMissionScreen_RecruitSelect( this.campaignData[this.currentPhaseIndex], this.currentMissionParams, this.getAvailableRecruits() ); }
+            return;
+        }
+        this.gameState = 'LOADING_MISSION';
+        if (this.ui && typeof this.ui.showLoadingScreen === 'function') { this.ui.showLoadingScreen("Preparing battlefield..."); } else { console.log("Loading mission..."); }
+        await this.preloadLevelAssets();
+        this.deployedSquadRoster = selectedRecruitsForDeployment;
+        this.deployedSquadRoster.forEach(r => {
+            r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
+            if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
+            r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false; r.isContinuousFiring = false; // Ensure continuous fire is off
+        });
+        this.gameState = 'RUNNING'; this.isObjectiveComplete = false; this.missionStartedAndPopulated = false; this.fallenRaccoonsThisMission = []; this.missionStartTime = performance.now();
+        const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.worldSizeFactor || 1); const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
+        CONFIG.WORLD_WIDTH = worldWidth; CONFIG.WORLD_HEIGHT = worldHeight;
+        const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, this.currentMissionParams, this.deployedSquadRoster.length, this.preloadedImages);
+        this.initialEnemyCount = this.enemyUnits ? this.enemyUnits.length : 0;
+        console.log(`[Game] Initial enemy count set to: ${this.initialEnemyCount}`);
+        this.deployedSquadRoster.forEach((raccoon, index) => {
+            if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.targetX = raccoon.x; raccoon.targetY = raccoon.y; raccoon.game = this;}
+            else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
+        });
+        this.selectedUnits = [...this.deployedSquadRoster]; this.gameObjects = []; this.visualEffects = []; this.isDragging = false; this.draggedFarEnough = false;
+        if (this.deployedSquadRoster.length > 0) {
+            let avgX = 0, avgY = 0; this.deployedSquadRoster.forEach(unit => { avgX += unit.x; avgY += unit.y; }); avgX /= this.deployedSquadRoster.length; avgY /= this.deployedSquadRoster.length;
+            this.cameraX = avgX - this.canvas.width / 2; this.cameraY = avgY - this.canvas.height / 2; this.clampCamera();
+        } else { this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2; this.clampCamera(); }
+        if (this.ui && typeof this.ui.hideLoadingScreen === 'function') { this.ui.hideLoadingScreen(); }
+        if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(this.currentMissionParams.name); this.ui.updateFormationButton(this.currentFormationType); }
+        if (this.inputHandler) { this.inputHandler.isShiftHoldFiring = false; this.inputHandler.updateMouseCursor(); } // Reset input handler state
+        this.lastTime = performance.now();
+    }
+
+    // --- SHIFT+Hold Fire Methods ---
+    handleShiftHoldStart(worldX, worldY) {
+        if (!this.selectedUnits || this.selectedUnits.length === 0) return;
+        this.selectedUnits.forEach(unit => {
+            if (unit instanceof Raccoon && unit.isAimingGrenade) unit.cancelGrenadeAim();
+            if (typeof unit.setContinuousFire === 'function') unit.setContinuousFire(true, worldX, worldY);
+        });
+        if (this.ui) this.ui.updateSquadPanel();
+    }
+
+    updateShiftHoldTarget(worldX, worldY) {
+        if (!this.selectedUnits || this.selectedUnits.length === 0) return;
+        this.selectedUnits.forEach(unit => {
+            if (unit.isContinuousFiring && typeof unit.updateContinuousFireTarget === 'function') {
+                unit.updateContinuousFireTarget(worldX, worldY);
+            }
+        });
+    }
+
+    handleShiftHoldEnd() {
+        if (!this.selectedUnits) return;
+        this.selectedUnits.forEach(unit => {
+            if (typeof unit.setContinuousFire === 'function' && unit.isContinuousFiring) {
+                unit.setContinuousFire(false);
+            }
+        });
+        if (this.ui) this.ui.updateSquadPanel();
+    }
+
+    handlePrimaryLeftClick(worldX, worldY) {
+        if (this.gameState !== 'RUNNING') return;
+        if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
+        let selectionChanged = false;
+        const aimingRaccoons = this.selectedUnits ? this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive()) : [];
+        if (aimingRaccoons.length > 0) {
+            const leaderAimer = aimingRaccoons[0]; let clickedEnemy = null;
+            if(this.enemyUnits) this.enemyUnits.forEach(e => { if (e.isAlive() && distance(worldX,worldY,e.x,e.y) < e.size+5) clickedEnemy=e; });
+            if (distance(leaderAimer.x,leaderAimer.y,worldX,worldY) <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) leaderAimer.confirmThrowGrenade(worldX,worldY);
+            else if (clickedEnemy) leaderAimer.moveToGrenadeRange(clickedEnemy);
+            if(this.inputHandler) this.inputHandler.updateMouseCursor(); return;
+        }
+        let clickedPlayerUnit = null;
+        if(this.deployedSquadRoster) for(const u of this.deployedSquadRoster){ if(u.isAlive()&&distance(worldX,worldY,u.x,u.y)<u.size+7){clickedPlayerUnit=u;break;}}
+        if (clickedPlayerUnit) { if (this.selectedUnits.length !== 1 || this.selectedUnits[0] !== clickedPlayerUnit) { this.selectedUnits = [clickedPlayerUnit]; selectionChanged = true; }}
+        else {
+            let clickedEnemy = null;
+            if(this.enemyUnits) this.enemyUnits.forEach(e=>{if(e.isAlive()&&distance(worldX,worldY,e.x,e.y)<e.size+5)clickedEnemy=e;});
+            if (clickedEnemy) { if(this.selectedUnits)this.selectedUnits.forEach(u=>{if(u.isAlive()&&u.team==='player')u.setManualTarget(clickedEnemy);});}
+            else { if (this.selectedUnits.length > 0) this.deselectAllUnits(); }
+        }
+        if (selectionChanged && this.ui) this.ui.updateSquadPanel();
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
 
     handleShiftFireAtPointCommand(worldX, worldY) {
-        if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) {
-            return;
-        }
+        if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) return;
+        if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
 
-        const aimingRaccoons = this.selectedUnits.filter(
-            unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive()
-        );
+        const aimingRaccoons = this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
         if (aimingRaccoons.length > 0) {
-            const leaderAimer = aimingRaccoons[0];
-            let clickedOnEnemyUnitForGrenade = null;
-            if(this.enemyUnits) this.enemyUnits.forEach(enemy => {
-                if (enemy.isAlive() && distance(worldX, worldY, enemy.x, enemy.y) < enemy.size + 5) {
-                    clickedOnEnemyUnitForGrenade = enemy;
-                }
-            });
-            const distToClickPoint = distance(leaderAimer.x, leaderAimer.y, worldX, worldY);
-            if (distToClickPoint <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
-                leaderAimer.confirmThrowGrenade(worldX, worldY);
-            } else if (clickedOnEnemyUnitForGrenade) {
-                leaderAimer.moveToGrenadeRange(clickedOnEnemyUnitForGrenade);
-            }
+            const leaderAimer = aimingRaccoons[0]; let clickedEnemy = null;
+            if(this.enemyUnits) this.enemyUnits.forEach(e=>{if(e.isAlive()&&distance(worldX,worldY,e.x,e.y)<e.size+5)clickedEnemy=e;});
+            if(distance(leaderAimer.x,leaderAimer.y,worldX,worldY) <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) leaderAimer.confirmThrowGrenade(worldX,worldY);
+            else if (clickedEnemy) leaderAimer.moveToGrenadeRange(clickedEnemy);
             return;
         }
-
-        this.selectedUnits.forEach(unit => {
-            if (unit.isAlive() && typeof unit.fireAtPoint === 'function') {
-                unit.fireAtPoint(worldX, worldY);
-            }
-        });
-         if(this.inputHandler) this.inputHandler.updateMouseCursor();
+        this.selectedUnits.forEach(unit => { if (unit.isAlive() && typeof unit.fireAtPoint === 'function') unit.fireAtPoint(worldX, worldY); });
+        if (this.inputHandler) this.inputHandler.updateMouseCursor();
     }
 
     handleRightClickCommand(worldX, worldY) {
         if (this.gameState !== 'RUNNING') return;
-
+        if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
         let didCancelGrenade = false;
-        if (this.selectedUnits) {
-            this.selectedUnits.forEach(unit => {
-                if (unit instanceof Raccoon && unit.isAimingGrenade) {
-                    unit.cancelGrenadeAim();
-                    didCancelGrenade = true;
-                }
-            });
-        }
-
-        if(didCancelGrenade) {
-             if(this.inputHandler) this.inputHandler.updateMouseCursor();
-            return;
-        }
-
+        if (this.selectedUnits) this.selectedUnits.forEach(u => { if (u instanceof Raccoon && u.isAimingGrenade) { u.cancelGrenadeAim(); didCancelGrenade = true; }});
+        if(didCancelGrenade) { if(this.inputHandler) this.inputHandler.updateMouseCursor(); return; }
         if (this.selectedUnits && this.selectedUnits.length > 0) {
             const formationPoints = this.calculateFormationPoints(worldX, worldY, this.selectedUnits, this.currentFormationType);
-            this.selectedUnits.forEach((unit, index) => {
-                if (unit.isAlive() && unit.team === 'player') {
-                    const targetPoint = formationPoints[index] || {x: worldX, y: worldY};
-                    unit.setMoveTarget(targetPoint.x, targetPoint.y);
-                }
-            });
+            this.selectedUnits.forEach((unit, index) => { if (unit.isAlive() && unit.team === 'player') { const targetPoint = formationPoints[index] || {x:worldX, y:worldY}; unit.setMoveTarget(targetPoint.x, targetPoint.y);}});
         }
-         if(this.inputHandler) this.inputHandler.updateMouseCursor();
+        if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
+
 
     initializeNewCampaign() {
         this.masterRoster = [];
@@ -614,6 +495,16 @@ class Game {
 
     update(deltaTime) {
         if (this.gameState !== 'RUNNING') return;
+        if (this.inputHandler.isShiftPressed && 
+            this.inputHandler.isLeftMouseDown && 
+            !this.inputHandler.isShiftHoldFiring && // Not already in continuous fire mode
+            this.inputHandler.shiftLmbDownTime > 0 && // Ensure mousedown with shift occurred
+            (performance.now() - this.inputHandler.shiftLmbDownTime > (this.inputHandler.TAP_THRESHOLD_MS || 150) )) {
+            
+            // console.log("[Game.update] Tap threshold exceeded for Shift+LMB. Starting continuous fire.");
+            this.inputHandler.isShiftHoldFiring = true;
+            this.handleShiftHoldStart(this.inputHandler.mousePos.worldX, this.inputHandler.mousePos.worldY);
+        }
         if (this.selectedUnits && this.selectedUnits.length > 0) {
             let avgX = 0, avgY = 0, count = 0;
             this.selectedUnits.forEach(unit => { if (unit.isAlive()) { avgX += unit.x; avgY += unit.y; count++; } });
@@ -630,7 +521,11 @@ class Game {
             }
         }
         const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
-        allUnitsInGame.forEach(unit => { if (unit) unit.update(deltaTime); });
+        allUnitsInGame.forEach(unit => {
+            if (unit && typeof unit.update === 'function') {
+                unit.update(deltaTime); // Unit.update will now handle its own continuous fire
+            }
+        });
         this.gameObjects = this.gameObjects.filter(obj => { if(obj) obj.update(deltaTime); return obj && !obj.isMarkedForDeletion; });
         this.visualEffects = this.visualEffects.filter(effect => { if(effect) effect.update(deltaTime); return effect && !effect.isMarkedForDeletion; });
         if (!this.missionStartedAndPopulated) this.missionStartedAndPopulated = true;
@@ -638,64 +533,219 @@ class Game {
     }
 
     render() {
-        if (!this.ctx || !this.level) return;
+        if (!this.ctx || !this.level) {
+            // console.warn("Render called before ctx or level is ready.");
+            return;
+        }
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.save(); this.ctx.translate(-this.cameraX, -this.cameraY);
-        this.ctx.fillStyle = '#385434'; this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || 0, CONFIG.WORLD_HEIGHT || 0);
-        if(this.level.obstacles) this.level.obstacles.forEach(obstacle => {
-             if (obstacle.isDestroyed && obstacle.imageDestroyed) { // For destroyable sprites
-                this.ctx.drawImage(obstacle.imageDestroyed, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-            } else if (!obstacle.isDestroyed && obstacle.imageNormal) { // For normal state or non-destroyable sprites like grass
-                this.ctx.drawImage(obstacle.imageNormal, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-            } else { // Fallback to color if no image or image failed to load
-                let obsColor = obstacle.color || '#555555';
-                if (obstacle.isDestroyed) { // For non-sprite obstacles that are destroyed
-                    obsColor = 'rgba(50, 40, 30, 0.7)';
-                } else if (obstacle.destructible && obstacle.hp < obstacle.maxHp && obstacle.hp > 0) {
-                    // ... (damaged color logic from before) ...
-                    const damageRatio = Math.max(0, obstacle.hp / obstacle.maxHp); let r = parseInt(obsColor.substring(1,3),16), g = parseInt(obsColor.substring(3,5),16), b = parseInt(obsColor.substring(5,7),16);
-                    r = Math.floor(r*damageRatio+80*(1-damageRatio)); g = Math.floor(g*damageRatio+80*(1-damageRatio)); b = Math.floor(b*damageRatio+80*(1-damageRatio));
-                    obsColor = `rgb(${r},${g},${b})`;
+        this.ctx.save();
+        this.ctx.translate(-this.cameraX, -this.cameraY);
+
+        // 1. Render World Background
+        this.ctx.fillStyle = CONFIG.DEFAULT_WORLD_BACKGROUND_COLOR || '#385434';
+        const worldWidth = CONFIG.WORLD_WIDTH || this.canvas.width; // Use canvas width as fallback
+        const worldHeight = CONFIG.WORLD_HEIGHT || this.canvas.height; // Use canvas height as fallback
+        this.ctx.fillRect(0, 0, worldWidth, worldHeight);
+
+        // 2. Prepare Objects for Y-Sorting
+        let sortableObjects = [];
+
+        // Add alive units
+        if (this.deployedSquadRoster) {
+            this.deployedSquadRoster.forEach(unit => {
+                if (unit && unit.isAlive()) {
+                    // Sort units by the Y-coordinate of their "feet" (center Y + half size)
+                    sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true });
                 }
-                // Only draw color rect if it's NOT a decoration that failed to load its sprite
-                // (or if you want a fallback color for missing decoration sprites)
-                if (!obstacle.isDecoration || !obstacle.imageNormal) { // Don't draw color for grass if its sprite is just missing
+            });
+        }
+        if (this.enemyUnits) {
+            this.enemyUnits.forEach(unit => {
+                if (unit && unit.isAlive()) {
+                    sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true });
+                }
+            });
+        }
+
+        // Add relevant obstacles
+        if (this.level.obstacles) {
+            this.level.obstacles.forEach(obstacle => {
+                if (obstacle.type === 'border_wall') return; // Skip static border walls from Y-sorting
+
+                // Include if not destroyed, OR if it's destroyed but has a specific destroyed sprite to render
+                if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) {
+                    let sortYValue;
+                    // Use the bottom of the render box as the primary sort key for obstacles.
+                    // For specific objects like trees, this means units appear behind the canopy
+                    // if their feet are "higher" than the tree's base.
+                    sortYValue = obstacle.y + obstacle.height;
+
+                    // Optional: If an obstacle has a collisionShape, you might prefer to sort by its collisionShape's bottom edge
+                    // This can be more accurate for irregular sprites if the render box is much larger.
+                    // const collisionShape = this.level._getObstacleCollisionShape(obstacle);
+                    // if (collisionShape.type === 'rectangle') {
+                    //     sortYValue = collisionShape.y + collisionShape.height;
+                    // } else if (collisionShape.type === 'circle') {
+                    //     sortYValue = collisionShape.y + collisionShape.radius;
+                    // }
+
+                    sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false });
+                }
+            });
+        }
+
+        // 3. Sort the Objects by their renderSortY property
+        sortableObjects.sort((a, b) => a.sortY - b.sortY);
+
+        // 4. Render Sorted Objects
+        sortableObjects.forEach(item => {
+            const obj = item.entity; // Get the actual unit or obstacle object
+            if (item.isUnit) {
+                obj.render(this.ctx); // Unit's own render method handles its appearance
+            } else { // It's an obstacle
+                if (obj.isDestroyed && obj.imageDestroyed) {
+                    this.ctx.drawImage(obj.imageDestroyed, obj.x, obj.y, obj.width, obj.height);
+                } else if (!obj.isDestroyed && obj.imageNormal) {
+                    this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
+                } else if (!obj.isDecoration || !obj.imageNormal) { // Fallback color if no sprite, or not a decoration that failed
+                    let obsColor = obj.color || '#555555'; // Default fallback
+                    if (obj.isDestroyed) {
+                        obsColor = 'rgba(50, 40, 30, 0.7)'; // Rubble color for non-sprite destroyed
+                    } else if (obj.destructible && obj.hp < obj.maxHp && obj.hp > 0 && obj.color) { // Damaged color, only if base color exists
+                        const damageRatio = Math.max(0, obj.hp / obj.maxHp);
+                        // Ensure obsColor is a hex string before trying to parse
+                        if (/^#[0-9A-F]{6}$/i.test(obsColor)) {
+                            let r = parseInt(obsColor.substring(1,3),16);
+                            let g = parseInt(obsColor.substring(3,5),16);
+                            let b = parseInt(obsColor.substring(5,7),16);
+                            const greyVal = 80; // Target grey value for damage
+                            r = Math.floor(r*damageRatio + greyVal*(1-damageRatio));
+                            g = Math.floor(g*damageRatio + greyVal*(1-damageRatio));
+                            b = Math.floor(b*damageRatio + greyVal*(1-damageRatio));
+                            obsColor = `rgb(${r},${g},${b})`;
+                        }
+                    }
                     this.ctx.fillStyle = obsColor;
-                    this.ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                 }
-            }
-            // HP bar for damaged destructibles (regardless of sprite/color)
-            if (obstacle.destructible && !obstacle.isDestroyed && obstacle.hp < obstacle.maxHp && obstacle.hp > 0) {
-                const hpBarHeight = 6; const hpBarWidth = Math.min(obstacle.width * 0.7, 60); const barX = obstacle.x + (obstacle.width - hpBarWidth) / 2; const barY = obstacle.y - hpBarHeight - 4;
-                this.ctx.fillStyle = '#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2);
-                this.ctx.fillStyle = '#c00'; this.ctx.fillRect(barX, barY, hpBarWidth, hpBarHeight);
-                this.ctx.fillStyle = '#0c0'; this.ctx.fillRect(barX, barY, hpBarWidth * (obstacle.hp / obstacle.maxHp), hpBarHeight);
+
+                // HP bar for damaged destructible obstacles
+                if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0) {
+                    const hpBarHeight = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HEIGHT) || 4;
+                    const hpBarWidth = Math.min(obj.width * 0.7, 60);
+                    const barX = obj.x + (obj.width - hpBarWidth) / 2;
+                    const barY = obj.y - hpBarHeight - 4; // Position above obstacle
+
+                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.BG_COLOR) ||'#111';
+                    this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2);
+                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_LOW_BG) || '#c00'; // Usually red for background of damage
+                    this.ctx.fillRect(barX, barY, hpBarWidth, hpBarHeight);
+                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_FULL) ||'#0c0'; // Green for current HP
+                    this.ctx.fillRect(barX, barY, hpBarWidth * (obj.hp / obj.maxHp), hpBarHeight);
+                }
             }
         });
-        this.visualEffects.forEach(effect => { if (effect && effect.type === 'explosion_ground_mark') effect.render(this.ctx); });
-        const unitsToRenderOnMap = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
-        unitsToRenderOnMap.forEach(unit => { if (unit) unit.render(this.ctx); });
-        this.gameObjects.forEach(obj => { if (obj) obj.render(this.ctx); });
-        this.visualEffects.forEach(effect => { if (effect && effect.type !== 'explosion_ground_mark') effect.render(this.ctx); });
-        if(this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit && unit.isAlive()) { this.ctx.strokeStyle = '#00FF00'; this.ctx.lineWidth = 2; this.ctx.beginPath(); this.ctx.arc(unit.x, unit.y, unit.size + 4, 0, Math.PI * 2); this.ctx.stroke(); } });
-        if(this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) { this.ctx.strokeStyle = 'rgba(255,0,0,0.6)'; this.ctx.lineWidth = 1; this.ctx.setLineDash([3,3]); this.ctx.beginPath(); this.ctx.moveTo(unit.x, unit.y); this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y); this.ctx.stroke(); this.ctx.setLineDash([]); } });
+
+        // 5. Render Projectiles (typically on top of world objects)
+        this.gameObjects.forEach(obj => {
+            if (obj && typeof obj.render === 'function') {
+                obj.render(this.ctx);
+            }
+        });
+
+        // 6. Render Top-Layer Visual Effects (Explosions, Promotion Text)
+        this.visualEffects.forEach(effect => {
+            if (effect && typeof effect.render === 'function' && effect.type !== 'explosion_ground_mark') { // Assuming ground marks are handled earlier or part of obstacle rendering
+                effect.render(this.ctx);
+            }
+        });
+
+        // 7. Render Game Interaction UI (Selection Highlights, Target Lines, etc.)
+        // These are drawn in world space but should appear on top of units/obstacles they relate to.
+        // Selection Indicators for currently selected units
+        if(this.selectedUnits) {
+            this.selectedUnits.forEach(unit => {
+                if (unit && unit.isAlive()) {
+                    this.ctx.strokeStyle = '#00FF00'; // Bright green for selection
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    this.ctx.arc(unit.x, unit.y, unit.size + 4, 0, Math.PI * 2); // Circle around the unit
+                    this.ctx.stroke();
+                }
+            });
+        }
+
+        // Manual Target Lines
+        if(this.selectedUnits) {
+            this.selectedUnits.forEach(unit => {
+                if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) {
+                     this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; // Red line for manual target
+                     this.ctx.lineWidth = 1;
+                     this.ctx.setLineDash([3, 3]); // Dashed line
+                     this.ctx.beginPath();
+                     this.ctx.moveTo(unit.x, unit.y);
+                     this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y);
+                     this.ctx.stroke();
+                     this.ctx.setLineDash([]); // Reset line dash
+                }
+            });
+        }
+
+        // Grenade Aiming Preview
         const aimingRaccoon = this.selectedUnits && this.selectedUnits.find(unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive());
         if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) {
-            const worldMouseX = this.inputHandler.mousePos.worldX; const worldMouseY = this.inputHandler.mousePos.worldY; const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY);
-            this.ctx.fillStyle = 'rgba(255,165,0,0.3)'; this.ctx.beginPath(); this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2); this.ctx.fill();
-            this.ctx.strokeStyle = 'rgba(255,165,0,0.8)'; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
+            const worldMouseX = this.inputHandler.mousePos.worldX;
+            const worldMouseY = this.inputHandler.mousePos.worldY;
+            const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY);
+
+            this.ctx.fillStyle = 'rgba(255, 165, 0, 0.3)'; // Orange transparent fill for AOE
+            this.ctx.beginPath();
+            this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2);
+            this.ctx.fill();
+
+            this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; // Orange line for trajectory
+            this.ctx.lineWidth = 1;
+            this.ctx.beginPath();
+            this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
             if (throwDist > CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
-                 const angle = Math.atan2(worldMouseY - aimingRaccoon.y, worldMouseX - aimingRaccoon.x); const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX; const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
-                 this.ctx.lineTo(cappedX, cappedY); this.ctx.stroke(); this.ctx.beginPath(); this.ctx.moveTo(cappedX, cappedY); this.ctx.setLineDash([5,5]); this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); this.ctx.setLineDash([]);
-            } else { this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); }
+                 const angle = Math.atan2(worldMouseY - aimingRaccoon.y, worldMouseX - aimingRaccoon.x);
+                 const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                 const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                 this.ctx.lineTo(cappedX, cappedY); // Solid part up to max range
+                 this.ctx.stroke();
+                 this.ctx.beginPath(); // Start new path for dashed part
+                 this.ctx.moveTo(cappedX, cappedY);
+                 this.ctx.setLineDash([5, 5]);
+                 this.ctx.lineTo(worldMouseX, worldMouseY); // Dashed part to cursor
+                 this.ctx.stroke();
+                 this.ctx.setLineDash([]);
+            } else {
+                this.ctx.lineTo(worldMouseX, worldMouseY); // Within range, solid line
+                this.ctx.stroke();
+            }
         }
+
+        // Drag Selection Box
         if (this.isDragging && this.draggedFarEnough) {
-            const dragRectWorldStartX = this.dragStartX + this.cameraX; const dragRectWorldStartY = this.dragStartY + this.cameraY; const dragRectWorldCurrentX = this.dragCurrentX + this.cameraX; const dragRectWorldCurrentY = this.dragCurrentY + this.cameraY;
-            this.ctx.strokeStyle = 'rgba(50,205,50,0.7)'; this.ctx.lineWidth = 1; this.ctx.fillStyle = 'rgba(50,205,50,0.15)';
-            const rectX = Math.min(dragRectWorldStartX, dragRectWorldCurrentX); const rectY = Math.min(dragRectWorldStartY, dragRectWorldCurrentY); const rectWidth = Math.abs(dragRectWorldCurrentX - dragRectWorldStartX); const rectHeight = Math.abs(dragRectWorldCurrentY - dragRectWorldStartY);
-            this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight); this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+            const dragRectWorldStartX = this.dragStartX + this.cameraX;
+            const dragRectWorldStartY = this.dragStartY + this.cameraY;
+            const dragRectWorldCurrentX = this.dragCurrentX + this.cameraX;
+            const dragRectWorldCurrentY = this.dragCurrentY + this.cameraY;
+
+            this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)';
+            this.ctx.lineWidth = 1;
+            this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)';
+
+            const rectX = Math.min(dragRectWorldStartX, dragRectWorldCurrentX);
+            const rectY = Math.min(dragRectWorldStartY, dragRectWorldCurrentY);
+            const rectWidth = Math.abs(dragRectWorldCurrentX - dragRectWorldStartX);
+            const rectHeight = Math.abs(dragRectWorldCurrentY - dragRectWorldStartY);
+
+            this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+            this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
         }
-        this.ctx.restore();
+
+        this.ctx.restore(); // Restore from camera transform (ends world-space drawing)
     }
 
     gameLoop(timestamp) {

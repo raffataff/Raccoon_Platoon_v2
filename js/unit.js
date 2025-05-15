@@ -1,213 +1,123 @@
 // js/unit.js
 class Unit {
     constructor(x, y, game, team, hp, speed, size, color, id) {
-        this.x = x;
-        this.y = y;
-        this.game = game;
-        this.team = team;
+        this.x = x; this.y = y; this.game = game; this.team = team;
         this.id = id || `${team}-${Date.now().toString(36)+Math.random().toString(36).slice(2,5)}`;
-
-        this.maxHp = hp;
-        this.hp = hp;
-
-        this.speed = speed;
-        this.size = size;
-        this.color = color;
-
-        this.targetX = x;
-        this.targetY = y;
-        this.isMoving = false;
-
-        this.weapon = null;
-        this.autoTarget = null;
-        this.manualTarget = null;
-
-        this.stuckCheckPosition = { x: x, y: y };
-        this.stuckFrames = 0;
-        this.STUCK_FRAMES_THRESHOLD = CONFIG.UNIT_STUCK_FRAMES_THRESHOLD || 30; // From CONFIG
-
-        this.attackCooldown = 0;
-        this.actionTimer = 0;
-        this.isMarkedForDeletion = false;
-        this.facingAngle = 0;
-
-        if (this.team === 'enemy') {
-            this.aiState = 'PATROLLING';
-            this.lastKnownPlayerPosition = null;
-            this.alertedByAlly = false;
-        }
+        this.maxHp = hp; this.hp = hp; this.speed = speed; this.size = size; this.color = color;
+        this.targetX = x; this.targetY = y; this.isMoving = false;
+        this.canShootWhileMoving = true;
+        this.weapon = null; this.autoTarget = null; this.manualTarget = null;
+        this.stuckCheckPosition = { x: x, y: y }; this.stuckFrames = 0;
+        this.STUCK_FRAMES_THRESHOLD = CONFIG.UNIT_STUCK_FRAMES_THRESHOLD || 30;
+        this.attackCooldown = 0; this.actionTimer = 0; this.isMarkedForDeletion = false; this.facingAngle = 0;
+        this.isContinuousFiring = false; this.continuousFireTargetPos = { x: 0, y: 0 }; this.continuousFireTargetEntity = null;
+        if (this.team === 'enemy') { this.aiState = 'PATROLLING'; this.lastKnownPlayerPosition = null; this.alertedByAlly = false; }
     }
 
     update(deltaTime) {
         if (!this.isAlive()) return;
-
         let actionTimerFinishedThisFrame = false;
-        if (this.actionTimer > 0) {
-            const prevTimer = this.actionTimer;
-            this.actionTimer -= deltaTime;
-            if (this.actionTimer <= 0) {
-                 this.actionTimer = 0;
-                 actionTimerFinishedThisFrame = true;
-            }
-            if (this.isMoving) this.isMoving = false; // Stop movement if busy
-            if(this.actionTimer > 0) return; // Don't do other updates if still busy
-        }
-
-        // Stuck Check
-        if (this.isMoving) {
-            if (distance(this.x, this.y, this.stuckCheckPosition.x, this.stuckCheckPosition.y) < 0.5) {
-                this.stuckFrames++;
-            } else {
-                this.stuckFrames = 0;
-                this.stuckCheckPosition.x = this.x;
-                this.stuckCheckPosition.y = this.y;
-            }
-            if (this.stuckFrames > this.STUCK_FRAMES_THRESHOLD) {
-                this.isMoving = false;
-                this.stuckFrames = 0;
-                if (this.team === 'enemy' && typeof this.onStuck === 'function') {
-                    this.onStuck();
-                }
-            }
-        } else { // Not moving, reset stuck frames
-            this.stuckFrames = 0;
-            this.stuckCheckPosition.x = this.x;
-            this.stuckCheckPosition.y = this.y;
-        }
-
+        if (this.actionTimer > 0) { this.actionTimer -= deltaTime; if (this.actionTimer <= 0) { this.actionTimer = 0; actionTimerFinishedThisFrame = true; } if (this.isMoving) this.isMoving = false; if(this.actionTimer > 0) return; }
+        if (this.isMoving) { if (distance(this.x,this.y,this.stuckCheckPosition.x,this.stuckCheckPosition.y) < 0.5) { this.stuckFrames++; } else { this.stuckFrames = 0; this.stuckCheckPosition.x = this.x; this.stuckCheckPosition.y = this.y; } if (this.stuckFrames > this.STUCK_FRAMES_THRESHOLD) { this.isMoving = false; this.stuckFrames = 0; if (this.team === 'enemy' && typeof this.onStuck === 'function') this.onStuck(); }}
+        else { this.stuckFrames = 0; this.stuckCheckPosition.x = this.x; this.stuckCheckPosition.y = this.y; }
         this._handleMovement(deltaTime);
-        if (this.game && this.game.level && this.game.level.obstacles){ // Ensure obstacles exist
-            this._handleCombat(deltaTime, this.game.level.obstacles);
-        }
-
-        // Update UI if player unit's action timer just finished
-        if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') {
-            this.game.ui.updateSquadPanel();
-        }
+        if (this.game && this.game.level && this.game.level.obstacles){ this._handleCombat(deltaTime, this.game.level.obstacles); }
+        if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
+
+    getCollisionShape() { return { type: 'circle', x: this.x, y: this.y, radius: this.size / 2 }; }
 
     _handleMovement(deltaTime) {
         if (!this.isMoving) return;
-        const dx = this.targetX - this.x;
-        const dy = this.targetY - this.y;
+        const dx = this.targetX - this.x; const dy = this.targetY - this.y;
         const distToMovementTarget = distance(this.x, this.y, this.targetX, this.targetY);
 
-        if (distToMovementTarget > 1.0) { // Only move if not already at target
+        if (distToMovementTarget > 1.0) {
             const moveSpeed = this.speed * deltaTime;
             const moveAngle = Math.atan2(dy, dx);
-            if (!this.manualTarget) { // Only face movement if no manual target
+
+            // Only update facing angle from movement if NOT aiming/targeting something specific
+            if (!this.manualTarget && !this.isContinuousFiring && !(this instanceof Raccoon && this.isAimingGrenade) && !this.autoTarget) {
                 this.facingAngle = moveAngle;
             }
-
-            let nextX = this.x + Math.cos(moveAngle) * moveSpeed;
-            let nextY = this.y + Math.sin(moveAngle) * moveSpeed;
-
-            // If we would overshoot, snap to target
-            if (distToMovementTarget <= moveSpeed) {
-                nextX = this.targetX;
-                nextY = this.targetY;
-                this.isMoving = false;
+            let nextX = this.x + Math.cos(moveAngle) * moveSpeed; let nextY = this.y + Math.sin(moveAngle) * moveSpeed;
+            if (distToMovementTarget <= moveSpeed) { nextX = this.targetX; nextY = this.targetY; this.isMoving = false; }
+            let collision = false; const activeObstacles = this.game && this.game.level && this.game.level.obstacles ? this.game.level.obstacles.filter(obs => !obs.isDestroyed && obs.blocksMovement) : [];
+            const unitFutureShape = { type: 'circle', x: nextX, y: nextY, radius: this.size / 2 };
+            for (const obs of activeObstacles) { const obsCS = this.game.level._getObstacleCollisionShape(obs); let currentCollision = false; if (unitFutureShape.type === 'circle' && obsCS.type === 'circle') { currentCollision = circleOverlap(unitFutureShape, obsCS); } else if (unitFutureShape.type === 'circle' && obsCS.type === 'rectangle') { currentCollision = rectCircleOverlap(obsCS, unitFutureShape); } if (currentCollision) { collision = true; break; }}
+            if (!collision) { this.x = nextX; this.y = nextY; }
+            else {
+                let slid = false; const unitFutureXShape = { ...unitFutureShape, y: this.y }; let tempCollisionX = false;
+                for (const obs of activeObstacles) { const obsCS = this.game.level._getObstacleCollisionShape(obs); if ((unitFutureXShape.type==='circle'&&obsCS.type==='circle'&&circleOverlap(unitFutureXShape,obsCS))||(unitFutureXShape.type==='circle'&&obsCS.type==='rectangle'&&rectCircleOverlap(obsCS,unitFutureXShape))) { tempCollisionX=true; break;}}
+                if (!tempCollisionX) { this.x = nextX; slid = true; }
+                const unitFutureYShape = { ...unitFutureShape, x: this.x }; let tempCollisionY = false;
+                for (const obs of activeObstacles) { const obsCS = this.game.level._getObstacleCollisionShape(obs); if ((unitFutureYShape.type==='circle'&&obsCS.type==='circle'&&circleOverlap(unitFutureYShape,obsCS))||(unitFutureYShape.type==='circle'&&obsCS.type==='rectangle'&&rectCircleOverlap(obsCS,unitFutureYShape))) { tempCollisionY=true; break;}}
+                if (!tempCollisionY) { this.y = nextY; slid = true; }
+                if (!slid) { this.isMoving = false; }
             }
+            const worldW = CONFIG.WORLD_WIDTH || 0; const worldH = CONFIG.WORLD_HEIGHT || 0;
+            this.x = Math.max(this.size/2, Math.min(this.x, worldW - this.size/2)); this.y = Math.max(this.size/2, Math.min(this.y, worldH - this.size/2));
+        } else { this.isMoving = false; this.x = this.targetX; this.y = this.targetY; }
+    }
 
-            // Collision detection
-            let collision = false;
-            const activeObstacles = this.game && this.game.level && this.game.level.obstacles ?
-                                    this.game.level.obstacles.filter(obs => !obs.isDestroyed && obs.blocksMovement) :
-                                    [];
-            for (const obs of activeObstacles) {
-                if (nextX + this.size > obs.x && nextX - this.size < obs.x + obs.width &&
-                    nextY + this.size > obs.y && nextY - this.size < obs.y + obs.height) {
-                    collision = true; break;
-                }
-            }
-            if (!collision) {
-                this.x = nextX; this.y = nextY;
-            } else { // Attempt to slide
-                let slid = false;
-                 // Try X movement only
-                 let tempCollisionX = false;
-                 for (const obs of activeObstacles) {
-                     if (nextX + this.size > obs.x && nextX - this.size < obs.x + obs.width &&
-                         this.y + this.size > obs.y && this.y - this.size < obs.y + obs.height) {
-                         tempCollisionX = true; break;
-                     }
-                 }
-                 if (!tempCollisionX) { this.x = nextX; slid = true; }
+    setContinuousFire(isFiring, targetX, targetY) {
+        this.isContinuousFiring = isFiring;
+        if (isFiring) {
+            this.manualTarget = null; this.autoTarget = null;
+            // DO NOT set this.isMoving = false; here if we want to shoot while moving.
+            // Movement will be controlled by player's right-click commands.
+            // Firing logic will just check if it CAN fire from current position/state.
 
-                 // Try Y movement only
-                 let tempCollisionY = false;
-                 for (const obs of activeObstacles) {
-                    if (this.x + this.size > obs.x && this.x - this.size < obs.x + obs.width &&
-                        nextY + this.size > obs.y && nextY - this.size < obs.y + obs.height) {
-                        tempCollisionY = true; break;
-                    }
-                 }
-                 if (!tempCollisionY) { this.y = nextY; slid = true; }
-
-                 if (!slid) { this.isMoving = false; } // Stop if couldn't slide
-            }
-            // Clamp to world boundaries
-            this.x = Math.max(this.size, Math.min(this.x, (CONFIG.WORLD_WIDTH || this.game.canvas.width) - this.size));
-            this.y = Math.max(this.size, Math.min(this.y, (CONFIG.WORLD_HEIGHT || this.game.canvas.height) - this.size));
-        } else { // Already at target
-            this.isMoving = false; this.x = this.targetX; this.y = this.targetY;
+            this.continuousFireTargetEntity = null;
+            const potentialTargets = (this.team === 'player') ? this.game.enemyUnits : this.game.deployedSquadRoster;
+            if(potentialTargets && targetX !== undefined && targetY !== undefined) {
+                for (const enemy of potentialTargets) { if (enemy.isAlive() && distance(targetX, targetY, enemy.x, enemy.y) < enemy.size + 7) { this.continuousFireTargetEntity = enemy; break; }}} // Increased radius to lock
+            if (this.continuousFireTargetEntity) { this.continuousFireTargetPos = { x: this.continuousFireTargetEntity.x, y: this.continuousFireTargetEntity.y }; }
+            else if (targetX !== undefined && targetY !== undefined) { this.continuousFireTargetPos = { x: targetX, y: targetY }; }
+            else { this.continuousFireTargetPos = { x: this.x + Math.cos(this.facingAngle) * 100, y: this.y + Math.sin(this.facingAngle) * 100 }; }
+            this.facingAngle = Math.atan2(this.continuousFireTargetPos.y - this.y, this.continuousFireTargetPos.x - this.x);
+        } else {
+            this.continuousFireTargetEntity = null;
         }
+    }
+
+    updateContinuousFireTarget(targetX, targetY) {
+        if (!this.isContinuousFiring) return;
+        if (this.continuousFireTargetEntity && this.continuousFireTargetEntity.isAlive()) { this.continuousFireTargetPos = { x: this.continuousFireTargetEntity.x, y: this.continuousFireTargetEntity.y }; }
+        else { this.continuousFireTargetEntity = null; this.continuousFireTargetPos = { x: targetX, y: targetY }; }
+        this.facingAngle = Math.atan2(this.continuousFireTargetPos.y - this.y, this.continuousFireTargetPos.x - this.x);
     }
 
     _handleCombat(deltaTime, obstacles) {
         if ((this instanceof Raccoon && this.isAimingGrenade) || this.actionTimer > 0 || !this.weapon) return;
-
-        if (this.attackCooldown > 0) {
-            this.attackCooldown -= deltaTime;
-            if (this.attackCooldown < 0) this.attackCooldown = 0;
-        }
-
-        let targetToShoot = null;
-        // Prioritize manual target
-        if (this.manualTarget && typeof this.manualTarget.isAlive === 'function' && this.manualTarget.isAlive()) {
-            targetToShoot = this.manualTarget;
-            // Always face manual target when actively targeting
-            this.facingAngle = Math.atan2(targetToShoot.y - this.y, targetToShoot.x - this.x);
+        if (this.attackCooldown > 0) { this.attackCooldown -= deltaTime; if (this.attackCooldown < 0) this.attackCooldown = 0; }
+        let targetToShoot = null; let fireAtX, fireAtY;
+        if (this.isContinuousFiring) {
+            if (this.continuousFireTargetEntity && this.continuousFireTargetEntity.isAlive()) { targetToShoot = this.continuousFireTargetEntity; fireAtX = targetToShoot.x; fireAtY = targetToShoot.y; }
+            else if (this.continuousFireTargetEntity && !this.continuousFireTargetEntity.isAlive()){ this.setContinuousFire(false); return; }
+            else { fireAtX = this.continuousFireTargetPos.x; fireAtY = this.continuousFireTargetPos.y; }
+            this.facingAngle = Math.atan2(fireAtY - this.y, fireAtX - this.x);
+        } else if (this.manualTarget && this.manualTarget.isAlive()) {
+            targetToShoot = this.manualTarget; fireAtX = targetToShoot.x; fireAtY = targetToShoot.y; this.facingAngle = Math.atan2(fireAtY - this.y, fireAtX - this.x);
         } else {
-            if (this.manualTarget) this.manualTarget = null; // Clear if dead or invalid
-            // Find auto target if no manual one
+            if (this.manualTarget) this.manualTarget = null;
             const potentialTargets = (this.team === 'player') ? this.game.enemyUnits : this.game.deployedSquadRoster;
             this.findAutoTarget(potentialTargets, obstacles);
-            targetToShoot = this.autoTarget;
+            if (this.autoTarget) { targetToShoot = this.autoTarget; fireAtX = targetToShoot.x; fireAtY = targetToShoot.y; if (!this.isMoving) this.facingAngle = Math.atan2(fireAtY - this.y, fireAtX - this.x); }
+            else { return; }
         }
-
-        // If we have a target to shoot and weapon is ready
-        if (targetToShoot && typeof targetToShoot.isAlive === 'function' && targetToShoot.isAlive() && this.attackCooldown <= 0) {
-            const distToTarget = distance(this.x, this.y, targetToShoot.x, targetToShoot.y);
-            if (distToTarget <= this.weapon.range) {
-                 let hasLOS = true; // Assume LOS for barrels/destructibles initially
-                 const activeObstacles = obstacles ? obstacles.filter(o => !o.isDestroyed && o.providesCover) : [];
-                 // Only check LOS for actual units, not neutral shootable objects like barrels
-                 if (targetToShoot.team && targetToShoot.team !== 'neutral_object') {
-                     hasLOS = hasLineOfSight(this.x, this.y, targetToShoot.x, targetToShoot.y, activeObstacles);
-                 }
-
-                if (hasLOS) {
-                    // Face the target before firing
-                    this.facingAngle = Math.atan2(targetToShoot.y - this.y, targetToShoot.x - this.x);
-                    this.fireAt(targetToShoot);
-                } else {
-                     // Lost LOS to auto target, clear it so we can find a new one
-                     if (targetToShoot === this.autoTarget) this.autoTarget = null;
-                }
-            } else {
-                 // Target out of range
-                 if (targetToShoot === this.autoTarget) this.autoTarget = null; // Clear auto target
-            }
-        } else if (targetToShoot && typeof targetToShoot.isAlive === 'function' && targetToShoot.isAlive()) {
-             // If has a target but attack is on cooldown, still face them (if manual or stationary auto)
-             if (this.manualTarget === targetToShoot) {
-                 this.facingAngle = Math.atan2(targetToShoot.y - this.y, targetToShoot.x - this.x);
-             } else if (this.autoTarget === targetToShoot && !this.isMoving) {
-                 this.facingAngle = Math.atan2(targetToShoot.y - this.y, targetToShoot.x - this.x);
-             }
-        }
+        if (fireAtX === undefined || fireAtY === undefined) return;
+        if ((targetToShoot || this.isContinuousFiring) && this.attackCooldown <= 0) {
+            const distToTargetPoint = distance(this.x, this.y, fireAtX, fireAtY);
+            if (distToTargetPoint <= this.weapon.range) {
+                let hasLOS = true; const activeObstacles = obstacles ? obstacles.filter(o => !o.isDestroyed && o.providesCover) : [];
+                if (targetToShoot && targetToShoot.team && targetToShoot.team !== 'neutral_object') { hasLOS = hasLineOfSight(this.x, this.y, fireAtX, fireAtY, activeObstacles, this.game.level); }
+                if (hasLOS) { this.facingAngle = Math.atan2(fireAtY - this.y, fireAtX - this.x); this._executeFire(fireAtX, fireAtY); }
+                else { if (targetToShoot === this.autoTarget) this.autoTarget = null; if (this.isContinuousFiring && this.continuousFireTargetEntity === targetToShoot) this.continuousFireTargetEntity = null; }
+            } else { if (targetToShoot === this.autoTarget) this.autoTarget = null; if (this.isContinuousFiring && this.continuousFireTargetEntity === targetToShoot) this.setContinuousFire(false); }
+        } else if (targetToShoot && targetToShoot.isAlive()) { if (this.manualTarget === targetToShoot || (this.autoTarget === targetToShoot && !this.isMoving)) { this.facingAngle = Math.atan2(targetToShoot.y - this.y, targetToShoot.x - this.x); }}
     }
+
 
     findAutoTarget(potentialTargets, obstacles) {
         let closestTarget = null;
@@ -225,7 +135,7 @@ class Unit {
                 const dSq = dx*dx + dy*dy;
                 if (dSq <= minDistanceSq) { // If within weapon range (squared)
                     // Check Line of Sight
-                    if (hasLineOfSight(this.x, this.y, target.x, target.y, activeObstacles)) {
+                    if (hasLineOfSight(this.x, this.y, target.x, target.y, activeObstacles, this.game.level)) {
                         if (!closestTarget || dSq < minDistanceSq) { // If this is the first valid target or closer than previous
                            closestTarget = target;
                            minDistanceSq = dSq;
@@ -237,36 +147,32 @@ class Unit {
         this.autoTarget = closestTarget;
     }
 
-    fireAt(targetEntity) {
-        if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) return;
-
-        // Determine accuracy based on movement and rank bonus (if player)
-        let baseAccuracy = this.isMoving ? this.weapon.accuracyMoving : this.weapon.accuracyStationary;
-        if (this.team === 'player' && this.accuracyBonus) { // accuracyBonus is from Raccoon rank
-            baseAccuracy += this.accuracyBonus;
-        }
-        const effectiveAccuracy = Math.min(1.0, Math.max(0.0, baseAccuracy)); // Clamp between 0 and 1
-
-        const projectile = new Projectile(this.x, this.y, targetEntity.x, targetEntity.y, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this.game, this, effectiveAccuracy);
-        this.game.addProjectile(projectile);
-        this.attackCooldown = 1 / this.weapon.rof;
+    fireAt(targetEntity) { // This is called by AI or could be a specific player command later
+        if (this.isContinuousFiring) this.setContinuousFire(false); // Stop continuous if specific target chosen
+        this._executeFire(targetEntity.x, targetEntity.y);
     }
 
-    fireAtPoint(pointX, pointY) {
+    _executeFire(pointX, pointY) {
         if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) return;
-
-        this.facingAngle = Math.atan2(pointY - this.y, pointX - this.x);
-        this.manualTarget = null; this.autoTarget = null; // Clear targets when firing at point
+        // NEW: Check if allowed to shoot while moving
+        if (this.isMoving && !this.canShootWhileMoving) {
+            return; // Cannot shoot if moving and weapon/unit type doesn't allow it
+        }
 
         let baseAccuracy = this.isMoving ? this.weapon.accuracyMoving : this.weapon.accuracyStationary;
-        if (this.team === 'player' && this.accuracyBonus) {
-            baseAccuracy += this.accuracyBonus;
-        }
+        if (this.team === 'player' && this.accuracyBonus) { baseAccuracy += this.accuracyBonus; }
         const effectiveAccuracy = Math.min(1.0, Math.max(0.0, baseAccuracy));
 
         const projectile = new Projectile(this.x, this.y, pointX, pointY, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this.game, this, effectiveAccuracy);
         this.game.addProjectile(projectile);
         this.attackCooldown = 1 / this.weapon.rof;
+    }
+
+
+    fireAtPoint(pointX, pointY) { // This is for Shift+TAP single volley
+        if (this.isContinuousFiring) this.setContinuousFire(false);
+        this._executeFire(pointX, pointY);
+        this.manualTarget = null; this.autoTarget = null; // Shift+Tap clears targets
     }
 
     takeDamage(amount, attackerUnit = null) {
@@ -290,7 +196,7 @@ class Unit {
             const initialAiState = this.aiState;
             if (this.aiState !== 'ENGAGING' && this.aiState !== 'ENGAGING_HEAVY') {
                 const activeObstacles = this.game.level.obstacles.filter(o => !o.isDestroyed && o.providesCover);
-                const hasLOSToAttacker = hasLineOfSight(this.x, this.y, attackerUnit.x, attackerUnit.y, activeObstacles);
+                const hasLOSToAttacker = hasLineOfSight(this.x, this.y, attackerUnit.x, attackerUnit.y, activeObstacles, this.game.level);
                 if (hasLOSToAttacker) {
                     this.manualTarget = attackerUnit;
                     this.aiState = (this instanceof PossumHeavy) ? 'ENGAGING_HEAVY' : 'ENGAGING';
@@ -325,7 +231,7 @@ class Unit {
                     if (sourceOfAlertUnit && sourceOfAlertUnit.isAlive()) {
                         otherEnemy.lastKnownPlayerPosition = { x: sourceOfAlertUnit.x, y: sourceOfAlertUnit.y };
                         const activeObstacles = this.game.level.obstacles.filter(o => !o.isDestroyed && o.providesCover);
-                        if (hasLineOfSight(otherEnemy.x, otherEnemy.y, sourceOfAlertUnit.x, sourceOfAlertUnit.y, activeObstacles)) {
+                        if (hasLineOfSight(otherEnemy.x, otherEnemy.y, sourceOfAlertUnit.x, sourceOfAlertUnit.y, activeObstacles, this.game.level)) {
                             otherEnemy.manualTarget = sourceOfAlertUnit;
                             otherEnemy.aiState = (otherEnemy instanceof PossumHeavy) ? 'ENGAGING_HEAVY' : 'ENGAGING';
                         }
@@ -407,25 +313,6 @@ class Unit {
         }
     }
 
-    setMoveTarget(x, y) {
-        if (this.actionTimer > 0) return; // Don't allow move if busy
-        this.targetX = x; this.targetY = y; this.isMoving = true;
-        // Manual target is NOT cleared by right-click move in this design.
-        this.autoTarget = null; // Clear auto target as we are now explicitly moving
-        this.stuckFrames = 0; // Reset stuck counter
-    }
-
-    setManualTarget(target) {
-        if (this.actionTimer > 0 || (this instanceof Raccoon && this.isAimingGrenade)) return;
-        this.manualTarget = target;
-        this.autoTarget = null; // Manual target overrides auto
-        this.stuckFrames = 0;
-        // If setting a valid target, stop moving and face it
-        if (target && typeof target.isAlive === 'function' && target.isAlive()) {
-             this.isMoving = false; // Stop any current movement
-             this.targetX = this.x; // Update target to current position
-             this.targetY = this.y;
-             this.facingAngle = Math.atan2(target.y - this.y, target.x - this.x); // Face the target
-        }
-    }
+    setMoveTarget(x, y) { if (this.isContinuousFiring) this.setContinuousFire(false); this.targetX = x; this.targetY = y; this.isMoving = true; this.autoTarget = null; this.stuckFrames = 0; }
+    setManualTarget(target) { if (this.isContinuousFiring) this.setContinuousFire(false); this.manualTarget = target; this.autoTarget = null; this.stuckFrames = 0; if (target && target.isAlive()) { this.isMoving = false; this.targetX = this.x; this.targetY = this.y; this.facingAngle = Math.atan2(target.y - this.y, target.x - this.x); }}
 }

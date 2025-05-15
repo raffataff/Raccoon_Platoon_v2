@@ -106,16 +106,50 @@ class Projectile {
 
         if (this.game && this.game.level && this.game.level.obstacles) {
             for (const obs of this.game.level.obstacles) {
-                if (!obs.isDestroyed) {
-                    if (this.x >= obs.x && this.x <= obs.x + obs.width &&
-                        this.y >= obs.y && this.y <= obs.y + obs.height) {
+                if (!obs.isDestroyed) { // Only check non-destroyed obstacles
+                    // Get the effective collision shape of the obstacle
+                    const obsCollisionShape = this.game.level._getObstacleCollisionShape(obs);
+                    let hitObstacle = false;
+
+                    // Check collision between projectile (point) and obstacle shape
+                    if (obsCollisionShape.type === 'rectangle') {
+                        if (pointInRectangle(this.x, this.y, obsCollisionShape)) {
+                            hitObstacle = true;
+                        }
+                    } else if (obsCollisionShape.type === 'circle') {
+                        if (pointInCircle(this.x, this.y, obsCollisionShape)) {
+                            hitObstacle = true;
+                        }
+                    }
+                    // Add more shape types if necessary
+
+                    if (hitObstacle) {
+                        // If it's an explosive barrel, damage it
                         if (obs.destructible && obs.type === 'explosive_barrel') {
                             this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
+                            // Projectile might pass through if barrel doesn't immediately provide "cover"
+                            // or if you want bullets to destroy it and continue.
+                            // For now, let's assume bullets stop if the barrel *also* provides cover.
                         }
-                        if (obs.providesCover) { // Projectiles stop at any cover they hit
+
+                        // If the obstacle provides cover, the projectile stops
+                        if (obs.providesCover) {
                             this.isMarkedForDeletion = true;
-                            return;
+                            return; // Exit after collision with cover
                         }
+                        // If it hit something not providing cover (e.g. a pickup crate erroneously marked),
+                        // and it wasn't an explosive barrel, it might pass through or stop.
+                        // For simplicity, let's assume if it hits any part of a defined collisionShape
+                        // of an obstacle that isn't explicitly cover, it should still stop unless specifically designed to pass.
+                        // This might need refinement based on obstacle types.
+                        // For now: if it hit *something* solid (even if not cover), it's deleted.
+                        // This prevents bullets from passing through the visual part of non-cover items
+                        // that still have a collisionShape.
+                        if(!obs.providesCover && obs.collisionShape){ // It hit a defined collision shape but not cover
+                             this.isMarkedForDeletion = true; // Stop bullet
+                             return;
+                        }
+
                     }
                 }
             }
