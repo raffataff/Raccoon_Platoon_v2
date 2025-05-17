@@ -1,4 +1,5 @@
 // js/level.js
+// complete
 class Level {
     constructor(game) {
         this.game = game;
@@ -8,8 +9,8 @@ class Level {
     _getObstacleCollisionShape(obstacle) {
         if (obstacle.collisionShape) {
             const shapeDef = obstacle.collisionShape;
-            const obsRenderWidth = obstacle.width; // The actual rendered width of this instance
-            const obsRenderHeight = obstacle.height; // The actual rendered height of this instance
+            const obsRenderWidth = obstacle.width;
+            const obsRenderHeight = obstacle.height;
 
             if (shapeDef.type === 'rectangle') {
                 return {
@@ -31,9 +32,11 @@ class Level {
         return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
     }
 
-    _rectOverlap(rect1, rect2) { return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y); }
+    _rectOverlap(rect1, rect2) { /* ... (Unchanged from previous complete version) ... */
+        return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y);
+    }
 
-    isShapeOverlappingList(movingShape, existingObstacles) {
+    isShapeOverlappingList(movingShape, existingObstacles) { /* ... (Unchanged from previous complete version) ... */
         for (const existing of existingObstacles) {
             if (!existing.isDestroyed && existing.blocksMovement) {
                 const existingCollisionShape = this._getObstacleCollisionShape(existing);
@@ -48,40 +51,81 @@ class Level {
         return false;
     }
 
-    isSpawnPointClear(x, y, unitSize, existingObstacles) {
+    isSpawnPointClear(x, y, unitSize, existingObstacles) { /* ... (Unchanged from previous complete version) ... */
         const unitShape = { type: 'circle', x: x, y: y, radius: unitSize / 2 };
         return !this.isShapeOverlappingList(unitShape, existingObstacles);
     }
 
     damageObstacle(obstacle, amount, attackerUnit = null) {
-        if (!obstacle || !obstacle.destructible || obstacle.isDestroyed || obstacle.hp === undefined) return;
+        if (!obstacle || !obstacle.destructible || obstacle.isDestroyed || obstacle.hp === undefined) {
+            // --- MODIFIED: Add detailed log for early return ---
+            if (obstacle && obstacle.type === 'possum_hut') {
+                console.log(`[Level.damageObstacle] Returning early for Possum Hut (${obstacle.name || obstacle.id}). Destructible: ${obstacle.destructible}, IsDestroyed: ${obstacle.isDestroyed}, HP defined: ${obstacle.hp !== undefined}`);
+            }
+            // --- END MODIFICATION ---
+            return;
+        }
+
         obstacle.hp -= amount;
+
+        // --- MODIFIED: Log HP after damage specifically for the hut ---
+        if (obstacle.type === 'possum_hut') {
+            console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) HP after damage: ${obstacle.hp}`);
+        }
+        // --- END MODIFICATION ---
+
         if (obstacle.hp <= 0) {
-            obstacle.hp = 0; obstacle.isDestroyed = true;
+            obstacle.hp = 0;
+            obstacle.isDestroyed = true; // This is the key line
+
+            // --- MODIFIED: Log when isDestroyed is set for the hut ---
+            if (obstacle.type === 'possum_hut') {
+                console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) has been marked as isDestroyed = true. Current HP: ${obstacle.hp}`);
+                // Also log the state of its imageDestroyed property at this exact moment
+                console.log(`[Level.damageObstacle] Hut's imageDestroyed object at destruction time:`, obstacle.imageDestroyed);
+            }
+            // --- END MODIFICATION ---
+
             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
             if (obstacleDef) {
                 obstacle.blocksMovement = obstacleDef.blocksMovementOnDestroy !== undefined ? obstacleDef.blocksMovementOnDestroy : false;
                 obstacle.providesCover = obstacleDef.providesCoverOnDestroy !== undefined ? obstacleDef.providesCoverOnDestroy : false;
-            } else { obstacle.blocksMovement = false; obstacle.providesCover = false; }
+            } else {
+                obstacle.blocksMovement = false;
+                obstacle.providesCover = false;
+            }
+
             if (this.game && obstacleDef && obstacleDef.explosionDamage && obstacleDef.explosionAoeRadius) {
                 this.game.addVisualEffect('explosion', obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2, obstacleDef.explosionAoeRadius);
-                const explosionDmg = obstacleDef.explosionDamage; const explosionRadius = obstacleDef.explosionAoeRadius;
+                const explosionDmg = obstacleDef.explosionDamage;
+                const explosionRadius = obstacleDef.explosionAoeRadius;
+
                 (this.game.level.obstacles || []).forEach(otherObs => {
                     if (otherObs !== obstacle && otherObs.destructible && !otherObs.isDestroyed) {
-                        const centerObsX = otherObs.x + otherObs.width / 2; const centerObsY = otherObs.y + otherObs.height / 2;
-                        const explosionCenterX = obstacle.x + obstacle.width / 2; const explosionCenterY = obstacle.y + obstacle.height / 2;
+                        const centerObsX = otherObs.x + otherObs.width / 2;
+                        const centerObsY = otherObs.y + otherObs.height / 2;
+                        const explosionCenterX = obstacle.x + obstacle.width / 2;
+                        const explosionCenterY = obstacle.y + obstacle.height / 2;
                         if (distance(explosionCenterX, explosionCenterY, centerObsX, centerObsY) < explosionRadius + (otherObs.width + otherObs.height) / 4) {
                            this.damageObstacle(otherObs, explosionDmg, attackerUnit);
                         }
                     }
                 });
+
                 const allUnits = [...(this.game.deployedSquadRoster || []), ...(this.game.enemyUnits || [])];
-                allUnits.forEach(unit => { if (unit.isAlive()) { const distToUnit = distance(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, unit.x, unit.y); if (distToUnit <= explosionRadius + unit.size) unit.takeDamage(explosionDmg, attackerUnit); }});
+                allUnits.forEach(unit => {
+                    if (unit.isAlive()) {
+                        const distToUnit = distance(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, unit.x, unit.y);
+                        if (distToUnit <= explosionRadius + unit.size) { // Consider unit size for AOE hit
+                            unit.takeDamage(explosionDmg, attackerUnit);
+                        }
+                    }
+                });
             }
         }
     }
 
-    _getRandomObstacleTemplate() {
+    _getRandomObstacleTemplate() { /* ... (Unchanged from previous complete version) ... */
         const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
         let totalWeight = 0; definitions.forEach(def => totalWeight += (def.spawnWeight || 1));
@@ -92,7 +136,7 @@ class Level {
         return definitions[definitions.length - 1];
     }
 
-    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}) {
+    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}) { /* ... (Unchanged from previous complete version, assuming obstacle instantiation logic is correct based on prior checks) ... */
         this.obstacles = []; if (this.game) { this.game.enemyUnits = []; this.game.gameObjects = []; }
         const genConfig = CONFIG.LEVEL_GENERATION || {}; const worldMargin = genConfig.WORLD_MARGIN || 20;
         const borderWidth = genConfig.BORDER_WIDTH || 30; const borderColor = genConfig.BORDER_COLOR || '#25221D';
@@ -120,18 +164,16 @@ class Level {
             }
 
             let obsWidth, obsHeight;
-            let actualSpritePath = null; // Initialize to null
-            let actualImageObject = null; // Initialize to null
-            let actualDestroyedSpritePath = template.spriteDestroyed || null; // Get from template by default
+            let actualSpritePath = null; 
+            let actualImageObject = null; 
+            let actualDestroyedSpritePath = template.spriteDestroyed || null; 
             let actualDestroyedImageObject = template.spriteDestroyed ? (preloadedAssetImages[template.spriteDestroyed] || null) : null;
-            let scale = 1.0; // Default scale
+            let scale = 1.0; 
 
-            // Determine sprite list and path based on template type
             let filesArray = [];
             let pathBase = '';
             let useRandomSpriteFromList = false;
 
-            // --- Determine which sprite list to use (if any) ---
             if (template.isDecoration && template.type === 'decoration_grass') {
                 filesArray = CONFIG.GRASS_SPRITE_FILES || [];
                 pathBase = CONFIG.GRASS_SPRITE_PATH || '';
@@ -167,65 +209,63 @@ class Level {
             } else if (template.type === 'possum_hut') {
                 filesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
                 pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
+                useRandomSpriteFromList = true; // This ensures it picks from the list for normal sprite
             } else {
-                // This obstacle type uses spriteNormal/spriteDestroyed directly from its template
-                // or is a variable size (minW/maxW) or fixed size (width/height) without a list.
                 actualSpritePath = template.spriteNormal || null;
                 actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
-                // actualDestroyed paths/objects are already initialized from template
             }
 
-            // --- Select a random sprite if using a list ---
             if (useRandomSpriteFromList) {
                 if (filesArray.length > 0 && pathBase) {
                     const randomFile = filesArray[Math.floor(Math.random() * filesArray.length)];
                     actualSpritePath = pathBase + randomFile;
                     actualImageObject = preloadedAssetImages[actualSpritePath] || null;
                 } else {
-                    // No sprites in the list or path missing, clear them
                     actualSpritePath = null;
                     actualImageObject = null;
                 }
+                 // For types like possum_hut that use a list for normal, but have a specific destroyed sprite
+                if (template.type === 'possum_hut' && template.spriteDestroyed) {
+                    actualDestroyedSpritePath = template.spriteDestroyed; // Keep the specific destroyed path
+                    actualDestroyedImageObject = preloadedAssetImages[template.spriteDestroyed] || null;
+                }
+
             }
 
-            // --- Determine Dimensions and Scale ---
+
             if (template.isDecoration && template.type === 'decoration_grass') {
                 const grassConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.GRASS_CLUTTER) || {};
                 const minScale = grassConfig.MIN_SCALE || 0.8;
                 const maxScale = grassConfig.MAX_SCALE || 1.2;
                 scale = minScale + Math.random() * (maxScale - minScale);
-                if (actualImageObject) { // If grass sprite loaded
+                if (actualImageObject) { 
                     obsWidth = actualImageObject.naturalWidth * scale;
                     obsHeight = actualImageObject.naturalHeight * scale;
-                } else { // Fallback for grass if sprite failed
-                    obsWidth = (template.width || 16) * scale; // Use template base size
+                } else { 
+                    obsWidth = (template.width || 16) * scale; 
                     obsHeight = (template.height || 16) * scale;
                 }
-                actualDestroyedSpritePath = null; // Grass doesn't have a destroyed sprite
+                actualDestroyedSpritePath = null; 
                 actualDestroyedImageObject = null;
             } else if (template.width !== undefined && template.height !== undefined) {
-                // For obstacles with fixed width/height in their template (bushes, rocks, palms, barrels, crates)
                 obsWidth = template.width;
                 obsHeight = template.height;
-                scale = 1.0; // No random scaling by default for these
+                scale = 1.0; 
             } else {
-                // For variable size obstacles (older trees, fences using minW/maxW)
                 const minW = template.minW || 30; const maxW = template.maxW || 100;
                 const minH = template.minH || (template.type === 'fence_wood' ? 10 : 30);
                 const maxH = template.maxH || (template.type === 'fence_wood' ? 20 : 100);
                 obsWidth = minW + Math.random() * (maxW - minW);
-                if (template.height !== undefined) { // If only width is variable, height is fixed
+                if (template.height !== undefined) { 
                     obsHeight = template.height;
-                } else if (template.type === 'fence_wood') { // Fences might have variable height too
+                } else if (template.type === 'fence_wood') { 
                     obsHeight = minH + Math.random() * (maxH - minH);
-                } else { // Default proportional height
+                } else { 
                     obsHeight = obsWidth * (0.6 + Math.random() * 0.8);
                 }
                 scale = 1.0;
             }
 
-            // --- Placement Logic (do...while loop) ---
             let obsX, obsY;
             let attempts = 0;
             let placed = false;
@@ -236,7 +276,7 @@ class Level {
                 let collisionCheckShape;
                 const TcollisionShapeDef = template.collisionShape;
                 if (TcollisionShapeDef) {
-                    const currentObsDims = { width: obsWidth, height: obsHeight }; // Pass current render dims
+                    const currentObsDims = { width: obsWidth, height: obsHeight }; 
                     if (TcollisionShapeDef.type === 'circle') {
                         collisionCheckShape = { type: 'circle',
                             x: obsX + (typeof TcollisionShapeDef.offsetX === 'function' ? TcollisionShapeDef.offsetX(currentObsDims) : (TcollisionShapeDef.offsetX || obsWidth / 2)),
@@ -250,10 +290,10 @@ class Level {
                             width: TcollisionShapeDef.width || obsWidth,
                             height: TcollisionShapeDef.height || obsHeight
                         };
-                    } else { // Unknown shape, default to render box
+                    } else { 
                         collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsWidth, height: obsHeight };
                     }
-                } else { // No collisionShape defined in template, use render box
+                } else { 
                     collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsWidth, height: obsHeight };
                 }
                 const renderBoxForPlayerZoneCheck = { x: obsX, y: obsY, width: obsWidth, height: obsHeight };
@@ -281,8 +321,8 @@ class Level {
                         spriteDestroyedPath: actualDestroyedSpritePath,
                         imageNormal: actualImageObject,
                         imageDestroyed: actualDestroyedImageObject,
-                        scale: scale, // Store the scale, especially for grass
-                        collisionShape: template.collisionShape || null // Store the original definition
+                        scale: scale, 
+                        collisionShape: template.collisionShape || null 
                     });
                     placed = true;
                 }

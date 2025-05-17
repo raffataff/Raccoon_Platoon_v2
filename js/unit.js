@@ -1,4 +1,5 @@
 // js/unit.js
+// complete
 class Unit {
     constructor(x, y, game, team, hp, speed, size, color, id) {
         this.x = x; this.y = y; this.game = game; this.team = team;
@@ -36,7 +37,6 @@ class Unit {
             const moveSpeed = this.speed * deltaTime;
             const moveAngle = Math.atan2(dy, dx);
 
-            // Only update facing angle from movement if NOT aiming/targeting something specific
             if (!this.manualTarget && !this.isContinuousFiring && !(this instanceof Raccoon && this.isAimingGrenade) && !this.autoTarget) {
                 this.facingAngle = moveAngle;
             }
@@ -64,14 +64,10 @@ class Unit {
         this.isContinuousFiring = isFiring;
         if (isFiring) {
             this.manualTarget = null; this.autoTarget = null;
-            // DO NOT set this.isMoving = false; here if we want to shoot while moving.
-            // Movement will be controlled by player's right-click commands.
-            // Firing logic will just check if it CAN fire from current position/state.
-
             this.continuousFireTargetEntity = null;
             const potentialTargets = (this.team === 'player') ? this.game.enemyUnits : this.game.deployedSquadRoster;
             if(potentialTargets && targetX !== undefined && targetY !== undefined) {
-                for (const enemy of potentialTargets) { if (enemy.isAlive() && distance(targetX, targetY, enemy.x, enemy.y) < enemy.size + 7) { this.continuousFireTargetEntity = enemy; break; }}} // Increased radius to lock
+                for (const enemy of potentialTargets) { if (enemy.isAlive() && distance(targetX, targetY, enemy.x, enemy.y) < enemy.size + 7) { this.continuousFireTargetEntity = enemy; break; }}}
             if (this.continuousFireTargetEntity) { this.continuousFireTargetPos = { x: this.continuousFireTargetEntity.x, y: this.continuousFireTargetEntity.y }; }
             else if (targetX !== undefined && targetY !== undefined) { this.continuousFireTargetPos = { x: targetX, y: targetY }; }
             else { this.continuousFireTargetPos = { x: this.x + Math.cos(this.facingAngle) * 100, y: this.y + Math.sin(this.facingAngle) * 100 }; }
@@ -102,26 +98,60 @@ class Unit {
         } else {
             if (this.manualTarget) this.manualTarget = null;
             const potentialTargets = (this.team === 'player') ? this.game.enemyUnits : this.game.deployedSquadRoster;
-            this.findAutoTarget(potentialTargets, obstacles);
+            this.findAutoTarget(potentialTargets, obstacles); // findAutoTarget now considers RACCOON_AUTO_TARGET_RANGE_FACTOR
             if (this.autoTarget) { targetToShoot = this.autoTarget; fireAtX = targetToShoot.x; fireAtY = targetToShoot.y; if (!this.isMoving) this.facingAngle = Math.atan2(fireAtY - this.y, fireAtX - this.x); }
             else { return; }
         }
         if (fireAtX === undefined || fireAtY === undefined) return;
+
+        // For player-initiated fire (manual, continuous), the range check here uses the full weapon.range.
+        // For auto-target, if findAutoTarget selected a target, it's already within the (potentially shorter) auto-target range.
+        // So, this single range check correctly handles both cases.
         if ((targetToShoot || this.isContinuousFiring) && this.attackCooldown <= 0) {
             const distToTargetPoint = distance(this.x, this.y, fireAtX, fireAtY);
-            if (distToTargetPoint <= this.weapon.range) {
+
+            // Keep previous logs for general debugging if needed, or remove if too verbose
+            // if (this.team === 'player' && this.weapon) {
+            //     console.log(`[Unit._handleCombat] ${this.name || this.id} eval shot. Target: ${targetToShoot ? targetToShoot.id : 'POINT'}. Dist: ${distToTargetPoint.toFixed(1)}. Wpn Range: ${this.weapon.range}. AutoTgtRangeFactor: ${this instanceof Raccoon ? CONFIG.RACCOON_AUTO_TARGET_RANGE_FACTOR : 'N/A'}`);
+            // }
+
+            if (distToTargetPoint <= this.weapon.range) { // Always check against full weapon range for player command
                 let hasLOS = true; const activeObstacles = obstacles ? obstacles.filter(o => !o.isDestroyed && o.providesCover) : [];
                 if (targetToShoot && targetToShoot.team && targetToShoot.team !== 'neutral_object') { hasLOS = hasLineOfSight(this.x, this.y, fireAtX, fireAtY, activeObstacles, this.game.level); }
+
+                // if (this.team === 'player' && !hasLOS) {
+                //     console.log(`[Unit._handleCombat] ${this.name || this.id} NO SHOOT: Target in range, but NO LOS.`);
+                // }
+
                 if (hasLOS) { this.facingAngle = Math.atan2(fireAtY - this.y, fireAtX - this.x); this._executeFire(fireAtX, fireAtY); }
                 else { if (targetToShoot === this.autoTarget) this.autoTarget = null; if (this.isContinuousFiring && this.continuousFireTargetEntity === targetToShoot) this.continuousFireTargetEntity = null; }
-            } else { if (targetToShoot === this.autoTarget) this.autoTarget = null; if (this.isContinuousFiring && this.continuousFireTargetEntity === targetToShoot) this.setContinuousFire(false); }
+            } else {
+                // if (this.team === 'player') {
+                //     console.log(`[Unit._handleCombat] ${this.name || this.id} NO SHOOT: Target OUT OF WEAPON RANGE. Dist: ${distToTargetPoint.toFixed(1)}, Range: ${this.weapon.range}`);
+                // }
+                if (targetToShoot === this.autoTarget) this.autoTarget = null;
+                if (this.isContinuousFiring && this.continuousFireTargetEntity === targetToShoot) this.setContinuousFire(false);
+            }
         } else if (targetToShoot && targetToShoot.isAlive()) { if (this.manualTarget === targetToShoot || (this.autoTarget === targetToShoot && !this.isMoving)) { this.facingAngle = Math.atan2(targetToShoot.y - this.y, targetToShoot.x - this.x); }}
     }
 
 
     findAutoTarget(potentialTargets, obstacles) {
         let closestTarget = null;
-        let minDistanceSq = (this.weapon ? this.weapon.range : (this.detectionRange || 150)) ** 2;
+        let engagementRange = (this.weapon ? this.weapon.range : (this.detectionRange || 150)); // Default engagement range
+
+        // --- MODIFIED: Adjust engagement range for player's auto-targeting ---
+        if (this.team === 'player' && this instanceof Raccoon && this.weapon) { // Make sure it's a Raccoon and has a weapon
+            const autoTargetRangeFactor = CONFIG.RACCOON_AUTO_TARGET_RANGE_FACTOR;
+
+            if (typeof autoTargetRangeFactor === 'number' && autoTargetRangeFactor > 0 && autoTargetRangeFactor <= 1) {
+                engagementRange = this.weapon.range * autoTargetRangeFactor;
+            }
+            // If RACCOON_AUTO_TARGET_RANGE_FACTOR is not defined or invalid, it defaults to full weapon.range
+        }
+        // --- END MODIFICATION ---
+
+        let minDistanceSq = engagementRange ** 2;
 
         if (!potentialTargets || !Array.isArray(potentialTargets)) {
             this.autoTarget = null; return;
@@ -130,13 +160,12 @@ class Unit {
         const activeObstacles = Array.isArray(obstacles) ? obstacles.filter(o => !o.isDestroyed && o.providesCover) : [];
 
         potentialTargets.forEach(target => {
-            if (target && target.isAlive() && target.team !== this.team) { // Ensure target exists, is alive, and not friendly
+            if (target && target.isAlive() && target.team !== this.team) {
                 const dx = target.x - this.x; const dy = target.y - this.y;
                 const dSq = dx*dx + dy*dy;
-                if (dSq <= minDistanceSq) { // If within weapon range (squared)
-                    // Check Line of Sight
+                if (dSq <= minDistanceSq) { // If within the (potentially adjusted) engagement range
                     if (hasLineOfSight(this.x, this.y, target.x, target.y, activeObstacles, this.game.level)) {
-                        if (!closestTarget || dSq < minDistanceSq) { // If this is the first valid target or closer than previous
+                        if (!closestTarget || dSq < minDistanceSq) {
                            closestTarget = target;
                            minDistanceSq = dSq;
                         }
@@ -147,16 +176,27 @@ class Unit {
         this.autoTarget = closestTarget;
     }
 
-    fireAt(targetEntity) { // This is called by AI or could be a specific player command later
-        if (this.isContinuousFiring) this.setContinuousFire(false); // Stop continuous if specific target chosen
+    fireAt(targetEntity) {
+        if (this.isContinuousFiring) this.setContinuousFire(false);
         this._executeFire(targetEntity.x, targetEntity.y);
     }
 
     _executeFire(pointX, pointY) {
-        if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) return;
-        // NEW: Check if allowed to shoot while moving
+        // if (this.team === 'player') {
+        //      console.log(`[Unit._executeFire] Entered for ${this.name || this.id}. Weapon: ${this.weapon ? this.weapon.name : 'null'}, ActionTimer: ${this.actionTimer.toFixed(2)}, AttackCooldown: ${this.attackCooldown.toFixed(2)}, Alive: ${this.isAlive()}, Moving: ${this.isMoving}, CanShootMoving: ${this.canShootWhileMoving}`);
+        // }
+
+        if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) {
+            // if (this.team === 'player') {
+            //     console.log(`[Unit._executeFire] ${this.name || this.id} returned early: Weapon/Timer/Cooldown/Dead issue.`);
+            // }
+            return;
+        }
         if (this.isMoving && !this.canShootWhileMoving) {
-            return; // Cannot shoot if moving and weapon/unit type doesn't allow it
+            //  if (this.team === 'player') {
+            //     console.log(`[Unit._executeFire] ${this.name || this.id} returned early: Moving and cannot shoot while moving.`);
+            // }
+            return;
         }
 
         let baseAccuracy = this.isMoving ? this.weapon.accuracyMoving : this.weapon.accuracyStationary;
@@ -166,13 +206,20 @@ class Unit {
         const projectile = new Projectile(this.x, this.y, pointX, pointY, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this.game, this, effectiveAccuracy);
         this.game.addProjectile(projectile);
         this.attackCooldown = 1 / this.weapon.rof;
+
+        // if (this.team === 'player') {
+        //     console.log(`[Unit._executeFire] ${this.name || this.id} FIRED projectile at ${pointX.toFixed(1)}, ${pointY.toFixed(1)}. Attack Cooldown set to: ${(1/this.weapon.rof).toFixed(2)}`);
+        // }
     }
 
 
-    fireAtPoint(pointX, pointY) { // This is for Shift+TAP single volley
+    fireAtPoint(pointX, pointY) {
+        // if (this.team === 'player') {
+        //     console.log(`[Unit.fireAtPoint] ${this.name || this.id} attempting Shift+Tap fire at ${pointX.toFixed(1)}, ${pointY.toFixed(1)}`);
+        // }
         if (this.isContinuousFiring) this.setContinuousFire(false);
         this._executeFire(pointX, pointY);
-        this.manualTarget = null; this.autoTarget = null; // Shift+Tap clears targets
+        this.manualTarget = null; this.autoTarget = null;
     }
 
     takeDamage(amount, attackerUnit = null) {
@@ -184,8 +231,8 @@ class Unit {
         if (this.hp <= 0) {
             this.hp = 0; died = true;
             if (attackerUnit && attackerUnit.team === 'player' && typeof attackerUnit.addXp === 'function') {
-                let killXp = CONFIG.XP_PER_KILL || 10; // Default from config
-                if (this instanceof PossumHeavy) killXp += (CONFIG.XP_FOR_HEAVY_KILL || 15); // Bonus from config
+                let killXp = CONFIG.XP_PER_KILL || 10;
+                if (this instanceof PossumHeavy) killXp += (CONFIG.XP_FOR_HEAVY_KILL || 15);
                 attackerUnit.addXp(killXp);
                 if (typeof attackerUnit.incrementKillCount === 'function') attackerUnit.incrementKillCount();
             }
@@ -266,7 +313,6 @@ class Unit {
         ctx.save();
         ctx.translate(this.x, this.y);
 
-        // Unit Body
         if (!this.isAlive()) {
             ctx.fillStyle = this.team === 'player' ?
                             (kiaStyle && kiaStyle.PLAYER_FILL_COLOR || 'darkgrey') :
@@ -277,9 +323,8 @@ class Unit {
             ctx.globalAlpha = 1.0;
         }
         ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI * 2); ctx.fill();
-        ctx.globalAlpha = 1.0; // Reset alpha
+        ctx.globalAlpha = 1.0;
 
-        // Facing Indicator
         if (this.isAlive() && facingIndicatorStyle) {
             ctx.strokeStyle = facingIndicatorStyle.COLOR || 'black';
             ctx.lineWidth = facingIndicatorStyle.LINE_WIDTH || 2;
@@ -287,18 +332,16 @@ class Unit {
             ctx.lineTo(this.size * Math.cos(this.facingAngle), this.size * Math.sin(this.facingAngle));
             ctx.stroke();
         }
-        ctx.restore(); // Restore from unit translation
+        ctx.restore();
 
-        // Health Bar (drawn in world space, not translated with unit)
         if (this.isAlive() && healthBarStyle) {
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
             const barHeight = healthBarStyle.HEIGHT || 4;
             const barX = this.x - barWidth / 2;
-            // Y-offset calculation: unit top edge (this.y - this.size) minus bar height, minus additional offset
             const barY = this.y - this.size - barHeight + (healthBarStyle.Y_OFFSET_BASE || -5);
 
             ctx.fillStyle = healthBarStyle.BG_COLOR || '#333';
-            ctx.fillRect(barX -1, barY -1, barWidth + 2, barHeight + 2); // BG border
+            ctx.fillRect(barX -1, barY -1, barWidth + 2, barHeight + 2);
 
             const currentHealthWidth = Math.max(0, (this.hp / this.maxHp) * barWidth);
             let hpColor = healthBarStyle.HP_COLOR_FULL || '#00CC00';

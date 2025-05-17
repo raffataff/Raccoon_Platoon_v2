@@ -12,18 +12,22 @@ const CONFIG = {
     INPUT_DRAG_THRESHOLD: 5,
     INPUT_TAP_THRESHOLD_MS: 30,
 
+    // --- Pathfinding ---
+    GRID_CELL_SIZE: 16,
+
     // --- Units: Raccoon (Player) ---
-    RACCOON_HP: 30,
-    RACCOON_SPEED: 100,
+    RACCOON_HP: 50,
+    RACCOON_SPEED: 150,
     RACCOON_SIZE: 12,
     RACCOON_COLOR: '#808080',
     RACCOON_MG_DAMAGE: 7,
     RACCOON_MG_ROF: 5,
-    RACCOON_MG_RANGE: 200,
+    RACCOON_MG_RANGE: 400,
     RACCOON_MG_PROJECTILE_SPEED: 500,
     RACCOON_MG_ACCURACY_STATIONARY: 0.90,
     RACCOON_MG_ACCURACY_MOVING: 0.60,
-    RACCOON_STARTING_GRENADES: 1,
+    RACCOON_AUTO_TARGET_RANGE_FACTOR: 0.5,
+    RACCOON_STARTING_GRENADES: 0,
     RACCOON_GRENADE_DAMAGE: 50,
     RACCOON_GRENADE_AOE_RADIUS: 45,
     RACCOON_GRENADE_FUSE_TIME: 2.5,
@@ -34,7 +38,7 @@ const CONFIG = {
 
     // --- Units: Possum Grunt ---
     POSSUM_GRUNT_HP: 30,
-    POSSUM_GRUNT_SPEED: 80,
+    POSSUM_GRUNT_SPEED: 100,
     POSSUM_GRUNT_SIZE: 14,
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_RIFLE_DAMAGE: 8,
@@ -46,7 +50,7 @@ const CONFIG = {
 
     // --- Units: Possum Heavy ---
     POSSUM_HEAVY_HP: 70,
-    POSSUM_HEAVY_SPEED: 50,
+    POSSUM_HEAVY_SPEED: 80,
     POSSUM_HEAVY_SIZE: 18,
     POSSUM_HEAVY_COLOR: '#6A4A3A',
     POSSUM_HEAVY_WEAPON_DAMAGE: 18,
@@ -57,9 +61,9 @@ const CONFIG = {
     POSSUM_HEAVY_WEAPON_ACCURACY_MOVING: 0.3,
 
     // --- Units: General & AI ---
-    UNIT_STUCK_FRAMES_THRESHOLD: 30,
+    UNIT_STUCK_FRAMES_THRESHOLD: 60,
     POSSUM_DETECTION_RANGE: 250,
-    ENEMY_ALERT_PROPAGATION_RADIUS: 180,
+    ENEMY_ALERT_PROPAGATION_RADIUS: 200,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.85,
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.20,
 
@@ -125,22 +129,24 @@ const CONFIG = {
     NEW_RECRUITS_PER_MISSION_WIN: 1,
     MAX_SQUAD_SIZE_MVP: 4,
     MAX_TOTAL_ROSTER_SIZE: 20,
-    INITIAL_FORMATION_SPACING: 3.5,
+    INITIAL_FORMATION_SPACING: 1.7,
     XP_PER_MISSION_SURVIVED: 35,
     XP_PER_HIT: 1,
     XP_PER_KILL: 10,
     XP_FOR_HEAVY_KILL: 25,
     RANK_THRESHOLDS: [
         { rankName: "Recruit", xpNeeded: 0, statBoosts: {} },
-        { rankName: "Private", xpNeeded: 50, statBoosts: { maxHpBonus: 2 } },
-        { rankName: "Corporal", xpNeeded: 150, statBoosts: { maxHpBonus: 4, accuracyBonus: 0.02 } },
-        { rankName: "Sergeant", xpNeeded: 350, statBoosts: { maxHpBonus: 6, accuracyBonus: 0.04 } },
-        { rankName: "Elite", xpNeeded: 600, statBoosts: { maxHpBonus: 8, accuracyBonus: 0.06 } },
-        { rankName: "Ghost", xpNeeded: 1000, statBoosts: { maxHpBonus: 10, accuracyBonus: 0.08 } }
+        { rankName: "Private", xpNeeded: 100, statBoosts: { maxHpBonus: 10 } },
+        { rankName: "Corporal", xpNeeded: 200, statBoosts: { maxHpBonus: 20, accuracyBonus: 0.05 } },
+        { rankName: "Sergeant", xpNeeded: 500, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.08 } },
+        { rankName: "Elite", xpNeeded: 1000, statBoosts: { maxHpBonus: 50, accuracyBonus: 0.2 } },
+        { rankName: "Ghost", xpNeeded: 2000, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.3 } }
     ],
     MAX_RANK_NAME: "Ghost",
-    GRENADE_BONUS_CORPORAL: 1,
-    GRENADE_BONUS_SERGEANT: 1,
+    GRENADE_BONUS_CORPORAL: 2,
+    GRENADE_BONUS_SERGEANT: 3,
+    GRENADE_BONUS_ELITE: 4,
+    GRENADE_BONUS_GHOST: 5,
 
     // --- Visuals & UI ---
     DEFAULT_WORLD_BACKGROUND_COLOR: '#417021',
@@ -267,7 +273,7 @@ const CONFIG = {
 
     // NEW: Possum Huts
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
-    POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/.png',
+    POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
     POSSUM_HUT_SPRITE_FILES: [
         'possum_hut_1.png'
     ],
@@ -291,7 +297,7 @@ const CONFIG = {
             type: 'bush_medium', name: 'Medium Bush', color: '#228B22', // Fallback color
             destructible: true, hp: 30, maxHp: 30, // Example: Medium bushes can be destroyed
             blocksMovement: false,       // Typically bushes don't block movement but provide cover
-            providesCover: true,
+            providesCover: false,
             width: 32, height: 32,    // Fixed size for this type
             collisionShape: {
                 type: 'circle', // This rock is best represented by a circle
@@ -307,7 +313,7 @@ const CONFIG = {
             type: 'bush_large', name: 'Large Bush', color: '#006400', // Fallback color
             destructible: true, hp: 50, maxHp: 50, // Example: Larger bushes tougher
             blocksMovement: true,        // Large dense bushes might block movement
-            providesCover: true,
+            providesCover: false,
             width: 64, height: 64,    // Fixed size for this type
             collisionShape: {
                 type: 'circle', // This rock is best represented by a circle
@@ -358,9 +364,9 @@ const CONFIG = {
             width: 336, height: 268,    // Fixed size for this type
             collisionShape: {
                 type: 'circle', // This rock is best represented by a circle
-                offsetX: 140,    // Offset from sprite's top-left to circle's center X
-                offsetY: 124,    // Offset from sprite's top-left to circle's center Y
-                radius: 120      // Radius of the collision circle
+                offsetX: 150,    // Offset from sprite's top-left to circle's center X
+                offsetY: 150,    // Offset from sprite's top-left to circle's center Y
+                radius: 100      // Radius of the collision circle
             },
             spawnWeight: 5,
             isDecoration: false,
@@ -446,10 +452,10 @@ const CONFIG = {
         // Buildings
         { // Possum Huts
             type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
-            destructible: true, hp: 300, maxHp: 300,
+            destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             width: 250, height: 190, // Example of fixed size for huts
-            spawnWeight: 1,
+            spawnWeight: 5,
             spriteNormal: 'assets/images/objects/possums/huts/possum_hut_1.png',
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
             collisionShape: {
