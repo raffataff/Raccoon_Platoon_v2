@@ -1,14 +1,21 @@
 // js/utils.js
-function distance(x1, y1, x2, y2) {
+// complete
+function distance(x1, y1, x2, y2) { /* ... (Unchanged from previous complete version) ... */
     return Math.hypot(x2 - x1, y2 - y1);
 }
 
-// Line of Sight (LOS) check for MVP:
-function hasLineOfSight(x1, y1, x2, y2, obstacles, gameLevelInstance = null) {
+// MODIFIED: LOS now checks against obstacles that BLOCK MOVEMENT by default for pathing/smoothing
+function hasLineOfSight(x1, y1, x2, y2, obstacles, gameLevelInstance = null, checkOnlyCover = false) {
     for (const obs of obstacles) {
-        if (obs.providesCover && !obs.isDestroyed) {
+        // If checkOnlyCover is true, only check obstacles that provideCover.
+        // Otherwise (default for pathing/smoothing), check obstacles that blockMovement.
+        const relevantObstacle = checkOnlyCover ? obs.providesCover : obs.blocksMovement;
+
+        if (relevantObstacle && !obs.isDestroyed) {
             let collisionDetected = false;
-            const obsShape = gameLevelInstance ? gameLevelInstance._getObstacleCollisionShape(obs) : {type:'rectangle', x:obs.x, y:obs.y, width:obs.width, height:obs.height}; // Basic fallback
+            const obsShape = (gameLevelInstance && typeof gameLevelInstance._getObstacleCollisionShape === 'function')
+                           ? gameLevelInstance._getObstacleCollisionShape(obs)
+                           : {type:'rectangle', x:obs.x, y:obs.y, width:obs.width, height:obs.height};
 
             if (obsShape.type === 'rectangle') {
                 if (lineIntersectsRect(x1, y1, x2, y2, obsShape)) {
@@ -19,119 +26,169 @@ function hasLineOfSight(x1, y1, x2, y2, obstacles, gameLevelInstance = null) {
                     collisionDetected = true;
                 }
             }
-            // Add other shape types if needed
-
             if (collisionDetected) return false;
         }
     }
     return true;
 }
-
-// Line vs. Circle Intersection
-function lineIntersectsCircle(p1x, p1y, p2x, p2y, circle) {
+// ... (rest of utils.js is the same as the version with path smoothing)
+function lineIntersectsCircle(p1x, p1y, p2x, p2y, circle) { /* ... (Unchanged) ... */
     const cx = circle.x;
     const cy = circle.y;
     const r = circle.radius;
-
     const dx = p2x - p1x;
     const dy = p2y - p1y;
     const lenSq = dx * dx + dy * dy;
-
-    // t is the projection of C-P1 onto P2-P1, normalized
     let t;
-    if (lenSq === 0) { // P1 and P2 are the same point
-        t = -1; // effectively, no segment, check if P1 is inside circle
+    if (lenSq === 0) {
+        t = -1;
         return distance(p1x, p1y, cx, cy) <= r;
     } else {
         t = ((cx - p1x) * dx + (cy - p1y) * dy) / lenSq;
     }
-
-
     let closestX, closestY;
-    if (t < 0) { // Closest point is P1
+    if (t < 0) {
         closestX = p1x;
         closestY = p1y;
-    } else if (t > 1) { // Closest point is P2
+    } else if (t > 1) {
         closestX = p2x;
         closestY = p2y;
-    } else { // Closest point is on the segment
+    } else {
         closestX = p1x + t * dx;
         closestY = p1y + t * dy;
     }
-
     const distToClosestSq = (cx - closestX) ** 2 + (cy - closestY) ** 2;
     return distToClosestSq <= r * r;
 }
-
-
-// Helper: Check if line segment (p1x,p1y)-(p2x,p2y) intersects rectangle
-function lineIntersectsRect(p1x, p1y, p2x, p2y, rect) {
+function lineIntersectsRect(p1x, p1y, p2x, p2y, rect) { /* ... (Unchanged) ... */
     const { x, y, width, height } = rect;
-    // Check intersection with each of the 4 edges of the rectangle
-    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x, y, x + width, y)) return true; // Top edge
-    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x, y + height, x + width, y + height)) return true; // Bottom edge
-    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x, y, x, y + height)) return true; // Left edge
-    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x + width, y, x + width, y + height)) return true; // Right edge
+    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x, y, x + width, y)) return true;
+    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x, y + height, x + width, y + height)) return true;
+    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x, y, x, y + height)) return true;
+    if (lineIntersectsLine(p1x, p1y, p2x, p2y, x + width, y, x + width, y + height)) return true;
     return false;
 }
-
-// Helper: Checks if two line segments intersect (x1,y1)-(x2,y2) and (x3,y3)-(x4,y4)
-function lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+function lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) { /* ... (Unchanged) ... */
     const den = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-    if (den === 0) return false; // Lines are parallel or collinear
-
+    if (den === 0) return false;
     const tNum = (x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4);
     const uNum = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3));
-
     const t = tNum / den;
     const u = uNum / den;
-
     return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 }
-
-function rectOverlap(rect1, rect2) {
-    // Check if one rectangle is on left side of other
-    if (rect1.x + rect1.width < rect2.x || rect2.x + rect2.width < rect1.x) {
-        return false;
-    }
-    // Check if one rectangle is above other
-    if (rect1.y + rect1.height < rect2.y || rect2.y + rect2.height < rect1.y) {
-        return false;
-    }
-    return true; // Rectangles overlap
+function rectOverlap(rect1, rect2) { /* ... (Unchanged) ... */
+    if (rect1.x + rect1.width < rect2.x || rect2.x + rect2.width < rect1.x) { return false; }
+    if (rect1.y + rect1.height < rect2.y || rect2.y + rect2.height < rect1.y) { return false; }
+    return true;
 }
-
-function circleOverlap(circle1, circle2) {
+function circleOverlap(circle1, circle2) { /* ... (Unchanged) ... */
     const distSq = (circle1.x - circle2.x) ** 2 + (circle1.y - circle2.y) ** 2;
     const radiiSumSq = (circle1.radius + circle2.radius) ** 2;
     return distSq <= radiiSumSq;
 }
-
-function rectCircleOverlap(rect, circle) {
-    // Find the closest point on the rectangle to the circle's center
+function rectCircleOverlap(rect, circle) { /* ... (Unchanged) ... */
     let testX = circle.x;
     let testY = circle.y;
-
-    if (circle.x < rect.x) testX = rect.x; // Circle is to the left of the rect
-    else if (circle.x > rect.x + rect.width) testX = rect.x + rect.width; // Circle is to the right
-
-    if (circle.y < rect.y) testY = rect.y; // Circle is above the rect
-    else if (circle.y > rect.y + rect.height) testY = rect.y + rect.height; // Circle is below
-
-    // Calculate distance from closest point to circle center
+    if (circle.x < rect.x) testX = rect.x;
+    else if (circle.x > rect.x + rect.width) testX = rect.x + rect.width;
+    if (circle.y < rect.y) testY = rect.y;
+    else if (circle.y > rect.y + rect.height) testY = rect.y + rect.height;
     const distX = circle.x - testX;
     const distY = circle.y - testY;
     const distanceSquared = (distX * distX) + (distY * distY);
-
     return distanceSquared <= circle.radius * circle.radius;
 }
-
-function pointInRectangle(px, py, rect) {
-    return px >= rect.x && px <= rect.x + rect.width &&
-           py >= rect.y && py <= rect.y + rect.height;
+function pointInRectangle(px, py, rect) { /* ... (Unchanged) ... */
+    return px >= rect.x && px <= rect.x + rect.width && py >= rect.y && py <= rect.y + rect.height;
 }
-
-function pointInCircle(px, py, circle) {
+function pointInCircle(px, py, circle) { /* ... (Unchanged) ... */
     const distSq = (px - circle.x) ** 2 + (py - circle.y) ** 2;
     return distSq <= circle.radius * circle.radius;
+}
+class PathNode { /* ... (Unchanged) ... */
+    constructor(x, y, g = 0, h = 0, parent = null) {
+        this.x = x; this.y = y; this.g = g; this.h = h; this.f = g + h; this.parent = parent;
+    }
+}
+function heuristic(nodeA, nodeB) { /* ... (Unchanged) ... */
+    const dX = Math.abs(nodeA.x - nodeB.x);
+    const dY = Math.abs(nodeA.y - nodeB.y);
+    const D = 1;
+    const D2 = Math.SQRT2;
+    return D * (dX + dY) + (D2 - 2 * D) * Math.min(dX, dY);
+}
+function findPath(startPos, endPos, grid) { /* ... (Unchanged) ... */
+    const openList = [];
+    const closedList = new Set();
+    const startNode = new PathNode(startPos.x, startPos.y, 0, heuristic(startPos, endPos));
+    openList.push(startNode);
+    const directions = [
+        { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 }, { x: -1, y: 0, cost: 1 }, { x: 1, y: 0, cost: 1 },
+        { x: -1, y: -1, cost: Math.SQRT2 }, { x: 1, y: -1, cost: Math.SQRT2 }, { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }
+    ];
+    while (openList.length > 0) {
+        openList.sort((a, b) => a.f - b.f);
+        const currentNode = openList.shift();
+        if (currentNode.x === endPos.x && currentNode.y === endPos.y) {
+            const path = [];
+            let temp = currentNode;
+            while (temp) { path.push({ x: temp.x, y: temp.y }); temp = temp.parent; }
+            return path.reverse();
+        }
+        closedList.add(`${currentNode.x},${currentNode.y}`);
+        for (const direction of directions) {
+            const neighborX = currentNode.x + direction.x;
+            const neighborY = currentNode.y + direction.y;
+            if (neighborX < 0 || neighborX >= grid[0].length || neighborY < 0 || neighborY >= grid.length) { continue; }
+            if (grid[neighborY][neighborX] === 1) { continue; }
+            if (direction.x !== 0 && direction.y !== 0) {
+                const cardinalCell1X = currentNode.x + direction.x;
+                const cardinalCell1Y = currentNode.y;
+                const cardinalCell2X = currentNode.x;
+                const cardinalCell2Y = currentNode.y + direction.y;
+                if (grid[cardinalCell1Y][cardinalCell1X] === 1 && grid[cardinalCell2Y][cardinalCell2X] === 1) { continue; }
+            }
+            if (closedList.has(`${neighborX},${neighborY}`)) { continue; }
+            const gCost = currentNode.g + direction.cost;
+            const hCost = heuristic({ x: neighborX, y: neighborY }, endPos);
+            const neighborNode = new PathNode(neighborX, neighborY, gCost, hCost, currentNode);
+            let existingNodeInOpen = null;
+            for (let i = 0; i < openList.length; i++) {
+                if (openList[i].x === neighborX && openList[i].y === neighborY) { existingNodeInOpen = openList[i]; break; }
+            }
+            if (existingNodeInOpen) {
+                if (gCost < existingNodeInOpen.g) {
+                    existingNodeInOpen.g = gCost; existingNodeInOpen.f = gCost + existingNodeInOpen.h; existingNodeInOpen.parent = currentNode;
+                }
+            } else {
+                openList.push(neighborNode);
+            }
+        }
+    }
+    return null;
+}
+function smoothPath(rawPathGridCoords, unitSize, levelInstance) { /* ... (Unchanged from previous complete version - uses the modified hasLineOfSight by default) ... */
+    if (!rawPathGridCoords || rawPathGridCoords.length < 2 || !levelInstance) {
+        return rawPathGridCoords ? rawPathGridCoords.map(p => levelInstance.gridToWorldCoords(p.x, p.y)) : [];
+    }
+    const smoothedPathWorldCoords = [];
+    let currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[0].x, rawPathGridCoords[0].y);
+    smoothedPathWorldCoords.push(currentAnchorWorld);
+    let i = 0;
+    while (i < rawPathGridCoords.length -1) {
+        let furthestVisibleIndex = i + 1;
+        for (let j = rawPathGridCoords.length - 1; j > i + 1; j--) {
+            const candidateWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[j].x, rawPathGridCoords[j].y);
+            const obstaclesForLOS = levelInstance.obstacles.filter(obs => obs.blocksMovement && !obs.isDestroyed);
+            if (hasLineOfSight(currentAnchorWorld.x, currentAnchorWorld.y, candidateWorld.x, candidateWorld.y, obstaclesForLOS, levelInstance)) {
+                furthestVisibleIndex = j;
+                break;
+            }
+        }
+        currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[furthestVisibleIndex].x, rawPathGridCoords[furthestVisibleIndex].y);
+        smoothedPathWorldCoords.push(currentAnchorWorld);
+        i = furthestVisibleIndex;
+    }
+    return smoothedPathWorldCoords;
 }

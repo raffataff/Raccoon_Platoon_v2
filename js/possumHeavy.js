@@ -1,134 +1,233 @@
-// js/possumHeavy.js
-class PossumHeavy extends Unit {
+// js/possum.js
+// complete
+class PossumGrunt extends Unit {
     constructor(x, y, game, id) {
-        super(x, y, game, 'enemy', CONFIG.POSSUM_HEAVY_HP, CONFIG.POSSUM_HEAVY_SPEED, CONFIG.POSSUM_HEAVY_SIZE, CONFIG.POSSUM_HEAVY_COLOR, id || `PHVY-${Date.now().toString(36).slice(-4)}`);
-        this.weapon = WEAPONS.POSSUM_HEAVY_WEAPON;
+        super(x, y, game, 'enemy', CONFIG.POSSUM_GRUNT_HP, CONFIG.POSSUM_GRUNT_SPEED, CONFIG.POSSUM_GRUNT_SIZE, CONFIG.POSSUM_GRUNT_COLOR, id);
+        this.weapon = WEAPONS.POSSUM_RIFLE;
+        this.detectionRange = CONFIG.POSSUM_DETECTION_RANGE || 250;
 
-        // AI Config specific to Heavies
-        const heavyAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_HEAVY) ? CONFIG.AI.POSSUM_HEAVY : {};
+        const gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};
 
-        // Use specific detection range from config, or fallback to a calculation based on general possum detection
-        this.detectionRange = heavyAIConfig.DETECTION_RANGE || (CONFIG.POSSUM_DETECTION_RANGE || 250) + 20;
+        this.aiState = 'PATROLLING';
+        this.patrolPoint1 = { x: x, y: y }; // Start at current location
+        this.patrolPoint2 = this.generateSecondPatrolPoint(
+            x, y,
+            gruntAIConfig.PATROL_MIN_RADIUS || 80,
+            gruntAIConfig.PATROL_MAX_RADIUS || 200
+        );
+        this.currentTargetPatrolPoint = this.patrolPoint2; // Initial target
+        this.patrolWaitTimer = 0;
+        this.PATROL_WAIT_DURATION_BASE = gruntAIConfig.PATROL_WAIT_BASE || 1.5;
+        this.PATROL_WAIT_RANDOM_ADD = gruntAIConfig.PATROL_WAIT_RANDOM_ADD || 2.0;
+        this.PATROL_WAIT_TOTAL_DURATION = this.PATROL_WAIT_DURATION_BASE + Math.random() * this.PATROL_WAIT_RANDOM_ADD;
 
-        this.aiState = 'GUARDING';
-        this.guardPost = { x: x, y: y };
-        // Calculate maxChaseDistance based on its own weapon range and a config factor
-        this.maxChaseDistanceFromPost = this.weapon.range * (heavyAIConfig.MAX_CHASE_DISTANCE_FROM_POST_FACTOR || 0.85);
+        // Initial move order using pathfinding, only if the target is different
+        if (this.currentTargetPatrolPoint.x !== this.x || this.currentTargetPatrolPoint.y !== this.y) {
+            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+        } else {
+            this.isMoving = false; // Already at the first "patrol point" (spawn)
+        }
+    }
+
+    generateSecondPatrolPoint(originX, originY, minRadius, maxRadius) {
+        const gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};
+        let pX, pY, attempts = 0;
+        const worldWidth = CONFIG.WORLD_WIDTH || (this.game && this.game.canvas ? this.game.canvas.width : 1000);
+        const worldHeight = CONFIG.WORLD_HEIGHT || (this.game && this.game.canvas ? this.game.canvas.height : 800);
+        const margin = this.size + (gruntAIConfig.PATROL_POINT_WORLD_MARGIN_BUFFER || 20);
+        const navGrid = this.game.level.getNavigationGrid();
+
+        do {
+            const angle = Math.random() * Math.PI * 2;
+            const radius = minRadius + Math.random() * (maxRadius - minRadius);
+            pX = originX + Math.cos(angle) * radius;
+            pY = originY + Math.sin(angle) * radius;
+
+            pX = Math.max(margin, Math.min(pX, worldWidth - margin));
+            pY = Math.max(margin, Math.min(pY, worldHeight - margin));
+
+            if (navGrid && this.game && this.game.level) {
+                const gridCoords = this.game.level.worldToGridCoords(pX, pY);
+                if (gridCoords.y >= 0 && gridCoords.y < navGrid.length &&
+                    gridCoords.x >= 0 && gridCoords.x < navGrid[0].length &&
+                    navGrid[gridCoords.y][gridCoords.x] === 0 && // Check if walkable on nav grid
+                    this.game.level.isSpawnPointClear(pX, pY, this.size, this.game.level.obstacles)) {
+                    break; // Found a good point
+                }
+            } else { // Fallback if navGrid isn't ready (shouldn't happen if called after level gen)
+                if (this.game.level.isSpawnPointClear(pX, pY, this.size, this.game.level.obstacles)) {
+                    break;
+                }
+            }
+            attempts++;
+        } while (attempts < 20); // Try a few times to find a walkable point
+
+        if (attempts >= 20) {
+            console.warn(`PossumGrunt ${this.id} couldn't find a clear walkable patrol point, using last attempt.`);
+        }
+        return { x: pX, y: pY };
     }
 
     update(deltaTime) {
         if (!this.isAlive()) return;
-        if (this.actionTimer > 0) {
-            this.actionTimer -= deltaTime;
-            this.isMoving = false; // Don't allow movement during action timer
-            return;
-        }
-        this.aiLogicHeavy(deltaTime, this.game.deployedSquadRoster, this.game.level.obstacles);
-        super.update(deltaTime); // Call base unit update for movement, combat execution
+        this.aiLogic(deltaTime, this.game.deployedSquadRoster, this.game.level.obstacles);
+        super.update(deltaTime);
     }
 
-    aiLogicHeavy(deltaTime, playerUnitsOnMap, obstacles) {
-        const heavyAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_HEAVY) ? CONFIG.AI.POSSUM_HEAVY : {};
-        let currentTarget = this.manualTarget;
+    aiLogic(deltaTime, playerUnitsOnMap, obstacles) {
+        const gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};
+        let engagableTarget = this.manualTarget;
 
-        if (!currentTarget || !currentTarget.isAlive()) {
+        if (this.actionTimer > 0) { return; }
+
+        if (!engagableTarget || !engagableTarget.isAlive()) {
             this.manualTarget = null;
-            this.findAutoTarget(playerUnitsOnMap || [], obstacles); // Ensure playerUnitsOnMap is an array
-            currentTarget = this.autoTarget;
+            this.findAutoTarget(playerUnitsOnMap, obstacles);
+            engagableTarget = this.autoTarget;
         }
 
-        // State transitions based on target
-        if (currentTarget && currentTarget.isAlive()) {
-            if (this.aiState !== 'ENGAGING_HEAVY') {
-                this.aiState = 'ENGAGING_HEAVY';
-                this.manualTarget = currentTarget; // Prioritize this target
-                this.lastKnownPlayerPosition = null; this.alertedByAlly = false; // Clear these flags
-                this.propagateAlert(this.manualTarget); // Alert others when first engaging
+        if (engagableTarget && engagableTarget.isAlive()) {
+            if (this.aiState !== 'ENGAGING') {
+                // console.log(`[AI ${this.id}] State change: ${this.aiState} -> ENGAGING (Target: ${engagableTarget.id})`);
+                this.aiState = 'ENGAGING';
+                this.manualTarget = engagableTarget;
+                this.lastKnownPlayerPosition = null;
+                this.alertedByAlly = false;
+                this.currentPath = [];
+                this.isMoving = false;
+                this.propagateAlert(this.manualTarget);
             }
-        } else if (this.aiState === 'ENGAGING_HEAVY') { // Was engaging, but target lost/died
-            this.aiState = 'GUARDING'; // Revert to default behavior
+        } else if (this.aiState === 'ENGAGING') {
+            // console.log(`[AI ${this.id}] State change: ENGAGING -> PATROLLING (Target lost)`);
+            this.aiState = 'PATROLLING';
             this.manualTarget = null;
+            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
         }
-        // If in SUSPICIOUS state and no direct target, it will try to move towards lastKnownPlayerPosition
 
         switch (this.aiState) {
-            case 'GUARDING':
-                const atPostTolerance = heavyAIConfig.GUARD_POST_POSITION_TOLERANCE || 5;
-                if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > atPostTolerance) {
-                    this.targetX = this.guardPost.x; this.targetY = this.guardPost.y;
-                    this.isMoving = true;
+            case 'PATROLLING':
+                if (this.patrolWaitTimer > 0) {
+                    this.patrolWaitTimer -= deltaTime;
+                    if (this.isMoving) { this.isMoving = false; this.currentPath = []; }
                 } else {
-                    this.isMoving = false;
+                    const distToCurrentPatrolPoint = distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+                    const arrivalTolerance = this.game.level.gridCellSize * 0.75; // Slightly less than a cell
+
+                    // If not moving AND not yet at the point (or significantly drifted)
+                    if (!this.isMoving && distToCurrentPatrolPoint > arrivalTolerance) {
+                        // console.log(`[AI ${this.id}] Patrolling: Not moving and not at target. Setting move to ${this.currentTargetPatrolPoint.x.toFixed(0)}, ${this.currentTargetPatrolPoint.y.toFixed(0)}`);
+                        this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+                    }
+                    // If moving, but the world target of the path is not the current patrol point (e.g. path was for old point)
+                    else if (this.isMoving && (this.worldTargetX !== this.currentTargetPatrolPoint.x || this.worldTargetY !== this.currentTargetPatrolPoint.y)) {
+                         // console.log(`[AI ${this.id}] Patrolling: Moving to wrong target. Correcting to ${this.currentTargetPatrolPoint.x.toFixed(0)}, ${this.currentTargetPatrolPoint.y.toFixed(0)}`);
+                        this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+                    }
+
+                    // Check for arrival: if not moving (path ended or failed) AND close enough
+                    if (!this.isMoving && distToCurrentPatrolPoint <= arrivalTolerance) {
+                        // console.log(`[AI ${this.id}] Patrolling: Arrived at patrol point. Waiting.`);
+                        this.x = this.currentTargetPatrolPoint.x; // Snap
+                        this.y = this.currentTargetPatrolPoint.y;
+                        this.patrolWaitTimer = this.PATROL_WAIT_TOTAL_DURATION;
+                        this.currentTargetPatrolPoint = (this.currentTargetPatrolPoint === this.patrolPoint1) ? this.patrolPoint2 : this.patrolPoint1;
+                        this.PATROL_WAIT_TOTAL_DURATION = (gruntAIConfig.PATROL_WAIT_BASE || 1.5) + Math.random() * (gruntAIConfig.PATROL_WAIT_RANDOM_ADD || 2.0);
+                    }
                 }
                 break;
 
             case 'SUSPICIOUS':
                 if (this.lastKnownPlayerPosition) {
                     const distToLKP = distance(this.x, this.y, this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
-                    if (distToLKP > this.size * 2) { // Move towards LKP
-                        this.targetX = this.lastKnownPlayerPosition.x; this.targetY = this.lastKnownPlayerPosition.y;
-                        this.isMoving = true;
-                    } else { // Reached LKP
-                        this.isMoving = false; this.lastKnownPlayerPosition = null;
-                        this.aiState = 'GUARDING'; this.alertedByAlly = false;
-                        this.actionTimer = heavyAIConfig.SUSPICIOUS_STATE_SCAN_DURATION || 0.5; // Short scan/pause
+                    const arrivalToleranceLKP = this.game.level.gridCellSize * 1.5;
+
+                    if (!this.isMoving && distToLKP > arrivalToleranceLKP) {
+                        this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
+                    } else if (this.isMoving && (this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y)) {
+                        this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
                     }
-                } else { // No LKP, or already investigated
-                    this.aiState = 'GUARDING'; this.alertedByAlly = false;
+
+                    if (!this.isMoving && distToLKP <= arrivalToleranceLKP) {
+                        this.lastKnownPlayerPosition = null;
+                        this.aiState = 'PATROLLING';
+                        this.alertedByAlly = false;
+                        this.patrolWaitTimer = this.PATROL_WAIT_TOTAL_DURATION * 0.5;
+                        this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+                    }
+                } else {
+                    this.aiState = 'PATROLLING';
+                    this.alertedByAlly = false;
+                    this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                 }
                 break;
 
-            case 'ENGAGING_HEAVY':
+            case 'ENGAGING':
                 if (this.manualTarget && this.manualTarget.isAlive()) {
                     const distToTarget = distance(this.x, this.y, this.manualTarget.x, this.manualTarget.y);
-                    const distToGuardPost = distance(this.x, this.y, this.guardPost.x, this.guardPost.y);
-                    const engageChaseLimitBuffer = this.weapon.range * (heavyAIConfig.ENGAGE_CHASE_LIMIT_BUFFER_FACTOR || 0.2);
+                    const preferredRangeFactor = gruntAIConfig.ENGAGE_PREFERRED_RANGE_FACTOR || 0.80;
+                    const kiteRangeFactor = gruntAIConfig.ENGAGE_KITE_RANGE_FACTOR || 0.30;
+                    const preferredRange = this.weapon.range * preferredRangeFactor;
+                    const tooCloseRange = this.weapon.range * kiteRangeFactor;
 
-                    // Check if target is within weapon range AND Heavy is not too far from its guard post
-                    if (distToTarget <= this.weapon.range && distToGuardPost <= (this.maxChaseDistanceFromPost + engageChaseLimitBuffer)) {
-                        this.isMoving = false; // Prefer to stand and shoot
-                        this.targetX = this.x; this.targetY = this.y; // Stop at current position
-                    } else if (distToGuardPost < this.maxChaseDistanceFromPost) { // Out of weapon range but still within chase limit from post
-                        const preferredRangeFactor = heavyAIConfig.ENGAGE_PREFERRED_RANGE_FACTOR || 0.85;
-                        const preferredRange = this.weapon.range * preferredRangeFactor;
-                        const angleToTarget = Math.atan2(this.manualTarget.y - this.y, this.manualTarget.x - this.x);
-                        // Target a point that is 'preferredRange' away from the enemy
-                        this.targetX = this.manualTarget.x - Math.cos(angleToTarget) * preferredRange;
-                        this.targetY = this.manualTarget.y - Math.sin(angleToTarget) * preferredRange;
-                        this.isMoving = true;
-                    } else { // Target is out of weapon range AND Heavy is at its chase limit from post (or beyond)
-                        this.manualTarget = null; // Give up on this target
-                        this.aiState = 'GUARDING'; // Return to guard post
+                    if (distToTarget > preferredRange + this.game.level.gridCellSize) { // Move if clearly outside preferred range
+                        if (!this.isMoving || (this.worldTargetX !== this.manualTarget.x || this.worldTargetY !== this.manualTarget.y)) {
+                            // console.log(`[AI ${this.id}] Engaging: Target too far. Moving to ${this.manualTarget.id}`);
+                            this.setMoveTarget(this.manualTarget.x, this.manualTarget.y);
+                        }
+                    } else if (distToTarget < tooCloseRange) {
+                        const angleFromTarget = Math.atan2(this.y - this.manualTarget.y, this.x - this.manualTarget.x);
+                        const kiteDist = this.game.level.gridCellSize * 2; // Kite about 2 cells away
+                        const kiteTargetX = this.x + Math.cos(angleFromTarget) * kiteDist;
+                        const kiteTargetY = this.y + Math.sin(angleFromTarget) * kiteDist;
+                        // console.log(`[AI ${this.id}] Engaging: Target too close. Kiting.`);
+                        this.setMoveTarget(kiteTargetX, kiteTargetY);
+                    } else { // In good range
+                        if (this.isMoving) {
+                            // console.log(`[AI ${this.id}] Engaging: In range, stopping movement.`);
+                            this.isMoving = false;
+                            this.currentPath = [];
+                        }
                     }
-                } else { // Target lost or died
-                    this.manualTarget = null; this.aiState = 'GUARDING';
+                } else {
+                    this.manualTarget = null;
+                    this.aiState = 'PATROLLING';
+                    this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                 }
                 break;
         }
     }
 
     onStuck() {
-        const heavyAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_HEAVY) ? CONFIG.AI.POSSUM_HEAVY : {};
-        if (this.aiState === 'GUARDING' || this.aiState === 'SUSPICIOUS') {
+        const gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};
+        console.warn(`PossumGrunt ${this.id} onStuck triggered. AI State: ${this.aiState}. Attempting recovery.`);
+        this.currentPath = []; // Clear any existing path that might be causing issues
+
+        if (this.aiState === 'PATROLLING' || this.aiState === 'SUSPICIOUS') {
             if (this.aiState === 'SUSPICIOUS') {
                 this.lastKnownPlayerPosition = null; this.alertedByAlly = false;
             }
-            // Try to return to guard post
-            this.targetX = this.guardPost.x; this.targetY = this.guardPost.y;
-            this.aiState = 'GUARDING';
-            if (distance(this.x, this.y, this.targetX, this.targetY) > 1) this.isMoving = true;
-        } else if (this.aiState === 'ENGAGING_HEAVY' && this.manualTarget) {
-            // Nudge in a random direction
-            const nudgeAngle = Math.random() * Math.PI * 2;
-            const nudgeDistance = this.size * (heavyAIConfig.STUCK_ENGAGE_NUDGE_FACTOR || 1.5);
-            this.targetX = this.x + Math.cos(nudgeAngle) * nudgeDistance;
-            this.targetY = this.y + Math.sin(nudgeAngle) * nudgeDistance;
-
-            const worldWidth = CONFIG.WORLD_WIDTH || (this.game && this.game.canvas ? this.game.canvas.width : 1000);
-            const worldHeight = CONFIG.WORLD_HEIGHT || (this.game && this.game.canvas ? this.game.canvas.height : 800);
-            this.targetX = Math.max(this.size, Math.min(this.targetX, worldWidth - this.size));
-            this.targetY = Math.max(this.size, Math.min(this.targetY, worldHeight - this.size));
-            if (distance(this.x, this.y, this.targetX, this.targetY) > 1) this.isMoving = true;
+            this.aiState = 'PATROLLING';
+            this.currentTargetPatrolPoint = (this.currentTargetPatrolPoint === this.patrolPoint1) ? this.patrolPoint2 : this.patrolPoint1;
+            // Try generating a new second patrol point in case the old one was problematic
+            this.patrolPoint2 = this.generateSecondPatrolPoint(this.patrolPoint1.x, this.patrolPoint1.y, gruntAIConfig.PATROL_MIN_RADIUS || 80, gruntAIConfig.PATROL_MAX_RADIUS || 200);
+            if (this.currentTargetPatrolPoint === this.patrolPoint2 && (this.patrolPoint2.x === this.patrolPoint1.x && this.patrolPoint2.y === this.patrolPoint1.y)) {
+                // If new P2 is same as P1, try making P1 the target
+                 this.currentTargetPatrolPoint = this.patrolPoint1; // Fallback
+            }
+            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+            this.patrolWaitTimer = 0.5; // Short wait before trying new path
+        } else if (this.aiState === 'ENGAGING' && this.manualTarget && this.manualTarget.isAlive()) {
+            const angleToTarget = Math.atan2(this.manualTarget.y - this.y, this.manualTarget.x - this.x);
+            const randomOffsetAngle = (Math.random() - 0.5) * Math.PI; // +/- 90 degrees
+            const nudgeDistance = this.size * (gruntAIConfig.STUCK_ENGAGE_NUDGE_FACTOR || 2.0) * (1.5 + Math.random());
+            const newTargetX = this.x + Math.cos(angleToTarget + randomOffsetAngle) * nudgeDistance; // Nudge from current pos
+            const newTargetY = this.y + Math.sin(angleToTarget + randomOffsetAngle) * nudgeDistance;
+            this.setMoveTarget(newTargetX, newTargetY);
+        } else {
+            const randomAngle = Math.random() * Math.PI * 2;
+            const randomDist = this.size * 4;
+            this.setMoveTarget(this.x + Math.cos(randomAngle) * randomDist, this.y + Math.sin(randomAngle) * randomDist);
         }
+        this.stuckFrames = 0;
     }
 }

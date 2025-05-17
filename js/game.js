@@ -6,6 +6,9 @@ class Game {
         this.canvasContainer = document.getElementById('canvas-container');
         this.ctx = this.canvas.getContext('2d');
 
+        this.prerenderedBackgroundCanvas = document.createElement('canvas');
+        this.prerenderedBackgroundCtx = this.prerenderedBackgroundCanvas.getContext('2d');
+
         this.masterRoster = [];
         this.deployedSquadRoster = [];
         this.fallenRaccoonsGlobal = [];
@@ -108,7 +111,7 @@ class Game {
         });
 
         const listBasedSprites = [
-            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
+            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, // This will preload the grass tiles
             { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
             { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
             { files: CONFIG.ROCK_SPRITES_16PX_FILES, path: CONFIG.ROCK_SPRITES_16PX_PATH, name: "rock16" },
@@ -116,9 +119,8 @@ class Game {
             { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" },
             { files: CONFIG.PALM_TREE_TALL_SPRITE_FILES, path: CONFIG.PALM_TREE_TALL_SPRITE_PATH, name: "palm_tall" },
             { files: CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES, path: CONFIG.PALM_TREE_MEDIUM_SPRITE_PATH, name: "palm_medium" },
-            { files: CONFIG.POSSUM_HUT_SPRITE_FILES, path: CONFIG.POSSUM_HUT_SPRITE_PATH, name: "possum_hut" } // Normal hut sprites
+            { files: CONFIG.POSSUM_HUT_SPRITE_FILES, path: CONFIG.POSSUM_HUT_SPRITE_PATH, name: "possum_hut" }
         ];
-
         listBasedSprites.forEach(spriteSet => {
             const spriteFiles = spriteSet.files || []; const spritePathBase = spriteSet.path || '';
             if (spritePathBase && spriteFiles.length > 0) {
@@ -136,8 +138,55 @@ class Game {
             }
         });
         await Promise.all(imagePromises);
-        console.log("[Game] Level assets preloading complete. Preloaded unique image paths:", Object.keys(this.preloadedImages).length);
+        // console.log("[Game] Level assets preloading complete. Preloaded unique image paths:", Object.keys(this.preloadedImages).length);
     }
+
+    generatePrerenderedBackground(worldWidth, worldHeight) {
+        this.prerenderedBackgroundCanvas.width = worldWidth;
+        this.prerenderedBackgroundCanvas.height = worldHeight;
+        const ctx = this.prerenderedBackgroundCtx;
+
+        ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+        ctx.fillRect(0, 0, worldWidth, worldHeight);
+
+        if (CONFIG.GRASS_SPRITE_FILES && CONFIG.GRASS_SPRITE_FILES.length > 0 && CONFIG.GRASS_SPRITE_PATH) {
+            const configuredTileSize = CONFIG.WORLD_GRASS_TILE_SIZE || 64;
+            const overlapFactor = CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR : 0.2;
+            const stepX = configuredTileSize * (1 - overlapFactor);
+            const stepY = configuredTileSize * (1 - overlapFactor);
+
+            for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
+                for (let x = -configuredTileSize * overlapFactor; x < worldWidth; x += stepX) {
+                    const randomSpriteName = CONFIG.GRASS_SPRITE_FILES[Math.floor(Math.random() * CONFIG.GRASS_SPRITE_FILES.length)];
+                    const spritePath = CONFIG.GRASS_SPRITE_PATH + randomSpriteName;
+                    const grassImg = this.preloadedImages[spritePath];
+
+                    if (grassImg) {
+                        const offsetX = (Math.random() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                        const offsetY = (Math.random() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                        const drawX = x + offsetX;
+                        const drawY = y + offsetY;
+
+                        // --- MODIFICATION: Removed random rotation ---
+                        // const angle = Math.floor(Math.random() * 4) * (Math.PI / 2);
+                        // if (angle !== 0) {
+                        //     ctx.save();
+                        //     ctx.translate(drawX + configuredTileSize / 2, drawY + configuredTileSize / 2);
+                        //     ctx.rotate(angle);
+                        //     ctx.drawImage(grassImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
+                        //     ctx.restore();
+                        // } else {
+                        //     ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
+                        // }
+                        ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
+                        // --- END MODIFICATION ---
+                    }
+                }
+            }
+        }
+        console.log("[Game] Prerendered background generated.");
+    }
+
 
     start() { /* ... (Unchanged from previous complete version) ... */
         if (!this.masterRoster || this.masterRoster.length === 0) {
@@ -156,9 +205,10 @@ class Game {
         }
     }
 
-    async confirmSquadAndStartMission(selectedRecruitsForDeployment) { /* ... (Unchanged from previous complete version) ... */
+     async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
+            // ... (alert logic unchanged) ...
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
             if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0) { alertMsg = CONFIG.UI_TEXT_STRINGS.NO_RECRUITS_SELECTED_ALERT || "Select at least one Raccoon for the mission!"; }
             else if (selectedRecruitsForDeployment.length > maxSquadSize) { alertMsg = (CONFIG.UI_TEXT_STRINGS.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());}
@@ -168,24 +218,32 @@ class Game {
         }
         this.gameState = 'LOADING_MISSION';
         if (this.ui && typeof this.ui.showLoadingScreen === 'function') { this.ui.showLoadingScreen("Preparing battlefield..."); } else { console.log("Loading mission..."); }
-        await this.preloadLevelAssets();
+
+        await this.preloadLevelAssets(); // Ensure assets (including grass tiles) are loaded
+
         this.deployedSquadRoster = selectedRecruitsForDeployment;
+        // ... (raccoon setup unchanged) ...
         this.deployedSquadRoster.forEach(r => {
             r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-            if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 2); 
-            if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 3); 
-            if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 4);
-            if (r.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 5);
-            r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false; r.isContinuousFiring = false; 
+            if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
+            r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false; r.isContinuousFiring = false;
         });
+
         this.gameState = 'RUNNING'; this.isObjectiveComplete = false; this.missionStartedAndPopulated = false; this.fallenRaccoonsThisMission = []; this.missionStartTime = performance.now();
-        const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.worldSizeFactor || 1); const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
+
+        const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.worldSizeFactor || 1);
+        const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
         CONFIG.WORLD_WIDTH = worldWidth; CONFIG.WORLD_HEIGHT = worldHeight;
+
+        // --- MODIFIED: Generate prerendered background BEFORE level obstacles ---
+        this.generatePrerenderedBackground(worldWidth, worldHeight);
+        // --- END MODIFICATION ---
+
         const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, this.currentMissionParams, this.deployedSquadRoster.length, this.preloadedImages);
         this.initialEnemyCount = this.enemyUnits ? this.enemyUnits.length : 0;
-        console.log(`[Game] Initial enemy count set to: ${this.initialEnemyCount}`);
+        // ... (rest of squad deployment and camera setup unchanged) ...
         this.deployedSquadRoster.forEach((raccoon, index) => {
-            if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.targetX = raccoon.x; raccoon.targetY = raccoon.y; raccoon.game = this;}
+            if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;} // Use worldTargetX/Y
             else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
         });
         this.selectedUnits = [...this.deployedSquadRoster]; this.gameObjects = []; this.visualEffects = []; this.isDragging = false; this.draggedFarEnough = false;
@@ -193,9 +251,11 @@ class Game {
             let avgX = 0, avgY = 0; this.deployedSquadRoster.forEach(unit => { avgX += unit.x; avgY += unit.y; }); avgX /= this.deployedSquadRoster.length; avgY /= this.deployedSquadRoster.length;
             this.cameraX = avgX - this.canvas.width / 2; this.cameraY = avgY - this.canvas.height / 2; this.clampCamera();
         } else { this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2; this.clampCamera(); }
+
+
         if (this.ui && typeof this.ui.hideLoadingScreen === 'function') { this.ui.hideLoadingScreen(); }
         if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(this.currentMissionParams.name); this.ui.updateFormationButton(this.currentFormationType); }
-        if (this.inputHandler) { this.inputHandler.isShiftHoldFiring = false; this.inputHandler.updateMouseCursor(); } 
+        if (this.inputHandler) { this.inputHandler.isShiftHoldFiring = false; this.inputHandler.updateMouseCursor(); }
         this.lastTime = performance.now();
     }
 
@@ -576,7 +636,7 @@ class Game {
         this.checkMissionStatus();
     }
 
-    render() { /* ... (Unchanged from previous complete version, but assuming the debug log for possum_hut is still there if needed) ... */
+    render() {
         if (!this.ctx || !this.level) {
             return;
         }
@@ -584,180 +644,84 @@ class Game {
         this.ctx.save();
         this.ctx.translate(-this.cameraX, -this.cameraY);
 
-        this.ctx.fillStyle = CONFIG.DEFAULT_WORLD_BACKGROUND_COLOR || '#385434';
-        const worldWidth = CONFIG.WORLD_WIDTH || this.canvas.width; 
-        const worldHeight = CONFIG.WORLD_HEIGHT || this.canvas.height; 
-        this.ctx.fillRect(0, 0, worldWidth, worldHeight);
+        // 1. Render Prerendered Background
+        if (this.prerenderedBackgroundCanvas.width > 0 && this.prerenderedBackgroundCanvas.height > 0) {
+            this.ctx.drawImage(this.prerenderedBackgroundCanvas, 0, 0);
+        } else { // Fallback if prerendered canvas isn't ready (shouldn't happen)
+            this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+            this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
+        }
 
+        // 2. Prepare and Render Y-Sorted Objects (Obstacles and Units)
+        // ... (Y-sorting and rendering of obstacles/units remains the same as before) ...
         let sortableObjects = [];
-
-        if (this.deployedSquadRoster) {
-            this.deployedSquadRoster.forEach(unit => {
-                if (unit && unit.isAlive()) {
-                    sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true });
-                }
-            });
-        }
-        if (this.enemyUnits) {
-            this.enemyUnits.forEach(unit => {
-                if (unit && unit.isAlive()) {
-                    sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true });
-                }
-            });
-        }
-
-        if (this.level.obstacles) {
-            this.level.obstacles.forEach(obstacle => {
-                if (obstacle.type === 'border_wall') return; 
-
-                if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) {
-                    let sortYValue;
-                    sortYValue = obstacle.y + obstacle.height;
-                    sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false });
-                }
-            });
-        }
-
+        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && unit.isAlive()) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
+        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && unit.isAlive()) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
+        if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall') return; if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) { let sortYValue = obstacle.y + obstacle.height; sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } }); }
         sortableObjects.sort((a, b) => a.sortY - b.sortY);
-
         sortableObjects.forEach(item => {
-            const obj = item.entity; 
+            const obj = item.entity;
             if (item.isUnit) {
-                obj.render(this.ctx); 
-            } else { 
+                obj.render(this.ctx);
+            } else {
                 if (obj.isDestroyed && obj.imageDestroyed) {
                     this.ctx.drawImage(obj.imageDestroyed, obj.x, obj.y, obj.width, obj.height);
                 } else if (!obj.isDestroyed && obj.imageNormal) {
                     this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
-                } else if (!obj.isDecoration || !obj.imageNormal) { 
-                    let obsColor = obj.color || '#555555'; 
-                    if (obj.isDestroyed) {
-                        obsColor = 'rgba(50, 40, 30, 0.7)'; 
-                    } else if (obj.destructible && obj.hp < obj.maxHp && obj.hp > 0 && obj.color) { 
+                } else if (!obj.isDecoration || !obj.imageNormal) {
+                    let obsColor = obj.color || '#555555';
+                    if (obj.isDestroyed) { obsColor = 'rgba(50, 40, 30, 0.7)';
+                    } else if (obj.destructible && obj.hp < obj.maxHp && obj.hp > 0 && obj.color) {
                         const damageRatio = Math.max(0, obj.hp / obj.maxHp);
                         if (/^#[0-9A-F]{6}$/i.test(obsColor)) {
-                            let r = parseInt(obsColor.substring(1,3),16);
-                            let g = parseInt(obsColor.substring(3,5),16);
-                            let b = parseInt(obsColor.substring(5,7),16);
-                            const greyVal = 80; 
-                            r = Math.floor(r*damageRatio + greyVal*(1-damageRatio));
-                            g = Math.floor(g*damageRatio + greyVal*(1-damageRatio));
-                            b = Math.floor(b*damageRatio + greyVal*(1-damageRatio));
+                            let r = parseInt(obsColor.substring(1,3),16); let g = parseInt(obsColor.substring(3,5),16); let b = parseInt(obsColor.substring(5,7),16);
+                            const greyVal = 80;
+                            r = Math.floor(r*damageRatio + greyVal*(1-damageRatio)); g = Math.floor(g*damageRatio + greyVal*(1-damageRatio)); b = Math.floor(b*damageRatio + greyVal*(1-damageRatio));
                             obsColor = `rgb(${r},${g},${b})`;
                         }
                     }
-                    this.ctx.fillStyle = obsColor;
-                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+                    this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                 }
-
                 if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0) {
                     const hpBarHeight = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HEIGHT) || 4;
-                    const hpBarWidth = Math.min(obj.width * 0.7, 60);
-                    const barX = obj.x + (obj.width - hpBarWidth) / 2;
-                    const barY = obj.y - hpBarHeight - 4; 
-
+                    const hpBarWidth = Math.min(obj.width * 0.7, 60); const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4;
                     this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.BG_COLOR) ||'#111';
                     this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2);
-                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_LOW_BG) || '#c00'; 
+                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_LOW_BG) || '#c00';
                     this.ctx.fillRect(barX, barY, hpBarWidth, hpBarHeight);
-                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_FULL) ||'#0c0'; 
+                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_FULL) ||'#0c0';
                     this.ctx.fillRect(barX, barY, hpBarWidth * (obj.hp / obj.maxHp), hpBarHeight);
                 }
             }
         });
 
-        this.gameObjects.forEach(obj => {
-            if (obj && typeof obj.render === 'function') {
-                obj.render(this.ctx);
-            }
-        });
 
-        this.visualEffects.forEach(effect => {
-            if (effect && typeof effect.render === 'function' && effect.type !== 'explosion_ground_mark') { 
-                effect.render(this.ctx);
-            }
-        });
-
-        if(this.selectedUnits) {
-            this.selectedUnits.forEach(unit => {
-                if (unit && unit.isAlive()) {
-                    this.ctx.strokeStyle = '#00FF00'; 
-                    this.ctx.lineWidth = 2;
-                    this.ctx.beginPath();
-                    this.ctx.arc(unit.x, unit.y, unit.size + 4, 0, Math.PI * 2); 
-                    this.ctx.stroke();
-                }
-            });
-        }
-
-        if(this.selectedUnits) {
-            this.selectedUnits.forEach(unit => {
-                if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) {
-                     this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; 
-                     this.ctx.lineWidth = 1;
-                     this.ctx.setLineDash([3, 3]); 
-                     this.ctx.beginPath();
-                     this.ctx.moveTo(unit.x, unit.y);
-                     this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y);
-                     this.ctx.stroke();
-                     this.ctx.setLineDash([]); 
-                }
-            });
-        }
-
+        // 3. Render Projectiles (Unchanged)
+        this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
+        // 4. Render Top-Layer Visual Effects (Unchanged)
+        this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function' && effect.type !== 'explosion_ground_mark') { effect.render(this.ctx); } });
+        // 5. Render Game Interaction UI (Selection Highlights, etc. - Unchanged)
+        if(this.selectedUnits) { this.selectedUnits.forEach(unit => { if (unit && unit.isAlive()) { this.ctx.strokeStyle = '#00FF00'; this.ctx.lineWidth = 2; this.ctx.beginPath(); this.ctx.arc(unit.x, unit.y, unit.size + 4, 0, Math.PI * 2); this.ctx.stroke(); } }); }
+        if(this.selectedUnits) { this.selectedUnits.forEach(unit => { if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) { this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; this.ctx.lineWidth = 1; this.ctx.setLineDash([3, 3]); this.ctx.beginPath(); this.ctx.moveTo(unit.x, unit.y); this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y); this.ctx.stroke(); this.ctx.setLineDash([]); } }); }
         const aimingRaccoon = this.selectedUnits && this.selectedUnits.find(unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive());
         if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) {
-            const worldMouseX = this.inputHandler.mousePos.worldX;
-            const worldMouseY = this.inputHandler.mousePos.worldY;
-            const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY);
-
-            this.ctx.fillStyle = 'rgba(255, 165, 0, 0.3)'; 
-            this.ctx.beginPath();
-            this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2);
-            this.ctx.fill();
-
-            this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; 
-            this.ctx.lineWidth = 1;
-            this.ctx.beginPath();
-            this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
+            const worldMouseX = this.inputHandler.mousePos.worldX; const worldMouseY = this.inputHandler.mousePos.worldY; const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY);
+            this.ctx.fillStyle = 'rgba(255, 165, 0, 0.3)'; this.ctx.beginPath(); this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2); this.ctx.fill();
+            this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
             if (throwDist > CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
                  const angle = Math.atan2(worldMouseY - aimingRaccoon.y, worldMouseX - aimingRaccoon.x);
-                 const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
-                 const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
-                 this.ctx.lineTo(cappedX, cappedY); 
-                 this.ctx.stroke();
-                 this.ctx.beginPath(); 
-                 this.ctx.moveTo(cappedX, cappedY);
-                 this.ctx.setLineDash([5, 5]);
-                 this.ctx.lineTo(worldMouseX, worldMouseY); 
-                 this.ctx.stroke();
-                 this.ctx.setLineDash([]);
-            } else {
-                this.ctx.lineTo(worldMouseX, worldMouseY); 
-                this.ctx.stroke();
-            }
+                 const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX; const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                 this.ctx.lineTo(cappedX, cappedY); this.ctx.stroke(); this.ctx.beginPath(); this.ctx.moveTo(cappedX, cappedY); this.ctx.setLineDash([5, 5]); this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); this.ctx.setLineDash([]);
+            } else { this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); }
         }
-
         if (this.isDragging && this.draggedFarEnough) {
-            const dragRectWorldStartX = this.dragStartX + this.cameraX;
-            const dragRectWorldStartY = this.dragStartY + this.cameraY;
-            const dragRectWorldCurrentX = this.dragCurrentX + this.cameraX;
-            const dragRectWorldCurrentY = this.dragCurrentY + this.cameraY;
-
-            this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)';
-            this.ctx.lineWidth = 1;
-            this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)';
-
-            const rectX = Math.min(dragRectWorldStartX, dragRectWorldCurrentX);
-            const rectY = Math.min(dragRectWorldStartY, dragRectWorldCurrentY);
-            const rectWidth = Math.abs(dragRectWorldCurrentX - dragRectWorldStartX);
-            const rectHeight = Math.abs(dragRectWorldCurrentY - dragRectWorldStartY);
-
-            this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-            this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+            const dragRectWorldStartX = this.dragStartX + this.cameraX; const dragRectWorldStartY = this.dragStartY + this.cameraY; const dragRectWorldCurrentX = this.dragCurrentX + this.cameraX; const dragRectWorldCurrentY = this.dragCurrentY + this.cameraY;
+            this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)'; this.ctx.lineWidth = 1; this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)';
+            const rectX = Math.min(dragRectWorldStartX, dragRectWorldCurrentX); const rectY = Math.min(dragRectWorldStartY, dragRectWorldCurrentY); const rectWidth = Math.abs(dragRectWorldCurrentX - dragRectWorldStartX); const rectHeight = Math.abs(dragRectWorldCurrentY - dragRectWorldStartY);
+            this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight); this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
         }
 
-        this.ctx.restore(); 
+        this.ctx.restore();
     }
 
     gameLoop(timestamp) { /* ... (Unchanged from previous complete version) ... */

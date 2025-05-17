@@ -4,9 +4,13 @@ class Level {
     constructor(game) {
         this.game = game;
         this.obstacles = [];
+        this.navGrid = null; // Will store the navigation grid
+        this.gridCellSize = CONFIG.GRID_CELL_SIZE || 16;
+        this.gridWidth = 0;
+        this.gridHeight = 0;
     }
 
-    _getObstacleCollisionShape(obstacle) {
+    _getObstacleCollisionShape(obstacle) { /* ... (Unchanged from previous complete version) ... */
         if (obstacle.collisionShape) {
             const shapeDef = obstacle.collisionShape;
             const obsRenderWidth = obstacle.width;
@@ -32,10 +36,7 @@ class Level {
         return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
     }
 
-    _rectOverlap(rect1, rect2) { /* ... (Unchanged from previous complete version) ... */
-        return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y);
-    }
-
+    _rectOverlap(rect1, rect2) { /* ... (Unchanged from previous complete version) ... */ return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y); }
     isShapeOverlappingList(movingShape, existingObstacles) { /* ... (Unchanged from previous complete version) ... */
         for (const existing of existingObstacles) {
             if (!existing.isDestroyed && existing.blocksMovement) {
@@ -50,42 +51,28 @@ class Level {
         }
         return false;
     }
-
     isSpawnPointClear(x, y, unitSize, existingObstacles) { /* ... (Unchanged from previous complete version) ... */
         const unitShape = { type: 'circle', x: x, y: y, radius: unitSize / 2 };
         return !this.isShapeOverlappingList(unitShape, existingObstacles);
     }
-
-    damageObstacle(obstacle, amount, attackerUnit = null) {
+    damageObstacle(obstacle, amount, attackerUnit = null) { /* ... (Unchanged from previous complete version, including logs if you kept them) ... */
         if (!obstacle || !obstacle.destructible || obstacle.isDestroyed || obstacle.hp === undefined) {
-            // --- MODIFIED: Add detailed log for early return ---
             if (obstacle && obstacle.type === 'possum_hut') {
-                console.log(`[Level.damageObstacle] Returning early for Possum Hut (${obstacle.name || obstacle.id}). Destructible: ${obstacle.destructible}, IsDestroyed: ${obstacle.isDestroyed}, HP defined: ${obstacle.hp !== undefined}`);
+                // console.log(`[Level.damageObstacle] Returning early for Possum Hut (${obstacle.name || obstacle.id}). Destructible: ${obstacle.destructible}, IsDestroyed: ${obstacle.isDestroyed}, HP defined: ${obstacle.hp !== undefined}`);
             }
-            // --- END MODIFICATION ---
             return;
         }
-
         obstacle.hp -= amount;
-
-        // --- MODIFIED: Log HP after damage specifically for the hut ---
         if (obstacle.type === 'possum_hut') {
-            console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) HP after damage: ${obstacle.hp}`);
+            // console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) HP after damage: ${obstacle.hp}`);
         }
-        // --- END MODIFICATION ---
-
         if (obstacle.hp <= 0) {
             obstacle.hp = 0;
-            obstacle.isDestroyed = true; // This is the key line
-
-            // --- MODIFIED: Log when isDestroyed is set for the hut ---
+            obstacle.isDestroyed = true;
             if (obstacle.type === 'possum_hut') {
-                console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) has been marked as isDestroyed = true. Current HP: ${obstacle.hp}`);
-                // Also log the state of its imageDestroyed property at this exact moment
-                console.log(`[Level.damageObstacle] Hut's imageDestroyed object at destruction time:`, obstacle.imageDestroyed);
+                // console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) has been marked as isDestroyed = true. Current HP: ${obstacle.hp}`);
+                // console.log(`[Level.damageObstacle] Hut's imageDestroyed object at destruction time:`, obstacle.imageDestroyed);
             }
-            // --- END MODIFICATION ---
-
             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
             if (obstacleDef) {
                 obstacle.blocksMovement = obstacleDef.blocksMovementOnDestroy !== undefined ? obstacleDef.blocksMovementOnDestroy : false;
@@ -94,12 +81,15 @@ class Level {
                 obstacle.blocksMovement = false;
                 obstacle.providesCover = false;
             }
+             // If a movement-blocking obstacle was destroyed, the navGrid needs updating.
+            if (this.navGrid && (!obstacleDef || obstacleDef.blocksMovement)) { // Check if it *was* blocking
+                this.updateNavigationGridForObstacle(obstacle, true); // true for destroyed
+            }
 
             if (this.game && obstacleDef && obstacleDef.explosionDamage && obstacleDef.explosionAoeRadius) {
                 this.game.addVisualEffect('explosion', obstacle.x + obstacle.width / 2, obstacle.y + obstacle.height / 2, obstacleDef.explosionAoeRadius);
                 const explosionDmg = obstacleDef.explosionDamage;
                 const explosionRadius = obstacleDef.explosionAoeRadius;
-
                 (this.game.level.obstacles || []).forEach(otherObs => {
                     if (otherObs !== obstacle && otherObs.destructible && !otherObs.isDestroyed) {
                         const centerObsX = otherObs.x + otherObs.width / 2;
@@ -111,12 +101,11 @@ class Level {
                         }
                     }
                 });
-
                 const allUnits = [...(this.game.deployedSquadRoster || []), ...(this.game.enemyUnits || [])];
                 allUnits.forEach(unit => {
                     if (unit.isAlive()) {
                         const distToUnit = distance(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, unit.x, unit.y);
-                        if (distToUnit <= explosionRadius + unit.size) { // Consider unit size for AOE hit
+                        if (distToUnit <= explosionRadius + unit.size) {
                             unit.takeDamage(explosionDmg, attackerUnit);
                         }
                     }
@@ -124,7 +113,6 @@ class Level {
             }
         }
     }
-
     _getRandomObstacleTemplate() { /* ... (Unchanged from previous complete version) ... */
         const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
@@ -136,8 +124,128 @@ class Level {
         return definitions[definitions.length - 1];
     }
 
-    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}) { /* ... (Unchanged from previous complete version, assuming obstacle instantiation logic is correct based on prior checks) ... */
-        this.obstacles = []; if (this.game) { this.game.enemyUnits = []; this.game.gameObjects = []; }
+    generateNavigationGrid(worldWidth, worldHeight) {
+        this.gridCellSize = CONFIG.GRID_CELL_SIZE || 16;
+        this.gridWidth = Math.floor(worldWidth / this.gridCellSize);
+        this.gridHeight = Math.floor(worldHeight / this.gridCellSize);
+        this.navGrid = [];
+
+        console.log(`[Level] Generating NavGrid: ${this.gridWidth}x${this.gridHeight} cells of size ${this.gridCellSize}`);
+
+        for (let y = 0; y < this.gridHeight; y++) {
+            this.navGrid[y] = [];
+            for (let x = 0; x < this.gridWidth; x++) {
+                this.navGrid[y][x] = 0; // 0 = walkable, 1 = blocked
+                const cellWorldX = x * this.gridCellSize;
+                const cellWorldY = y * this.gridCellSize;
+                const cellRect = {
+                    x: cellWorldX,
+                    y: cellWorldY,
+                    width: this.gridCellSize,
+                    height: this.gridCellSize
+                };
+
+                for (const obs of this.obstacles) {
+                    if (obs.blocksMovement && !obs.isDestroyed) {
+                        const obsShape = this._getObstacleCollisionShape(obs);
+                        let collision = false;
+                        if (obsShape.type === 'rectangle') {
+                            collision = rectOverlap(cellRect, obsShape);
+                        } else if (obsShape.type === 'circle') {
+                            collision = rectCircleOverlap(cellRect, obsShape);
+                        }
+                        if (collision) {
+                            this.navGrid[y][x] = 1; // Mark as blocked
+                            break; // No need to check other obstacles for this cell
+                        }
+                    }
+                }
+            }
+        }
+        console.log("[Level] NavGrid generation complete.");
+    }
+
+    updateNavigationGridForObstacle(obstacle, isDestroyedAndNowWalkable) {
+        if (!this.navGrid || !obstacle) return;
+
+        const startGridX = Math.max(0, Math.floor(obstacle.x / this.gridCellSize) -1); // -1 for buffer
+        const endGridX = Math.min(this.gridWidth -1, Math.ceil((obstacle.x + obstacle.width) / this.gridCellSize) +1);
+        const startGridY = Math.max(0, Math.floor(obstacle.y / this.gridCellSize) -1);
+        const endGridY = Math.min(this.gridHeight -1, Math.ceil((obstacle.y + obstacle.height) / this.gridCellSize) +1);
+
+
+        for (let y = startGridY; y <= endGridY; y++) {
+            for (let x = startGridX; x <= endGridX; x++) {
+                if (y < 0 || y >= this.gridHeight || x < 0 || x >= this.gridWidth) continue;
+
+                const cellWorldX = x * this.gridCellSize;
+                const cellWorldY = y * this.gridCellSize;
+                const cellRect = { x: cellWorldX, y: cellWorldY, width: this.gridCellSize, height: this.gridCellSize };
+
+                if (isDestroyedAndNowWalkable) {
+                    // Check if this cell is still blocked by *other* obstacles
+                    let stillBlocked = false;
+                    for (const otherObs of this.obstacles) {
+                        if (otherObs !== obstacle && otherObs.blocksMovement && !otherObs.isDestroyed) {
+                            const otherObsShape = this._getObstacleCollisionShape(otherObs);
+                            let collision = false;
+                            if (otherObsShape.type === 'rectangle') collision = rectOverlap(cellRect, otherObsShape);
+                            else if (otherObsShape.type === 'circle') collision = rectCircleOverlap(cellRect, otherObsShape);
+                            if (collision) { stillBlocked = true; break; }
+                        }
+                    }
+                    this.navGrid[y][x] = stillBlocked ? 1 : 0;
+                } else { // Obstacle was just created or repaired (less common)
+                    const obsShape = this._getObstacleCollisionShape(obstacle);
+                     let collision = false;
+                    if (obsShape.type === 'rectangle') collision = rectOverlap(cellRect, obsShape);
+                    else if (obsShape.type === 'circle') collision = rectCircleOverlap(cellRect, obsShape);
+
+                    if (collision && obstacle.blocksMovement && !obstacle.isDestroyed) {
+                        this.navGrid[y][x] = 1;
+                    }
+                }
+            }
+        }
+        // console.log(`[Level] NavGrid updated for obstacle: ${obstacle.name || obstacle.type}`);
+    }
+
+
+    getNavigationGrid() {
+        // For now, always return the current grid.
+        // Could add caching or lazy generation if performance becomes an issue.
+        if (!this.navGrid) {
+            console.warn("[Level] Navigation grid requested but not yet generated!");
+            // Attempt to generate it now, assuming world dimensions are set in CONFIG
+            if (CONFIG.WORLD_WIDTH && CONFIG.WORLD_HEIGHT) {
+                this.generateNavigationGrid(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
+            } else {
+                return null; // Cannot generate without world dimensions
+            }
+        }
+        return this.navGrid;
+    }
+
+    worldToGridCoords(worldX, worldY) {
+        return {
+            x: Math.floor(worldX / this.gridCellSize),
+            y: Math.floor(worldY / this.gridCellSize)
+        };
+    }
+
+    gridToWorldCoords(gridX, gridY) {
+        return {
+            x: gridX * this.gridCellSize + this.gridCellSize / 2,
+            y: gridY * this.gridCellSize + this.gridCellSize / 2
+        };
+    }
+
+
+    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}) {
+        this.obstacles = [];
+        if (this.game) { this.game.enemyUnits = []; this.game.gameObjects = []; }
+
+        // ... (rest of your existing obstacle generation logic, unchanged) ...
         const genConfig = CONFIG.LEVEL_GENERATION || {}; const worldMargin = genConfig.WORLD_MARGIN || 20;
         const borderWidth = genConfig.BORDER_WIDTH || 30; const borderColor = genConfig.BORDER_COLOR || '#25221D';
         this.obstacles.push({ x: 0, y: 0, width: worldWidth, height: borderWidth, type: 'border_wall', name: 'Border Wall', color: borderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
@@ -164,11 +272,11 @@ class Level {
             }
 
             let obsWidth, obsHeight;
-            let actualSpritePath = null; 
-            let actualImageObject = null; 
-            let actualDestroyedSpritePath = template.spriteDestroyed || null; 
+            let actualSpritePath = null;
+            let actualImageObject = null;
+            let actualDestroyedSpritePath = template.spriteDestroyed || null;
             let actualDestroyedImageObject = template.spriteDestroyed ? (preloadedAssetImages[template.spriteDestroyed] || null) : null;
-            let scale = 1.0; 
+            let scale = 1.0;
 
             let filesArray = [];
             let pathBase = '';
@@ -209,7 +317,7 @@ class Level {
             } else if (template.type === 'possum_hut') {
                 filesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
                 pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
-                useRandomSpriteFromList = true; // This ensures it picks from the list for normal sprite
+                useRandomSpriteFromList = true;
             } else {
                 actualSpritePath = template.spriteNormal || null;
                 actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
@@ -224,12 +332,10 @@ class Level {
                     actualSpritePath = null;
                     actualImageObject = null;
                 }
-                 // For types like possum_hut that use a list for normal, but have a specific destroyed sprite
-                if (template.type === 'possum_hut' && template.spriteDestroyed) {
-                    actualDestroyedSpritePath = template.spriteDestroyed; // Keep the specific destroyed path
+                if (template.type === 'possum_hut' && template.spriteDestroyed) { // Keep specific destroyed for hut
+                    actualDestroyedSpritePath = template.spriteDestroyed;
                     actualDestroyedImageObject = preloadedAssetImages[template.spriteDestroyed] || null;
                 }
-
             }
 
 
@@ -238,29 +344,29 @@ class Level {
                 const minScale = grassConfig.MIN_SCALE || 0.8;
                 const maxScale = grassConfig.MAX_SCALE || 1.2;
                 scale = minScale + Math.random() * (maxScale - minScale);
-                if (actualImageObject) { 
+                if (actualImageObject) {
                     obsWidth = actualImageObject.naturalWidth * scale;
                     obsHeight = actualImageObject.naturalHeight * scale;
-                } else { 
-                    obsWidth = (template.width || 16) * scale; 
+                } else {
+                    obsWidth = (template.width || 16) * scale;
                     obsHeight = (template.height || 16) * scale;
                 }
-                actualDestroyedSpritePath = null; 
+                actualDestroyedSpritePath = null;
                 actualDestroyedImageObject = null;
             } else if (template.width !== undefined && template.height !== undefined) {
                 obsWidth = template.width;
                 obsHeight = template.height;
-                scale = 1.0; 
+                scale = 1.0;
             } else {
                 const minW = template.minW || 30; const maxW = template.maxW || 100;
                 const minH = template.minH || (template.type === 'fence_wood' ? 10 : 30);
                 const maxH = template.maxH || (template.type === 'fence_wood' ? 20 : 100);
                 obsWidth = minW + Math.random() * (maxW - minW);
-                if (template.height !== undefined) { 
+                if (template.height !== undefined) {
                     obsHeight = template.height;
-                } else if (template.type === 'fence_wood') { 
+                } else if (template.type === 'fence_wood') {
                     obsHeight = minH + Math.random() * (maxH - minH);
-                } else { 
+                } else {
                     obsHeight = obsWidth * (0.6 + Math.random() * 0.8);
                 }
                 scale = 1.0;
@@ -276,7 +382,7 @@ class Level {
                 let collisionCheckShape;
                 const TcollisionShapeDef = template.collisionShape;
                 if (TcollisionShapeDef) {
-                    const currentObsDims = { width: obsWidth, height: obsHeight }; 
+                    const currentObsDims = { width: obsWidth, height: obsHeight };
                     if (TcollisionShapeDef.type === 'circle') {
                         collisionCheckShape = { type: 'circle',
                             x: obsX + (typeof TcollisionShapeDef.offsetX === 'function' ? TcollisionShapeDef.offsetX(currentObsDims) : (TcollisionShapeDef.offsetX || obsWidth / 2)),
@@ -290,10 +396,10 @@ class Level {
                             width: TcollisionShapeDef.width || obsWidth,
                             height: TcollisionShapeDef.height || obsHeight
                         };
-                    } else { 
+                    } else {
                         collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsWidth, height: obsHeight };
                     }
-                } else { 
+                } else {
                     collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsWidth, height: obsHeight };
                 }
                 const renderBoxForPlayerZoneCheck = { x: obsX, y: obsY, width: obsWidth, height: obsHeight };
@@ -321,14 +427,18 @@ class Level {
                         spriteDestroyedPath: actualDestroyedSpritePath,
                         imageNormal: actualImageObject,
                         imageDestroyed: actualDestroyedImageObject,
-                        scale: scale, 
-                        collisionShape: template.collisionShape || null 
+                        scale: scale,
+                        collisionShape: template.collisionShape || null
                     });
                     placed = true;
                 }
                 attempts++;
             } while (!placed && attempts < placementMaxAttempts);
         }
+
+        // --- Generate Navigation Grid AFTER all static obstacles are placed ---
+        this.generateNavigationGrid(worldWidth, worldHeight);
+        // ---
 
         const pSpawnPlaceCfg = genConfig.PLAYER_SPAWN_PLACEMENT || {}; const playerSpawnLocations = []; const playerUnitSize = CONFIG.RACCOON_SIZE || 12;
         const spawnAreaPadding = playerUnitSize * (pSpawnPlaceCfg.INTERNAL_PADDING_FACTOR || 1.5);
@@ -394,6 +504,7 @@ class Level {
                 }
             }
         }
+        // ... (rest of your existing enemy spawning and objective setting) ...
 
         console.log("[Level] Enemies spawned in level:", this.game.enemyUnits.length);
         if (this.game) { this.game.missionObjective = { type: missionParams.objectiveType || 'EXTERMINATE', description: missionParams.name || (CONFIG.UI_TEXT_STRINGS.DEFAULT_OBJECTIVE_TEXT || 'Eliminate all Possums!'), };}

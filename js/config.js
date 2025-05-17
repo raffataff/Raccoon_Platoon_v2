@@ -8,12 +8,18 @@ const CONFIG = {
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
 
+     // --- World Rendering ---
+    WORLD_BASE_MUD_COLOR: '#483524', // A muddy brown color
+    WORLD_GRASS_TILE_SIZE: 40,     // Approximate width/height of your grass tile sprites
+    WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.25, // e.g., 0.25 means tiles can overlap by up to 25% of their size
+                                          // Iteration step will be TILE_SIZE * (1 - OVERLAP_FACTOR)
+
     // --- Input ---
     INPUT_DRAG_THRESHOLD: 5,
     INPUT_TAP_THRESHOLD_MS: 30,
 
     // --- Pathfinding ---
-    GRID_CELL_SIZE: 16,
+    GRID_CELL_SIZE: 4,
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 50,
@@ -26,7 +32,7 @@ const CONFIG = {
     RACCOON_MG_PROJECTILE_SPEED: 500,
     RACCOON_MG_ACCURACY_STATIONARY: 0.90,
     RACCOON_MG_ACCURACY_MOVING: 0.60,
-    RACCOON_AUTO_TARGET_RANGE_FACTOR: 0.5,
+    RACCOON_AUTO_TARGET_RANGE_FACTOR: 0.6,
     RACCOON_STARTING_GRENADES: 0,
     RACCOON_GRENADE_DAMAGE: 50,
     RACCOON_GRENADE_AOE_RADIUS: 45,
@@ -62,7 +68,7 @@ const CONFIG = {
 
     // --- Units: General & AI ---
     UNIT_STUCK_FRAMES_THRESHOLD: 60,
-    POSSUM_DETECTION_RANGE: 250,
+    POSSUM_DETECTION_RANGE: 350,
     ENEMY_ALERT_PROPAGATION_RADIUS: 200,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.85,
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.20,
@@ -210,11 +216,20 @@ const CONFIG = {
             }
         }
     },
-
+    
+    GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/', // Path to the grass folder
     GRASS_SPRITE_FILES: [ // Add all your grass sprite filenames here
-        
+        'grass1.png',
+        'grass2.png',
+        'grass3.png',
+        'grass4.png',
+        'grass5.png',
+        'grass6.png',
+        'grass7.png',
+        'grass8.png',
+        'grass9.png',
+        'grass10.png',
     ],
-    GRASS_SPRITE_PATH: 'assets/images/objects/grass/', // Path to the grass folder
 
     // NEW: Bush Sprite Definitions
     BUSH_SPRITES_32PX_PATH: 'assets/images/objects/bushes/32/',
@@ -303,9 +318,9 @@ const CONFIG = {
                 type: 'circle', // This rock is best represented by a circle
                 offsetX: 16,    // Offset from sprite's top-left to circle's center X
                 offsetY: 16,    // Offset from sprite's top-left to circle's center Y
-                radius: 14      // Radius of the collision circle
+                radius: 10      // Radius of the collision circle
             },
-            spawnWeight: 15,           // Adjust spawn frequency
+            spawnWeight: 5,           // Adjust spawn frequency
             isDecoration: false,       // It's gameplay relevant (cover)
             // Sprites will be chosen randomly from BUSH_SPRITES_32PX_FILES
         },
@@ -321,7 +336,7 @@ const CONFIG = {
                 offsetY: 32,    // Offset from sprite's top-left to circle's center Y
                 radius: 16      // Radius of the collision circle
             },
-            spawnWeight: 10,           // Adjust spawn frequency
+            spawnWeight: 5,           // Adjust spawn frequency
             isDecoration: false,
             // Sprites will be chosen randomly from BUSH_SPRITES_64PX_FILES
         },
@@ -349,9 +364,9 @@ const CONFIG = {
             width: 124, height: 88,    // Fixed size for this type
                 collisionShape: {
                 type: 'circle', // This rock is best represented by a circle
-                offsetX: 62,    // Offset from sprite's top-left to circle's center X
-                offsetY: 45,    // Offset from sprite's top-left to circle's center Y
-                radius: 45      // Radius of the collision circle
+                offsetX: 52,    // Offset from sprite's top-left to circle's center X
+                offsetY: 50,    // Offset from sprite's top-left to circle's center Y
+                radius: 44      // Radius of the collision circle
             },
             spawnWeight: 15,
             isDecoration: false,
@@ -364,9 +379,9 @@ const CONFIG = {
             width: 336, height: 268,    // Fixed size for this type
             collisionShape: {
                 type: 'circle', // This rock is best represented by a circle
-                offsetX: 150,    // Offset from sprite's top-left to circle's center X
+                offsetX: 155,    // Offset from sprite's top-left to circle's center X
                 offsetY: 150,    // Offset from sprite's top-left to circle's center Y
-                radius: 100      // Radius of the collision circle
+                radius: 130      // Radius of the collision circle
             },
             spawnWeight: 5,
             isDecoration: false,
@@ -374,6 +389,25 @@ const CONFIG = {
         },
 
         // --- NEW PALM TREE DEFINITION ---
+        {
+            type: 'tree_palm_medium',
+            name: 'Palm Tree Medium',
+            color: '#005522', // Fallback color if sprite fails
+            destructible: true, hp: 50, maxHp: 50, // Example: Palm trees can
+            blocksMovement: true,       // Trunk will block movement
+            providesCover: true,        // Canopy and trunk can provide cover
+            width: 80, height: 160,    // << ADJUST TO YOUR 'palm1__small_single.png' ACTUAL RENDER SIZE
+            spawnWeight: 60,             // Adjust frequency
+            isDecoration: false,        // Gameplay relevant (blocks, cover)
+            collisionShape: {
+                type: 'rectangle',
+                offsetX: 34,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
+                offsetY: 140,  // Example: if trunk starts some way down
+                width: 23,    // Example: width of the trunk
+                height: 20    // Example: height of the trunk part that collides
+            },
+            // spriteDestroyed: 'assets/images/objects/biomes/trees/palm_stump.png' // Optional
+        },
         {
             type: 'tree_palm_tall',
             name: 'Palm Tree',
@@ -388,29 +422,10 @@ const CONFIG = {
             // Define a collision shape for the trunk primarily
             collisionShape: {
                 type: 'rectangle',
-                offsetX: 23,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
-                offsetY: 180,  // Example: if trunk starts some way down
-                width: 44,    // Example: width of the trunk
+                offsetX: 30,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
+                offsetY: 190,  // Example: if trunk starts some way down
+                width: 35,    // Example: width of the trunk
                 height: 35    // Example: height of the trunk part that collides
-            },
-            // spriteDestroyed: 'assets/images/objects/biomes/trees/palm_stump.png' // Optional
-        },
-        {
-            type: 'tree_palm_medium',
-            name: 'Palm Tree Medium',
-            color: '#005522', // Fallback color if sprite fails
-            destructible: true, hp: 50, maxHp: 50, // Example: Palm trees can
-            blocksMovement: true,       // Trunk will block movement
-            providesCover: true,        // Canopy and trunk can provide cover
-            width: 64, height: 128,    // << ADJUST TO YOUR 'palm1__small_single.png' ACTUAL RENDER SIZE
-            spawnWeight: 80,             // Adjust frequency
-            isDecoration: false,        // Gameplay relevant (blocks, cover)
-            collisionShape: {
-                type: 'rectangle',
-                offsetX: 23,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
-                offsetY: 100,  // Example: if trunk starts some way down
-                width: 25,    // Example: width of the trunk
-                height: 30    // Example: height of the trunk part that collides
             },
             // spriteDestroyed: 'assets/images/objects/biomes/trees/palm_stump.png' // Optional
         },
@@ -427,7 +442,7 @@ const CONFIG = {
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
             width: 20, height: 30, // <<-- FIXED SIZE
-            spawnWeight: 5,
+            spawnWeight: 4,
             explosionDamage: 50, explosionAoeRadius: 80,
             spriteNormal: 'assets/images/objects/barrel_red.png',
             spriteDestroyed: 'assets/images/objects/barrel_red_destroyed.png'
@@ -435,9 +450,9 @@ const CONFIG = {
         { // GRENADE CRATE PICKUP - Fixed size
             type: 'pickup_grenade_crate', name: 'Grenade Crate', color: '#006400',
             destructible: true, hp: 1, maxHp: 1,
-            blocksMovement: false, providesCover: false,
+            blocksMovement: true, providesCover: false,
             width: 32, height: 32, // <<-- FIXED SIZE (was minW:64, minH:32 - adjusted to be square for example)
-            spawnWeight: 2,
+            spawnWeight: 1,
             pickupType: 'grenade', pickupQuantity: 2,
             spriteNormal: 'assets/images/objects/crate_full.png',
             spriteDestroyed: 'assets/images/objects/crate_empty.png',
@@ -455,14 +470,15 @@ const CONFIG = {
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             width: 250, height: 190, // Example of fixed size for huts
-            spawnWeight: 5,
+            spawnWeight: 2,
             spriteNormal: 'assets/images/objects/possums/huts/possum_hut_1.png',
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
             collisionShape: {
-                type: 'circle', // This hut is best represented by a circle
-                offsetX: 120,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
-                offsetY: 80,  // Example: if trunk starts some way down
-                radius: 80      // Radius of the collision circle
+                type: 'rectangle', // This hut is best represented by a circle
+                offsetX: 50,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
+                offsetY: 60,  // Example: if trunk starts some way down
+                width: 150,
+                height: 130
             },
             isDecoration: false,  
         },
