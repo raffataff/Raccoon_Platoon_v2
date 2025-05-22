@@ -15,11 +15,12 @@ class Game {
         this.fallenRaccoonsThisMission = [];
         this.tempSelectedForDeployment = [];
 
-        this.gameObjects = []; 
+        this.gameObjects = [];
         this.enemyUnits = [];
         this.selectedUnits = [];
-        this.visualEffects = []; 
-        this.preloadedImages = {}; 
+        this.visualEffects = [];
+        this.preloadedImages = {};
+        this.audioManager = new AudioManager(); // Initialize AudioManager
 
         this.isDragging = false;
         this.draggedFarEnough = false;
@@ -62,7 +63,57 @@ class Game {
         this.gameLoop();
     }
 
-    async preloadLevelAssets() {
+    async preloadUnitAssets() { /* ... (Unchanged from previous complete version) ... */
+        const unitType = 'raccoon';
+        const action = 'idle'; // We'll use idle for all states for now
+        const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+        const imagePromises = [];
+        const basePath = 'assets/images/units/'; // Example base path
+
+        console.log("[Game] Preloading Raccoon idle sprites...");
+
+        directions.forEach(dir => {
+            const spriteKey = `${unitType}_${action}_${dir}`; // e.g., raccoon_idle_s
+            const spritePath = `${basePath}${unitType}/${spriteKey}.png`; // e.g., assets/images/units/raccoon/raccoon_idle_s.png
+
+            if (!this.preloadedImages[spriteKey]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.preloadedImages[spriteKey] = img;
+                        resolve();
+                    };
+                    img.onerror = () => {
+                        console.warn(`[Preload] Failed to load Raccoon unit asset: ${spritePath}`);
+                        this.preloadedImages[spriteKey] = null;
+                        resolve();
+                    };
+                    img.src = spritePath;
+                }));
+            }
+        });
+
+        if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGE_PATH) {
+            CONFIG.RACCOON_FACE_IMAGES.forEach(faceFile => {
+                const faceKey = (CONFIG.RACCOON_FACE_IMAGE_PATH || '') + faceFile;
+                if (!this.preloadedImages[faceKey]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[faceKey] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload] Failed to load Raccoon face: ${faceKey}`); this.preloadedImages[faceKey] = null; resolve(); };
+                        img.src = faceKey;
+                    }));
+                }
+            });
+        }
+
+
+        await Promise.all(imagePromises);
+        console.log("[Game] Raccoon idle sprites preloading complete.");
+    }
+
+
+    async preloadLevelAssets() { /* ... (Unchanged from previous complete version) ... */
         const obstacleDefs = CONFIG.OBSTACLE_DEFINITIONS || [];
         const imagePromises = [];
          console.log("[Game] Preloading level assets...");
@@ -77,7 +128,7 @@ class Game {
                 (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) ||
                 (def.type === 'tree_palm_tall' && CONFIG.PALM_TREE_TALL_SPRITE_FILES) ||
                 (def.type === 'tree_palm_medium' && CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES) ||
-                (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) 
+                (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES)
             ) {
                 handledByDedicatedList = true;
             }
@@ -85,12 +136,9 @@ class Game {
             if (!handledByDedicatedList) {
                 if (def.spriteNormal) spritesToLoadOnTemplate.push({ path: def.spriteNormal, key: def.spriteNormal });
             }
-            // --- MODIFICATION: Always try to load spriteDestroyed if defined, regardless of handledByDedicatedList ---
-            // This is because even if normal sprite comes from a list (like possum_hut), destroyed sprite is specific.
             if (def.spriteDestroyed) {
                  spritesToLoadOnTemplate.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
             }
-            // --- END MODIFICATION ---
 
             spritesToLoadOnTemplate.forEach(spriteInfo => {
                 if (spriteInfo.path && !this.preloadedImages[spriteInfo.key]) {
@@ -101,7 +149,7 @@ class Game {
                             resolve();
                         };
                         img.onerror = () => {
-                            this.preloadedImages[spriteInfo.key] = null;
+                            this.preloadedImages[spriteInfo.key] = null; // Mark as failed
                             resolve();
                         };
                         img.src = spriteInfo.path;
@@ -111,7 +159,7 @@ class Game {
         });
 
         const listBasedSprites = [
-            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, // This will preload the grass tiles
+            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
             { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
             { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
             { files: CONFIG.ROCK_SPRITES_16PX_FILES, path: CONFIG.ROCK_SPRITES_16PX_PATH, name: "rock16" },
@@ -138,10 +186,31 @@ class Game {
             }
         });
         await Promise.all(imagePromises);
-        // console.log("[Game] Level assets preloading complete. Preloaded unique image paths:", Object.keys(this.preloadedImages).length);
     }
 
-    generatePrerenderedBackground(worldWidth, worldHeight) {
+    async preloadAudioAssets() {
+        console.log("[Game] Queuing audio assets for loading...");
+        if (CONFIG.AUDIO_ASSETS && this.audioManager) {
+            for (const key in CONFIG.AUDIO_ASSETS) {
+                const asset = CONFIG.AUDIO_ASSETS[key];
+                this.audioManager.addSoundToLoadQueue(key, asset.path, asset.defaultVolume);
+            }
+            await this.audioManager.loadAllSounds(
+                (loaded, total, key, error) => { // onProgress
+                    // console.log(`Audio loaded: ${key} (${loaded}/${total}) ${error ? "- ERROR" : ""}`);
+                    // You could update a loading bar here if you had one
+                },
+                () => { // onComplete
+                    console.log("[Game] All audio assets processed.");
+                }
+            );
+        } else {
+            console.log("[Game] No audio assets defined in CONFIG or AudioManager not found.");
+        }
+    }
+
+
+    generatePrerenderedBackground(worldWidth, worldHeight) { /* ... (Unchanged from previous complete version) ... */
         this.prerenderedBackgroundCanvas.width = worldWidth;
         this.prerenderedBackgroundCanvas.height = worldHeight;
         const ctx = this.prerenderedBackgroundCtx;
@@ -166,20 +235,7 @@ class Game {
                         const offsetY = (Math.random() - 0.5) * configuredTileSize * overlapFactor * 0.5;
                         const drawX = x + offsetX;
                         const drawY = y + offsetY;
-
-                        // --- MODIFICATION: Removed random rotation ---
-                        // const angle = Math.floor(Math.random() * 4) * (Math.PI / 2);
-                        // if (angle !== 0) {
-                        //     ctx.save();
-                        //     ctx.translate(drawX + configuredTileSize / 2, drawY + configuredTileSize / 2);
-                        //     ctx.rotate(angle);
-                        //     ctx.drawImage(grassImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
-                        //     ctx.restore();
-                        // } else {
-                        //     ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
-                        // }
                         ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
-                        // --- END MODIFICATION ---
                     }
                 }
             }
@@ -208,7 +264,6 @@ class Game {
      async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
-            // ... (alert logic unchanged) ...
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
             if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0) { alertMsg = CONFIG.UI_TEXT_STRINGS.NO_RECRUITS_SELECTED_ALERT || "Select at least one Raccoon for the mission!"; }
             else if (selectedRecruitsForDeployment.length > maxSquadSize) { alertMsg = (CONFIG.UI_TEXT_STRINGS.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());}
@@ -219,10 +274,11 @@ class Game {
         this.gameState = 'LOADING_MISSION';
         if (this.ui && typeof this.ui.showLoadingScreen === 'function') { this.ui.showLoadingScreen("Preparing battlefield..."); } else { console.log("Loading mission..."); }
 
-        await this.preloadLevelAssets(); // Ensure assets (including grass tiles) are loaded
+        await this.preloadLevelAssets();
+        await this.preloadUnitAssets();
+        await this.preloadAudioAssets(); // Load audio
 
         this.deployedSquadRoster = selectedRecruitsForDeployment;
-        // ... (raccoon setup unchanged) ...
         this.deployedSquadRoster.forEach(r => {
             r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
             if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
@@ -235,15 +291,12 @@ class Game {
         const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
         CONFIG.WORLD_WIDTH = worldWidth; CONFIG.WORLD_HEIGHT = worldHeight;
 
-        // --- MODIFIED: Generate prerendered background BEFORE level obstacles ---
         this.generatePrerenderedBackground(worldWidth, worldHeight);
-        // --- END MODIFICATION ---
 
         const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, this.currentMissionParams, this.deployedSquadRoster.length, this.preloadedImages);
         this.initialEnemyCount = this.enemyUnits ? this.enemyUnits.length : 0;
-        // ... (rest of squad deployment and camera setup unchanged) ...
         this.deployedSquadRoster.forEach((raccoon, index) => {
-            if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;} // Use worldTargetX/Y
+            if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
             else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
         });
         this.selectedUnits = [...this.deployedSquadRoster]; this.gameObjects = []; this.visualEffects = []; this.isDragging = false; this.draggedFarEnough = false;
@@ -267,7 +320,6 @@ class Game {
         });
         if (this.ui) this.ui.updateSquadPanel();
     }
-
     updateShiftHoldTarget(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
@@ -276,7 +328,6 @@ class Game {
             }
         });
     }
-
     handleShiftHoldEnd() { /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits) return;
         this.selectedUnits.forEach(unit => {
@@ -286,7 +337,6 @@ class Game {
         });
         if (this.ui) this.ui.updateSquadPanel();
     }
-
     handlePrimaryLeftClick(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
@@ -311,7 +361,6 @@ class Game {
         if (selectionChanged && this.ui) this.ui.updateSquadPanel();
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
-
     handleShiftFireAtPointCommand(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) return;
         if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
@@ -327,7 +376,6 @@ class Game {
         this.selectedUnits.forEach(unit => { if (unit.isAlive() && typeof unit.fireAtPoint === 'function') unit.fireAtPoint(worldX, worldY); });
         if (this.inputHandler) this.inputHandler.updateMouseCursor();
     }
-
     handleRightClickCommand(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
@@ -340,7 +388,6 @@ class Game {
         }
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
-
     initializeNewCampaign() { /* ... (Unchanged from previous complete version) ... */
         this.masterRoster = [];
         this.fallenRaccoonsGlobal = [];
@@ -349,7 +396,13 @@ class Game {
         this.deployedSquadRoster = [];
         this.selectedUnits = [];
         this.tempSelectedForDeployment = [];
-        this.preloadedImages = {}; 
+        this.preloadedImages = {};
+
+        // Reset audio manager state if any specific campaign sounds were loaded/cached
+        if (this.audioManager) {
+            // For now, just ensures AudioManager exists. If it had campaign-specific caches, clear here.
+        }
+
 
         const availableFaceImages = CONFIG.RACCOON_FACE_IMAGES ? [...CONFIG.RACCOON_FACE_IMAGES] : [];
         let nextRaccoonIdNum = 1;
@@ -357,7 +410,7 @@ class Game {
         let currentRosterNames = [];
 
         for (let i = 0; i < initialSize; i++) {
-            let faceImageFile = 'default_face.png'; 
+            let faceImageFile = 'default_face.png';
             if (availableFaceImages.length > 0) {
                 const randomIndex = Math.floor(Math.random() * availableFaceImages.length);
                 faceImageFile = availableFaceImages.splice(randomIndex, 1)[0];
@@ -374,11 +427,9 @@ class Game {
             this.ui.hideHUD(); this.ui.hidePostMissionScreen(); this.ui.hideGameOverScreen(); this.ui.hideRecruitMemorialScreen();
         }
     }
-
     getAvailableRecruits() { /* ... (Unchanged from previous complete version) ... */
         return this.masterRoster.filter(r => r.isAlive());
     }
-
     resizeCanvas() { /* ... (Unchanged from previous complete version) ... */
         if (!this.canvasContainer) this.canvasContainer = document.getElementById('canvas-container');
         if (!this.canvasContainer) return;
@@ -387,13 +438,11 @@ class Game {
         this.canvas.height = Math.max(CONFIG.MIN_CANVAS_HEIGHT || 600, containerHeight);
         if (this.gameState === 'RUNNING') this.clampCamera();
     }
-
     clampCamera() { /* ... (Unchanged from previous complete version) ... */
         const worldWidth = CONFIG.WORLD_WIDTH || 0; const worldHeight = CONFIG.WORLD_HEIGHT || 0;
         this.cameraX = Math.max(0, Math.min(this.cameraX, Math.max(0, worldWidth - this.canvas.width)));
         this.cameraY = Math.max(0, Math.min(this.cameraY, Math.max(0, worldHeight - this.canvas.height)));
     }
-
     loadMissionData(phaseIdx, missionIdx) { /* ... (Unchanged from previous complete version) ... */
         if (this.campaignData && this.campaignData[phaseIdx] && this.campaignData[phaseIdx].missions && this.campaignData[phaseIdx].missions[missionIdx]) {
             this.currentPhaseIndex = phaseIdx; this.currentMissionIndex = missionIdx;
@@ -402,7 +451,6 @@ class Game {
         }
         this.currentMissionParams = null; return false;
     }
-
     recordRaccoonFallen(raccoon) { /* ... (Unchanged from previous complete version) ... */
         if (raccoon && raccoon.team === 'player') {
             if (!this.fallenRaccoonsThisMission.find(r => r.id === raccoon.id)) {
@@ -418,7 +466,6 @@ class Game {
             if (this.ui) this.ui.updateSquadPanel();
         }
     }
-
     addNewRecruitToMasterRoster() { /* ... (Unchanged from previous complete version) ... */
         const currentLivingNames = this.masterRoster.filter(r => r.isAlive()).map(r => r.name);
         let faceImageFile = 'default_face.png';
@@ -437,7 +484,6 @@ class Game {
         const newRecruitId = `RCN-MR${this.masterRoster.length + this.fallenRaccoonsGlobal.length + 1}-${Math.random().toString(36).slice(-4)}`;
         this.masterRoster.push(new Raccoon(0, 0, this, newRecruitId, faceImageUrl, raccoonName));
     }
-
     endMission(isVictory) { /* ... (Unchanged from previous complete version) ... */
         this.gameState = 'POST_MISSION_DEBRIEF';
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
@@ -462,7 +508,6 @@ class Game {
         };
         if (this.ui) { this.ui.hideHUD(); this.ui.showPostMissionScreen_Debrief(debriefData); if (this.inputHandler) this.inputHandler.updateMouseCursor(); }
     }
-
     proceedToNextLogicalStep() { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
             if(this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_ALREADY_COMPLETE, true); return;
@@ -497,41 +542,32 @@ class Game {
             if(this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_CONCLUDED_NO_MORE_MISSIONS, true);
         }
     }
-
     toggleFormation() { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
         this.currentFormationIndex = (this.currentFormationIndex + 1) % this.FORMATION_TYPES.length;
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
         if(this.ui) this.ui.updateFormationButton(this.currentFormationType);
     }
-
     setFormationSpacing(multiplier) { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'RUNNING') this.formationSpacingMultiplier = parseFloat(multiplier);
     }
-
-    selectUnitsInDragRectangle() {
+    selectUnitsInDragRectangle() { /* ... (Unchanged from previous complete version) ... */
         if (!this.draggedFarEnough || this.gameState !== 'RUNNING') return;
-
-        // dragStartX/Y and dragCurrentX/Y are UNCALED screen coordinates from InputHandler
         const rect = this.canvas.getBoundingClientRect();
         const scaleX = this.canvas.width / rect.width;
         const scaleY = this.canvas.height / rect.height;
-
         const scaledDragStartX = this.dragStartX * scaleX;
         const scaledDragStartY = this.dragStartY * scaleY;
         const scaledDragCurrentX = this.dragCurrentX * scaleX;
         const scaledDragCurrentY = this.dragCurrentY * scaleY;
-
         const worldDragStartX = scaledDragStartX + this.cameraX;
         const worldDragStartY = scaledDragStartY + this.cameraY;
         const worldDragCurrentX = scaledDragCurrentX + this.cameraX;
         const worldDragCurrentY = scaledDragCurrentY + this.cameraY;
-
         const selectionRectX = Math.min(worldDragStartX, worldDragCurrentX);
         const selectionRectY = Math.min(worldDragStartY, worldDragCurrentY);
         const selectionRectWidth = Math.abs(worldDragCurrentX - worldDragStartX);
         const selectionRectHeight = Math.abs(worldDragCurrentY - worldDragStartY);
-
         let newlySelectedUnits = [];
         if(this.deployedSquadRoster) this.deployedSquadRoster.forEach(unit => {
             if (unit.isAlive() &&
@@ -540,7 +576,6 @@ class Game {
                 if (!newlySelectedUnits.includes(unit)) newlySelectedUnits.push(unit);
             }
         });
-        // ... (rest of the method is the same)
         const oldSelectionIds = this.selectedUnits.map(u => u.id).sort().join(',');
         const newSelectionIds = newlySelectedUnits.map(u => u.id).sort().join(',');
         if (oldSelectionIds !== newSelectionIds) {
@@ -552,7 +587,6 @@ class Game {
         }
         this.isDragging = false; this.draggedFarEnough = false;
     }
-
     deselectAllUnits() { /* ... (Unchanged from previous complete version) ... */
         if (this.selectedUnits.length === 0) return;
         let aimingCancelled = false;
@@ -561,7 +595,6 @@ class Game {
         if (!aimingCancelled && this.ui) this.ui.updateSquadPanel();
         if (this.inputHandler) this.inputHandler.updateMouseCursor(); else if (this.ui) this.ui.setCursor('default');
     }
-
     selectAllPlayerUnits() { /* ... (Unchanged from previous complete version) ... */
         const allAliveUnits = this.deployedSquadRoster ? this.deployedSquadRoster.filter(unit => unit.isAlive()) : [];
         const currentSelectionIds = this.selectedUnits.map(u => u.id).sort().join(',');
@@ -574,11 +607,9 @@ class Game {
             if (this.inputHandler) this.inputHandler.updateMouseCursor();
         }
     }
-
     addProjectile(projectile) { /* ... (Unchanged from previous complete version) ... */
         this.gameObjects.push(projectile);
     }
-
     addVisualEffect(type, x, y, radiusOrId) { /* ... (Unchanged from previous complete version) ... */
         if (type === 'explosion') this.visualEffects.push(new ExplosionEffect(x, y, radiusOrId, this));
         else if (type === 'promotion') {
@@ -586,26 +617,24 @@ class Game {
             if (unit) this.visualEffects.push(new PromotionEffect(unit.x, unit.y - unit.size - 10, this));
         }
     }
-
     checkMissionStatus() { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated) return;
         if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
             this.isObjectiveComplete = this.enemyUnits ? this.enemyUnits.every(e => !e.isAlive()) : true;
-            if (this.initialEnemyCount === 0 && (!this.enemyUnits || this.enemyUnits.length === 0)) this.isObjectiveComplete = true; 
+            if (this.initialEnemyCount === 0 && (!this.enemyUnits || this.enemyUnits.length === 0)) this.isObjectiveComplete = true;
         } else { this.isObjectiveComplete = false; /* Other objective types later */ }
 
         if (this.isObjectiveComplete) this.endMission(true);
         else if (this.deployedSquadRoster && this.deployedSquadRoster.length > 0 && this.deployedSquadRoster.every(unit => !unit.isAlive())) this.endMission(false);
     }
-
     update(deltaTime) { /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
-        if (this.inputHandler.isShiftPressed && 
-            this.inputHandler.isLeftMouseDown && 
-            !this.inputHandler.isShiftHoldFiring && 
-            this.inputHandler.shiftLmbDownTime > 0 && 
+        if (this.inputHandler.isShiftPressed &&
+            this.inputHandler.isLeftMouseDown &&
+            !this.inputHandler.isShiftHoldFiring &&
+            this.inputHandler.shiftLmbDownTime > 0 &&
             (performance.now() - this.inputHandler.shiftLmbDownTime > (this.inputHandler.TAP_THRESHOLD_MS || 150) )) {
-            
+
             this.inputHandler.isShiftHoldFiring = true;
             this.handleShiftHoldStart(this.inputHandler.mousePos.worldX, this.inputHandler.mousePos.worldY);
         }
@@ -627,7 +656,7 @@ class Game {
         const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
         allUnitsInGame.forEach(unit => {
             if (unit && typeof unit.update === 'function') {
-                unit.update(deltaTime); 
+                unit.update(deltaTime);
             }
         });
         this.gameObjects = this.gameObjects.filter(obj => { if(obj) obj.update(deltaTime); return obj && !obj.isMarkedForDeletion; });
@@ -635,8 +664,7 @@ class Game {
         if (!this.missionStartedAndPopulated) this.missionStartedAndPopulated = true;
         this.checkMissionStatus();
     }
-
-    render() {
+    render() { /* ... (Unchanged from previous complete version) ... */
         if (!this.ctx || !this.level) {
             return;
         }
@@ -644,21 +672,32 @@ class Game {
         this.ctx.save();
         this.ctx.translate(-this.cameraX, -this.cameraY);
 
-        // 1. Render Prerendered Background
         if (this.prerenderedBackgroundCanvas.width > 0 && this.prerenderedBackgroundCanvas.height > 0) {
             this.ctx.drawImage(this.prerenderedBackgroundCanvas, 0, 0);
-        } else { // Fallback if prerendered canvas isn't ready (shouldn't happen)
+        } else {
             this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
         }
 
-        // 2. Prepare and Render Y-Sorted Objects (Obstacles and Units)
-        // ... (Y-sorting and rendering of obstacles/units remains the same as before) ...
+        if (CONFIG.DEBUG_PATHING_UNIT_ID && this.level && this.level.navGrid && this.level.gridCellSize > 0) { // Only draw if debug ID is set
+            const grid = this.level.navGrid;
+            const cellSize = this.level.gridCellSize;
+            for (let y = 0; y < grid.length; y++) {
+                for (let x = 0; x < grid[y].length; x++) {
+                    if (grid[y][x] === 1) {
+                        this.ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+                        this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+        }
+
         let sortableObjects = [];
-        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && unit.isAlive()) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
-        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && unit.isAlive()) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
+        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
+        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall') return; if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) { let sortYValue = obstacle.y + obstacle.height; sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } }); }
         sortableObjects.sort((a, b) => a.sortY - b.sortY);
+
         sortableObjects.forEach(item => {
             const obj = item.entity;
             if (item.isUnit) {
@@ -682,26 +721,32 @@ class Game {
                     }
                     this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                 }
-                if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0) {
-                    const hpBarHeight = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HEIGHT) || 4;
-                    const hpBarWidth = Math.min(obj.width * 0.7, 60); const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4;
-                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.BG_COLOR) ||'#111';
+                if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
+                    const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
+                    const hpBarHeight = healthBarStyle.HEIGHT || 4;
+                    const hpBarWidth = Math.min(obj.width * 0.7, 60);
+                    const barX = obj.x + (obj.width - hpBarWidth) / 2;
+                    const barY = obj.y - hpBarHeight - 4;
+                    this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111';
                     this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2);
-                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_LOW_BG) || '#c00';
-                    this.ctx.fillRect(barX, barY, hpBarWidth, hpBarHeight);
-                    this.ctx.fillStyle = (CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && CONFIG.UI_SETTINGS.HEALTH_BAR.HP_COLOR_FULL) ||'#0c0';
-                    this.ctx.fillRect(barX, barY, hpBarWidth * (obj.hp / obj.maxHp), hpBarHeight);
+
+                    let fillColor = healthBarStyle.HP_COLOR_FULL ||'#0c0';
+                    const hpPercent = obj.hp / obj.maxHp;
+                     if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) {
+                        fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000';
+                    } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) {
+                        fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#CCCC00';
+                    }
+                    this.ctx.fillStyle = fillColor;
+                    this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight);
                 }
             }
         });
 
 
-        // 3. Render Projectiles (Unchanged)
         this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
-        // 4. Render Top-Layer Visual Effects (Unchanged)
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function' && effect.type !== 'explosion_ground_mark') { effect.render(this.ctx); } });
-        // 5. Render Game Interaction UI (Selection Highlights, etc. - Unchanged)
-        if(this.selectedUnits) { this.selectedUnits.forEach(unit => { if (unit && unit.isAlive()) { this.ctx.strokeStyle = '#00FF00'; this.ctx.lineWidth = 2; this.ctx.beginPath(); this.ctx.arc(unit.x, unit.y, unit.size + 4, 0, Math.PI * 2); this.ctx.stroke(); } }); }
+        if(this.selectedUnits) { this.selectedUnits.forEach(unit => { if (unit && unit.isAlive()) { this.ctx.strokeStyle = 'blue'; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.arc(unit.x - 3, unit.y + 3, unit.size + 12, 0, Math.PI * 2); this.ctx.stroke(); } }); }
         if(this.selectedUnits) { this.selectedUnits.forEach(unit => { if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) { this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; this.ctx.lineWidth = 1; this.ctx.setLineDash([3, 3]); this.ctx.beginPath(); this.ctx.moveTo(unit.x, unit.y); this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y); this.ctx.stroke(); this.ctx.setLineDash([]); } }); }
         const aimingRaccoon = this.selectedUnits && this.selectedUnits.find(unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive());
         if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) {
@@ -723,7 +768,6 @@ class Game {
 
         this.ctx.restore();
     }
-
     gameLoop(timestamp) { /* ... (Unchanged from previous complete version) ... */
         const now = performance.now(); if (!this.lastTime) this.lastTime = now;
         const deltaTime = Math.min((now - this.lastTime) / 1000, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
@@ -731,7 +775,6 @@ class Game {
         if (this.gameState === 'RUNNING') this.update(deltaTime);
         this.render(); requestAnimationFrame(this.gameLoop);
     }
-
     calculateFormationPoints(centerX, centerY, units, formationType = 'HORIZONTAL') { /* ... (Unchanged from previous complete version) ... */
         const points = []; const aliveUnits = units ? units.filter(u => u.isAlive()) : []; const numUnits = aliveUnits.length;
         if (numUnits === 0) return points; if (numUnits === 1) { points.push({ x: centerX, y: centerY }); return points; }
@@ -739,7 +782,7 @@ class Game {
         if (formationType === 'HORIZONTAL') {
             const totalWidth = (numUnits - 1) * spacing; let startX = centerX - totalWidth / 2;
             for (let i = 0; i < numUnits; i++) points.push({ x: startX + i * spacing, y: centerY });
-        } else { 
+        } else {
             const totalHeight = (numUnits - 1) * spacing; let startY = centerY - totalHeight / 2;
             for (let i = 0; i < numUnits; i++) points.push({ x: centerX, y: startY + i * spacing });
         } return points;

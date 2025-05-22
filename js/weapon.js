@@ -1,7 +1,8 @@
 // js/weapon.js
+// complete
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
-                accuracyStationary, accuracyMoving = accuracyStationary * 0.75) {
+                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null) { // Added sfxFireKey
         this.name = name;
         this.damage = damage;
         this.rof = rof;
@@ -10,6 +11,7 @@ class Weapon {
         this.projectileColor = projectileColor;
         this.accuracyStationary = accuracyStationary;
         this.accuracyMoving = accuracyMoving;
+        this.sfxFireKey = sfxFireKey; // Store it
     }
 }
 
@@ -18,19 +20,22 @@ const WEAPONS = {
         'Raccoon MG',
         CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
         CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON,
-        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING
+        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
+        'RACCOON_MG_FIRE' // SFX Key
     ),
     POSSUM_RIFLE: new Weapon(
         'Possum Rifle',
         CONFIG.POSSUM_RIFLE_DAMAGE, CONFIG.POSSUM_RIFLE_ROF, CONFIG.POSSUM_RIFLE_RANGE,
         CONFIG.POSSUM_RIFLE_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM,
-        CONFIG.POSSUM_RIFLE_ACCURACY_STATIONARY, CONFIG.POSSUM_RIFLE_ACCURACY_MOVING
+        CONFIG.POSSUM_RIFLE_ACCURACY_STATIONARY, CONFIG.POSSUM_RIFLE_ACCURACY_MOVING,
+        'POSSUM_RIFLE_FIRE' // SFX Key
     ),
     POSSUM_HEAVY_WEAPON: new Weapon(
         'Possum Heavy MG',
         CONFIG.POSSUM_HEAVY_WEAPON_DAMAGE, CONFIG.POSSUM_HEAVY_WEAPON_ROF, CONFIG.POSSUM_HEAVY_WEAPON_RANGE,
         CONFIG.POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM_HEAVY,
-        CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY, CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_MOVING
+        CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY, CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_MOVING,
+        'POSSUM_HEAVY_MG_FIRE' // SFX Key
     )
 };
 
@@ -55,7 +60,6 @@ class Projectile {
         if (Math.random() > this.effectiveAccuracy) {
             const distToTarget = distance(startX, startY, targetX, targetY);
             const angleToTarget = Math.atan2(targetY - startY, targetX - startX);
-            // Use configured max spread angle
             const maxAngleOffset = (1.0 - this.effectiveAccuracy) * (bulletConfig.MAX_SPREAD_ANGLE_RADIANS || Math.PI / 6);
             const angleOffset = (Math.random() - 0.5) * 2 * maxAngleOffset;
             const finalAngle = angleToTarget + angleOffset;
@@ -65,12 +69,12 @@ class Projectile {
 
         const dx = actualTargetX - this.x;
         const dy = actualTargetY - this.y;
-        const dist = Math.hypot(dx, dy) || 1; // Avoid division by zero
+        const dist = Math.hypot(dx, dy) || 1;
         this.velocityX = (dx / dist) * this.speed;
         this.velocityY = (dy / dist) * this.speed;
 
         this.isMarkedForDeletion = false;
-        this.lifetime = bulletConfig.LIFETIME || 1.5; // Use from config
+        this.lifetime = bulletConfig.LIFETIME || 1.5;
     }
 
     update(deltaTime) {
@@ -106,12 +110,10 @@ class Projectile {
 
         if (this.game && this.game.level && this.game.level.obstacles) {
             for (const obs of this.game.level.obstacles) {
-                if (!obs.isDestroyed) { // Only check non-destroyed obstacles
-                    // Get the effective collision shape of the obstacle
+                if (!obs.isDestroyed) {
                     const obsCollisionShape = this.game.level._getObstacleCollisionShape(obs);
                     let hitObstacle = false;
 
-                    // Check collision between projectile (point) and obstacle shape
                     if (obsCollisionShape.type === 'rectangle') {
                         if (pointInRectangle(this.x, this.y, obsCollisionShape)) {
                             hitObstacle = true;
@@ -121,40 +123,24 @@ class Projectile {
                             hitObstacle = true;
                         }
                     }
-                    // Add more shape types if necessary
 
                     if (hitObstacle) {
-                        // If it's an explosive barrel, damage it
                         if (obs.destructible && obs.type === 'explosive_barrel') {
                             this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
-                            // Projectile might pass through if barrel doesn't immediately provide "cover"
-                            // or if you want bullets to destroy it and continue.
-                            // For now, let's assume bullets stop if the barrel *also* provides cover.
                         }
-
-                        // If the obstacle provides cover, the projectile stops
                         if (obs.providesCover) {
                             this.isMarkedForDeletion = true;
-                            return; // Exit after collision with cover
+                            return;
                         }
-                        // If it hit something not providing cover (e.g. a pickup crate erroneously marked),
-                        // and it wasn't an explosive barrel, it might pass through or stop.
-                        // For simplicity, let's assume if it hits any part of a defined collisionShape
-                        // of an obstacle that isn't explicitly cover, it should still stop unless specifically designed to pass.
-                        // This might need refinement based on obstacle types.
-                        // For now: if it hit *something* solid (even if not cover), it's deleted.
-                        // This prevents bullets from passing through the visual part of non-cover items
-                        // that still have a collisionShape.
-                        if(!obs.providesCover && obs.collisionShape){ // It hit a defined collision shape but not cover
-                             this.isMarkedForDeletion = true; // Stop bullet
+                        if(!obs.providesCover && obs.collisionShape){
+                             this.isMarkedForDeletion = true;
                              return;
                         }
-
                     }
                 }
             }
         }
-        if (this.isMarkedForDeletion) return; // Check again after obstacle collision
+        if (this.isMarkedForDeletion) return;
 
         const worldBuffer = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET && CONFIG.PROJECTILES.BULLET.DESPAWN_WORLD_BUFFER !== undefined)
                            ? CONFIG.PROJECTILES.BULLET.DESPAWN_WORLD_BUFFER : 50;
@@ -184,7 +170,7 @@ class GrenadeProjectile {
         this.shooterUnit = shooterUnit;
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
 
-        const grenadeMainConfig = CONFIG; // For direct access to RACCOON_GRENADE_...
+        const grenadeMainConfig = CONFIG;
         const grenadeProjectileConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE) ? CONFIG.PROJECTILES.GRENADE : {};
 
         this.damage = grenadeMainConfig.RACCOON_GRENADE_DAMAGE || 50;
@@ -212,7 +198,7 @@ class GrenadeProjectile {
 
         this.maxLifetime -= deltaTime;
         if (this.maxLifetime <= 0 && !this.exploded) {
-            this.isMarkedForDeletion = true; // Despawn if something went wrong
+            this.isMarkedForDeletion = true;
             return;
         }
 
@@ -225,12 +211,12 @@ class GrenadeProjectile {
             this.x = this.startX + (this.targetX - this.startX) * progress;
             this.y = this.startY + (this.targetY - this.startY) * progress;
 
-            const t_over_T = Math.min(progress, 1.0); // Normalized time for arc
-            this.currentHeight = 4 * this.peakHeight * t_over_T * (1 - t_over_T); // Parabolic arc
-        } else { // Flight complete, now just falling or at target
+            const t_over_T = Math.min(progress, 1.0);
+            this.currentHeight = 4 * this.peakHeight * t_over_T * (1 - t_over_T);
+        } else {
              this.x = this.targetX;
              this.y = this.targetY;
-             this.currentHeight = 0; // Landed
+             this.currentHeight = 0;
         }
 
         if (this.fuseTimer <= 0) {
@@ -252,7 +238,7 @@ class GrenadeProjectile {
         unitsToDamage.forEach(unit => {
             if (unit && unit.isAlive()) {
                 const distToUnit = distance(this.x, this.y, unit.x, unit.y);
-                if (distToUnit <= this.aoeRadius + unit.size) { // Consider unit size for AOE hit
+                if (distToUnit <= this.aoeRadius + unit.size) {
                     unit.takeDamage(this.damage, this.shooterUnit);
                 }
             }
@@ -260,7 +246,6 @@ class GrenadeProjectile {
 
         if(this.game && this.game.level && this.game.level.obstacles) this.game.level.obstacles.forEach(obstacle => {
             if (obstacle.destructible && !obstacle.isDestroyed && obstacle.hp > 0) {
-                // More accurate check: distance from explosion center to nearest point on obstacle rect
                 let testX = this.x; let testY = this.y;
                 if (this.x < obstacle.x) testX = obstacle.x;
                 else if (this.x > obstacle.x + obstacle.width) testX = obstacle.x + obstacle.width;
@@ -283,7 +268,6 @@ class GrenadeProjectile {
         const shadowConfig = grenadeProjectileConfig.SHADOW || {};
         const fuseBlinkConfig = grenadeProjectileConfig.FUSE_BLINK || {};
 
-        // Shadow
         const shadowColor = `rgba(${(shadowConfig.COLOR_RGBA || [0,0,0,0.3]).join(',')})`;
         const shadowYOffset = this.size * (shadowConfig.Y_OFFSET_FACTOR || 0.5);
         const shadowEllipseYFactor = shadowConfig.ELLIPSE_Y_RADIUS_FACTOR || 0.5;
@@ -300,15 +284,13 @@ class GrenadeProjectile {
             ctx.fill();
         }
 
-        // Grenade Body
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y - this.currentHeight, this.size, 0, Math.PI * 2);
         ctx.fill();
 
-        // Fuse Blinking Effect
         const blinkThreshold = fuseBlinkConfig.THRESHOLD_SECONDS || 0.5;
-        if (this.fuseTimer > 0 && this.fuseTimer < blinkThreshold && (Math.floor(this.fuseTimer * 10) % 2 === 0) ) { // Blink on/off
+        if (this.fuseTimer > 0 && this.fuseTimer < blinkThreshold && (Math.floor(this.fuseTimer * 10) % 2 === 0) ) {
              ctx.fillStyle = fuseBlinkConfig.COLOR || 'red';
              ctx.beginPath();
              ctx.arc(this.x, this.y - this.currentHeight, this.size + (fuseBlinkConfig.SIZE_ADDITION || 2), 0, Math.PI * 2);

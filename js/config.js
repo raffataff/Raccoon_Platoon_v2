@@ -1,4 +1,5 @@
 // js/config.js
+// complete
 const CONFIG = {
     // --- Core Game & World ---
     BASE_WORLD_WIDTH: 1280,
@@ -19,7 +20,9 @@ const CONFIG = {
     INPUT_TAP_THRESHOLD_MS: 30,
 
     // --- Pathfinding ---
-    GRID_CELL_SIZE: 4,
+    GRID_CELL_SIZE: 4, // Reduced for finer grid, ensure performance
+    // NEW: For pathing debug, set to a specific unit ID (e.g., "PSM-1") or null to disable
+    DEBUG_PATHING_UNIT_ID: null, // Example: "PSM-1" or "RCN-MR1" 
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 50,
@@ -68,10 +71,12 @@ const CONFIG = {
 
     // --- Units: General & AI ---
     UNIT_STUCK_FRAMES_THRESHOLD: 60,
-    POSSUM_DETECTION_RANGE: 350,
+    STUCK_FRAMES_THRESHOLD_PATHING: 30, // Was 15, then 30
+    REPATH_STUCK_COOLDOWN: 0.75,
+    
     ENEMY_ALERT_PROPAGATION_RADIUS: 200,
-    ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.85,
-    ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.20,
+    ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95, // Chance to become suspicious on taking damage without LOS
+    ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10, // Lowered threshold for alert propagation
 
     AI: {
         POSSUM_GRUNT: {
@@ -80,19 +85,31 @@ const CONFIG = {
             PATROL_POINT_WORLD_MARGIN_BUFFER: 20,
             PATROL_WAIT_BASE: 1.5,
             PATROL_WAIT_RANDOM_ADD: 2.0,
-            ENGAGE_PREFERRED_RANGE_FACTOR: 0.80,
-            ENGAGE_KITE_RANGE_FACTOR: 0.30,
-            ENGAGE_ADVANCE_RANGE_FACTOR: 0.95,
-            STUCK_ENGAGE_NUDGE_FACTOR: 2.0,
+            CHASE_PREDICTION_TIME_FACTOR: 0.25, 
+            CHASE_DESTINATION_REFRESH_INTERVAL: 1.0, // More frequent refresh for Grunt
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 4, // If actual target moves this far from chase dest, refresh
+            ENGAGE_RANGE_BUFFER: 10, // Engage if target is within weapon.range - buffer
+            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3, // This is GRUNT_MAX_STUCK_ATTEMPTS_BEFORE_DESPERATE
+            STUCK_ENGAGE_NUDGE_FACTOR: 2.5, 
+            STUCK_RECOVERY_COOLDOWN_SHORT: 0.75, 
+            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3,   
+            DESPERATE_STUCK_MOVE_RADIUS_CELLS: 5, 
         },
         POSSUM_HEAVY: {
             DETECTION_RANGE: 270,
-            MAX_CHASE_DISTANCE_FROM_POST_FACTOR: 0.85,
+            MAX_CHASE_DISTANCE_FROM_POST_FACTOR: 0.95, 
             GUARD_POST_POSITION_TOLERANCE: 5,
             SUSPICIOUS_STATE_SCAN_DURATION: 0.5,
-            ENGAGE_CHASE_LIMIT_BUFFER_FACTOR: 0.2,
-            ENGAGE_PREFERRED_RANGE_FACTOR: 0.85,
-            STUCK_ENGAGE_NUDGE_FACTOR: 1.5,
+            CHASE_PREDICTION_TIME_FACTOR: 0.15, 
+            CHASE_DESTINATION_REFRESH_INTERVAL: 1.5, // Less frequent for slower Heavy
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 3,
+            MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY: 40, 
+            ENGAGE_RANGE_BUFFER: 5, 
+            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3,
+            STUCK_ENGAGE_NUDGE_FACTOR: 2.0, 
+            STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
+            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3,
+            DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
         }
     },
 
@@ -110,7 +127,7 @@ const CONFIG = {
             DESPAWN_WORLD_BUFFER: 50
         },
         GRENADE: {
-            SIZE: 4, // Calculated as (CONFIG.PROJECTILE_SIZE || 2) + 2 in weapon.js if preferred
+            SIZE: 4, 
             MIN_FLIGHT_TIME: 0.05,
             ARC_PEAK_HEIGHT_MIN: 20,
             ARC_PEAK_HEIGHT_DISTANCE_FACTOR: 0.2,
@@ -162,6 +179,14 @@ const CONFIG = {
         'face5.png', 'face6.png', 'face7.png', 'face8.png',
         'face9.png', 'face10.png', 'face11.png'
     ],
+    AUDIO_ASSETS: {
+        RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.3, pitchVariation: 0.2 },
+        POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_rifle_possum.wav', defaultVolume: 0.5, pitchVariation: 0.05 },
+        POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.wav', defaultVolume: 0.7, pitchVariation: 0.05 },
+        // GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.wav', defaultVolume: 0.8 },
+        // PROMOTION_SFX: { path: 'assets/audio/sfx/promotion.wav', defaultVolume: 0.7 },
+    },
+
     VISUAL_EFFECTS: {
         PROMOTION: {
             LIFETIME: 1.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
@@ -171,7 +196,7 @@ const CONFIG = {
     },
     UI_SETTINGS: {
         HEALTH_BAR: {
-            WIDTH_MULTIPLIER: 1.5, HEIGHT: 4, Y_OFFSET_BASE: -5, BG_COLOR: '#333333',
+            WIDTH_MULTIPLIER: 3, HEIGHT: 4, Y_OFFSET_BASE: 10, BG_COLOR: '#333333',
             HP_COLOR_FULL: '#00CC00', HP_COLOR_MEDIUM: '#CCCC00', HP_COLOR_LOW: '#CC0000',
             LOW_HP_THRESHOLD_PERCENT: 0.3, MEDIUM_HP_THRESHOLD_PERCENT: 0.6
         },
@@ -179,7 +204,11 @@ const CONFIG = {
         MEMORIAL_CARD: { DEFAULT_FACE_BG_COLOR: '#333333' }
     },
     UNIT_VISUALS: {
-        FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 2 },
+        STUCK_FRAMES_THRESHOLD: 12,
+        UNIT_PHASING_DURATION: 0.75, // NEW: Duration in seconds for phasing
+        UNIT_PHASING_OPACITY: 0.5,   // NEW: Opacity for rendering during phasing
+        RACCOON_SPRITE_SCALE_FACTOR: 0.4,
+        FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 1 },
         KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 0.6 },
         GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 }
     },
@@ -195,7 +224,7 @@ const CONFIG = {
             INTERNAL_PADDING_FACTOR: 1.5 
         },
         OBSTACLES: { 
-            BASE_COUNT: 150, 
+            BASE_COUNT: 100, 
             WORLD_SIZE_FALLBACK_FACTOR: 1.0, 
             RANDOM_ADDITION_MAX: 8, 
             PLACEMENT_MAX_ATTEMPTS: 15 
@@ -204,296 +233,156 @@ const CONFIG = {
             MAX_ATTEMPTS: 30, 
             FALLBACK_SPACING_FACTOR: 3.0 
         },
-        DECORATIONS: { // New section for decoration-specific settings
+        DECORATIONS: {
             GRASS_CLUTTER: {
-                // If you want grass patches to have varied sizes, define min/max here
-                // and use them in level.js if the template is 'decoration_grass'
-                // MIN_SIZE: 20,
-                // MAX_SIZE: 48,
-                // Or if you want to scale the chosen sprite randomly:
                 MIN_SCALE: 1.1,
                 MAX_SCALE: 1.5
             }
         }
     },
     
-    GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/', // Path to the grass folder
-    GRASS_SPRITE_FILES: [ // Add all your grass sprite filenames here
-        'grass1.png',
-        'grass2.png',
-        'grass3.png',
-        'grass4.png',
-        'grass5.png',
-        'grass6.png',
-        'grass7.png',
-        'grass8.png',
-        'grass9.png',
-        'grass10.png',
+    GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/',
+    GRASS_SPRITE_FILES: [ 
+        'grass1.png','grass2.png','grass3.png','grass4.png','grass5.png',
+        'grass6.png','grass7.png','grass8.png','grass9.png','grass10.png',
     ],
-
-    // NEW: Bush Sprite Definitions
     BUSH_SPRITES_32PX_PATH: 'assets/images/objects/bushes/32/',
     BUSH_SPRITES_32PX_FILES: [
-        'Autumn_bush2.png',
-        'Bush_orange_flowers2.png',
-        'Bush_pink_flowers2.png',
-        'Bush_red_flowers2.png', // Note: some names have "2" but are in 32px list per your image
-        'Bush_simple1_1.png',
-        'Bush_simple1_2.png',
-        'Bush_simple2_1.png',
-        'Bush_simple2_2.png',
-        'Fern1_2.png',
-        'Fern2_2.png'
+        'Autumn_bush2.png','Bush_orange_flowers2.png','Bush_pink_flowers2.png','Bush_red_flowers2.png',
+        'Bush_simple1_1.png','Bush_simple1_2.png','Bush_simple2_1.png','Bush_simple2_2.png',
+        'Fern1_2.png','Fern2_2.png'
     ],
     BUSH_SPRITES_64PX_PATH: 'assets/images/objects/bushes/64/',
     BUSH_SPRITES_64PX_FILES: [
-        'Autumn_bush1.png',
-        'Bush_orange_flowers1.png',
-        'Bush_pink_flowers1.png',
-        'Bush_red_flowers1.png',
-        'Fern1_1.png',
-        'Fern2_1.png'
+        'Autumn_bush1.png','Bush_orange_flowers1.png','Bush_pink_flowers1.png','Bush_red_flowers1.png',
+        'Fern1_1.png','Fern2_1.png'
     ],
-
-    // NEW: Rock Sprite Definitions
     ROCK_SPRITES_16PX_PATH: 'assets/images/objects/rocks/grassy/16/',
-    ROCK_SPRITES_16PX_FILES: [
-        'Rock1_small.png'
-    ],
+    ROCK_SPRITES_16PX_FILES: ['Rock1_small.png'],
     ROCK_SPRITES_32PX_PATH: 'assets/images/objects/rocks/grassy/32/',
-    ROCK_SPRITES_32PX_FILES: [
-        'Rock1_medium.png'
-    ],
+    ROCK_SPRITES_32PX_FILES: ['Rock1_medium.png'],
     ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/64/',
-    ROCK_SPRITES_64PX_FILES: [
-        'rock1_large.png',
-        'rock2_large.png',
-    ],
-
-    // NEW: Palm Tree Sprite Definitions
-    //PALM_TREE_TALL_SPRITE_DESTROYED: 'assets/images/objects/biomes/tropical/trees/palm_stump.png',
+    ROCK_SPRITES_64PX_FILES: ['rock1_large.png','rock2_large.png',],
     PALM_TREE_MEDIUM_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    PALM_TREE_MEDIUM_SPRITE_FILES: [
-        'palm1_medium_single.png',
-        'palm2_medium_single.png',
-        // Add more palm tree variations here if you have them, e.g., 'palm2_cluster.png'
-    ],
+    PALM_TREE_MEDIUM_SPRITE_FILES: ['palm1_medium_single.png','palm2_medium_single.png',],
     PALM_TREE_TALL_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    PALM_TREE_TALL_SPRITE_FILES: [
-        'palm1_single.png',
-        'palm1_double.png',
-        'palm1_triple.png',
-        // Add more palm tree variations here if you have them, e.g., 'palm2_cluster.png'
-    ],
-
-    // NEW: Possum Huts
+    PALM_TREE_TALL_SPRITE_FILES: ['palm1_single.png','palm1_double.png','palm1_triple.png',],
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
     POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
-    POSSUM_HUT_SPRITE_FILES: [
-        'possum_hut_1.png'
-    ],
+    POSSUM_HUT_SPRITE_FILES: ['possum_hut_1.png'],
 
     OBSTACLE_DEFINITIONS: [
         {
-            type: 'decoration_grass',
-            name: 'Grass Patch',
-            // No color needed if always using sprites
-            destructible: false, // Grass isn't typically destroyed by gameplay
-            blocksMovement: false,
-            providesCover: false,
-            width: 15, height: 16, // Define a base size for placement, sprite can vary
-                                   // Or use minW/maxW if grass patches should have varied footprints
-            spawnWeight: 0,       // Make grass fairly common
-            isDecoration: true,    // Custom flag to identify it as purely visual
-            // Sprites will be chosen randomly from GRASS_SPRITE_FILES
-        },
-        // --- NEW BUSH DEFINITIONS ---
-        {
-            type: 'bush_medium', name: 'Medium Bush', color: '#228B22', // Fallback color
-            destructible: true, hp: 30, maxHp: 30, // Example: Medium bushes can be destroyed
-            blocksMovement: false,       // Typically bushes don't block movement but provide cover
-            providesCover: false,
-            width: 32, height: 32,    // Fixed size for this type
-            collisionShape: {
-                type: 'circle', // This rock is best represented by a circle
-                offsetX: 16,    // Offset from sprite's top-left to circle's center X
-                offsetY: 16,    // Offset from sprite's top-left to circle's center Y
-                radius: 10      // Radius of the collision circle
-            },
-            spawnWeight: 5,           // Adjust spawn frequency
-            isDecoration: false,       // It's gameplay relevant (cover)
-            // Sprites will be chosen randomly from BUSH_SPRITES_32PX_FILES
+            type: 'decoration_grass', name: 'Grass Patch', destructible: false, 
+            blocksMovement: false, providesCover: false, width: 15, height: 16, 
+            spawnWeight: 0, isDecoration: true, 
         },
         {
-            type: 'bush_large', name: 'Large Bush', color: '#006400', // Fallback color
-            destructible: true, hp: 50, maxHp: 50, // Example: Larger bushes tougher
-            blocksMovement: true,        // Large dense bushes might block movement
-            providesCover: false,
-            width: 64, height: 64,    // Fixed size for this type
-            collisionShape: {
-                type: 'circle', // This rock is best represented by a circle
-                offsetX: 32,    // Offset from sprite's top-left to circle's center X
-                offsetY: 32,    // Offset from sprite's top-left to circle's center Y
-                radius: 16      // Radius of the collision circle
-            },
-            spawnWeight: 5,           // Adjust spawn frequency
-            isDecoration: false,
-            // Sprites will be chosen randomly from BUSH_SPRITES_64PX_FILES
+            type: 'bush_medium', name: 'Medium Bush', color: '#228B22', 
+            destructible: true, hp: 30, maxHp: 30, 
+            blocksMovement: false, providesCover: true, // MODIFIED: Bushes now provide cover
+            width: 32, height: 32,
+            collisionShape: { type: 'circle', offsetX: 16, offsetY: 16, radius: 10 },
+            spawnWeight: 5, isDecoration: false, 
         },
-        
-        // --- UPDATED/NEW ROCK DEFINITIONS ---
         {
-            type: 'rock_small', name: 'Small Grassy Rock', color: '#708090', // Slate gray fallback
-            destructible: true, hp: 100, maxHp: 100, // Small rocks might be destructible
+            type: 'bush_large', name: 'Large Bush', color: '#006400', 
+            destructible: true, hp: 50, maxHp: 50, 
+            blocksMovement: true, providesCover: true, // MODIFIED: Large bushes block and provide cover
+            width: 64, height: 64,
+            collisionShape: { type: 'circle', offsetX: 32, offsetY: 32, radius: 16 },
+            spawnWeight: 5, isDecoration: false,
+        },
+        {
+            type: 'rock_small', name: 'Small Grassy Rock', color: '#708090', 
+            destructible: true, hp: 100, maxHp: 100, 
             blocksMovement: true, providesCover: true,
-            width: 32, height: 32,    // Fixed size for this type
-                collisionShape: {
-                type: 'circle', // This rock is best represented by a circle
-                offsetX: 16,    // Offset from sprite's top-left to circle's center X
-                offsetY: 16,    // Offset from sprite's top-left to circle's center Y
-                radius: 30      // Radius of the collision circle
-            },
-            spawnWeight: 0,           // Adjust spawn frequency
-            isDecoration: false,       // Gameplay relevant
-            // Sprites will be chosen randomly from ROCK_SPRITES_16PX_FILES
+            width: 32, height: 32,
+            collisionShape: { type: 'circle', offsetX: 16, offsetY: 16, radius: 15 }, // Adjusted radius
+            spawnWeight: 0, isDecoration: false, // MODIFIED: spawnWeight > 0
         },
         {
-            type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969', // Dim gray fallback
+            type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969', 
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            width: 124, height: 88,    // Fixed size for this type
-                collisionShape: {
-                type: 'circle', // This rock is best represented by a circle
-                offsetX: 52,    // Offset from sprite's top-left to circle's center X
-                offsetY: 50,    // Offset from sprite's top-left to circle's center Y
-                radius: 44      // Radius of the collision circle
-            },
-            spawnWeight: 15,
-            isDecoration: false,
-            // Sprites will be chosen randomly from ROCK_SPRITES_32PX_FILES
+            width: 124, height: 88,
+            collisionShape: { type: 'circle', offsetX: 52, offsetY: 50, radius: 44 },
+            spawnWeight: 15, isDecoration: false,
         },
         {
-            type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9', // Dark gray fallback
-            destructible: false, hp: Infinity, maxHp: Infinity, // Large rocks often indestructible
+            type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9', 
+            destructible: false, hp: Infinity, maxHp: Infinity, 
             blocksMovement: true, providesCover: true,
-            width: 336, height: 268,    // Fixed size for this type
-            collisionShape: {
-                type: 'circle', // This rock is best represented by a circle
-                offsetX: 155,    // Offset from sprite's top-left to circle's center X
-                offsetY: 150,    // Offset from sprite's top-left to circle's center Y
-                radius: 130      // Radius of the collision circle
-            },
-            spawnWeight: 5,
-            isDecoration: false,
-            // Sprites will be chosen randomly from ROCK_SPRITES_64PX_FILES
-        },
-
-        // --- NEW PALM TREE DEFINITION ---
-        {
-            type: 'tree_palm_medium',
-            name: 'Palm Tree Medium',
-            color: '#005522', // Fallback color if sprite fails
-            destructible: true, hp: 50, maxHp: 50, // Example: Palm trees can
-            blocksMovement: true,       // Trunk will block movement
-            providesCover: true,        // Canopy and trunk can provide cover
-            width: 80, height: 160,    // << ADJUST TO YOUR 'palm1__small_single.png' ACTUAL RENDER SIZE
-            spawnWeight: 60,             // Adjust frequency
-            isDecoration: false,        // Gameplay relevant (blocks, cover)
-            collisionShape: {
-                type: 'rectangle',
-                offsetX: 34,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
-                offsetY: 140,  // Example: if trunk starts some way down
-                width: 23,    // Example: width of the trunk
-                height: 20    // Example: height of the trunk part that collides
-            },
-            // spriteDestroyed: 'assets/images/objects/biomes/trees/palm_stump.png' // Optional
+            width: 336, height: 268,
+            collisionShape: { type: 'circle', offsetX: 155, offsetY: 150, radius: 130 },
+            spawnWeight: 5, isDecoration: false,
         },
         {
-            type: 'tree_palm_tall',
-            name: 'Palm Tree',
-            color: '#005522', // Fallback color if sprite fails
-            destructible: true, hp: 100, maxHp: 100, // Example: Palm trees can be shot down
-            blocksMovement: true,       // Trunk will block movement
-            providesCover: true,        // Canopy and trunk can provide cover
-            width: 125, height: 225,    // << ADJUST TO YOUR 'palm1_single.png' ACTUAL RENDER SIZE
-            spawnWeight: 20,             // Adjust frequency
-            isDecoration: false,        // Gameplay relevant (blocks, cover)
-            // Sprites will be chosen randomly from PALM_TREE__TALL_SPRITE_FILES
-            // Define a collision shape for the trunk primarily
-            collisionShape: {
-                type: 'rectangle',
-                offsetX: 30,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
-                offsetY: 190,  // Example: if trunk starts some way down
-                width: 35,    // Example: width of the trunk
-                height: 35    // Example: height of the trunk part that collides
-            },
-            // spriteDestroyed: 'assets/images/objects/biomes/trees/palm_stump.png' // Optional
+            type: 'tree_palm_medium', name: 'Palm Tree Medium', color: '#005522',
+            destructible: true, hp: 50, maxHp: 50, 
+            blocksMovement: true, providesCover: true, 
+            width: 80, height: 160, 
+            spawnWeight: 60, isDecoration: false,        
+            collisionShape: { type: 'rectangle', offsetX: 34, offsetY: 140, width: 23, height: 20 },
+        },
+        {
+            type: 'tree_palm_tall', name: 'Palm Tree', color: '#005522', 
+            destructible: true, hp: 100, maxHp: 100, 
+            blocksMovement: true, providesCover: true, 
+            width: 125, height: 225, 
+            spawnWeight: 20, isDecoration: false,        
+            collisionShape: { type: 'rectangle', offsetX: 30, offsetY: 190, width: 35, height: 35 },
         },
         {
             type: 'fence_wood', name: 'Wooden Fence', color: '#8B4513', destructible: true, hp: 40, maxHp: 40,
             blocksMovement: true, providesCover: true,
-            width: 120, height: 15, // Example of fixed size for fences (can still vary length if needed via minW/maxW)
-            // Or if you want varied length:
-            // minW: 80, maxW: 180, height: 15, // Fixed height, varied width
+            width: 120, height: 15, 
             spawnWeight: 7
         },
-        { // EXPLOSIVE BARREL - Fixed size
+        { 
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
-            width: 20, height: 30, // <<-- FIXED SIZE
+            width: 20, height: 30, 
             spawnWeight: 4,
             explosionDamage: 50, explosionAoeRadius: 80,
             spriteNormal: 'assets/images/objects/barrel_red.png',
             spriteDestroyed: 'assets/images/objects/barrel_red_destroyed.png'
         },
-        { // GRENADE CRATE PICKUP - Fixed size
+        { 
             type: 'pickup_grenade_crate', name: 'Grenade Crate', color: '#006400',
             destructible: true, hp: 1, maxHp: 1,
-            blocksMovement: true, providesCover: false,
-            width: 32, height: 32, // <<-- FIXED SIZE (was minW:64, minH:32 - adjusted to be square for example)
+            blocksMovement: true, providesCover: false, // Crates don't provide cover
+            width: 32, height: 32, 
             spawnWeight: 1,
             pickupType: 'grenade', pickupQuantity: 2,
             spriteNormal: 'assets/images/objects/crate_full.png',
             spriteDestroyed: 'assets/images/objects/crate_empty.png',
-            collisionShape: {
-                type: 'rectangle', // This crate is best represented by a rectangle
-                offsetX: 2,  // Offset from sprite's top-left to rectangle's top-left
-                offsetY: 2,  // Offset from sprite's top-left to rectangle's top-left
-                width: 28,   // Width of the collision rectangle
-                height: 27   // Height of the collision rectangle
-            },
+            collisionShape: { type: 'rectangle', offsetX: 2, offsetY: 2, width: 28, height: 27 },
+            isPickup: true, // Added flag
         },
-        // Buildings
-        { // Possum Huts
+        { 
             type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            width: 250, height: 190, // Example of fixed size for huts
+            width: 250, height: 190, 
             spawnWeight: 2,
-            spriteNormal: 'assets/images/objects/possums/huts/possum_hut_1.png',
+            // spriteNormal: 'assets/images/objects/possums/huts/possum_hut_1.png', // This is now handled by list
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
-            collisionShape: {
-                type: 'rectangle', // This hut is best represented by a circle
-                offsetX: 50,  // Example: if trunk is centered and 16px wide in a 64px wide sprite
-                offsetY: 60,  // Example: if trunk starts some way down
-                width: 150,
-                height: 130
-            },
+            collisionShape: { type: 'circle', offsetX: 120, offsetY: 110, radius: 80 },
             isDecoration: false,  
         },
         {
             type: 'building_shed', name: 'Shed', color: '#787860', destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            width: 120, height: 100, // Fixed size for sheds
-            // Or use minW/maxW, minH/maxH if sheds should vary
-            spawnWeight: 0
+            width: 120, height: 100, 
+            spawnWeight: 0, 
         }
     ],
     ENEMY_SPAWNING: {
-        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 8, RANDOM_ADDITION_FACTOR_MAX: 5,
-        AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0, SMALL_GROUP_CHANCE: 0.6, SMALL_GROUP_SIZE_MIN: 1, SMALL_GROUP_SIZE_MAX: 3,
-        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 50, LEADER_PLACEMENT_MAX_ATTEMPTS: 20, MEMBER_PLACEMENT_MAX_ATTEMPTS: 10,
+        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 6, RANDOM_ADDITION_FACTOR_MAX: 5,
+        AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0, SMALL_GROUP_CHANCE: 0.6, SMALL_GROUP_SIZE_MIN: 1, SMALL_GROUP_SIZE_MAX: 4,
+        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 150, LEADER_PLACEMENT_MAX_ATTEMPTS: 20, MEMBER_PLACEMENT_MAX_ATTEMPTS: 10,
         GROUP_SPREAD_BASE: 30, GROUP_SPREAD_SIZE_MULTIPLIER: 1.5,
         DEFAULT_HEAVY_CHANCE: 0.20, HEAVY_CHANCE_GROUP_LEADER_BONUS: 0.1
     },
