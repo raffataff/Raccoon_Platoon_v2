@@ -22,23 +22,29 @@ class Unit {
         this.weapon = null; this.autoTarget = null; this.manualTarget = null;
 
         this.stuckCheckPosition = { x: x, y: y };
+        this.pathingStuckCheckPosition = { selfX: x, selfY: y, distToNode: Infinity };
         this.stuckFrames = 0;
-        this.pathingStuckCheckPosition = { x: 0, y: 0, distToNode: Infinity, selfX:0, selfY:0 }; // Initialized
         this.pathingStuckFrames = 0;
         this.lastRepathAttemptTime = 0;
         this.REPATH_STUCK_COOLDOWN = CONFIG.REPATH_STUCK_COOLDOWN || 0.75;
 
         this.lastOnStuckTime = 0;
         this.consecutiveStuckAttempts = 0;
-        this.STUCK_RECOVERY_COOLDOWN_INTERNAL = 0.75;
-        this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL = 3;
+        const constructorNameUpper = this.constructor.name.toUpperCase();
+        this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL = (
+            this.team === 'enemy' &&
+            CONFIG.AI &&
+            CONFIG.AI[constructorNameUpper] &&
+            CONFIG.AI[constructorNameUpper].MAX_CONSECUTIVE_STUCK_ATTEMPTS
+        ) ? CONFIG.AI[constructorNameUpper].MAX_CONSECUTIVE_STUCK_ATTEMPTS : 3;
 
-        this.STUCK_FRAMES_THRESHOLD = CONFIG.UNIT_STUCK_FRAMES_THRESHOLD || 60;
+
+        this.STUCK_FRAMES_THRESHOLD = CONFIG.UNIT_STUCK_FRAMES_THRESHOLD || 45;
         this.STUCK_FRAMES_THRESHOLD_PATHING = CONFIG.STUCK_FRAMES_THRESHOLD_PATHING || 30;
 
         this.attackCooldown = 0; this.actionTimer = 0; this.isMarkedForDeletion = false;
-        this.facingAngle = Math.PI / 2;
-        this.gunAimAngle = this.facingAngle;
+        this.facingAngle = Math.PI / 2; // Body facing
+        this.gunAimAngle = this.facingAngle; // Gun aiming
         this.isContinuousFiring = false; this.continuousFireTargetPos = { x: 0, y: 0 }; this.continuousFireTargetEntity = null;
 
         this.aiState = (this.team === 'enemy') ? 'PATROLLING' : 'IDLE';
@@ -55,16 +61,19 @@ class Unit {
 
         this.isPhasing = false;
         this.phasingTimer = 0;
+        this.assignedDeadSpritePath = null;
     }
 
-    updateVisualDirection() { /* ... (Unchanged from previous complete version) ... */
-        const angle = this.facingAngle;
+
+    updateVisualDirection(angleToUse) {
+        const angle = angleToUse;
         const twoPi = Math.PI * 2;
-        const normalizedAngle = (angle % twoPi + twoPi) % twoPi;
+        const normalizedAngle = ((angle % twoPi) + twoPi) % twoPi;
+
         const slice = Math.PI / 4;
         const offset = Math.PI / 8;
 
-        if (normalizedAngle >= (0 - offset) && normalizedAngle < (slice - offset) || normalizedAngle >= (twoPi - offset)) {
+        if (normalizedAngle >= (7 * slice + offset) || normalizedAngle < (slice - offset)) {
             this.currentVisualDirection = 'e';
         } else if (normalizedAngle >= (slice - offset) && normalizedAngle < (2 * slice - offset)) {
             this.currentVisualDirection = 'se';
@@ -83,7 +92,7 @@ class Unit {
         }
     }
 
-    _updateVelocity(deltaTime) { /* ... (Unchanged from previous complete version) ... */
+    _updateVelocity(deltaTime) {
         this.timeSinceLastVelocitySample += deltaTime;
         if (this.timeSinceLastVelocitySample >= this.velocitySampleTime) {
             const dx = this.x - this.lastPosition.x;
@@ -132,11 +141,12 @@ class Unit {
 
         const currentTime = performance.now() / 1000;
 
+        // Stuck frame counting logic
         if (this.isMoving) {
             if (this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
                 const nextNodeWorldCoords = this.currentPath[this.currentPathNodeIndex];
                 const distToCurrentNode = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
-                const movedSignificantlyFromLastSelf = distance(this.x, this.y, this.pathingStuckCheckPosition.selfX, this.pathingStuckCheckPosition.selfY) > 0.75; // Increased threshold slightly
+                const movedSignificantlyFromLastSelf = distance(this.x, this.y, this.pathingStuckCheckPosition.selfX, this.pathingStuckCheckPosition.selfY) > 0.75;
 
                 if (distToCurrentNode >= (this.pathingStuckCheckPosition.distToNode || distToCurrentNode) - 0.75 && !movedSignificantlyFromLastSelf) {
                     this.pathingStuckFrames++;
@@ -161,6 +171,7 @@ class Unit {
                     } else {
                         this.isMoving = false; this.currentPath = [];
                     }
+                    // After onStuck, pathingStuckCheckPosition might need re-initialization if still moving.
                     if(this.isMoving && this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
                          const newNextNode = this.currentPath[this.currentPathNodeIndex];
                          this.pathingStuckCheckPosition = {
@@ -171,7 +182,7 @@ class Unit {
                         this.pathingStuckCheckPosition = {distToNode: Infinity, selfX: this.x, selfY: this.y };
                     }
                 }
-            } else if (!this.currentPath || this.currentPath.length === 0) {
+            } else if (!this.currentPath || this.currentPath.length === 0) { // Direct movement (no A* path)
                 if (distance(this.x, this.y, this.stuckCheckPosition.x, this.stuckCheckPosition.y) < 0.1) {
                      this.stuckFrames++;
                 } else {
@@ -186,29 +197,41 @@ class Unit {
                     if (typeof this.onStuck === 'function') {
                         this.onStuck('direct_move_stuck_no_path');
                     } else {
-                        this.isMoving = false;
+                        this.isMoving = false; // Basic fallback
                     }
-                    this.stuckFrames = 0;
+                    this.stuckFrames = 0; // Reset after handling
                 }
             }
-        } else {
+        } else { // Not isMoving
             this.stuckFrames = 0;
             this.pathingStuckFrames = 0;
             this.pathingStuckCheckPosition = {distToNode: Infinity, selfX: this.x, selfY: this.y };
         }
 
 
-        this._handleMovement(deltaTime);
+        this._handleMovement(deltaTime); // This updates this.facingAngle based on PHYSICAL movement
 
-        if (this.isMoving && !this.manualTarget && !this.autoTarget && !this.isContinuousFiring && !(this instanceof Raccoon && this.isAimingGrenade)) {
-            this.gunAimAngle = this.facingAngle;
-        } else if (!this.isMoving && !this.manualTarget && !this.autoTarget && !this.isContinuousFiring) {
-             if (!(this instanceof Raccoon && this.isAimingGrenade)) {
-                this.gunAimAngle = this.facingAngle;
-             }
+        // Determine gunAimAngle based on current targeting state (if not aiming grenade)
+        if (!(this instanceof Raccoon && this.isAimingGrenade)) {
+            if (this.isContinuousFiring && this.continuousFireTargetPos) {
+                if (distance(this.x, this.y, this.continuousFireTargetPos.x, this.continuousFireTargetPos.y) > 0.1) {
+                    this.gunAimAngle = Math.atan2(this.continuousFireTargetPos.y - this.y, this.continuousFireTargetPos.x - this.x);
+                }
+            } else if (this.manualTarget && this.manualTarget.isAlive()) {
+                if (distance(this.x, this.y, this.manualTarget.x, this.manualTarget.y) > 0.1) {
+                    this.gunAimAngle = Math.atan2(this.manualTarget.y - this.y, this.manualTarget.x - this.x);
+                }
+            } else if (this.autoTarget && this.autoTarget.isAlive()) {
+                 if (distance(this.x, this.y, this.autoTarget.x, this.autoTarget.y) > 0.1) {
+                    this.gunAimAngle = Math.atan2(this.autoTarget.y - this.y, this.autoTarget.x - this.x);
+                }
+            } else { // Not actively targeting anything with gun
+                this.gunAimAngle = this.facingAngle; // Gun aligns with body if idle or just moving without a specific target
+            }
         }
+        // If Raccoon is aiming grenade, Raccoon.js's update method directly sets facingAngle and gunAimAngle to mouse.
 
-
+        // Combat logic (handles firing and can also update facingAngle if stationary and shooting)
         if (this.game && this.game.level && this.game.level.obstacles) {
             if (this.team === 'player') {
                 this._handlePlayerCombat(deltaTime, this.game.level.obstacles);
@@ -217,23 +240,63 @@ class Unit {
             }
         }
 
+        // Determine visual animation state (idle, walk, fire)
         if (!this.isAlive()) {
             this.currentVisualState = 'death';
         } else if (this.isMoving) {
             this.currentVisualState = 'walk';
-        } else if ((this.manualTarget || this.autoTarget || this.isContinuousFiring) && this.attackCooldown <= 0 && this.actionTimer <= 0) {
+        } else if ((this.manualTarget || this.autoTarget || this.isContinuousFiring) && this.attackCooldown <= 0 && this.actionTimer <= 0 && !(this instanceof Raccoon && this.isAimingGrenade)) {
             this.currentVisualState = 'fire';
         } else {
             this.currentVisualState = 'idle';
         }
 
-        this.updateVisualDirection();
+        // --- Determine the angle for the SPRITE's visual direction ---
+        let angleForSprite = this.facingAngle; // Default: sprite faces body's physical facing angle
+
+        const isActivelyEngaged = (this.isContinuousFiring && this.continuousFireTargetPos) ||
+                               (this.manualTarget && this.manualTarget.isAlive()) ||
+                               (this.autoTarget && this.autoTarget.isAlive() && this.attackCooldown <= 0); // Ready to shoot auto-target
+
+        // Special sprite facing logic for Raccoons (player units)
+        if (this instanceof Raccoon && !(this.isAimingGrenade)) {
+            if (isActivelyEngaged) {
+                // If Raccoon is actively shooting (or ready to shoot an auto-target),
+                // its sprite should always face the gun's aiming direction.
+                angleForSprite = this.gunAimAngle;
+                if (!this.isMoving) {
+                    // If stationary AND actively engaged, the body (facingAngle) also aligns with the gun.
+                    this.facingAngle = this.gunAimAngle;
+                }
+                // If MOVING AND actively engaged:
+                // this.facingAngle is determined by _handleMovement (physical movement direction).
+                // angleForSprite is set to this.gunAimAngle (visual direction for kiting).
+            }
+            // If Raccoon is not actively engaged (even if moving), angleForSprite remains this.facingAngle.
+            // This means sprite faces movement direction if moving and not shooting, or last orientation if idle.
+        }
+        // For Raccoons aiming grenades, Raccoon.js's own update() handles setting `this.facingAngle` towards the mouse.
+        // So, angleForSprite (which defaults to this.facingAngle) will be correct for grenade aiming.
+
+        // Standard logic for enemies (or non-Raccoon player units, if any in future)
+        else if (this.team === 'enemy' && isActivelyEngaged && !this.isMoving) {
+            // If an enemy is stationary and actively engaged, make its body and sprite face the gun.
+            angleForSprite = this.gunAimAngle;
+            this.facingAngle = this.gunAimAngle;
+        }
+        // For enemies that are moving and shooting (if their canShootWhileMoving is true),
+        // their sprite will currently face their movement direction (this.facingAngle) by default.
+        // This could be overridden for specific enemy types if they should also visually kite.
+
+        this.updateVisualDirection(angleForSprite);
+        // --- END Sprite Direction Logic ---
 
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
-
-    getCollisionShape() { /* ... (Unchanged from previous complete version) ... */ }
-    calculatePath(explicitStartGrid = null) { /* ... (Unchanged from previous complete version) ... */
+   
+    getCollisionShape() { }
+    
+    calculatePath(explicitStartGrid = null) {
         if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; return false; }
         const navGrid = this.game.level.getNavigationGrid();
         if (!navGrid) { this.isMoving = false; this.currentPath = []; return false; }
@@ -318,7 +381,7 @@ class Unit {
 
                 this.x += phaseMoveX; this.y += phaseMoveY;
                 if (Math.abs(phaseMoveX) > 1e-5 || Math.abs(phaseMoveY) > 1e-5) {
-                    this.facingAngle = Math.atan2(phaseMoveY, phaseMoveX);
+                    this.facingAngle = Math.atan2(phaseMoveY, phaseMoveX); // Update body facing during phase move
                 }
                 if (distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y) <= Math.max(moveSpeed * 0.25, this.size * 0.1)) {
                     this.x = nextNodeWorldCoords.x; this.y = nextNodeWorldCoords.y;
@@ -428,7 +491,7 @@ class Unit {
                 } else if (!canMoveX && canMoveY) {
                     finalDeltaX = 0;
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Slide: Y only (X blocked).`);
-                } else if (canMoveX && canMoveY) { // Both axes individually clear, but combined move hit (corner)
+                } else if (canMoveX && canMoveY) {
                     const angleToNode = Math.atan2(dyToNode, dxToNode);
                     const angleOfXMove = (desiredDeltaX >= 0) ? 0 : Math.PI;
                     const angleOfYMove = (desiredDeltaY >= 0) ? Math.PI / 2 : -Math.PI / 2;
@@ -444,7 +507,7 @@ class Unit {
                     } else if (diffY < diffX - 1e-3 && Math.abs(desiredDeltaY) > 1e-5) {
                         finalDeltaX = 0;
                         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner Slide: Y preferred (aligns better).`);
-                    } else if (Math.abs(desiredDeltaX) > Math.abs(desiredDeltaY) + 1e-4 && Math.abs(desiredDeltaX) > 1e-5) { // Fallback to larger component if distinct
+                    } else if (Math.abs(desiredDeltaX) > Math.abs(desiredDeltaY) + 1e-4 && Math.abs(desiredDeltaX) > 1e-5) {
                         finalDeltaY = 0;
                          if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner Slide: X preferred (larger component).`);
                     } else if (Math.abs(desiredDeltaY) > 1e-5) {
@@ -454,7 +517,7 @@ class Unit {
                         finalDeltaX = 0; finalDeltaY = 0;
                         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner: No clear slide, stopping.`);
                     }
-                } else { // Neither X-only nor Y-only is clear
+                } else {
                     finalDeltaX = 0; finalDeltaY = 0;
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] All slides blocked. Stopping.`);
                 }
@@ -470,10 +533,11 @@ class Unit {
         this.x += finalDeltaX;
         this.y += finalDeltaY;
 
-        if ((Math.abs(finalDeltaX) > 1e-5 || Math.abs(finalDeltaY) > 1e-5) &&
-            (!this.manualTarget && !this.autoTarget && !this.isContinuousFiring && !(this instanceof Raccoon && this.isAimingGrenade))) {
-            this.facingAngle = Math.atan2(finalDeltaY, finalDeltaX);
+        // Update body facingAngle based on the actual movement made this frame
+        if (Math.abs(finalDeltaX) > 1e-5 || Math.abs(finalDeltaY) > 1e-5) {
+             this.facingAngle = Math.atan2(finalDeltaY, finalDeltaX);
         }
+
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
         const arrivalTolerance = Math.max(moveSpeed * 0.3, this.size * 0.3);
@@ -502,9 +566,8 @@ class Unit {
                     distToNode: distance(this.x, this.y, nextNextNode.x, nextNextNode.y),
                     selfX: this.x, selfY: this.y
                 };
-                if (distance(this.x, this.y, nextNextNode.x, nextNextNode.y) > 0.1 && (!this.manualTarget && !this.autoTarget && !this.isContinuousFiring && !(this instanceof Raccoon && this.isAimingGrenade))) {
-                     this.facingAngle = Math.atan2(nextNextNode.y - this.y, nextNextNode.x - this.x);
-                }
+                // Don't pre-emptively set facingAngle here, let the next iteration of _handleMovement do it
+                // based on the actual next step towards nextNextNode.
             }
         }
 
@@ -513,7 +576,7 @@ class Unit {
         this.y = Math.max(this.size/2, Math.min(this.y, worldH - this.size/2));
     }
 
-    setMoveTarget(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
+    setMoveTarget(worldX, worldY) {
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
              console.log(`[${this.id} setMoveTarget] Attempting to: (${worldX.toFixed(0)},${worldY.toFixed(0)}). Current AI State: ${this.aiState || 'N/A'}, isMoving: ${this.isMoving}`);
         }
@@ -625,7 +688,7 @@ class Unit {
             return false;
         }
     }
-    setManualTarget(target) { /* ... (Unchanged from previous complete version) ... */
+    setManualTarget(target) {
         if (this.isContinuousFiring) this.setContinuousFire(false);
         this.manualTarget = target;
         this.autoTarget = null;
@@ -644,7 +707,7 @@ class Unit {
             }
         }
     }
-    setContinuousFire(isFiring, targetX, targetY) { /* ... (Unchanged from previous complete version) ... */
+    setContinuousFire(isFiring, targetX, targetY) {
         this.isContinuousFiring = isFiring;
         if (isFiring) {
             this.manualTarget = null; this.autoTarget = null;
@@ -667,7 +730,7 @@ class Unit {
             this.continuousFireTargetEntity = null;
         }
     }
-    updateContinuousFireTarget(targetX, targetY) { /* ... (Unchanged from previous complete version) ... */
+    updateContinuousFireTarget(targetX, targetY) {
         if (!this.isContinuousFiring) return;
         if (this.continuousFireTargetEntity && this.continuousFireTargetEntity.isAlive()) { this.continuousFireTargetPos = { x: this.continuousFireTargetEntity.x, y: this.continuousFireTargetEntity.y }; }
         else { this.continuousFireTargetEntity = null; this.continuousFireTargetPos = { x: targetX, y: targetY }; }
@@ -677,7 +740,7 @@ class Unit {
             this.gunAimAngle = angleToFirePos;
         }
     }
-    _handleEnemyCombat(deltaTime, obstacles) { /* ... (Unchanged from previous complete version) ... */
+    _handleEnemyCombat(deltaTime, obstacles) {
         if ((this instanceof Raccoon && this.isAimingGrenade) || this.actionTimer > 0 || !this.weapon) return;
         if (this.attackCooldown > 0) { this.attackCooldown -= deltaTime; if (this.attackCooldown < 0) this.attackCooldown = 0; }
         let targetToShoot = null; let fireAtX, fireAtY;
@@ -718,7 +781,7 @@ class Unit {
             }
         }
     }
-    _handlePlayerCombat(deltaTime, obstacles) { /* ... (Unchanged from previous complete version) ... */
+    _handlePlayerCombat(deltaTime, obstacles) {
         if ((this instanceof Raccoon && this.isAimingGrenade) || this.actionTimer > 0 || !this.weapon) return;
         if (this.attackCooldown > 0) { this.attackCooldown -= deltaTime; if (this.attackCooldown < 0) this.attackCooldown = 0; }
 
@@ -792,7 +855,7 @@ class Unit {
             this.gunAimAngle = this.facingAngle;
         }
     }
-    findAutoTarget(potentialTargets, obstacles) { /* ... (Unchanged from previous complete version) ... */
+    findAutoTarget(potentialTargets, obstacles) {
         let closestTarget = null;
         let engagementRange = (this.weapon ? this.weapon.range : (this.detectionRange || 150));
         if (this.team === 'player' && this instanceof Raccoon && this.weapon) {
@@ -822,7 +885,7 @@ class Unit {
         });
         this.autoTarget = closestTarget;
     }
-    fireAt(targetEntity) { /* ... (Unchanged from previous complete version) ... */
+    fireAt(targetEntity) {
         if (this.isContinuousFiring) this.setContinuousFire(false);
         const fireAngle = Math.atan2(targetEntity.y - this.y, targetEntity.x - this.x);
         this._executeFire(targetEntity.x, targetEntity.y, fireAngle);
@@ -860,14 +923,14 @@ class Unit {
         }
     }
 
-    fireAtPoint(pointX, pointY) { /* ... (Unchanged from previous complete version) ... */
+    fireAtPoint(pointX, pointY) {
         if (this.isContinuousFiring) this.setContinuousFire(false);
         const fireAngle = Math.atan2(pointY - this.y, pointX - this.x);
         this._executeFire(pointX, pointY, fireAngle);
         this.manualTarget = null; this.autoTarget = null;
     }
 
-    takeDamage(amount, attackerUnit = null) { /* ... (Unchanged from previous complete version) ... */
+    takeDamage(amount, attackerUnit = null) {
         if (!this.isAlive()) return;
         const prevHp = this.hp;
         this.hp -= amount;
@@ -914,7 +977,7 @@ class Unit {
         }
     }
 
-    propagateAlert(sourceOfAlertUnit = null) { /* ... (Unchanged from previous complete version) ... */
+    propagateAlert(sourceOfAlertUnit = null) {
         if (!this.isAlive() || this.team !== 'enemy' || !this.game || !this.game.enemyUnits) return;
         this.game.enemyUnits.forEach(otherEnemy => {
             if (otherEnemy && otherEnemy.isAlive() && otherEnemy !== this &&
@@ -934,7 +997,7 @@ class Unit {
             }
         });
     }
-    die() { /* ... (Unchanged from previous complete version) ... */
+    die() {
         this.manualTarget = null; this.autoTarget = null; this.isMoving = false; this.currentPath = [];
         const wasSelected = this.game && this.game.selectedUnits.includes(this);
         if (this instanceof Raccoon && this.isAimingGrenade) this.cancelGrenadeAim();
@@ -946,7 +1009,7 @@ class Unit {
         }
         if (wasSelected && this.game && this.game.ui) this.game.ui.updateSquadPanel();
     }
-    isAlive() { /* ... (Unchanged from previous complete version) ... */ return this.hp > 0; }
+    isAlive() { return this.hp > 0; }
 
     onStuck(reason = 'unknown') {
         const currentTime = performance.now() / 1000;
@@ -1014,7 +1077,7 @@ class Unit {
         }
     }
 
-    _attemptDesperateMove() { /* ... (Unchanged from previous complete version) ... */
+    _attemptDesperateMove() {
         const navGrid = this.game.level.getNavigationGrid();
         if (!navGrid) return false;
 
@@ -1065,54 +1128,120 @@ class Unit {
         ctx.translate(this.x, this.y);
 
         if (this.isPhasing) {
-            ctx.globalAlpha = CONFIG.UNIT_PHASING_OPACITY || 0.5; // Add to CONFIG
+            ctx.globalAlpha = CONFIG.UNIT_VISUALS.UNIT_PHASING_OPACITY || 0.5;
         }
-
 
         if (!this.isAlive() && this.currentVisualState !== 'death') {
             this.currentVisualState = 'death';
         }
 
         let spriteToDraw = null;
-        if (this instanceof Raccoon) {
-            const spriteKey = `${this.spriteBaseName}_idle_${this.currentVisualDirection}`;
-            spriteToDraw = this.game.preloadedImages[spriteKey];
+        let spriteScale = 1.0;
+        let spriteWidth, spriteHeight;
 
-            if (!spriteToDraw && this.isAlive()) {
-                 const fallbackSpriteKey = `${this.spriteBaseName}_idle_s`;
-                 spriteToDraw = this.game.preloadedImages[fallbackSpriteKey];
+        if (this.isAlive()) {
+            if (this instanceof Raccoon) {
+                // REVERTED: Always use 'idle' action folder for raccoons for now, but use currentVisualDirection
+                const spriteKey = `raccoon_idle_${this.currentVisualDirection}`;
+                spriteToDraw = this.game.preloadedImages[spriteKey];
+
+                if (!spriteToDraw) { // Fallback to idle_s if specific direction missing
+                    const fallbackSpriteKey = `raccoon_idle_s`;
+                    spriteToDraw = this.game.preloadedImages[fallbackSpriteKey];
+                     if(!spriteToDraw && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`Missing Raccoon sprite: ${spriteKey} and fallback ${fallbackSpriteKey}`);
+                }
+                spriteScale = CONFIG.UNIT_VISUALS.RACCOON_SPRITE_SCALE_FACTOR || 1.0;
+            }
+            // Placeholder for alive PossumGrunt sprites
+            else if (this instanceof PossumGrunt) {
+                // TODO: Add alive PossumGrunt sprite logic when assets are ready
+                // For now, it will fall through to the colored circle.
+            }
+            // Placeholder for alive PossumHeavy sprites
+
+        } else { // Unit is dead
+            if (this instanceof PossumGrunt) {
+                if (!this.assignedDeadSpritePath) {
+                    const deadFiles = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES || [];
+                    if (deadFiles.length > 0) {
+                        const randomDeadFile = deadFiles[Math.floor(Math.random() * deadFiles.length)];
+                        this.assignedDeadSpritePath = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH + randomDeadFile;
+                    }
+                }
+                if (this.assignedDeadSpritePath) {
+                    spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
+                }
+                spriteScale = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_SCALE || 1.0;
+                 if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+                    console.warn(`Dead Possum Grunt sprite not found in preloadedImages for key: ${this.assignedDeadSpritePath}`);
+                }
+            }
+            // Dead Heavy Possum
+            else if (this instanceof PossumHeavy) {
+                if (!this.assignedDeadSpritePath) {
+                    const deadFiles = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES || [];
+                    if (deadFiles.length > 0) {
+                        const randomDeadFile = deadFiles[Math.floor(Math.random() * deadFiles.length)];
+                        this.assignedDeadSpritePath = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH + randomDeadFile;
+                    }
+                }
+                if (this.assignedDeadSpritePath) {
+                    spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
+                }
+                spriteScale = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_SCALE || 1.0;
+                 if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+                    console.warn(`Dead Possum Heavy sprite not found in preloadedImages for key: ${this.assignedDeadSpritePath}`);
+                }
+            }
+            // Dead Raccoon 
+            else if (this instanceof Raccoon) {
+                if (!this.assignedDeadSpritePath) {
+                    const deadFiles = CONFIG.RACCOON_DEAD_SPRITE_FILES || [];
+                    if (deadFiles.length > 0) {
+                        const randomDeadFile = deadFiles[Math.floor(Math.random() * deadFiles.length)];
+                        this.assignedDeadSpritePath = CONFIG.RACCOON_DEAD_SPRITE_PATH + randomDeadFile;
+                    }
+                }
+                if (this.assignedDeadSpritePath) {
+                    spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
+                }
+                spriteScale = CONFIG.RACCOON_DEAD_SPRITE_SCALE || 1.0;
+                 if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+                    console.warn(`Dead Raccoon sprite not found in preloadedImages for key: ${this.assignedDeadSpritePath}`);
+                }
             }
         }
 
-        if (spriteToDraw && this.isAlive()) {
-            const baseSpriteWidth = spriteToDraw.width;
-            const baseSpriteHeight = spriteToDraw.height;
-            const raccoonSpriteScale = (CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.RACCOON_SPRITE_SCALE_FACTOR !== undefined)
-                         ? CONFIG.UNIT_VISUALS.RACCOON_SPRITE_SCALE_FACTOR
-                         : 1.0;
-            const finalSpriteWidth = baseSpriteWidth * raccoonSpriteScale;
-            const finalSpriteHeight = baseSpriteHeight * raccoonSpriteScale;
-
-            ctx.drawImage( spriteToDraw, -finalSpriteWidth / 2, -finalSpriteHeight / 2, finalSpriteWidth, finalSpriteHeight );
+        if (spriteToDraw) {
+            spriteWidth = spriteToDraw.naturalWidth * spriteScale;
+            spriteHeight = spriteToDraw.naturalHeight * spriteScale;
+            let drawOffsetY = -spriteHeight / 2;
+            if (!this.isAlive() && this instanceof PossumGrunt) {
+                drawOffsetY = -spriteHeight * 0.4; // Example offset for dead grunt
+            }
+            ctx.drawImage(spriteToDraw, -spriteWidth / 2, drawOffsetY, spriteWidth, spriteHeight);
         } else {
-            let originalAlpha = ctx.globalAlpha; // Store current alpha if phasing
+            let originalAlpha = ctx.globalAlpha;
             if (!this.isAlive()) {
                 ctx.fillStyle = this.team === 'player' ? (kiaStyle && kiaStyle.PLAYER_FILL_COLOR || 'darkgrey') : (kiaStyle && kiaStyle.ENEMY_FILL_COLOR || '#555');
                 const baseOpacity = (kiaStyle && kiaStyle.OPACITY !== undefined) ? kiaStyle.OPACITY : 0.6;
                 ctx.globalAlpha = this.isPhasing ? Math.min(originalAlpha, baseOpacity) : baseOpacity;
             } else {
                 ctx.fillStyle = this.color;
-                // If phasing, originalAlpha is already set. If not, it's 1.0.
             }
             ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI * 2); ctx.fill();
-            ctx.globalAlpha = originalAlpha; // Restore alpha from before this block
+            ctx.globalAlpha = originalAlpha;
         }
 
-        if (!this.isPhasing) ctx.globalAlpha = 1.0; // Ensure alpha is reset if not phasing and not modified above
+        if (!this.isPhasing) {
+             if (this.isAlive() || (!this.isAlive() && !(kiaStyle && kiaStyle.OPACITY !== undefined))) {
+                ctx.globalAlpha = 1.0;
+            }
+        }
 
-        if (this.isAlive() && facingIndicatorStyle) {
+        if (this.isAlive() && facingIndicatorStyle && CONFIG.UNIT_VISUALS.DRAW_GUN_AIM_INDICATOR) {
             ctx.strokeStyle = facingIndicatorStyle.COLOR || 'black';
-            ctx.lineWidth = facingIndicatorStyle.LINE_WIDTH || 2;
+            ctx.lineWidth = facingIndicatorStyle.LINE_WIDTH || 1;
             ctx.beginPath();
             ctx.moveTo(0, 0);
             ctx.lineTo(this.size * 1.2 * Math.cos(this.gunAimAngle), this.size * 1.2 * Math.sin(this.gunAimAngle));
@@ -1120,7 +1249,7 @@ class Unit {
         }
         ctx.restore();
 
-        if (this.isAlive() && healthBarStyle) { /* ... (Health bar logic unchanged) ... */
+        if (this.isAlive() && healthBarStyle) {
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
             const barHeight = healthBarStyle.HEIGHT || 4;
             const barX = this.x - barWidth / 2;

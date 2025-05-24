@@ -38,7 +38,7 @@ class PossumHeavy extends Unit {
         super.update(deltaTime); // This will call the Unit.update which includes stuck frame counting
     }
 
-    aiLogicHeavy(deltaTime, playerUnitsOnMap, obstacles) { /* ... (Unchanged from previous complete version) ... */
+    aiLogicHeavy(deltaTime, playerUnitsOnMap, obstacles) {
         let currentTarget = this.manualTarget;
 
         if (this.actionTimer > 0) { return; }

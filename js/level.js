@@ -4,13 +4,21 @@ class Level {
     constructor(game) {
         this.game = game;
         this.obstacles = [];
-        this.navGrid = null; // Will store the navigation grid
-        this.gridCellSize = CONFIG.GRID_CELL_SIZE || 16;
+        this.navGrid = null;
+        this.gridCellSize = CONFIG.GRID_CELL_SIZE || 8;
         this.gridWidth = 0;
         this.gridHeight = 0;
+
+        this.potentialSpawnerHuts = [];
+        this.activeSpawningHuts = [];
+        this.hutSpawnConfig = (CONFIG.ENEMY_SPAWNING && CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING)
+                            ? CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING
+                            : {};
+        this.timeSinceLastHutActivationCheck = 0;
+        this.HUT_ACTIVATION_CHECK_INTERVAL = 1.0;
     }
 
-    _getObstacleCollisionShape(obstacle) { /* ... (Unchanged from previous complete version) ... */
+    _getObstacleCollisionShape(obstacle) {
         if (obstacle.collisionShape) {
             const shapeDef = obstacle.collisionShape;
             const obsRenderWidth = obstacle.width;
@@ -36,8 +44,8 @@ class Level {
         return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
     }
 
-    _rectOverlap(rect1, rect2) { /* ... (Unchanged from previous complete version) ... */ return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y); }
-    isShapeOverlappingList(movingShape, existingObstacles) { /* ... (Unchanged from previous complete version) ... */
+    _rectOverlap(rect1, rect2) { return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y); }
+    isShapeOverlappingList(movingShape, existingObstacles) {
         for (const existing of existingObstacles) {
             if (!existing.isDestroyed && existing.blocksMovement) {
                 const existingCollisionShape = this._getObstacleCollisionShape(existing);
@@ -51,27 +59,37 @@ class Level {
         }
         return false;
     }
-    isSpawnPointClear(x, y, unitSize, existingObstacles) { /* ... (Unchanged from previous complete version) ... */
+    isSpawnPointClear(x, y, unitSize, existingObstacles, existingUnits = []) {
         const unitShape = { type: 'circle', x: x, y: y, radius: unitSize / 2 };
-        return !this.isShapeOverlappingList(unitShape, existingObstacles);
+        if (this.isShapeOverlappingList(unitShape, existingObstacles)) {
+            return false;
+        }
+        // Check against other units
+        for (const unit of existingUnits) {
+            if (unit.isAlive()) {
+                const distSq = (x - unit.x) * (x - unit.x) + (y - unit.y) * (y - unit.y);
+                if (distSq < (unitSize / 2 + unit.size / 2) * (unitSize / 2 + unit.size / 2) + (this.hutSpawnConfig.MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN || 10)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
-    damageObstacle(obstacle, amount, attackerUnit = null) { /* ... (Unchanged from previous complete version, including logs if you kept them) ... */
+    damageObstacle(obstacle, amount, attackerUnit = null) {
         if (!obstacle || !obstacle.destructible || obstacle.isDestroyed || obstacle.hp === undefined) {
             if (obstacle && obstacle.type === 'possum_hut') {
-                // console.log(`[Level.damageObstacle] Returning early for Possum Hut (${obstacle.name || obstacle.id}). Destructible: ${obstacle.destructible}, IsDestroyed: ${obstacle.isDestroyed}, HP defined: ${obstacle.hp !== undefined}`);
             }
             return;
         }
         obstacle.hp -= amount;
         if (obstacle.type === 'possum_hut') {
-            // console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) HP after damage: ${obstacle.hp}`);
         }
         if (obstacle.hp <= 0) {
             obstacle.hp = 0;
             obstacle.isDestroyed = true;
             if (obstacle.type === 'possum_hut') {
-                // console.log(`[Level.damageObstacle] Possum Hut (${obstacle.name || obstacle.id}) has been marked as isDestroyed = true. Current HP: ${obstacle.hp}`);
-                // console.log(`[Level.damageObstacle] Hut's imageDestroyed object at destruction time:`, obstacle.imageDestroyed);
+                // Remove from active spawners if it was one
+                this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== obstacle);
             }
             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
             if (obstacleDef) {
@@ -81,9 +99,8 @@ class Level {
                 obstacle.blocksMovement = false;
                 obstacle.providesCover = false;
             }
-             // If a movement-blocking obstacle was destroyed, the navGrid needs updating.
-            if (this.navGrid && (!obstacleDef || obstacleDef.blocksMovement)) { // Check if it *was* blocking
-                this.updateNavigationGridForObstacle(obstacle, true); // true for destroyed
+            if (this.navGrid && (!obstacleDef || obstacleDef.blocksMovement)) {
+                this.updateNavigationGridForObstacle(obstacle, true);
             }
 
             if (this.game && obstacleDef && obstacleDef.explosionDamage && obstacleDef.explosionAoeRadius) {
@@ -113,7 +130,7 @@ class Level {
             }
         }
     }
-    _getRandomObstacleTemplate() { /* ... (Unchanged from previous complete version) ... */
+    _getRandomObstacleTemplate() {
         const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
         let totalWeight = 0; definitions.forEach(def => totalWeight += (def.spawnWeight || 1));
@@ -183,7 +200,6 @@ class Level {
                 const cellRect = { x: cellWorldX, y: cellWorldY, width: this.gridCellSize, height: this.gridCellSize };
 
                 if (isDestroyedAndNowWalkable) {
-                    // Check if this cell is still blocked by *other* obstacles
                     let stillBlocked = false;
                     for (const otherObs of this.obstacles) {
                         if (otherObs !== obstacle && otherObs.blocksMovement && !otherObs.isDestroyed) {
@@ -195,7 +211,7 @@ class Level {
                         }
                     }
                     this.navGrid[y][x] = stillBlocked ? 1 : 0;
-                } else { // Obstacle was just created or repaired (less common)
+                } else {
                     const obsShape = this._getObstacleCollisionShape(obstacle);
                      let collision = false;
                     if (obsShape.type === 'rectangle') collision = rectOverlap(cellRect, obsShape);
@@ -207,20 +223,16 @@ class Level {
                 }
             }
         }
-        // console.log(`[Level] NavGrid updated for obstacle: ${obstacle.name || obstacle.type}`);
     }
 
 
     getNavigationGrid() {
-        // For now, always return the current grid.
-        // Could add caching or lazy generation if performance becomes an issue.
         if (!this.navGrid) {
             console.warn("[Level] Navigation grid requested but not yet generated!");
-            // Attempt to generate it now, assuming world dimensions are set in CONFIG
             if (CONFIG.WORLD_WIDTH && CONFIG.WORLD_HEIGHT) {
                 this.generateNavigationGrid(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
             } else {
-                return null; // Cannot generate without world dimensions
+                return null;
             }
         }
         return this.navGrid;
@@ -243,9 +255,12 @@ class Level {
 
     generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}) {
         this.obstacles = [];
+        this.potentialSpawnerHuts = []; // Reset for new level
+        this.activeSpawningHuts = [];   // Reset for new level
+
         if (this.game) { this.game.enemyUnits = []; this.game.gameObjects = []; }
 
-        // ... (rest of your existing obstacle generation logic, unchanged) ...
+        // ... (Obstacle placement logic, largely unchanged, but ensure huts get added to this.potentialSpawnerHuts) ...
         const genConfig = CONFIG.LEVEL_GENERATION || {}; const worldMargin = genConfig.WORLD_MARGIN || 20;
         const borderWidth = genConfig.BORDER_WIDTH || 30; const borderColor = genConfig.BORDER_COLOR || '#25221D';
         this.obstacles.push({ x: 0, y: 0, width: worldWidth, height: borderWidth, type: 'border_wall', name: 'Border Wall', color: borderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
@@ -282,11 +297,11 @@ class Level {
             let pathBase = '';
             let useRandomSpriteFromList = false;
 
-            if (template.isDecoration && template.type === 'decoration_grass') {
-                filesArray = CONFIG.GRASS_SPRITE_FILES || [];
-                pathBase = CONFIG.GRASS_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-            } else if (template.type === 'bush_medium') {
+            //if (template.isDecoration && template.type === 'decoration_grass') {
+            //    filesArray = CONFIG.GRASS_SPRITE_FILES || [];
+            //    pathBase = CONFIG.GRASS_SPRITE_PATH || '';
+            //    useRandomSpriteFromList = true;
+            if (template.type === 'bush_medium') {
                 filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || [];
                 pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || '';
                 useRandomSpriteFromList = true;
@@ -294,10 +309,10 @@ class Level {
                 filesArray = CONFIG.BUSH_SPRITES_64PX_FILES || [];
                 pathBase = CONFIG.BUSH_SPRITES_64PX_PATH || '';
                 useRandomSpriteFromList = true;
-            } else if (template.type === 'rock_small') {
-                filesArray = CONFIG.ROCK_SPRITES_16PX_FILES || [];
-                pathBase = CONFIG.ROCK_SPRITES_16PX_PATH || '';
-                useRandomSpriteFromList = true;
+            //} else if (template.type === 'rock_small') {
+            //    filesArray = CONFIG.ROCK_SPRITES_16PX_FILES || [];
+            //    pathBase = CONFIG.ROCK_SPRITES_16PX_PATH || '';
+            //    useRandomSpriteFromList = true;
             } else if (template.type === 'rock_medium') {
                 filesArray = CONFIG.ROCK_SPRITES_32PX_FILES || [];
                 pathBase = CONFIG.ROCK_SPRITES_32PX_PATH || '';
@@ -314,7 +329,7 @@ class Level {
                 filesArray = CONFIG.PALM_TREE_TALL_SPRITE_FILES || [];
                 pathBase = CONFIG.PALM_TREE_TALL_SPRITE_PATH || '';
                 useRandomSpriteFromList = true;
-            } else if (template.type === 'possum_hut') {
+            } else if (template.type === 'possum_hut') { // Ensure this case is distinct
                 filesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
                 pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
                 useRandomSpriteFromList = true;
@@ -332,7 +347,7 @@ class Level {
                     actualSpritePath = null;
                     actualImageObject = null;
                 }
-                if (template.type === 'possum_hut' && template.spriteDestroyed) { // Keep specific destroyed for hut
+                if (template.type === 'possum_hut' && template.spriteDestroyed) {
                     actualDestroyedSpritePath = template.spriteDestroyed;
                     actualDestroyedImageObject = preloadedAssetImages[template.spriteDestroyed] || null;
                 }
@@ -410,7 +425,7 @@ class Level {
                 }
                 if (!this._rectOverlap(renderBoxForPlayerZoneCheck, playerSpawnZone) &&
                     !this.isShapeOverlappingList(collisionCheckShape, this.obstacles)) {
-                    this.obstacles.push({
+                    const newObstacle = {
                         x: obsX, y: obsY, width: obsWidth, height: obsHeight,
                         type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible,
@@ -428,17 +443,23 @@ class Level {
                         imageNormal: actualImageObject,
                         imageDestroyed: actualDestroyedImageObject,
                         scale: scale,
-                        collisionShape: template.collisionShape || null
-                    });
+                        collisionShape: template.collisionShape || null,
+                        // Hut specific spawning properties
+                        isSpawner: template.type === 'possum_hut', // Or check template.isSpawner
+                        spawnCooldownTimer: 0,
+                        isActivelySpawning: false // Huts start inactive
+                    };
+                    this.obstacles.push(newObstacle);
+                    if (newObstacle.isSpawner) {
+                        this.potentialSpawnerHuts.push(newObstacle);
+                    }
                     placed = true;
                 }
                 attempts++;
             } while (!placed && attempts < placementMaxAttempts);
         }
 
-        // --- Generate Navigation Grid AFTER all static obstacles are placed ---
         this.generateNavigationGrid(worldWidth, worldHeight);
-        // ---
 
         const pSpawnPlaceCfg = genConfig.PLAYER_SPAWN_PLACEMENT || {}; const playerSpawnLocations = []; const playerUnitSize = CONFIG.RACCOON_SIZE || 12;
         const spawnAreaPadding = playerUnitSize * (pSpawnPlaceCfg.INTERNAL_PADDING_FACTOR || 1.5);
@@ -450,7 +471,7 @@ class Level {
                 do {
                     spawnX = effectiveSpawnZoneX + (Math.random() * effectiveSpawnZoneWidth); spawnY = effectiveSpawnZoneY + (Math.random() * effectiveSpawnZoneHeight);
                     spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2)); spawnY = Math.max(playableMinY + playerUnitSize / 2, Math.min(spawnY, playableMaxY - playerUnitSize / 2));
-                    isClear = this.isSpawnPointClear(spawnX, spawnY, playerUnitSize, this.obstacles);
+                    isClear = this.isSpawnPointClear(spawnX, spawnY, playerUnitSize, this.obstacles, this.game.deployedSquadRoster);
                     if (isClear) { playerSpawnLocations.push({ x: spawnX, y: spawnY }); foundSpot = true; break; } currentPlacementAttempts++;
                 } while (currentPlacementAttempts < maxPlayerSpawnAttempts);
             }
@@ -483,7 +504,7 @@ class Level {
                 groupLeaderX = enemySpawnMinX + Math.random() * (enemySpawnableWidth - heavySize); groupLeaderY = playableMinY + Math.random() * (playableHeight - heavySize);
                 groupLeaderX = Math.max(playableMinX + heavySize / 2, Math.min(groupLeaderX, playableMaxX - heavySize / 2)); groupLeaderY = Math.max(playableMinY + heavySize / 2, Math.min(groupLeaderY, playableMaxY - heavySize / 2));
                 const leaderFootprint = {x: groupLeaderX - heavySize/2, y: groupLeaderY - heavySize/2, width: heavySize, height: heavySize};
-                isLeaderSpawnClear = this.isSpawnPointClear(groupLeaderX, groupLeaderY, heavySize, this.obstacles) && !this._rectOverlap(leaderFootprint, playerSpawnZone); leaderPlacementAttempts++;
+                isLeaderSpawnClear = this.isSpawnPointClear(groupLeaderX, groupLeaderY, heavySize, this.obstacles, this.game.enemyUnits) && !this._rectOverlap(leaderFootprint, playerSpawnZone); leaderPlacementAttempts++;
             } while (!isLeaderSpawnClear && leaderPlacementAttempts < leaderMaxAttempts);
             if (isLeaderSpawnClear) {
                 for (let m = 0; m < currentGroupSizeAttempt && enemiesSpawnedCount < totalEnemiesToSpawn; m++) {
@@ -495,7 +516,7 @@ class Level {
                         memberX = (m === 0) ? groupLeaderX : groupLeaderX + (Math.random() * groupSpread - groupSpread / 2); memberY = (m === 0) ? groupLeaderY : groupLeaderY + (Math.random() * groupSpread - groupSpread / 2);
                         memberX = Math.max(playableMinX + currentEnemyUnitSize / 2, Math.min(memberX, playableMaxX - currentEnemyUnitSize / 2)); memberY = Math.max(playableMinY + currentEnemyUnitSize / 2, Math.min(memberY, playableMaxY - currentEnemyUnitSize / 2));
                         const memberFootprint = {x: memberX - currentEnemyUnitSize/2, y: memberY - currentEnemyUnitSize/2, width: currentEnemyUnitSize, height: currentEnemyUnitSize};
-                        isMemberSpawnClear = this.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.obstacles) && !this._rectOverlap(memberFootprint, playerSpawnZone); memberPlacementAttempts++;
+                        isMemberSpawnClear = this.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.obstacles, this.game.enemyUnits) && !this._rectOverlap(memberFootprint, playerSpawnZone); memberPlacementAttempts++;
                     } while(!isMemberSpawnClear && memberPlacementAttempts < memberMaxAttempts);
                     if (isMemberSpawnClear) {
                         const enemyUnit = isHeavy ? new PossumHeavy(memberX, memberY, this.game, `PHVY-${enemiesSpawnedCount + 1}`) : new PossumGrunt(memberX, memberY, this.game, `PSM-${enemiesSpawnedCount + 1}`);
@@ -504,10 +525,177 @@ class Level {
                 }
             }
         }
-        // ... (rest of your existing enemy spawning and objective setting) ...
 
-        console.log("[Level] Enemies spawned in level:", this.game.enemyUnits.length);
+        console.log("[Level] Initial enemies spawned:", this.game.enemyUnits.length);
         if (this.game) { this.game.missionObjective = { type: missionParams.objectiveType || 'EXTERMINATE', description: missionParams.name || (CONFIG.UI_TEXT_STRINGS.DEFAULT_OBJECTIVE_TEXT || 'Eliminate all Possums!'), };}
         return playerSpawnLocations;
+    }
+
+    // --- NEW Hut Spawning Logic ---
+    updateHutSpawning(deltaTime) {
+        if (!this.game || !this.game.deployedSquadRoster || this.game.deployedSquadRoster.length === 0) {
+            return; // No players, no spawning
+        }
+        if (!this.hutSpawnConfig || Object.keys(this.hutSpawnConfig).length === 0) return; // No config
+
+        this.timeSinceLastHutActivationCheck += deltaTime;
+
+        // 1. Activate/Deactivate Huts based on Proximity
+        if (this.timeSinceLastHutActivationCheck >= this.HUT_ACTIVATION_CHECK_INTERVAL) {
+            this.timeSinceLastHutActivationCheck = 0;
+            const maxAllowedActive = Math.floor(this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_BASE +
+                                   (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
+
+            // Check inactive huts to activate
+            for (const hut of this.potentialSpawnerHuts) {
+                if (hut.isDestroyed || hut.isActivelySpawning) continue;
+
+                if (this.activeSpawningHuts.length < maxAllowedActive) {
+                    let playerNearby = false;
+                    for (const playerUnit of this.game.deployedSquadRoster) {
+                        if (playerUnit.isAlive() && distance(playerUnit.x, playerUnit.y, hut.x + hut.width / 2, hut.y + hut.height / 2) < (this.hutSpawnConfig.PLAYER_PROXIMITY_TRIGGER_RADIUS || 300)) {
+                            playerNearby = true;
+                            break;
+                        }
+                    }
+                    if (playerNearby) {
+                        hut.isActivelySpawning = true;
+                        hut.spawnCooldownTimer = (this.hutSpawnConfig.INITIAL_SPAWN_DELAY_SECONDS_MIN || 5) + Math.random() * ((this.hutSpawnConfig.INITIAL_SPAWN_DELAY_SECONDS_MAX || 10) - (this.hutSpawnConfig.INITIAL_SPAWN_DELAY_SECONDS_MIN || 5));
+                        this.activeSpawningHuts.push(hut);
+                        if(CONFIG.DEBUG_PATHING_UNIT_ID) console.log(`Hut at (${hut.x},${hut.y}) activated. Initial spawn in ${hut.spawnCooldownTimer.toFixed(1)}s`);
+                    }
+                }
+            }
+
+            // Check active huts to deactivate (optional - if too far from player)
+            // For now, once active, they stay active unless destroyed.
+        }
+
+        // 2. Process Active Huts for Spawning
+        for (let i = this.activeSpawningHuts.length - 1; i >= 0; i--) {
+            const hut = this.activeSpawningHuts[i];
+            if (hut.isDestroyed) {
+                this.activeSpawningHuts.splice(i, 1);
+                continue;
+            }
+
+            hut.spawnCooldownTimer -= deltaTime;
+            if (hut.spawnCooldownTimer <= 0) {
+                this.attemptSpawnFromHut(hut);
+                hut.spawnCooldownTimer = (this.hutSpawnConfig.SPAWN_COOLDOWN_MIN_SECONDS || 15) + Math.random() * ((this.hutSpawnConfig.SPAWN_COOLDOWN_MAX_SECONDS || 30) - (this.hutSpawnConfig.SPAWN_COOLDOWN_MIN_SECONDS || 15));
+                 if(CONFIG.DEBUG_PATHING_UNIT_ID) console.log(`Hut at (${hut.x},${hut.y}) triggered spawn. Next spawn in ${hut.spawnCooldownTimer.toFixed(1)}s`);
+            }
+        }
+    }
+
+    attemptSpawnFromHut(hut) {
+        const numToSpawnBaseMin = this.hutSpawnConfig.UNITS_PER_SPAWN_MIN || 1;
+        const numToSpawnBaseMax = this.hutSpawnConfig.UNITS_PER_SPAWN_MAX || 2;
+        const phaseIncrement = this.hutSpawnConfig.UNITS_PER_SPAWN_PHASE_INCREMENT || 0;
+
+        let currentMinUnits = Math.max(1, Math.floor(numToSpawnBaseMin + (this.game.currentPhaseIndex * phaseIncrement)));
+        let currentMaxUnits = Math.max(currentMinUnits, Math.floor(numToSpawnBaseMax + (this.game.currentPhaseIndex * phaseIncrement)));
+
+        const numToSpawn = Math.floor(currentMinUnits + Math.random() * (currentMaxUnits - currentMinUnits + 1));
+
+        if (numToSpawn <= 0) return;
+
+        if(CONFIG.DEBUG_PATHING_UNIT_ID) console.log(`Hut (${hut.name || hut.type} at ${hut.x.toFixed(0)},${hut.y.toFixed(0)}) attempting to spawn ${numToSpawn} units.`);
+
+        const hutCenterX = hut.x + hut.width / 2;
+        const hutBottomEdgeY = hut.y + hut.height;
+
+        const spawnOffsetX = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
+        const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0; // Negative for "up" from bottom
+        const spawnAreaWidth = this.hutSpawnConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
+
+        const spawnCenterY = hutBottomEdgeY + spawnOffsetY; // Actual Y coord for spawning
+        const spawnLineCenterX = hutCenterX + spawnOffsetX;
+        const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
+
+        let unitsSpawnedThisEvent = 0;
+        const gruntSize = CONFIG.POSSUM_GRUNT_SIZE || 14;
+        const maxPlacementAttemptsPerUnit = this.hutSpawnConfig.MAX_SPAWN_ATTEMPTS_PER_HUT_EVENT || 5;
+
+        for (let i = 0; i < numToSpawn; i++) {
+            let spawnX, spawnClear = false;
+            for (let attempt = 0; attempt < maxPlacementAttemptsPerUnit; attempt++) {
+                spawnX = spawnLineMinX + Math.random() * spawnAreaWidth;
+                spawnX = Math.max(gruntSize/2, Math.min(spawnX, (CONFIG.WORLD_WIDTH || 0) - gruntSize/2));
+                const clampedSpawnY = Math.max(gruntSize/2, Math.min(spawnCenterY, (CONFIG.WORLD_HEIGHT || 0) - gruntSize/2));
+
+                if (this.isSpawnPointClear(spawnX, clampedSpawnY, gruntSize, this.obstacles, this.game.enemyUnits)) {
+                    spawnClear = true;
+                    break;
+                }
+            }
+
+            if (spawnClear) {
+                const newGrunt = new PossumGrunt(spawnX, spawnCenterY, this.game, `PSM-HUT-${this.game.enemyUnits.length + 1}`);
+                newGrunt.isPhasing = true;
+                newGrunt.phasingTimer = this.hutSpawnConfig.SPAWN_PHASING_DURATION || 1.0;
+
+                const moveOutDist = this.hutSpawnConfig.INITIAL_MOVE_OUT_DISTANCE || 50;
+                // Move directly "down" (positive Y) from the spawn point, or slightly away from hut center
+                let angleFromSpawn = Math.PI / 2; // Default to straight down
+                if(distance(spawnX, spawnCenterY, hutCenterX, hut.y + hut.height/2) > 10) { // If not spawning right at hut center
+                     angleFromSpawn = Math.atan2(spawnCenterY - (hut.y + hut.height/2), spawnX - hutCenterX);
+                }
+
+
+                let initialTargetX = spawnX + Math.cos(angleFromSpawn) * moveOutDist;
+                let initialTargetY = spawnCenterY + Math.sin(angleFromSpawn) * moveOutDist;
+
+                initialTargetX = Math.max(gruntSize/2, Math.min(initialTargetX, (CONFIG.WORLD_WIDTH || 0) - gruntSize/2));
+                initialTargetY = Math.max(gruntSize/2, Math.min(initialTargetY, (CONFIG.WORLD_HEIGHT || 0) - gruntSize/2));
+
+                newGrunt.setMoveTarget(initialTargetX, initialTargetY);
+
+                this.game.enemyUnits.push(newGrunt);
+                unitsSpawnedThisEvent++;
+                if(CONFIG.DEBUG_PATHING_UNIT_ID) console.log(`  Spawned Grunt at (${spawnX.toFixed(0)},${spawnCenterY.toFixed(0)}). Phasing for ${newGrunt.phasingTimer}s. Initial move to (${initialTargetX.toFixed(0)}, ${initialTargetY.toFixed(0)})`);
+            } else {
+                if(CONFIG.DEBUG_PATHING_UNIT_ID) console.warn(`  Could not find clear spawn point for unit ${i+1} from hut.`);
+            }
+        }
+         if(CONFIG.DEBUG_PATHING_UNIT_ID) console.log(`Hut spawned ${unitsSpawnedThisEvent} units.`);
+    }
+
+    renderHutSpawnAreas(ctx) {
+        if (!this.hutSpawnConfig.DEBUG_DRAW_SPAWN_AREAS) return;
+
+        ctx.save();
+        const originalAlpha = ctx.globalAlpha; // Store original alpha
+        ctx.globalAlpha = 0.5; // Set alpha for debug drawing
+        ctx.fillStyle = 'rgba(255, 0, 255, 0.8)'; // Magenta, more opaque for visibility
+
+        for (const hut of this.potentialSpawnerHuts) {
+            if (hut.isDestroyed) continue;
+
+            const hutCenterX = hut.x + hut.width / 2;
+            const hutBottomEdgeY = hut.y + hut.height;
+
+            const spawnOffsetX = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
+            const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
+            const spawnAreaWidth = this.hutSpawnConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
+
+            const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
+            const spawnLineCenterX = hutCenterX + spawnOffsetX;
+            const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
+
+            // Draw a small rectangle representing the spawn "line" or "door" area
+            const debugSpawnHeight = (CONFIG.POSSUM_GRUNT_SIZE || 14) * 0.5; // Make it a thin line
+            ctx.fillRect(spawnLineMinX, spawnCenterY - debugSpawnHeight / 2, spawnAreaWidth, debugSpawnHeight);
+
+            if (hut.isActivelySpawning) {
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.8)'; // Orange for active spawner hut itself
+                ctx.beginPath();
+                ctx.arc(hut.x + hut.width / 2, hut.y + hut.height / 2, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = 'rgba(255, 0, 255, 0.8)'; // Reset for next hut's spawn area
+            }
+        }
+        ctx.globalAlpha = originalAlpha; // Restore original alpha
+        ctx.restore();
     }
 }

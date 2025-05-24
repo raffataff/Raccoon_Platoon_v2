@@ -37,7 +37,7 @@ class PossumGrunt extends Unit {
         }
     }
 
-    generateSecondPatrolPoint(originX, originY, minRadius, maxRadius, attemptToAvoidCurrent = null) { /* ... (Unchanged from previous complete version) ... */
+    generateSecondPatrolPoint(originX, originY, minRadius, maxRadius, attemptToAvoidCurrent = null) {
         const gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};
         let pX, pY, attempts = 0;
         const worldWidth = CONFIG.WORLD_WIDTH || (this.game && this.game.canvas ? this.game.canvas.width : 1000);
@@ -90,7 +90,7 @@ class PossumGrunt extends Unit {
         super.update(deltaTime); // This will call the Unit.update which includes stuck frame counting
     }
 
-    aiLogic(deltaTime, playerUnitsOnMap, obstacles) { /* ... (Unchanged from previous complete version) ... */
+    aiLogic(deltaTime, playerUnitsOnMap, obstacles) {
         let currentTarget = this.manualTarget;
 
         if (this.actionTimer > 0) { return; }
@@ -337,7 +337,7 @@ class PossumGrunt extends Unit {
     }
 }
 
-function distanceSq(x1, y1, x2, y2) { /* ... (Unchanged from previous complete version) ... */
+function distanceSq(x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;
     return dx * dx + dy * dy;

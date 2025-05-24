@@ -22,7 +22,9 @@ const CONFIG = {
     // --- Pathfinding ---
     GRID_CELL_SIZE: 4, // Reduced for finer grid, ensure performance
     // NEW: For pathing debug, set to a specific unit ID (e.g., "PSM-1") or null to disable
-    DEBUG_PATHING_UNIT_ID: null, // Example: "PSM-1" or "RCN-MR1" 
+    DEBUG_PATHING_UNIT_ID: null, // For unit-specific path logs
+    DEBUG_DRAW_NAV_GRID_BLOCKED: false, // To draw red overlay for blocked nav grid cells
+    DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, // NEW: To draw actual obstacle collision shapes
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 50,
@@ -44,6 +46,9 @@ const CONFIG = {
     RACCOON_GRENADE_THROW_COOLDOWN: 1.0,
     RACCOON_GRENADE_PROJECTILE_SPEED: 120,
     RACCOON_GRENADE_PREFERRED_THROW_RANGE_FACTOR: 0.9,
+    RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/', // NEW
+    RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'], // NEW
+    RACCOON_DEAD_SPRITE_SCALE: 0.05, // NEW - Adjust as needed
 
     // --- Units: Possum Grunt ---
     POSSUM_GRUNT_HP: 30,
@@ -52,10 +57,13 @@ const CONFIG = {
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_RIFLE_DAMAGE: 8,
     POSSUM_RIFLE_ROF: 3,
-    POSSUM_RIFLE_RANGE: 190,
+    POSSUM_RIFLE_RANGE: 350,
     POSSUM_RIFLE_PROJECTILE_SPEED: 400,
     POSSUM_RIFLE_ACCURACY_STATIONARY: 0.75,
     POSSUM_RIFLE_ACCURACY_MOVING: 0.45,
+    POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum/dead/', // NEW
+    POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png'], // NEW
+    POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.05, // NEW - Adjust as needed
 
     // --- Units: Possum Heavy ---
     POSSUM_HEAVY_HP: 70,
@@ -64,16 +72,18 @@ const CONFIG = {
     POSSUM_HEAVY_COLOR: '#6A4A3A',
     POSSUM_HEAVY_WEAPON_DAMAGE: 18,
     POSSUM_HEAVY_WEAPON_ROF: 1.2,
-    POSSUM_HEAVY_WEAPON_RANGE: 240,
+    POSSUM_HEAVY_WEAPON_RANGE: 440,
     POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED: 350,
     POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY: 0.85,
     POSSUM_HEAVY_WEAPON_ACCURACY_MOVING: 0.3,
+    POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum/dead/', // NEW
+    POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_grunt_dead_1.png', 'possum_grunt_dead_2.png'], // NEW
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.075, // NEW - Adjust as needed
 
     // --- Units: General & AI ---
-    UNIT_STUCK_FRAMES_THRESHOLD: 60,
+    UNIT_STUCK_FRAMES_THRESHOLD: 45,
     STUCK_FRAMES_THRESHOLD_PATHING: 30, // Was 15, then 30
     REPATH_STUCK_COOLDOWN: 0.75,
-    
     ENEMY_ALERT_PROPAGATION_RADIUS: 200,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95, // Chance to become suspicious on taking damage without LOS
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10, // Lowered threshold for alert propagation
@@ -160,8 +170,8 @@ const CONFIG = {
     RANK_THRESHOLDS: [
         { rankName: "Recruit", xpNeeded: 0, statBoosts: {} },
         { rankName: "Private", xpNeeded: 100, statBoosts: { maxHpBonus: 10 } },
-        { rankName: "Corporal", xpNeeded: 200, statBoosts: { maxHpBonus: 20, accuracyBonus: 0.05 } },
-        { rankName: "Sergeant", xpNeeded: 500, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.08 } },
+        { rankName: "Corporal", xpNeeded: 300, statBoosts: { maxHpBonus: 20, accuracyBonus: 0.05 } },
+        { rankName: "Sergeant", xpNeeded: 600, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.08 } },
         { rankName: "Elite", xpNeeded: 1000, statBoosts: { maxHpBonus: 50, accuracyBonus: 0.2 } },
         { rankName: "Ghost", xpNeeded: 2000, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.3 } }
     ],
@@ -192,7 +202,7 @@ const CONFIG = {
             LIFETIME: 1.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
             COLOR_RGB_FADE_START: [255, 223, 0], VELOCITY_Y: -20
         },
-        EXPLOSION: { LIFETIME: 0.5 }
+        EXPLOSION: { LIFETIME: 0.8 }
     },
     UI_SETTINGS: {
         HEALTH_BAR: {
@@ -208,6 +218,7 @@ const CONFIG = {
         UNIT_PHASING_DURATION: 0.75, // NEW: Duration in seconds for phasing
         UNIT_PHASING_OPACITY: 0.5,   // NEW: Opacity for rendering during phasing
         RACCOON_SPRITE_SCALE_FACTOR: 0.4,
+        DRAW_GUN_AIM_INDICATOR: true,
         FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 1 },
         KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 0.6 },
         GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 }
@@ -258,7 +269,7 @@ const CONFIG = {
         'Fern1_1.png','Fern2_1.png'
     ],
     ROCK_SPRITES_16PX_PATH: 'assets/images/objects/rocks/grassy/16/',
-    ROCK_SPRITES_16PX_FILES: ['Rock1_small.png'],
+    ROCK_SPRITES_16PX_FILES: [''],
     ROCK_SPRITES_32PX_PATH: 'assets/images/objects/rocks/grassy/32/',
     ROCK_SPRITES_32PX_FILES: ['Rock1_medium.png'],
     ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/64/',
@@ -280,7 +291,7 @@ const CONFIG = {
         {
             type: 'bush_medium', name: 'Medium Bush', color: '#228B22', 
             destructible: true, hp: 30, maxHp: 30, 
-            blocksMovement: false, providesCover: true, // MODIFIED: Bushes now provide cover
+            blocksMovement: false, providesCover: false, // MODIFIED: Bushes now provide cover
             width: 32, height: 32,
             collisionShape: { type: 'circle', offsetX: 16, offsetY: 16, radius: 10 },
             spawnWeight: 5, isDecoration: false, 
@@ -288,25 +299,25 @@ const CONFIG = {
         {
             type: 'bush_large', name: 'Large Bush', color: '#006400', 
             destructible: true, hp: 50, maxHp: 50, 
-            blocksMovement: true, providesCover: true, // MODIFIED: Large bushes block and provide cover
+            blocksMovement: true, providesCover: false, // MODIFIED: Large bushes block and provide cover
             width: 64, height: 64,
             collisionShape: { type: 'circle', offsetX: 32, offsetY: 32, radius: 16 },
             spawnWeight: 5, isDecoration: false,
         },
         {
-            type: 'rock_small', name: 'Small Grassy Rock', color: '#708090', 
+            type: 'rock_small', name: 'Small Grassy Rock', color: '#8B4513', 
             destructible: true, hp: 100, maxHp: 100, 
             blocksMovement: true, providesCover: true,
             width: 32, height: 32,
             collisionShape: { type: 'circle', offsetX: 16, offsetY: 16, radius: 15 }, // Adjusted radius
-            spawnWeight: 0, isDecoration: false, // MODIFIED: spawnWeight > 0
+            spawnWeight: 0, isDecoration: false,
         },
         {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969', 
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             width: 124, height: 88,
-            collisionShape: { type: 'circle', offsetX: 52, offsetY: 50, radius: 44 },
+            collisionShape: { type: 'circle', offsetX: 52, offsetY: 50, radius: 38 },
             spawnWeight: 15, isDecoration: false,
         },
         {
@@ -314,7 +325,7 @@ const CONFIG = {
             destructible: false, hp: Infinity, maxHp: Infinity, 
             blocksMovement: true, providesCover: true,
             width: 336, height: 268,
-            collisionShape: { type: 'circle', offsetX: 155, offsetY: 150, radius: 130 },
+            collisionShape: { type: 'circle', offsetX: 155, offsetY: 150, radius: 110 },
             spawnWeight: 5, isDecoration: false,
         },
         {
@@ -323,7 +334,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true, 
             width: 80, height: 160, 
             spawnWeight: 60, isDecoration: false,        
-            collisionShape: { type: 'rectangle', offsetX: 34, offsetY: 140, width: 23, height: 20 },
+            collisionShape: { type: 'rectangle', offsetX: 34, offsetY: 142, width: 23, height: 23 },
         },
         {
             type: 'tree_palm_tall', name: 'Palm Tree', color: '#005522', 
@@ -331,7 +342,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true, 
             width: 125, height: 225, 
             spawnWeight: 20, isDecoration: false,        
-            collisionShape: { type: 'rectangle', offsetX: 30, offsetY: 190, width: 35, height: 35 },
+            collisionShape: { type: 'rectangle', offsetX: 30, offsetY: 200, width: 35, height: 35 },
         },
         {
             type: 'fence_wood', name: 'Wooden Fence', color: '#8B4513', destructible: true, hp: 40, maxHp: 40,
@@ -380,12 +391,42 @@ const CONFIG = {
         }
     ],
     ENEMY_SPAWNING: {
-        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 6, RANDOM_ADDITION_FACTOR_MAX: 5,
-        AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0, SMALL_GROUP_CHANCE: 0.6, SMALL_GROUP_SIZE_MIN: 1, SMALL_GROUP_SIZE_MAX: 4,
-        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 150, LEADER_PLACEMENT_MAX_ATTEMPTS: 20, MEMBER_PLACEMENT_MAX_ATTEMPTS: 10,
-        GROUP_SPREAD_BASE: 30, GROUP_SPREAD_SIZE_MULTIPLIER: 1.5,
-        DEFAULT_HEAVY_CHANCE: 0.20, HEAVY_CHANCE_GROUP_LEADER_BONUS: 0.1
+        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 6,
+        RANDOM_ADDITION_FACTOR_MAX: 5,
+        AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
+        SMALL_GROUP_CHANCE: 0.6,
+        SMALL_GROUP_SIZE_MIN: 1,
+        SMALL_GROUP_SIZE_MAX: 4,
+        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 150,
+        LEADER_PLACEMENT_MAX_ATTEMPTS: 20,
+        MEMBER_PLACEMENT_MAX_ATTEMPTS: 10,
+        GROUP_SPREAD_BASE: 30,
+        GROUP_SPREAD_SIZE_MULTIPLIER: 1.5,
+        DEFAULT_HEAVY_CHANCE: 0.20,
+        HEAVY_CHANCE_GROUP_LEADER_BONUS: 0.1,
+
+        POSSUM_HUT_SPAWNING: {
+            MAX_ACTIVE_SPAWNING_HUTS_BASE: 3,
+            MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 0.2,
+            SPAWN_COOLDOWN_MIN_SECONDS: 30,
+            SPAWN_COOLDOWN_MAX_SECONDS: 180,
+            UNITS_PER_SPAWN_MIN: 2,
+            UNITS_PER_SPAWN_MAX: 6,
+            UNITS_PER_SPAWN_PHASE_INCREMENT: 0.25, // NEW: To increase group size per phase
+            INITIAL_SPAWN_DELAY_SECONDS_MIN: 5,
+            INITIAL_SPAWN_DELAY_SECONDS_MAX: 10,
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 50,
+            SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65, // Negative for left of hut center, positive for right
+            SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -25, // Negative for above hut bottom edge (y+height), positive for below
+            SPAWN_AREA_WIDTH: 40,
+            SPAWN_PHASING_DURATION: 1.25,
+            DEBUG_DRAW_SPAWN_AREAS: false,
+            MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
+            MAX_SPAWN_ATTEMPTS_PER_HUT_EVENT: 5,
+            INITIAL_MOVE_OUT_DISTANCE: 25,
+        }
     },
+    
     UI_TEXT_STRINGS: {
         CAMPAIGN_ALREADY_COMPLETE: "Campaign Already Complete! Restart from Main Menu.", ERROR_NO_INITIAL_RECRUITS: "All initial recruits were KIA! Operation failed before it began.",
         ERROR_LOAD_FIRST_MISSION_FAILED: "Error: Could not load campaign data to start the first mission.", ERROR_PREPARING_NEXT_BRIEFING: "Error preparing next mission briefing.",

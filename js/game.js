@@ -63,7 +63,7 @@ class Game {
         this.gameLoop();
     }
 
-    async preloadUnitAssets() { /* ... (Unchanged from previous complete version) ... */
+    async preloadUnitAssets() {
         const unitType = 'raccoon';
         const action = 'idle'; // We'll use idle for all states for now
         const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
@@ -93,27 +93,72 @@ class Game {
             }
         });
 
+        // Raccoon Face Images
         if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGE_PATH) {
             CONFIG.RACCOON_FACE_IMAGES.forEach(faceFile => {
-                const faceKey = (CONFIG.RACCOON_FACE_IMAGE_PATH || '') + faceFile;
+                const faceKey = CONFIG.RACCOON_FACE_IMAGE_PATH + faceFile; // Key is the full path
                 if (!this.preloadedImages[faceKey]) {
                     imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => { this.preloadedImages[faceKey] = img; resolve(); };
-                        img.onerror = () => { console.warn(`[Preload] Failed to load Raccoon face: ${faceKey}`); this.preloadedImages[faceKey] = null; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload] Failed Raccoon face: ${faceKey}`); this.preloadedImages[faceKey] = null; resolve(); };
                         img.src = faceKey;
                     }));
                 }
             });
         }
+        
+        // Raccoon Dead Sprites
+        if (CONFIG.RACCOON_DEAD_SPRITE_FILES && CONFIG.RACCOON_DEAD_SPRITE_PATH) {
+            CONFIG.RACCOON_DEAD_SPRITE_FILES.forEach(fileName => {
+                const fullPath = CONFIG.RACCOON_DEAD_SPRITE_PATH + fileName; // This is the unique key
+                if (!this.preloadedImages[fullPath]) { // Use fullPath as the key
+                        imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); }; // Store with fullPath key
+                        img.onerror = () => { console.warn(`[Preload] Failed Raccoon dead sprite: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
+                        img.src = fullPath;
+                    }));
+                }
+            });
+        }
 
+        // Possum Grunt Dead Sprites
+        if (CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES && CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH) {
+            CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES.forEach(fileName => {
+                const fullPath = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH + fileName; // This is the unique key
+                if (!this.preloadedImages[fullPath]) { // Use fullPath as the key
+                     imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); }; // Store with fullPath key
+                        img.onerror = () => { console.warn(`[Preload] Failed Possum Grunt dead sprite: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
+                        img.src = fullPath;
+                    }));
+                }
+            });
+        }
+
+        // Possum Heavy Dead Sprites
+        if (CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES && CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH) {
+            CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES.forEach(fileName => {
+                const fullPath = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH + fileName; // This is the unique key
+                if (!this.preloadedImages[fullPath]) { // Use fullPath as the key
+                     imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); }; // Store with fullPath key
+                        img.onerror = () => { console.warn(`[Preload] Failed Possum Heavy dead sprite: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
+                        img.src = fullPath;
+                    }));
+                }
+            });
+        }
 
         await Promise.all(imagePromises);
-        console.log("[Game] Raccoon idle sprites preloading complete.");
+        console.log("[Game] Unit assets preloading processed.");
     }
 
 
-    async preloadLevelAssets() { /* ... (Unchanged from previous complete version) ... */
+    async preloadLevelAssets() {
         const obstacleDefs = CONFIG.OBSTACLE_DEFINITIONS || [];
         const imagePromises = [];
          console.log("[Game] Preloading level assets...");
@@ -123,7 +168,7 @@ class Game {
             if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) ||
                 (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) ||
                 (def.type === 'bush_large' && CONFIG.BUSH_SPRITES_64PX_FILES) ||
-                (def.type === 'rock_small' && CONFIG.ROCK_SPRITES_16PX_FILES) ||
+            //    (def.type === 'rock_small' && CONFIG.ROCK_SPRITES_16PX_FILES) ||
                 (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) ||
                 (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) ||
                 (def.type === 'tree_palm_tall' && CONFIG.PALM_TREE_TALL_SPRITE_FILES) ||
@@ -162,7 +207,7 @@ class Game {
             { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
             { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
             { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
-            { files: CONFIG.ROCK_SPRITES_16PX_FILES, path: CONFIG.ROCK_SPRITES_16PX_PATH, name: "rock16" },
+        //    { files: CONFIG.ROCK_SPRITES_16PX_FILES, path: CONFIG.ROCK_SPRITES_16PX_PATH, name: "rock16" },
             { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" },
             { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" },
             { files: CONFIG.PALM_TREE_TALL_SPRITE_FILES, path: CONFIG.PALM_TREE_TALL_SPRITE_PATH, name: "palm_tall" },
@@ -184,7 +229,9 @@ class Game {
                     }
                 });
             }
-        });
+        }
+        
+    );
         await Promise.all(imagePromises);
     }
 
@@ -210,7 +257,7 @@ class Game {
     }
 
 
-    generatePrerenderedBackground(worldWidth, worldHeight) { /* ... (Unchanged from previous complete version) ... */
+    generatePrerenderedBackground(worldWidth, worldHeight) {
         this.prerenderedBackgroundCanvas.width = worldWidth;
         this.prerenderedBackgroundCanvas.height = worldHeight;
         const ctx = this.prerenderedBackgroundCtx;
@@ -244,7 +291,7 @@ class Game {
     }
 
 
-    start() { /* ... (Unchanged from previous complete version) ... */
+    start() {
         if (!this.masterRoster || this.masterRoster.length === 0) {
             console.error("Campaign not initialized before starting."); this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen(); return;
         }
@@ -312,7 +359,7 @@ class Game {
         this.lastTime = performance.now();
     }
 
-    handleShiftHoldStart(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
+    handleShiftHoldStart(worldX, worldY) {
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAimingGrenade) unit.cancelGrenadeAim();
@@ -320,7 +367,7 @@ class Game {
         });
         if (this.ui) this.ui.updateSquadPanel();
     }
-    updateShiftHoldTarget(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
+    updateShiftHoldTarget(worldX, worldY) {
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
             if (unit.isContinuousFiring && typeof unit.updateContinuousFireTarget === 'function') {
@@ -328,7 +375,7 @@ class Game {
             }
         });
     }
-    handleShiftHoldEnd() { /* ... (Unchanged from previous complete version) ... */
+    handleShiftHoldEnd() {
         if (!this.selectedUnits) return;
         this.selectedUnits.forEach(unit => {
             if (typeof unit.setContinuousFire === 'function' && unit.isContinuousFiring) {
@@ -337,7 +384,7 @@ class Game {
         });
         if (this.ui) this.ui.updateSquadPanel();
     }
-    handlePrimaryLeftClick(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
+    handlePrimaryLeftClick(worldX, worldY) {
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
         let selectionChanged = false;
@@ -361,7 +408,7 @@ class Game {
         if (selectionChanged && this.ui) this.ui.updateSquadPanel();
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
-    handleShiftFireAtPointCommand(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
+    handleShiftFireAtPointCommand(worldX, worldY) {
         if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) return;
         if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
 
@@ -376,7 +423,7 @@ class Game {
         this.selectedUnits.forEach(unit => { if (unit.isAlive() && typeof unit.fireAtPoint === 'function') unit.fireAtPoint(worldX, worldY); });
         if (this.inputHandler) this.inputHandler.updateMouseCursor();
     }
-    handleRightClickCommand(worldX, worldY) { /* ... (Unchanged from previous complete version) ... */
+    handleRightClickCommand(worldX, worldY) {
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
         let didCancelGrenade = false;
@@ -388,7 +435,7 @@ class Game {
         }
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
-    initializeNewCampaign() { /* ... (Unchanged from previous complete version) ... */
+    initializeNewCampaign() {
         this.masterRoster = [];
         this.fallenRaccoonsGlobal = [];
         this.currentPhaseIndex = 0;
@@ -427,10 +474,10 @@ class Game {
             this.ui.hideHUD(); this.ui.hidePostMissionScreen(); this.ui.hideGameOverScreen(); this.ui.hideRecruitMemorialScreen();
         }
     }
-    getAvailableRecruits() { /* ... (Unchanged from previous complete version) ... */
+    getAvailableRecruits() {
         return this.masterRoster.filter(r => r.isAlive());
     }
-    resizeCanvas() { /* ... (Unchanged from previous complete version) ... */
+    resizeCanvas() {
         if (!this.canvasContainer) this.canvasContainer = document.getElementById('canvas-container');
         if (!this.canvasContainer) return;
         const containerWidth = this.canvasContainer.offsetWidth; const containerHeight = this.canvasContainer.offsetHeight;
@@ -438,12 +485,12 @@ class Game {
         this.canvas.height = Math.max(CONFIG.MIN_CANVAS_HEIGHT || 600, containerHeight);
         if (this.gameState === 'RUNNING') this.clampCamera();
     }
-    clampCamera() { /* ... (Unchanged from previous complete version) ... */
+    clampCamera() {
         const worldWidth = CONFIG.WORLD_WIDTH || 0; const worldHeight = CONFIG.WORLD_HEIGHT || 0;
         this.cameraX = Math.max(0, Math.min(this.cameraX, Math.max(0, worldWidth - this.canvas.width)));
         this.cameraY = Math.max(0, Math.min(this.cameraY, Math.max(0, worldHeight - this.canvas.height)));
     }
-    loadMissionData(phaseIdx, missionIdx) { /* ... (Unchanged from previous complete version) ... */
+    loadMissionData(phaseIdx, missionIdx) {
         if (this.campaignData && this.campaignData[phaseIdx] && this.campaignData[phaseIdx].missions && this.campaignData[phaseIdx].missions[missionIdx]) {
             this.currentPhaseIndex = phaseIdx; this.currentMissionIndex = missionIdx;
             this.currentMissionParams = this.campaignData[phaseIdx].missions[missionIdx];
@@ -451,7 +498,7 @@ class Game {
         }
         this.currentMissionParams = null; return false;
     }
-    recordRaccoonFallen(raccoon) { /* ... (Unchanged from previous complete version) ... */
+    recordRaccoonFallen(raccoon) {
         if (raccoon && raccoon.team === 'player') {
             if (!this.fallenRaccoonsThisMission.find(r => r.id === raccoon.id)) {
                 this.fallenRaccoonsThisMission.push({ id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl });
@@ -466,7 +513,7 @@ class Game {
             if (this.ui) this.ui.updateSquadPanel();
         }
     }
-    addNewRecruitToMasterRoster() { /* ... (Unchanged from previous complete version) ... */
+    addNewRecruitToMasterRoster() {
         const currentLivingNames = this.masterRoster.filter(r => r.isAlive()).map(r => r.name);
         let faceImageFile = 'default_face.png';
         if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGES.length > 0) {
@@ -484,7 +531,7 @@ class Game {
         const newRecruitId = `RCN-MR${this.masterRoster.length + this.fallenRaccoonsGlobal.length + 1}-${Math.random().toString(36).slice(-4)}`;
         this.masterRoster.push(new Raccoon(0, 0, this, newRecruitId, faceImageUrl, raccoonName));
     }
-    endMission(isVictory) { /* ... (Unchanged from previous complete version) ... */
+    endMission(isVictory) {
         this.gameState = 'POST_MISSION_DEBRIEF';
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
         let enemiesKilledThisMission = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
@@ -508,7 +555,7 @@ class Game {
         };
         if (this.ui) { this.ui.hideHUD(); this.ui.showPostMissionScreen_Debrief(debriefData); if (this.inputHandler) this.inputHandler.updateMouseCursor(); }
     }
-    proceedToNextLogicalStep() { /* ... (Unchanged from previous complete version) ... */
+    proceedToNextLogicalStep() {
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
             if(this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_ALREADY_COMPLETE, true); return;
         }
@@ -542,16 +589,16 @@ class Game {
             if(this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_CONCLUDED_NO_MORE_MISSIONS, true);
         }
     }
-    toggleFormation() { /* ... (Unchanged from previous complete version) ... */
+    toggleFormation() {
         if (this.gameState !== 'RUNNING') return;
         this.currentFormationIndex = (this.currentFormationIndex + 1) % this.FORMATION_TYPES.length;
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
         if(this.ui) this.ui.updateFormationButton(this.currentFormationType);
     }
-    setFormationSpacing(multiplier) { /* ... (Unchanged from previous complete version) ... */
+    setFormationSpacing(multiplier) {
         if (this.gameState === 'RUNNING') this.formationSpacingMultiplier = parseFloat(multiplier);
     }
-    selectUnitsInDragRectangle() { /* ... (Unchanged from previous complete version) ... */
+    selectUnitsInDragRectangle() {
         if (!this.draggedFarEnough || this.gameState !== 'RUNNING') return;
         const rect = this.canvas.getBoundingClientRect();
         const scaleX = this.canvas.width / rect.width;
@@ -587,7 +634,7 @@ class Game {
         }
         this.isDragging = false; this.draggedFarEnough = false;
     }
-    deselectAllUnits() { /* ... (Unchanged from previous complete version) ... */
+    deselectAllUnits() {
         if (this.selectedUnits.length === 0) return;
         let aimingCancelled = false;
         if(this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit instanceof Raccoon && unit.isAimingGrenade) { unit.cancelGrenadeAim(); aimingCancelled = true; } });
@@ -595,7 +642,7 @@ class Game {
         if (!aimingCancelled && this.ui) this.ui.updateSquadPanel();
         if (this.inputHandler) this.inputHandler.updateMouseCursor(); else if (this.ui) this.ui.setCursor('default');
     }
-    selectAllPlayerUnits() { /* ... (Unchanged from previous complete version) ... */
+    selectAllPlayerUnits() {
         const allAliveUnits = this.deployedSquadRoster ? this.deployedSquadRoster.filter(unit => unit.isAlive()) : [];
         const currentSelectionIds = this.selectedUnits.map(u => u.id).sort().join(',');
         const allAliveUnitsIds = allAliveUnits.map(u => u.id).sort().join(',');
@@ -607,17 +654,17 @@ class Game {
             if (this.inputHandler) this.inputHandler.updateMouseCursor();
         }
     }
-    addProjectile(projectile) { /* ... (Unchanged from previous complete version) ... */
+    addProjectile(projectile) {
         this.gameObjects.push(projectile);
     }
-    addVisualEffect(type, x, y, radiusOrId) { /* ... (Unchanged from previous complete version) ... */
+    addVisualEffect(type, x, y, radiusOrId) {
         if (type === 'explosion') this.visualEffects.push(new ExplosionEffect(x, y, radiusOrId, this));
         else if (type === 'promotion') {
             const unit = this.deployedSquadRoster && this.deployedSquadRoster.find(r => r.id === radiusOrId);
             if (unit) this.visualEffects.push(new PromotionEffect(unit.x, unit.y - unit.size - 10, this));
         }
     }
-    checkMissionStatus() { /* ... (Unchanged from previous complete version) ... */
+    checkMissionStatus() {
         if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated) return;
         if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
             this.isObjectiveComplete = this.enemyUnits ? this.enemyUnits.every(e => !e.isAlive()) : true;
@@ -627,7 +674,7 @@ class Game {
         if (this.isObjectiveComplete) this.endMission(true);
         else if (this.deployedSquadRoster && this.deployedSquadRoster.length > 0 && this.deployedSquadRoster.every(unit => !unit.isAlive())) this.endMission(false);
     }
-    update(deltaTime) { /* ... (Unchanged from previous complete version) ... */
+    update(deltaTime) {
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isShiftPressed &&
             this.inputHandler.isLeftMouseDown &&
@@ -664,7 +711,8 @@ class Game {
         if (!this.missionStartedAndPopulated) this.missionStartedAndPopulated = true;
         this.checkMissionStatus();
     }
-    render() { /* ... (Unchanged from previous complete version) ... */
+
+    render() {
         if (!this.ctx || !this.level) {
             return;
         }
@@ -672,6 +720,7 @@ class Game {
         this.ctx.save();
         this.ctx.translate(-this.cameraX, -this.cameraY);
 
+        // 1. Draw Prerendered Background
         if (this.prerenderedBackgroundCanvas.width > 0 && this.prerenderedBackgroundCanvas.height > 0) {
             this.ctx.drawImage(this.prerenderedBackgroundCanvas, 0, 0);
         } else {
@@ -679,47 +728,76 @@ class Game {
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
         }
 
-        if (CONFIG.DEBUG_PATHING_UNIT_ID && this.level && this.level.navGrid && this.level.gridCellSize > 0) { // Only draw if debug ID is set
+        // 2. Debug NavGrid (Blocked Cell Overlay - "Dead Ground")
+        // Draw if CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED is true and level has navGrid
+        if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid && this.level.gridCellSize > 0) {
             const grid = this.level.navGrid;
             const cellSize = this.level.gridCellSize;
+            this.ctx.globalAlpha = 0.45; // You can tune this value (0.0 to 1.0)
+            this.ctx.fillStyle = "rgba(85, 44, 11, 0.73)";
+
             for (let y = 0; y < grid.length; y++) {
                 for (let x = 0; x < grid[y].length; x++) {
-                    if (grid[y][x] === 1) {
-                        this.ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+                    if (grid[y][x] === 1) { // If cell is blocked
                         this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
                     }
                 }
             }
+            this.ctx.globalAlpha = 1.0; // Reset alpha for subsequent drawing
         }
 
+        // 4. Y-Sorted Game Entities (Obstacles and Units) - Step 3 (Hut Debug) is after this.
+        // The label "4." is from previous context, actual order is now:
+        // 1. Background
+        // 2. NavGrid Debug (Blocked Cells Overlay)
+        // 3. Y-Sorted Entities (Obstacles, Units)
+        // 4. Hut Spawn Area Debug (Overlay)
+        // 5. Projectiles, etc.
         let sortableObjects = [];
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
-        if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall') return; if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) { let sortYValue = obstacle.y + obstacle.height; sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } }); }
+        if (this.level.obstacles) {
+            this.level.obstacles.forEach(obstacle => {
+                if (obstacle.type === 'border_wall') return;
+                if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) {
+                    let sortYValue = obstacle.y + obstacle.height;
+                    if (obstacle.type === 'tree_palm_medium' || obstacle.type === 'tree_palm_tall') {
+                        sortYValue = obstacle.y + obstacle.height * 0.99;
+                    }
+                    sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false });
+                }
+            });
+        }
         sortableObjects.sort((a, b) => a.sortY - b.sortY);
 
         sortableObjects.forEach(item => {
             const obj = item.entity;
             if (item.isUnit) {
                 obj.render(this.ctx);
-            } else {
+            } else { // Obstacle rendering (copied from your latest game.js)
                 if (obj.isDestroyed && obj.imageDestroyed) {
                     this.ctx.drawImage(obj.imageDestroyed, obj.x, obj.y, obj.width, obj.height);
                 } else if (!obj.isDestroyed && obj.imageNormal) {
                     this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
                 } else if (!obj.isDecoration || !obj.imageNormal) {
                     let obsColor = obj.color || '#555555';
-                    if (obj.isDestroyed) { obsColor = 'rgba(50, 40, 30, 0.7)';
+                    if (obj.isDestroyed) {
+                        obsColor = 'rgba(50, 40, 30, 0.7)';
                     } else if (obj.destructible && obj.hp < obj.maxHp && obj.hp > 0 && obj.color) {
                         const damageRatio = Math.max(0, obj.hp / obj.maxHp);
                         if (/^#[0-9A-F]{6}$/i.test(obsColor)) {
-                            let r = parseInt(obsColor.substring(1,3),16); let g = parseInt(obsColor.substring(3,5),16); let b = parseInt(obsColor.substring(5,7),16);
+                            let r = parseInt(obsColor.substring(1,3),16);
+                            let g = parseInt(obsColor.substring(3,5),16);
+                            let b = parseInt(obsColor.substring(5,7),16);
                             const greyVal = 80;
-                            r = Math.floor(r*damageRatio + greyVal*(1-damageRatio)); g = Math.floor(g*damageRatio + greyVal*(1-damageRatio)); b = Math.floor(b*damageRatio + greyVal*(1-damageRatio));
+                            r = Math.floor(r*damageRatio + greyVal*(1-damageRatio));
+                            g = Math.floor(g*damageRatio + greyVal*(1-damageRatio));
+                            b = Math.floor(b*damageRatio + greyVal*(1-damageRatio));
                             obsColor = `rgb(${r},${g},${b})`;
                         }
                     }
-                    this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+                    this.ctx.fillStyle = obsColor;
+                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                 }
                 if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
                     const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
@@ -729,7 +807,6 @@ class Game {
                     const barY = obj.y - hpBarHeight - 4;
                     this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111';
                     this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2);
-
                     let fillColor = healthBarStyle.HP_COLOR_FULL ||'#0c0';
                     const hpPercent = obj.hp / obj.maxHp;
                      if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) {
@@ -743,39 +820,133 @@ class Game {
             }
         });
 
+        if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) {
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.5; // Make shapes semi-transparent
+            this.ctx.lineWidth = 1;
 
+            this.level.obstacles.forEach(obstacle => {
+                if (obstacle.type === 'border_wall') return; // Usually don't need to see these
+
+                const collisionShape = this.level._getObstacleCollisionShape(obstacle);
+                if (obstacle.isDestroyed && !obstacle.blocksMovement) { // Don't draw for destroyed non-blocking
+                     // Or maybe draw with a different color if you want to see their "ghost"
+                } else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { // Draw for relevant obstacles
+                    if (collisionShape.type === 'rectangle') {
+                        this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta');
+                        this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height);
+                    } else if (collisionShape.type === 'circle') {
+                        this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta');
+                        this.ctx.beginPath();
+                        this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2);
+                        this.ctx.stroke();
+                    }
+                }
+            });
+            this.ctx.restore(); // Restore globalAlpha and lineWidth
+        }
+
+        // Debug Hut Spawn Areas (Rendered AFTER main objects so it's visible on top of huts)
+        if (this.level && CONFIG.ENEMY_SPAWNING && CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING && CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING.DEBUG_DRAW_SPAWN_AREAS) {
+            this.level.renderHutSpawnAreas(this.ctx);
+        }
+
+        // Projectiles & Other Game Objects
         this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
+
+        // Visual Effects
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function' && effect.type !== 'explosion_ground_mark') { effect.render(this.ctx); } });
-        if(this.selectedUnits) { this.selectedUnits.forEach(unit => { if (unit && unit.isAlive()) { this.ctx.strokeStyle = 'blue'; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.arc(unit.x - 3, unit.y + 3, unit.size + 12, 0, Math.PI * 2); this.ctx.stroke(); } }); }
-        if(this.selectedUnits) { this.selectedUnits.forEach(unit => { if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) { this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)'; this.ctx.lineWidth = 1; this.ctx.setLineDash([3, 3]); this.ctx.beginPath(); this.ctx.moveTo(unit.x, unit.y); this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y); this.ctx.stroke(); this.ctx.setLineDash([]); } }); }
+
+        // 7. Selection Highlights & Target Lines
+        if(this.selectedUnits) {
+            this.selectedUnits.forEach(unit => {
+                if (unit && unit.isAlive()) {
+                    this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.beginPath();
+                    const selectRadiusX = unit.size + 10;
+                    const selectRadiusY = unit.size + 6;
+                    this.ctx.ellipse(unit.x, unit.y + unit.size * 0.2, selectRadiusX, selectRadiusY, 0, 0, Math.PI * 2);
+                    this.ctx.stroke();
+                }
+            });
+        }
+        if(this.selectedUnits) {
+            this.selectedUnits.forEach(unit => {
+                if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) {
+                    this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)';
+                    this.ctx.lineWidth = 1.5;
+                    this.ctx.setLineDash([4, 4]);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(unit.x, unit.y);
+                    this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y);
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+                }
+            });
+        }
+
+        // 8. Grenade Aiming Indicator
         const aimingRaccoon = this.selectedUnits && this.selectedUnits.find(unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive());
         if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) {
-            const worldMouseX = this.inputHandler.mousePos.worldX; const worldMouseY = this.inputHandler.mousePos.worldY; const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY);
-            this.ctx.fillStyle = 'rgba(255, 165, 0, 0.3)'; this.ctx.beginPath(); this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2); this.ctx.fill();
-            this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.8)'; this.ctx.lineWidth = 1; this.ctx.beginPath(); this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
+            const worldMouseX = this.inputHandler.mousePos.worldX;
+            const worldMouseY = this.inputHandler.mousePos.worldY;
+            const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY);
+            this.ctx.fillStyle = 'rgba(255, 165, 0, 0.3)';
+            this.ctx.beginPath();
+            this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.strokeStyle = 'rgb(111, 0, 255)'; // Your purple color
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
             if (throwDist > CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
                  const angle = Math.atan2(worldMouseY - aimingRaccoon.y, worldMouseX - aimingRaccoon.x);
-                 const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX; const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
-                 this.ctx.lineTo(cappedX, cappedY); this.ctx.stroke(); this.ctx.beginPath(); this.ctx.moveTo(cappedX, cappedY); this.ctx.setLineDash([5, 5]); this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); this.ctx.setLineDash([]);
-            } else { this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); }
+                 const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                 const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                 this.ctx.lineTo(cappedX, cappedY);
+                 this.ctx.stroke();
+                 this.ctx.beginPath();
+                 this.ctx.moveTo(cappedX, cappedY);
+                 this.ctx.setLineDash([5, 5]);
+                 this.ctx.lineTo(worldMouseX, worldMouseY);
+                 this.ctx.stroke();
+                 this.ctx.setLineDash([]);
+            } else {
+                 this.ctx.lineTo(worldMouseX, worldMouseY);
+                 this.ctx.stroke();
+            }
         }
+
+        // 9. Drag Selection Rectangle
         if (this.isDragging && this.draggedFarEnough) {
-            const dragRectWorldStartX = this.dragStartX + this.cameraX; const dragRectWorldStartY = this.dragStartY + this.cameraY; const dragRectWorldCurrentX = this.dragCurrentX + this.cameraX; const dragRectWorldCurrentY = this.dragCurrentY + this.cameraY;
-            this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)'; this.ctx.lineWidth = 1; this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)';
-            const rectX = Math.min(dragRectWorldStartX, dragRectWorldCurrentX); const rectY = Math.min(dragRectWorldStartY, dragRectWorldCurrentY); const rectWidth = Math.abs(dragRectWorldCurrentX - dragRectWorldStartX); const rectHeight = Math.abs(dragRectWorldCurrentY - dragRectWorldStartY);
-            this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight); this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+            const dragRectWorldStartX = this.dragStartX + this.cameraX;
+            const dragRectWorldStartY = this.dragStartY + this.cameraY;
+            const dragRectWorldCurrentX = this.dragCurrentX + this.cameraX;
+            const dragRectWorldCurrentY = this.dragCurrentY + this.cameraY;
+            this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)';
+            this.ctx.lineWidth = 1;
+            this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)';
+            const rectX = Math.min(dragRectWorldStartX, dragRectWorldCurrentX);
+            const rectY = Math.min(dragRectWorldStartY, dragRectWorldCurrentY);
+            const rectWidth = Math.abs(dragRectWorldCurrentX - dragRectWorldStartX);
+            const rectHeight = Math.abs(dragRectWorldCurrentY - dragRectWorldStartY);
+            this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+            this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
         }
 
         this.ctx.restore();
     }
-    gameLoop(timestamp) { /* ... (Unchanged from previous complete version) ... */
+
+    
+    gameLoop(timestamp) {
         const now = performance.now(); if (!this.lastTime) this.lastTime = now;
         const deltaTime = Math.min((now - this.lastTime) / 1000, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
         this.lastTime = now;
         if (this.gameState === 'RUNNING') this.update(deltaTime);
         this.render(); requestAnimationFrame(this.gameLoop);
     }
-    calculateFormationPoints(centerX, centerY, units, formationType = 'HORIZONTAL') { /* ... (Unchanged from previous complete version) ... */
+    calculateFormationPoints(centerX, centerY, units, formationType = 'HORIZONTAL') {
         const points = []; const aliveUnits = units ? units.filter(u => u.isAlive()) : []; const numUnits = aliveUnits.length;
         if (numUnits === 0) return points; if (numUnits === 1) { points.push({ x: centerX, y: centerY }); return points; }
         const spacing = (CONFIG.RACCOON_SIZE * 2) * this.formationSpacingMultiplier;
@@ -789,7 +960,7 @@ class Game {
     }
 }
 
-class PromotionEffect { /* ... (Unchanged from previous complete version) ... */
+class PromotionEffect {
     constructor(x, y, gameInstance) {
         this.game = gameInstance; this.x = x; this.y = y;
         this.effectConfig = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.PROMOTION) ? CONFIG.VISUAL_EFFECTS.PROMOTION : {};
@@ -802,7 +973,7 @@ class PromotionEffect { /* ... (Unchanged from previous complete version) ... */
     render(ctx) { ctx.font = this.font; ctx.fillStyle = `rgba(${this.colorRGB[0]}, ${this.colorRGB[1]}, ${this.colorRGB[2]}, ${Math.max(0, this.opacity)})`; ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.textAlign = 'left'; }
 }
 
-class ExplosionEffect { /* ... (Unchanged from previous complete version) ... */
+class ExplosionEffect {
     constructor(x, y, radius, gameInstance) {
         this.game = gameInstance; this.x = x; this.y = y; this.maxRadius = radius; this.currentRadius = 0;
         this.effectConfig = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.EXPLOSION) ? CONFIG.VISUAL_EFFECTS.EXPLOSION : {};
