@@ -17,6 +17,9 @@ class Unit {
         this.velocitySampleTime = 0.1;
         this.timeSinceLastVelocitySample = 0;
 
+        this.lastDeltaX = 0; // To store movement delta for facing angle calculation
+        this.lastDeltaY = 0;
+
 
         this.canShootWhileMoving = true;
         this.weapon = null; this.autoTarget = null; this.manualTarget = null;
@@ -129,7 +132,6 @@ class Unit {
             }
         }
 
-
         let actionTimerFinishedThisFrame = false;
         if (this.actionTimer > 0) {
             this.actionTimer -= deltaTime;
@@ -147,59 +149,27 @@ class Unit {
                 const nextNodeWorldCoords = this.currentPath[this.currentPathNodeIndex];
                 const distToCurrentNode = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
                 const movedSignificantlyFromLastSelf = distance(this.x, this.y, this.pathingStuckCheckPosition.selfX, this.pathingStuckCheckPosition.selfY) > 0.75;
-
                 if (distToCurrentNode >= (this.pathingStuckCheckPosition.distToNode || distToCurrentNode) - 0.75 && !movedSignificantlyFromLastSelf) {
                     this.pathingStuckFrames++;
                 } else {
                     this.pathingStuckFrames = 0;
                 }
-                this.pathingStuckCheckPosition = {
-                    distToNode: distToCurrentNode,
-                    selfX: this.x, selfY: this.y
-                };
-
-
-                if (this.pathingStuckFrames > this.STUCK_FRAMES_THRESHOLD_PATHING &&
-                    (currentTime - this.lastRepathAttemptTime > this.REPATH_STUCK_COOLDOWN) &&
-                    !this.isPhasing) {
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                        console.warn(`[${this.id}] Stuck while following path (node ${this.currentPathNodeIndex}/${this.currentPath.length}). PathingStuckFrames: ${this.pathingStuckFrames}. Triggering onStuck (reason: path_follow_stuck).`);
-                    }
+                this.pathingStuckCheckPosition = { distToNode: distToCurrentNode, selfX: this.x, selfY: this.y };
+                if (this.pathingStuckFrames > this.STUCK_FRAMES_THRESHOLD_PATHING && (currentTime - this.lastRepathAttemptTime > this.REPATH_STUCK_COOLDOWN) && !this.isPhasing) {
+                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id}] Stuck on path. Triggering onStuck.`);
                     this.lastRepathAttemptTime = currentTime;
-                    if (typeof this.onStuck === 'function') {
-                        this.onStuck('path_follow_stuck');
-                    } else {
-                        this.isMoving = false; this.currentPath = [];
-                    }
-                    // After onStuck, pathingStuckCheckPosition might need re-initialization if still moving.
+                    if (typeof this.onStuck === 'function') this.onStuck('path_follow_stuck'); else { this.isMoving = false; this.currentPath = []; }
                     if(this.isMoving && this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
                          const newNextNode = this.currentPath[this.currentPathNodeIndex];
-                         this.pathingStuckCheckPosition = {
-                            distToNode: distance(this.x, this.y, newNextNode.x, newNextNode.y),
-                            selfX: this.x, selfY: this.y
-                        };
-                    } else {
-                        this.pathingStuckCheckPosition = {distToNode: Infinity, selfX: this.x, selfY: this.y };
-                    }
+                         this.pathingStuckCheckPosition = { distToNode: distance(this.x, this.y, newNextNode.x, newNextNode.y), selfX: this.x, selfY: this.y };
+                    } else { this.pathingStuckCheckPosition = {distToNode: Infinity, selfX: this.x, selfY: this.y }; }
                 }
-            } else if (!this.currentPath || this.currentPath.length === 0) { // Direct movement (no A* path)
-                if (distance(this.x, this.y, this.stuckCheckPosition.x, this.stuckCheckPosition.y) < 0.1) {
-                     this.stuckFrames++;
-                } else {
-                    this.stuckFrames = 0;
-                    this.stuckCheckPosition.x = this.x;
-                    this.stuckCheckPosition.y = this.y;
-                }
+            } else if (!this.currentPath || this.currentPath.length === 0) { // Direct movement
+                if (distance(this.x, this.y, this.stuckCheckPosition.x, this.stuckCheckPosition.y) < 0.1) this.stuckFrames++; else { this.stuckFrames = 0; this.stuckCheckPosition.x = this.x; this.stuckCheckPosition.y = this.y; }
                 if (this.stuckFrames > this.STUCK_FRAMES_THRESHOLD && !this.isPhasing) {
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                        console.warn(`[${this.id}] Stuck during direct movement attempt (isMoving=true, no path). Triggering onStuck.`);
-                    }
-                    if (typeof this.onStuck === 'function') {
-                        this.onStuck('direct_move_stuck_no_path');
-                    } else {
-                        this.isMoving = false; // Basic fallback
-                    }
-                    this.stuckFrames = 0; // Reset after handling
+                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id}] Stuck on direct move. Triggering onStuck.`);
+                    if (typeof this.onStuck === 'function') this.onStuck('direct_move_stuck_no_path'); else this.isMoving = false;
+                    this.stuckFrames = 0;
                 }
             }
         } else { // Not isMoving
@@ -208,10 +178,11 @@ class Unit {
             this.pathingStuckCheckPosition = {distToNode: Infinity, selfX: this.x, selfY: this.y };
         }
 
+        this.lastDeltaX = 0; // Reset before movement
+        this.lastDeltaY = 0;
+        this._handleMovement(deltaTime); // This now only applies physical movement and stores lastDeltaX/Y
 
-        this._handleMovement(deltaTime); // This updates this.facingAngle based on PHYSICAL movement
-
-        // Determine gunAimAngle based on current targeting state (if not aiming grenade)
+        // Determine gunAimAngle
         if (!(this instanceof Raccoon && this.isAimingGrenade)) {
             if (this.isContinuousFiring && this.continuousFireTargetPos) {
                 if (distance(this.x, this.y, this.continuousFireTargetPos.x, this.continuousFireTargetPos.y) > 0.1) {
@@ -225,13 +196,12 @@ class Unit {
                  if (distance(this.x, this.y, this.autoTarget.x, this.autoTarget.y) > 0.1) {
                     this.gunAimAngle = Math.atan2(this.autoTarget.y - this.y, this.autoTarget.x - this.x);
                 }
-            } else { // Not actively targeting anything with gun
-                this.gunAimAngle = this.facingAngle; // Gun aligns with body if idle or just moving without a specific target
             }
+            // If no specific target, gunAimAngle will be aligned with facingAngle later.
         }
-        // If Raccoon is aiming grenade, Raccoon.js's update method directly sets facingAngle and gunAimAngle to mouse.
+        // Raccoon grenade aiming handles its own gunAimAngle and facingAngle in Raccoon.js update
 
-        // Combat logic (handles firing and can also update facingAngle if stationary and shooting)
+        // Combat logic (this will call _executeFire which uses gunAimAngle)
         if (this.game && this.game.level && this.game.level.obstacles) {
             if (this.team === 'player') {
                 this._handlePlayerCombat(deltaTime, this.game.level.obstacles);
@@ -251,45 +221,31 @@ class Unit {
             this.currentVisualState = 'idle';
         }
 
-        // --- Determine the angle for the SPRITE's visual direction ---
-        let angleForSprite = this.facingAngle; // Default: sprite faces body's physical facing angle
-
+        // --- Centralized Logic for this.facingAngle (body & sprite orientation) ---
         const isActivelyEngaged = (this.isContinuousFiring && this.continuousFireTargetPos) ||
                                (this.manualTarget && this.manualTarget.isAlive()) ||
-                               (this.autoTarget && this.autoTarget.isAlive() && this.attackCooldown <= 0); // Ready to shoot auto-target
+                               (this.autoTarget && this.autoTarget.isAlive() && this.attackCooldown <= 0);
 
-        // Special sprite facing logic for Raccoons (player units)
-        if (this instanceof Raccoon && !(this.isAimingGrenade)) {
-            if (isActivelyEngaged) {
-                // If Raccoon is actively shooting (or ready to shoot an auto-target),
-                // its sprite should always face the gun's aiming direction.
-                angleForSprite = this.gunAimAngle;
-                if (!this.isMoving) {
-                    // If stationary AND actively engaged, the body (facingAngle) also aligns with the gun.
-                    this.facingAngle = this.gunAimAngle;
-                }
-                // If MOVING AND actively engaged:
-                // this.facingAngle is determined by _handleMovement (physical movement direction).
-                // angleForSprite is set to this.gunAimAngle (visual direction for kiting).
-            }
-            // If Raccoon is not actively engaged (even if moving), angleForSprite remains this.facingAngle.
-            // This means sprite faces movement direction if moving and not shooting, or last orientation if idle.
-        }
-        // For Raccoons aiming grenades, Raccoon.js's own update() handles setting `this.facingAngle` towards the mouse.
-        // So, angleForSprite (which defaults to this.facingAngle) will be correct for grenade aiming.
-
-        // Standard logic for enemies (or non-Raccoon player units, if any in future)
-        else if (this.team === 'enemy' && isActivelyEngaged && !this.isMoving) {
-            // If an enemy is stationary and actively engaged, make its body and sprite face the gun.
-            angleForSprite = this.gunAimAngle;
+        if (this instanceof Raccoon && this.isAimingGrenade) {
+            // Raccoon.js _handleAimingMovement directly sets this.facingAngle (and gunAimAngle) to mouse.
+            // No override needed here; the facingAngle set by Raccoon.js will be used for the sprite.
+        } else if (isActivelyEngaged) {
+            // If any unit is actively shooting/targeting, its body and sprite face the gun.
             this.facingAngle = this.gunAimAngle;
+        } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5)) {
+            // If moving but NOT actively engaged, body faces actual movement direction.
+            this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
         }
-        // For enemies that are moving and shooting (if their canShootWhileMoving is true),
-        // their sprite will currently face their movement direction (this.facingAngle) by default.
-        // This could be overridden for specific enemy types if they should also visually kite.
+        // Else (idle and not engaged), facingAngle remains its last value.
 
-        this.updateVisualDirection(angleForSprite);
-        // --- END Sprite Direction Logic ---
+        // Ensure gunAimAngle aligns with facingAngle if there was no specific gun target earlier
+        // and not aiming a grenade (where gun follows mouse).
+        if (!(this instanceof Raccoon && this.isAimingGrenade) && !isActivelyEngaged) {
+            this.gunAimAngle = this.facingAngle;
+        }
+
+        this.updateVisualDirection(this.facingAngle); // Sprite always follows the final this.facingAngle
+        // --- END Centralized Logic ---
 
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
@@ -361,10 +317,14 @@ class Unit {
     }
 
     _handleMovement(deltaTime) {
+        // Store initial position to calculate actual delta for this frame later
+        // const originalX = this.x;
+        // const originalY = this.y;
+
         if (!this.isAlive() || !this.isMoving || this.isPhasing) {
             if (this.isPhasing) {
                 if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
-                    this.isMoving = false; return;
+                    this.isMoving = false; this.lastDeltaX = 0; this.lastDeltaY = 0; return;
                 }
                 const nextNodeWorldCoords = this.currentPath[this.currentPathNodeIndex];
                 const moveSpeed = this.speed * deltaTime;
@@ -380,9 +340,15 @@ class Unit {
                 }
 
                 this.x += phaseMoveX; this.y += phaseMoveY;
+                this.lastDeltaX = phaseMoveX; // Store actual delta for phasing
+                this.lastDeltaY = phaseMoveY;
+
+                // facingAngle during phasing IS updated to movement direction here
                 if (Math.abs(phaseMoveX) > 1e-5 || Math.abs(phaseMoveY) > 1e-5) {
-                    this.facingAngle = Math.atan2(phaseMoveY, phaseMoveX); // Update body facing during phase move
+                     this.facingAngle = Math.atan2(phaseMoveY, phaseMoveX);
                 }
+
+
                 if (distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y) <= Math.max(moveSpeed * 0.25, this.size * 0.1)) {
                     this.x = nextNodeWorldCoords.x; this.y = nextNodeWorldCoords.y;
                     this.currentPathNodeIndex++;
@@ -398,6 +364,7 @@ class Unit {
                 return;
             }
             if (!this.isAlive()) { this.isMoving = false; this.currentPath = []; }
+            this.lastDeltaX = 0; this.lastDeltaY = 0;
             return;
         }
 
@@ -406,6 +373,7 @@ class Unit {
             if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < this.size) {
                 this.x = this.worldTargetX; this.y = this.worldTargetY;
             }
+            this.lastDeltaX = 0; this.lastDeltaY = 0;
             return;
         }
 
@@ -420,6 +388,7 @@ class Unit {
                 console.warn(`[${this.id} _HM] LOS to next node (${nextNodeWorldCoords.x.toFixed(0)},${nextNodeWorldCoords.y.toFixed(0)}) blocked! Forcing stuck next frame.`);
             }
             this.pathingStuckFrames += Math.ceil(this.STUCK_FRAMES_THRESHOLD_PATHING / 2) +1;
+            this.lastDeltaX = 0; this.lastDeltaY = 0;
             return;
         }
 
@@ -439,7 +408,7 @@ class Unit {
         let finalDeltaX = desiredDeltaX;
         let finalDeltaY = desiredDeltaY;
 
-        if (distToNextNode > 1e-5) {
+        if (distToNextNode > 1e-5) { // Collision checks and sliding logic
             const potentialNewX_combined = this.x + desiredDeltaX;
             const potentialNewY_combined = this.y + desiredDeltaY;
             const collisionCheckRadius = this.size / 2 + 0.5;
@@ -485,63 +454,37 @@ class Unit {
                     if (!collisionY) canMoveY = true;
                 }
 
-                if (canMoveX && !canMoveY) {
+                if (canMoveX && !canMoveY) { // Only X is clear
                     finalDeltaY = 0;
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Slide: X only (Y blocked).`);
-                } else if (!canMoveX && canMoveY) {
+                } else if (!canMoveX && canMoveY) { // Only Y is clear
                     finalDeltaX = 0;
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Slide: Y only (X blocked).`);
-                } else if (canMoveX && canMoveY) {
+                } else if (canMoveX && canMoveY) { // Both individually clear (corner)
                     const angleToNode = Math.atan2(dyToNode, dxToNode);
                     const angleOfXMove = (desiredDeltaX >= 0) ? 0 : Math.PI;
                     const angleOfYMove = (desiredDeltaY >= 0) ? Math.PI / 2 : -Math.PI / 2;
+                    let diffX = Math.abs(angleToNode - angleOfXMove); if (diffX > Math.PI) diffX = 2 * Math.PI - diffX;
+                    let diffY = Math.abs(angleToNode - angleOfYMove); if (diffY > Math.PI) diffY = 2 * Math.PI - diffY;
 
-                    let diffX = Math.abs(angleToNode - angleOfXMove);
-                    if (diffX > Math.PI) diffX = 2 * Math.PI - diffX;
-                    let diffY = Math.abs(angleToNode - angleOfYMove);
-                    if (diffY > Math.PI) diffY = 2 * Math.PI - diffY;
-
-                    if (diffX < diffY - 1e-3 && Math.abs(desiredDeltaX) > 1e-5) {
-                        finalDeltaY = 0;
-                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner Slide: X preferred (aligns better).`);
-                    } else if (diffY < diffX - 1e-3 && Math.abs(desiredDeltaY) > 1e-5) {
-                        finalDeltaX = 0;
-                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner Slide: Y preferred (aligns better).`);
-                    } else if (Math.abs(desiredDeltaX) > Math.abs(desiredDeltaY) + 1e-4 && Math.abs(desiredDeltaX) > 1e-5) {
-                        finalDeltaY = 0;
-                         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner Slide: X preferred (larger component).`);
-                    } else if (Math.abs(desiredDeltaY) > 1e-5) {
-                        finalDeltaX = 0;
-                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner Slide: Y preferred (larger component or only option).`);
-                    } else {
-                        finalDeltaX = 0; finalDeltaY = 0;
-                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Corner: No clear slide, stopping.`);
-                    }
-                } else {
+                    if (diffX < diffY - 1e-3 && Math.abs(desiredDeltaX) > 1e-5) finalDeltaY = 0;
+                    else if (diffY < diffX - 1e-3 && Math.abs(desiredDeltaY) > 1e-5) finalDeltaX = 0;
+                    else if (Math.abs(desiredDeltaX) > Math.abs(desiredDeltaY) + 1e-4 && Math.abs(desiredDeltaX) > 1e-5) finalDeltaY = 0;
+                    else if (Math.abs(desiredDeltaY) > 1e-5) finalDeltaX = 0;
+                    else { finalDeltaX = 0; finalDeltaY = 0; }
+                } else { // Neither axis-only move is clear
                     finalDeltaX = 0; finalDeltaY = 0;
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] All slides blocked. Stopping.`);
                 }
             }
-        } else if (distToNextNode <= 1e-5 && this.currentPath.length > this.currentPathNodeIndex + 1) {
-             const nextNextNode = this.currentPath[this.currentPathNodeIndex + 1];
-              if (distance(this.x, this.y, nextNextNode.x, nextNextNode.y) > 0.1 && (!this.manualTarget && !this.autoTarget && !this.isContinuousFiring && !(this instanceof Raccoon && this.isAimingGrenade))) {
-                 this.facingAngle = Math.atan2(nextNextNode.y - this.y, nextNextNode.x - this.x);
-             }
         }
-
+        // If distToNextNode is very small, finalDeltaX/Y might remain 0 from initialization, which is fine.
 
         this.x += finalDeltaX;
         this.y += finalDeltaY;
 
-        // Update body facingAngle based on the actual movement made this frame
-        if (Math.abs(finalDeltaX) > 1e-5 || Math.abs(finalDeltaY) > 1e-5) {
-             this.facingAngle = Math.atan2(finalDeltaY, finalDeltaX);
-        }
-
+        this.lastDeltaX = finalDeltaX; // Store the actual delta applied this frame
+        this.lastDeltaY = finalDeltaY;
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
         const arrivalTolerance = Math.max(moveSpeed * 0.3, this.size * 0.3);
-
 
         if (distToNextNodeAfterMove <= arrivalTolerance || (moveSpeed >= distToNextNode && distToNextNode > 1e-5 && Math.abs(finalDeltaX - desiredDeltaX) < 1e-4 && Math.abs(finalDeltaY - desiredDeltaY) < 1e-4 ) ) {
             this.x = nextNodeWorldCoords.x;
@@ -555,19 +498,17 @@ class Unit {
                 if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < arrivalTolerance * 1.5) {
                     this.isMoving = false;
                     this.x = this.worldTargetX; this.y = this.worldTargetY;
+                    this.lastDeltaX = 0; this.lastDeltaY = 0; // No movement at destination
                 } else if (this.isMoving) {
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Path ended, not at final target. Re-pathing.`);
                     this.setMoveTarget(this.worldTargetX, this.worldTargetY);
                 }
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id && !this.isMoving) console.log(`[${this.id} _HM] Reached end of path. Final Target: (${this.worldTargetX.toFixed(0)}, ${this.worldTargetY.toFixed(0)})`);
-            } else {
+            } else { // More nodes in current path
                 const nextNextNode = this.currentPath[this.currentPathNodeIndex];
                  this.pathingStuckCheckPosition = {
                     distToNode: distance(this.x, this.y, nextNextNode.x, nextNextNode.y),
                     selfX: this.x, selfY: this.y
                 };
-                // Don't pre-emptively set facingAngle here, let the next iteration of _handleMovement do it
-                // based on the actual next step towards nextNextNode.
             }
         }
 
@@ -575,6 +516,7 @@ class Unit {
         this.x = Math.max(this.size/2, Math.min(this.x, worldW - this.size/2));
         this.y = Math.max(this.size/2, Math.min(this.y, worldH - this.size/2));
     }
+
 
     setMoveTarget(worldX, worldY) {
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
@@ -585,7 +527,7 @@ class Unit {
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
 
         if (this.team === 'player') {
-            this.manualTarget = null;
+        //    this.manualTarget = null;
             this.autoTarget = null;
         } else {
             this.autoTarget = null;
@@ -689,30 +631,36 @@ class Unit {
         }
     }
     setManualTarget(target) {
-        if (this.isContinuousFiring) this.setContinuousFire(false);
+        if (this.isContinuousFiring) this.setContinuousFire(false); // Cancel continuous fire
+
         this.manualTarget = target;
-        this.autoTarget = null;
-        this.stuckFrames = 0;
-        if (this.team === 'player') {
-            this.currentPath = [];
-            this.isMoving = false;
-            this.worldTargetX = this.x;
-            this.worldTargetY = this.y;
-        }
+        this.autoTarget = null; // Manual target overrides auto-target
+        this.stuckFrames = 0; // Reset stuck counter as behavior is changing
+
+        // Update gun aim and potentially body facing if stationary
         if (target && target.isAlive()) {
             if (distance(this.x, this.y, target.x, target.y) > 0.1) {
                 const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
-                this.facingAngle = angleToTarget;
-                this.gunAimAngle = angleToTarget;
+                this.gunAimAngle = angleToTarget; // Always aim gun at new manual target
+                if (!this.isMoving) { // If stationary, body also faces new target
+                    this.facingAngle = angleToTarget;
+                }
+                // If moving, facingAngle (body) is controlled by movement,
+                // but gunAimAngle (and thus sprite for Raccoons) will be this new target.
             }
         }
+        // If target is null (e.g. clicked empty ground after target lock),
+        // gunAimAngle will align with facingAngle in the update loop if not shooting.
     }
     setContinuousFire(isFiring, targetX, targetY) {
         this.isContinuousFiring = isFiring;
         if (isFiring) {
-            this.manualTarget = null; this.autoTarget = null;
-            this.currentPath = []; this.isMoving = false;
-            this.worldTargetX = this.x; this.worldTargetY = this.y;
+            this.manualTarget = null; 
+            this.autoTarget = null;
+        //    this.currentPath = []; 
+        //    this.isMoving = false;
+        //    this.worldTargetX = this.x; 
+        //    this.worldTargetY = this.y;
             this.continuousFireTargetEntity = null;
             const potentialTargets = (this.team === 'player') ? this.game.enemyUnits : this.game.deployedSquadRoster;
             if(potentialTargets && targetX !== undefined && targetY !== undefined) {
@@ -927,7 +875,8 @@ class Unit {
         if (this.isContinuousFiring) this.setContinuousFire(false);
         const fireAngle = Math.atan2(pointY - this.y, pointX - this.x);
         this._executeFire(pointX, pointY, fireAngle);
-        this.manualTarget = null; this.autoTarget = null;
+        this.manualTarget = null; 
+        this.autoTarget = null;
     }
 
     takeDamage(amount, attackerUnit = null) {
