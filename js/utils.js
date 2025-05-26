@@ -106,68 +106,106 @@ function pointInCircle(px, py, circle) { /* ... (Unchanged) ... */
     const distSq = (px - circle.x) ** 2 + (py - circle.y) ** 2;
     return distSq <= circle.radius * circle.radius;
 }
-class PathNode { /* ... (Unchanged) ... */
+class PathNode {
     constructor(x, y, g = 0, h = 0, parent = null) {
-        this.x = x; this.y = y; this.g = g; this.h = h; this.f = g + h; this.parent = parent;
+        this.x = x; // grid x
+        this.y = y; // grid y
+        this.g = g; // cost from start to this node
+        this.h = h; // heuristic cost from this node to end
+        this.f = g + h; // total estimated cost
+        this.parent = parent; // parent node in the path
     }
 }
-function heuristic(nodeA, nodeB) { /* ... (Unchanged) ... */
+
+function heuristic(nodeA, nodeB) { // nodeA, nodeB are {x, y} grid coords
     const dX = Math.abs(nodeA.x - nodeB.x);
     const dY = Math.abs(nodeA.y - nodeB.y);
-    const D = 1;
-    const D2 = Math.SQRT2;
+    // Diagonal distance (Octile distance)
+    const D = 1; // Cost of horizontal/vertical movement
+    const D2 = Math.SQRT2; // Cost of diagonal movement (approx 1.414)
     return D * (dX + dY) + (D2 - 2 * D) * Math.min(dX, dY);
 }
-function findPath(startPos, endPos, grid) { /* ... (Unchanged) ... */
-    const openList = [];
-    const closedList = new Set();
+
+function findPath(startPos, endPos, grid) { // startPos, endPos are {x, y} grid coords
+    const openList = new MinHeap(); // Use MinHeap instead of array
+    const closedList = new Set();     // Stores "x,y" strings to mark visited nodes
+
     const startNode = new PathNode(startPos.x, startPos.y, 0, heuristic(startPos, endPos));
-    openList.push(startNode);
+    openList.insert(startNode);
+
+    // Map to keep track of the G-costs of nodes currently in the open list or considered.
+    // Key: "x,y", Value: gCost. This helps in updating nodes if a shorter path is found.
+    const openListGCosts = new Map();
+    openListGCosts.set(`${startNode.x},${startNode.y}`, startNode.g);
+
     const directions = [
-        { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 }, { x: -1, y: 0, cost: 1 }, { x: 1, y: 0, cost: 1 },
-        { x: -1, y: -1, cost: Math.SQRT2 }, { x: 1, y: -1, cost: Math.SQRT2 }, { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }
+        { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 }, // N, S
+        { x: -1, y: 0, cost: 1 }, { x: 1, y: 0, cost: 1 }, // W, E
+        { x: -1, y: -1, cost: Math.SQRT2 }, { x: 1, y: -1, cost: Math.SQRT2 }, // NW, NE
+        { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }  // SW, SE
     ];
-    while (openList.length > 0) {
-        openList.sort((a, b) => a.f - b.f);
-        const currentNode = openList.shift();
+
+    while (!openList.isEmpty()) {
+        const currentNode = openList.extractMin(); // Get node with smallest F-cost
+
         if (currentNode.x === endPos.x && currentNode.y === endPos.y) {
+            // Path found, reconstruct it
             const path = [];
             let temp = currentNode;
-            while (temp) { path.push({ x: temp.x, y: temp.y }); temp = temp.parent; }
+            while (temp) {
+                path.push({ x: temp.x, y: temp.y });
+                temp = temp.parent;
+            }
             return path.reverse();
         }
+
         closedList.add(`${currentNode.x},${currentNode.y}`);
+
         for (const direction of directions) {
             const neighborX = currentNode.x + direction.x;
             const neighborY = currentNode.y + direction.y;
-            if (neighborX < 0 || neighborX >= grid[0].length || neighborY < 0 || neighborY >= grid.length) { continue; }
-            if (grid[neighborY][neighborX] === 1) { continue; }
-            if (direction.x !== 0 && direction.y !== 0) {
+            const neighborKey = `${neighborX},${neighborY}`;
+
+            // Check bounds
+            if (neighborX < 0 || neighborX >= grid[0].length || neighborY < 0 || neighborY >= grid.length) {
+                continue;
+            }
+            // Check if walkable
+            if (grid[neighborY][neighborX] === 1) {
+                continue;
+            }
+            // Check if already processed
+            if (closedList.has(neighborKey)) {
+                continue;
+            }
+
+            // Prevent corner cutting through two diagonally adjacent blocked cells
+            if (direction.x !== 0 && direction.y !== 0) { // Diagonal move
                 const cardinalCell1X = currentNode.x + direction.x;
                 const cardinalCell1Y = currentNode.y;
                 const cardinalCell2X = currentNode.x;
                 const cardinalCell2Y = currentNode.y + direction.y;
-                if (grid[cardinalCell1Y][cardinalCell1X] === 1 && grid[cardinalCell2Y][cardinalCell2X] === 1) { continue; }
-            }
-            if (closedList.has(`${neighborX},${neighborY}`)) { continue; }
-            const gCost = currentNode.g + direction.cost;
-            const hCost = heuristic({ x: neighborX, y: neighborY }, endPos);
-            const neighborNode = new PathNode(neighborX, neighborY, gCost, hCost, currentNode);
-            let existingNodeInOpen = null;
-            for (let i = 0; i < openList.length; i++) {
-                if (openList[i].x === neighborX && openList[i].y === neighborY) { existingNodeInOpen = openList[i]; break; }
-            }
-            if (existingNodeInOpen) {
-                if (gCost < existingNodeInOpen.g) {
-                    existingNodeInOpen.g = gCost; existingNodeInOpen.f = gCost + existingNodeInOpen.h; existingNodeInOpen.parent = currentNode;
+                if (grid[cardinalCell1Y][cardinalCell1X] === 1 && grid[cardinalCell2Y][cardinalCell2X] === 1) {
+                    continue; // Blocked diagonal
                 }
-            } else {
-                openList.push(neighborNode);
+            }
+
+            const gCost = currentNode.g + direction.cost;
+
+            // If neighbor is not in openListGCosts or new path is shorter
+            if (!openListGCosts.has(neighborKey) || gCost < openListGCosts.get(neighborKey)) {
+                openListGCosts.set(neighborKey, gCost); // Update G-cost or add new
+                const hCost = heuristic({ x: neighborX, y: neighborY }, endPos);
+                const neighborNode = new PathNode(neighborX, neighborY, gCost, hCost, currentNode);
+                openList.insert(neighborNode); // Insert/re-insert into MinHeap
+                                               // The MinHeap handles positioning based on F (and G for tie-breaking)
             }
         }
     }
-    return null;
+
+    return null; // No path found
 }
+
 function smoothPath(rawPathGridCoords, unitSize, levelInstance) { /* ... (Unchanged from previous complete version - uses the modified hasLineOfSight by default) ... */
     if (!rawPathGridCoords || rawPathGridCoords.length < 2 || !levelInstance) {
         return rawPathGridCoords ? rawPathGridCoords.map(p => levelInstance.gridToWorldCoords(p.x, p.y)) : [];
