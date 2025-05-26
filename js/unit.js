@@ -17,7 +17,7 @@ class Unit {
         this.velocitySampleTime = 0.1;
         this.timeSinceLastVelocitySample = 0;
 
-        this.lastDeltaX = 0; // To store movement delta for facing angle calculation
+        this.lastDeltaX = 0;
         this.lastDeltaY = 0;
 
 
@@ -46,8 +46,8 @@ class Unit {
         this.STUCK_FRAMES_THRESHOLD_PATHING = CONFIG.STUCK_FRAMES_THRESHOLD_PATHING || 30;
 
         this.attackCooldown = 0; this.actionTimer = 0; this.isMarkedForDeletion = false;
-        this.facingAngle = Math.PI / 2; // Body facing
-        this.gunAimAngle = this.facingAngle; // Gun aiming
+        this.facingAngle = Math.PI / 2; // Body's physical orientation
+        this.gunAimAngle = this.facingAngle; // Direction gun is aimed
         this.isContinuousFiring = false; this.continuousFireTargetPos = { x: 0, y: 0 }; this.continuousFireTargetEntity = null;
 
         this.aiState = (this.team === 'enemy') ? 'PATROLLING' : 'IDLE';
@@ -56,11 +56,11 @@ class Unit {
 
         this.currentVisualState = 'idle';
         this.currentVisualDirection = 's';
-        this.spriteBaseName = this.team === 'player' ? 'raccoon' : 'possum';
-        if (this.team === 'enemy') {
-            if (this instanceof PossumHeavy) this.spriteBaseName = 'possum_heavy';
-            else if (this instanceof PossumGrunt) this.spriteBaseName = 'possum_grunt';
-        }
+        this.spriteBaseName = 'unknown'; // Default
+        if (this instanceof Raccoon) this.spriteBaseName = 'raccoon';
+        else if (this instanceof PossumHeavy) this.spriteBaseName = 'possum_heavy';
+        else if (this instanceof PossumGrunt) this.spriteBaseName = 'possum_grunt';
+
 
         this.isPhasing = false;
         this.phasingTimer = 0;
@@ -178,9 +178,9 @@ class Unit {
             this.pathingStuckCheckPosition = {distToNode: Infinity, selfX: this.x, selfY: this.y };
         }
 
-        this.lastDeltaX = 0; // Reset before movement
+        this.lastDeltaX = 0;
         this.lastDeltaY = 0;
-        this._handleMovement(deltaTime); // This now only applies physical movement and stores lastDeltaX/Y
+        this._handleMovement(deltaTime);
 
         // Determine gunAimAngle
         if (!(this instanceof Raccoon && this.isAimingGrenade)) {
@@ -199,9 +199,8 @@ class Unit {
             }
             // If no specific target, gunAimAngle will be aligned with facingAngle later.
         }
-        // Raccoon grenade aiming handles its own gunAimAngle and facingAngle in Raccoon.js update
 
-        // Combat logic (this will call _executeFire which uses gunAimAngle)
+        // Combat logic
         if (this.game && this.game.level && this.game.level.obstacles) {
             if (this.team === 'player') {
                 this._handlePlayerCombat(deltaTime, this.game.level.obstacles);
@@ -210,7 +209,7 @@ class Unit {
             }
         }
 
-        // Determine visual animation state (idle, walk, fire)
+        // Determine visual animation state
         if (!this.isAlive()) {
             this.currentVisualState = 'death';
         } else if (this.isMoving) {
@@ -221,34 +220,63 @@ class Unit {
             this.currentVisualState = 'idle';
         }
 
-        // --- Centralized Logic for this.facingAngle (body & sprite orientation) ---
-        const isActivelyEngaged = (this.isContinuousFiring && this.continuousFireTargetPos) ||
-                               (this.manualTarget && this.manualTarget.isAlive()) ||
-                               (this.autoTarget && this.autoTarget.isAlive() && this.attackCooldown <= 0);
-
+        // --- SIMPLIFIED AND DIRECT Logic for this.facingAngle (which controls sprite) ---
         if (this instanceof Raccoon && this.isAimingGrenade) {
             // Raccoon.js _handleAimingMovement directly sets this.facingAngle (and gunAimAngle) to mouse.
-            // No override needed here; the facingAngle set by Raccoon.js will be used for the sprite.
-        } else if (isActivelyEngaged) {
-            // If any unit is actively shooting/targeting, its body and sprite face the gun.
-            this.facingAngle = this.gunAimAngle;
+            // this.facingAngle is already correct for the sprite direction.
+            // No specific action needed here for facingAngle, it's handled by Raccoon class.
+        } else if (this instanceof Raccoon) {
+            // For Raccoons (not aiming grenade):
+            // If they have any kind of shooting engagement (continuous, manual, or auto),
+            // their body/sprite (facingAngle) aligns with the gunAimAngle.
+            // Otherwise (moving without a target, or idle), their body/sprite faces
+            // the physical movement direction or their last orientation.
+
+            const isPotentiallyEngaging = (this.isContinuousFiring && this.continuousFireTargetPos) ||
+                                       (this.manualTarget && this.manualTarget.isAlive()) ||
+                                       (this.autoTarget && this.autoTarget.isAlive()); // Removed attackCooldown check for VISUAL facing
+
+            if (isPotentiallyEngaging) {
+                this.facingAngle = this.gunAimAngle; // Raccoon's body/sprite directly faces gun if there's any engagement
+            } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5)) {
+                // Moving but not engaged, face movement direction
+                this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
+            }
+            // Else (idle, not engaged), facingAngle remains its last value (previous orientation set by last move/engagement).
+
+        } else if (this.team === 'enemy') { // For enemies
+            const isActivelyEngagedForEnemy = (this.manualTarget && this.manualTarget.isAlive()) ||
+                                          (this.autoTarget && this.autoTarget.isAlive() && this.attackCooldown <= 0);
+            if (isActivelyEngagedForEnemy && !this.isMoving) { // Stationary and shooting
+                this.facingAngle = this.gunAimAngle;
+            } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5)) {
+                // Moving, face movement direction (unless a specific enemy AI overrides later for kiting)
+                this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
+            }
+            // Else (enemy idle, not engaged), facingAngle remains.
         } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5)) {
-            // If moving but NOT actively engaged, body faces actual movement direction.
+            // Default for other potential units: if moving, face movement direction
             this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
         }
-        // Else (idle and not engaged), facingAngle remains its last value.
+        // (If idle and not covered above, facingAngle just remains its last set value)
+
 
         // Ensure gunAimAngle aligns with facingAngle if there was no specific gun target earlier
-        // and not aiming a grenade (where gun follows mouse).
-        if (!(this instanceof Raccoon && this.isAimingGrenade) && !isActivelyEngaged) {
+        // and not aiming a grenade (where gun follows mouse independently).
+        const hasSpecificGunTarget = (this.isContinuousFiring && this.continuousFireTargetPos) ||
+                                   (this.manualTarget && this.manualTarget.isAlive()) ||
+                                   (this.autoTarget && this.autoTarget.isAlive());
+
+        if (!(this instanceof Raccoon && this.isAimingGrenade) && !hasSpecificGunTarget) {
             this.gunAimAngle = this.facingAngle;
         }
 
         this.updateVisualDirection(this.facingAngle); // Sprite always follows the final this.facingAngle
-        // --- END Centralized Logic ---
+        // --- END SIMPLIFIED Logic ---
 
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
+
    
     getCollisionShape() { }
     
@@ -1087,89 +1115,75 @@ class Unit {
         let spriteToDraw = null;
         let spriteScale = 1.0;
         let spriteWidth, spriteHeight;
+        let drawOffsetY = 0; // Default offset
 
         if (this.isAlive()) {
-            if (this instanceof Raccoon) {
-                // REVERTED: Always use 'idle' action folder for raccoons for now, but use currentVisualDirection
-                const spriteKey = `raccoon_idle_${this.currentVisualDirection}`;
-                spriteToDraw = this.game.preloadedImages[spriteKey];
+            // Determine action folder (e.g., 'idle', 'walk', 'fire')
+            // For now, all alive units use 'idle' state for sprites until more are added
+            const actionFolder = 'idle';
+            const spriteKey = `${this.spriteBaseName}_${actionFolder}_${this.currentVisualDirection}`;
+            spriteToDraw = this.game.preloadedImages[spriteKey];
 
-                if (!spriteToDraw) { // Fallback to idle_s if specific direction missing
-                    const fallbackSpriteKey = `raccoon_idle_s`;
-                    spriteToDraw = this.game.preloadedImages[fallbackSpriteKey];
-                     if(!spriteToDraw && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`Missing Raccoon sprite: ${spriteKey} and fallback ${fallbackSpriteKey}`);
+            if (!spriteToDraw) { // Fallback to south-facing idle if specific direction/action missing
+                const fallbackSpriteKey = `${this.spriteBaseName}_${actionFolder}_s`;
+                spriteToDraw = this.game.preloadedImages[fallbackSpriteKey];
+                if (!spriteToDraw && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+                     console.warn(`Missing ALIVE sprite for ${this.spriteBaseName}: ${spriteKey} and fallback ${fallbackSpriteKey}`);
                 }
-                spriteScale = CONFIG.UNIT_VISUALS.RACCOON_SPRITE_SCALE_FACTOR || 1.0;
             }
-            // Placeholder for alive PossumGrunt sprites
-            else if (this instanceof PossumGrunt) {
-                // TODO: Add alive PossumGrunt sprite logic when assets are ready
-                // For now, it will fall through to the colored circle.
+
+            if (this instanceof Raccoon) {
+                spriteScale = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 1.0;
+            } else if (this instanceof PossumGrunt) {
+                spriteScale = CONFIG.POSSUM_GRUNT_SPRITE_SCALE_FACTOR || 1.0;
+            } else if (this instanceof PossumHeavy) {
+                spriteScale = CONFIG.POSSUM_HEAVY_SPRITE_SCALE_FACTOR || 1.0; // For future
             }
-            // Placeholder for alive PossumHeavy sprites
+            drawOffsetY = - (spriteToDraw ? (spriteToDraw.naturalHeight * spriteScale) / 2 : this.size) ; // Center vertically
+
 
         } else { // Unit is dead
-            if (this instanceof PossumGrunt) {
-                if (!this.assignedDeadSpritePath) {
-                    const deadFiles = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES || [];
-                    if (deadFiles.length > 0) {
-                        const randomDeadFile = deadFiles[Math.floor(Math.random() * deadFiles.length)];
-                        this.assignedDeadSpritePath = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH + randomDeadFile;
-                    }
-                }
-                if (this.assignedDeadSpritePath) {
-                    spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
-                }
-                spriteScale = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_SCALE || 1.0;
-                 if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                    console.warn(`Dead Possum Grunt sprite not found in preloadedImages for key: ${this.assignedDeadSpritePath}`);
-                }
+            let deadSpriteConfigPath = null;
+            let deadSpriteConfigFiles = null;
+            let deadSpriteConfigScale = 1.0;
+
+            if (this instanceof Raccoon) {
+                deadSpriteConfigPath = CONFIG.RACCOON_DEAD_SPRITE_PATH;
+                deadSpriteConfigFiles = CONFIG.RACCOON_DEAD_SPRITE_FILES;
+                deadSpriteConfigScale = CONFIG.RACCOON_DEAD_SPRITE_SCALE;
+            } else if (this instanceof PossumGrunt) {
+                deadSpriteConfigPath = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH;
+                deadSpriteConfigFiles = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES;
+                deadSpriteConfigScale = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_SCALE;
+            } else if (this instanceof PossumHeavy) {
+                deadSpriteConfigPath = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH;
+                deadSpriteConfigFiles = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES;
+                deadSpriteConfigScale = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_SCALE;
             }
-            // Dead Heavy Possum
-            else if (this instanceof PossumHeavy) {
-                if (!this.assignedDeadSpritePath) {
-                    const deadFiles = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES || [];
-                    if (deadFiles.length > 0) {
-                        const randomDeadFile = deadFiles[Math.floor(Math.random() * deadFiles.length)];
-                        this.assignedDeadSpritePath = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH + randomDeadFile;
-                    }
-                }
-                if (this.assignedDeadSpritePath) {
-                    spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
-                }
-                spriteScale = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_SCALE || 1.0;
-                 if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                    console.warn(`Dead Possum Heavy sprite not found in preloadedImages for key: ${this.assignedDeadSpritePath}`);
-                }
+
+            if (!this.assignedDeadSpritePath && deadSpriteConfigPath && deadSpriteConfigFiles && deadSpriteConfigFiles.length > 0) {
+                const randomDeadFile = deadSpriteConfigFiles[Math.floor(Math.random() * deadSpriteConfigFiles.length)];
+                this.assignedDeadSpritePath = deadSpriteConfigPath + randomDeadFile;
             }
-            // Dead Raccoon 
-            else if (this instanceof Raccoon) {
-                if (!this.assignedDeadSpritePath) {
-                    const deadFiles = CONFIG.RACCOON_DEAD_SPRITE_FILES || [];
-                    if (deadFiles.length > 0) {
-                        const randomDeadFile = deadFiles[Math.floor(Math.random() * deadFiles.length)];
-                        this.assignedDeadSpritePath = CONFIG.RACCOON_DEAD_SPRITE_PATH + randomDeadFile;
-                    }
-                }
-                if (this.assignedDeadSpritePath) {
-                    spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
-                }
-                spriteScale = CONFIG.RACCOON_DEAD_SPRITE_SCALE || 1.0;
-                 if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                    console.warn(`Dead Raccoon sprite not found in preloadedImages for key: ${this.assignedDeadSpritePath}`);
-                }
+
+            if (this.assignedDeadSpritePath) {
+                spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
             }
+            spriteScale = deadSpriteConfigScale;
+
+            if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+                console.warn(`Dead sprite not found for ${this.spriteBaseName}: ${this.assignedDeadSpritePath}`);
+            }
+            // Adjust offset for dead sprites to make them appear more grounded
+            drawOffsetY = spriteToDraw ? -(spriteToDraw.naturalHeight * spriteScale) * 0.8 : -this.size * 0.8;
         }
 
+        // --- Draw Logic ---
         if (spriteToDraw) {
             spriteWidth = spriteToDraw.naturalWidth * spriteScale;
             spriteHeight = spriteToDraw.naturalHeight * spriteScale;
-            let drawOffsetY = -spriteHeight / 2;
-            if (!this.isAlive() && this instanceof PossumGrunt) {
-                drawOffsetY = -spriteHeight * 0.4; // Example offset for dead grunt
-            }
             ctx.drawImage(spriteToDraw, -spriteWidth / 2, drawOffsetY, spriteWidth, spriteHeight);
-        } else {
+        } else { // Fallback to colored circle
             let originalAlpha = ctx.globalAlpha;
             if (!this.isAlive()) {
                 ctx.fillStyle = this.team === 'player' ? (kiaStyle && kiaStyle.PLAYER_FILL_COLOR || 'darkgrey') : (kiaStyle && kiaStyle.ENEMY_FILL_COLOR || '#555');
@@ -1188,7 +1202,8 @@ class Unit {
             }
         }
 
-        if (this.isAlive() && facingIndicatorStyle && CONFIG.UNIT_VISUALS.DRAW_GUN_AIM_INDICATOR) {
+        // Facing/Gun Aim indicator for alive units
+        if (this.isAlive() && CONFIG.UNIT_VISUALS.DRAW_GUN_AIM_INDICATOR && facingIndicatorStyle) {
             ctx.strokeStyle = facingIndicatorStyle.COLOR || 'black';
             ctx.lineWidth = facingIndicatorStyle.LINE_WIDTH || 1;
             ctx.beginPath();
@@ -1198,6 +1213,7 @@ class Unit {
         }
         ctx.restore();
 
+        // Health bar for alive units
         if (this.isAlive() && healthBarStyle) {
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
             const barHeight = healthBarStyle.HEIGHT || 4;

@@ -125,7 +125,7 @@ class Projectile {
                     }
 
                     if (hitObstacle) {
-                        if (obs.destructible && obs.type === 'explosive_barrel') {
+                        if (obs.destructible && (obs.type === 'explosive_barrel' || obs.type === 'explosive_barrel_cluster')) {
                             this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
                         }
                         if (obs.providesCover) {

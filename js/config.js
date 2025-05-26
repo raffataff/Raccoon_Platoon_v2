@@ -33,7 +33,7 @@ const CONFIG = {
     RACCOON_COLOR: '#808080',
     RACCOON_MG_DAMAGE: 7,
     RACCOON_MG_ROF: 5,
-    RACCOON_MG_RANGE: 400,
+    RACCOON_MG_RANGE: 500,
     RACCOON_MG_PROJECTILE_SPEED: 500,
     RACCOON_MG_ACCURACY_STATIONARY: 0.90,
     RACCOON_MG_ACCURACY_MOVING: 0.60,
@@ -46,9 +46,11 @@ const CONFIG = {
     RACCOON_GRENADE_THROW_COOLDOWN: 1.0,
     RACCOON_GRENADE_PROJECTILE_SPEED: 120,
     RACCOON_GRENADE_PREFERRED_THROW_RANGE_FACTOR: 0.9,
+    RACCOON_SPRITE_PATH: 'assets/images/units/raccoon/',
+    RACCOON_SPRITE_SCALE_FACTOR: 0.4,
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/', // NEW
-    RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'], // NEW
-    RACCOON_DEAD_SPRITE_SCALE: 0.05, // NEW - Adjust as needed
+    RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
+    RACCOON_DEAD_SPRITE_SCALE: 0.05,
 
     // --- Units: Possum Grunt ---
     POSSUM_GRUNT_HP: 30,
@@ -61,7 +63,9 @@ const CONFIG = {
     POSSUM_RIFLE_PROJECTILE_SPEED: 400,
     POSSUM_RIFLE_ACCURACY_STATIONARY: 0.75,
     POSSUM_RIFLE_ACCURACY_MOVING: 0.45,
-    POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum/dead/', // NEW
+    POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/', // NEW: Path to Possum Grunt sprite folders
+    POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.45, // NEW: Adjust as needed
+    POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
     POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png'], // NEW
     POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.05, // NEW - Adjust as needed
 
@@ -76,11 +80,22 @@ const CONFIG = {
     POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED: 350,
     POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY: 0.85,
     POSSUM_HEAVY_WEAPON_ACCURACY_MOVING: 0.3,
-    POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum/dead/', // NEW
-    POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_grunt_dead_1.png', 'possum_grunt_dead_2.png'], // NEW
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.075, // NEW - Adjust as needed
-
+    POSSUM_HEAVY_SPRITE_PATH: 'assets/images/units/possum_heavy/', // NEW: Path for Heavy later
+    POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.55, // NEW: For Heavy later
+    POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',// Corrected path for consistency
+    POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_grunt_dead_3'], // NEW
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.055, // NEW - Adjust as needed
+    
     // --- Units: General & AI ---
+    UNIT_VISUALS: {
+        STUCK_FRAMES_THRESHOLD: 12,
+        UNIT_PHASING_DURATION: 0.75, // NEW: Duration in seconds for phasing
+        UNIT_PHASING_OPACITY: 0.5,   // NEW: Opacity for rendering during phasing
+        DRAW_GUN_AIM_INDICATOR: false,
+        FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 1 },
+        KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 0.6 },
+        GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 }
+    },
     UNIT_STUCK_FRAMES_THRESHOLD: 45,
     STUCK_FRAMES_THRESHOLD_PATHING: 30, // Was 15, then 30
     REPATH_STUCK_COOLDOWN: 0.75,
@@ -213,16 +228,6 @@ const CONFIG = {
         RECRUIT_CARD: { DEFAULT_FACE_BG_COLOR: '#555555' },
         MEMORIAL_CARD: { DEFAULT_FACE_BG_COLOR: '#333333' }
     },
-    UNIT_VISUALS: {
-        STUCK_FRAMES_THRESHOLD: 12,
-        UNIT_PHASING_DURATION: 0.75, // NEW: Duration in seconds for phasing
-        UNIT_PHASING_OPACITY: 0.5,   // NEW: Opacity for rendering during phasing
-        RACCOON_SPRITE_SCALE_FACTOR: 0.4,
-        DRAW_GUN_AIM_INDICATOR: true,
-        FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 1 },
-        KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 0.6 },
-        GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 }
-    },
 
     // --- Level Generation & Obstacles ---
     LEVEL_GENERATION: {
@@ -235,7 +240,7 @@ const CONFIG = {
             INTERNAL_PADDING_FACTOR: 1.5 
         },
         OBSTACLES: { 
-            BASE_COUNT: 100, 
+            BASE_COUNT: 70, 
             WORLD_SIZE_FALLBACK_FACTOR: 1.0, 
             RANDOM_ADDITION_MAX: 8, 
             PLACEMENT_MAX_ATTEMPTS: 15 
@@ -326,7 +331,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             width: 336, height: 268,
             collisionShape: { type: 'circle', offsetX: 155, offsetY: 150, radius: 110 },
-            spawnWeight: 5, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
         },
         {
             type: 'tree_palm_medium', name: 'Palm Tree Medium', color: '#005522',
@@ -354,21 +359,33 @@ const CONFIG = {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
-            width: 20, height: 30, 
-            spawnWeight: 4,
+            width: 30, height: 30,
+            collisionShape: { type: 'rectangle', offsetX: 2, offsetY: 2, width: 20, height: 26 },
+            spawnWeight: 3,
             explosionDamage: 50, explosionAoeRadius: 80,
-            spriteNormal: 'assets/images/objects/barrel_red.png',
-            spriteDestroyed: 'assets/images/objects/barrel_red_destroyed.png'
+            spriteNormal: 'assets/images/objects/barrels/barrel_red.png',
+            spriteDestroyed: 'assets/images/objects/barrels/barrel_red_destroyed.png'
         },
-        { 
+        {
+            type: 'explosive_barrel_cluster', name: 'Cluster Explosive Barrel', color: '#A00000',
+            destructible: true, hp: 10, maxHp: 10,
+            blocksMovement: true, providesCover: true,
+            width: 60, height: 40,
+            collisionShape: { type: 'rectangle', offsetX: 2, offsetY: 2, width: 40, height: 38 },
+            spawnWeight: 2,
+            explosionDamage: 90, explosionAoeRadius: 120,
+            spriteNormal: 'assets/images/objects/barrels/barrel_cluster.png',
+            spriteDestroyed: 'assets/images/objects/barrels/barrel_cluster_destroyed.png'
+        },
+        {
             type: 'pickup_grenade_crate', name: 'Grenade Crate', color: '#006400',
             destructible: true, hp: 1, maxHp: 1,
             blocksMovement: true, providesCover: false, // Crates don't provide cover
             width: 32, height: 32, 
             spawnWeight: 1,
             pickupType: 'grenade', pickupQuantity: 2,
-            spriteNormal: 'assets/images/objects/crate_full.png',
-            spriteDestroyed: 'assets/images/objects/crate_empty.png',
+            spriteNormal: 'assets/images/objects/crate/crate_full.png',
+            spriteDestroyed: 'assets/images/objects/crate/crate_empty.png',
             collisionShape: { type: 'rectangle', offsetX: 2, offsetY: 2, width: 28, height: 27 },
             isPickup: true, // Added flag
         },
@@ -377,19 +394,20 @@ const CONFIG = {
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             width: 250, height: 190, 
-            spawnWeight: 2,
+            spawnWeight: 1,
             // spriteNormal: 'assets/images/objects/possums/huts/possum_hut_1.png', // This is now handled by list
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
             collisionShape: { type: 'circle', offsetX: 120, offsetY: 110, radius: 80 },
             isDecoration: false,  
         },
-        {
-            type: 'building_shed', name: 'Shed', color: '#787860', destructible: true, hp: 200, maxHp: 200,
-            blocksMovement: true, providesCover: true,
-            width: 120, height: 100, 
-            spawnWeight: 0, 
-        }
+        //{
+        //    type: 'building_shed', name: 'Shed', color: '#787860', destructible: true, hp: 200, maxHp: 200,
+        //    blocksMovement: true, providesCover: true,
+        //    width: 120, height: 100, 
+        //    spawnWeight: 0, 
+        //}
     ],
+
     ENEMY_SPAWNING: {
         BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 6,
         RANDOM_ADDITION_FACTOR_MAX: 5,
@@ -397,7 +415,7 @@ const CONFIG = {
         SMALL_GROUP_CHANCE: 0.6,
         SMALL_GROUP_SIZE_MIN: 1,
         SMALL_GROUP_SIZE_MAX: 4,
-        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 150,
+        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 250,
         LEADER_PLACEMENT_MAX_ATTEMPTS: 20,
         MEMBER_PLACEMENT_MAX_ATTEMPTS: 10,
         GROUP_SPREAD_BASE: 30,

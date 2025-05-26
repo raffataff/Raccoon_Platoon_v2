@@ -64,90 +64,78 @@ class Game {
     }
 
     async preloadUnitAssets() {
-        const unitType = 'raccoon';
-        const action = 'idle'; // We'll use idle for all states for now
-        const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
         const imagePromises = [];
-        const basePath = 'assets/images/units/'; // Example base path
+        console.log("[Game] Preloading unit assets...");
 
-        console.log("[Game] Preloading Raccoon idle sprites...");
+        const unitTypesToPreload = [
+            {
+                name: 'raccoon',
+                basePath: CONFIG.RACCOON_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] /* Add 'walk', 'fire' later */ },
+                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_grunt',
+                basePath: CONFIG.POSSUM_GRUNT_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] /* Add 'walk', 'fire' later */ },
+                deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_heavy',
+                basePath: CONFIG.POSSUM_HEAVY_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES
+            }
+        ];
 
-        directions.forEach(dir => {
-            const spriteKey = `${unitType}_${action}_${dir}`; // e.g., raccoon_idle_s
-            const spritePath = `${basePath}${unitType}/${spriteKey}.png`; // e.g., assets/images/units/raccoon/raccoon_idle_s.png
+        unitTypesToPreload.forEach(unitTypeConfig => {
+            if (unitTypeConfig.basePath && unitTypeConfig.actions) {
+                for (const action in unitTypeConfig.actions) {
+                    unitTypeConfig.actions[action].forEach(dir => {
+                        const spriteKey = `${unitTypeConfig.name}_${action}_${dir}`; // e.g., raccoon_idle_n, possum_grunt_walk_e
+                        const spritePath = `${unitTypeConfig.basePath}${action}/${spriteKey}.png`; // Assumes subfolders like /idle/, /walk/
 
-            if (!this.preloadedImages[spriteKey]) {
-                imagePromises.push(new Promise((resolve) => {
-                    const img = new Image();
-                    img.onload = () => {
-                        this.preloadedImages[spriteKey] = img;
-                        resolve();
-                    };
-                    img.onerror = () => {
-                        console.warn(`[Preload] Failed to load Raccoon unit asset: ${spritePath}`);
-                        this.preloadedImages[spriteKey] = null;
-                        resolve();
-                    };
-                    img.src = spritePath;
-                }));
+                        if (!this.preloadedImages[spriteKey]) {
+                            imagePromises.push(new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => { this.preloadedImages[spriteKey] = img; resolve(); };
+                                img.onerror = () => { console.warn(`[Preload] Failed: ${spritePath}`); this.preloadedImages[spriteKey] = null; resolve(); };
+                                img.src = spritePath;
+                            }));
+                        }
+                    });
+                }
+            }
+            // Preload dead sprites for the unit type
+            if (unitTypeConfig.deadPath && unitTypeConfig.deadFiles) {
+                unitTypeConfig.deadFiles.forEach(fileName => {
+                    const fullPath = unitTypeConfig.deadPath + fileName; // Use full path as key
+                    if (!this.preloadedImages[fullPath]) {
+                         imagePromises.push(new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
+                            img.onerror = () => { console.warn(`[Preload] Failed dead sprite: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
+                            img.src = fullPath;
+                        }));
+                    }
+                });
             }
         });
 
-        // Raccoon Face Images
+
+        // Raccoon Face Images (separate as they are not action/direction based)
         if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGE_PATH) {
             CONFIG.RACCOON_FACE_IMAGES.forEach(faceFile => {
-                const faceKey = CONFIG.RACCOON_FACE_IMAGE_PATH + faceFile; // Key is the full path
+                const faceKey = CONFIG.RACCOON_FACE_IMAGE_PATH + faceFile;
                 if (!this.preloadedImages[faceKey]) {
                     imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => { this.preloadedImages[faceKey] = img; resolve(); };
                         img.onerror = () => { console.warn(`[Preload] Failed Raccoon face: ${faceKey}`); this.preloadedImages[faceKey] = null; resolve(); };
                         img.src = faceKey;
-                    }));
-                }
-            });
-        }
-        
-        // Raccoon Dead Sprites
-        if (CONFIG.RACCOON_DEAD_SPRITE_FILES && CONFIG.RACCOON_DEAD_SPRITE_PATH) {
-            CONFIG.RACCOON_DEAD_SPRITE_FILES.forEach(fileName => {
-                const fullPath = CONFIG.RACCOON_DEAD_SPRITE_PATH + fileName; // This is the unique key
-                if (!this.preloadedImages[fullPath]) { // Use fullPath as the key
-                        imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); }; // Store with fullPath key
-                        img.onerror = () => { console.warn(`[Preload] Failed Raccoon dead sprite: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
-                        img.src = fullPath;
-                    }));
-                }
-            });
-        }
-
-        // Possum Grunt Dead Sprites
-        if (CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES && CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH) {
-            CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES.forEach(fileName => {
-                const fullPath = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH + fileName; // This is the unique key
-                if (!this.preloadedImages[fullPath]) { // Use fullPath as the key
-                     imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); }; // Store with fullPath key
-                        img.onerror = () => { console.warn(`[Preload] Failed Possum Grunt dead sprite: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
-                        img.src = fullPath;
-                    }));
-                }
-            });
-        }
-
-        // Possum Heavy Dead Sprites
-        if (CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES && CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH) {
-            CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES.forEach(fileName => {
-                const fullPath = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH + fileName; // This is the unique key
-                if (!this.preloadedImages[fullPath]) { // Use fullPath as the key
-                     imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); }; // Store with fullPath key
-                        img.onerror = () => { console.warn(`[Preload] Failed Possum Heavy dead sprite: ${fullPath}`); this.preloadedImages[fullPath] = null; resolve(); };
-                        img.src = fullPath;
                     }));
                 }
             });
