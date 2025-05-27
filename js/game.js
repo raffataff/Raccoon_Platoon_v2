@@ -45,11 +45,25 @@ class Game {
         this.currentMissionParams = null;
 
         this.gameState = 'MAIN_MENU';
+        this.previousGameState = null; // For restoring state after pause
+
+        this.missionEndDelayTimer = -1; // Timer for delaying mission end screen
+        this.MISSION_END_DELAY_SECONDS = 3.0; // Configurable delay
+        this.missionPendingOutcomeIsVictory = false; // To store outcome during delay
+        this.missionEndMessage = "";
+
+        this.isGamePausedManually = false; // Tracks if pause was triggered by player vs system
+        
         this.missionObjective = null;
         this.isObjectiveComplete = false;
         this.initialEnemyCount = 0;
         this.missionStartedAndPopulated = false;
         this.missionStartTime = 0;
+
+        // Bird spawning timer
+        this.birdSpawnConfig = CONFIG.AMBIENT_EFFECTS ? CONFIG.AMBIENT_EFFECTS.FLYING_BIRD : null;
+        this.nextBirdSpawnTime = 0;
+        this.setNextBirdSpawnTimer();
 
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
@@ -62,6 +76,38 @@ class Game {
         }
         this.gameLoop();
     }
+
+    setNextBirdSpawnTimer() {
+        if (this.birdSpawnConfig) {
+            this.nextBirdSpawnTime = (this.birdSpawnConfig.SPAWN_INTERVAL_MIN_SECONDS || 10) +
+                                     Math.random() * ((this.birdSpawnConfig.SPAWN_INTERVAL_MAX_SECONDS || 20) -
+                                                      (this.birdSpawnConfig.SPAWN_INTERVAL_MIN_SECONDS || 10));
+        } else {
+            this.nextBirdSpawnTime = Infinity; // Effectively disable if no config
+        }
+    }
+
+    async preloadMiscAssets() { // New function for assets like birds
+        const imagePromises = [];
+        console.log("[Game] Preloading miscellaneous assets...");
+
+        if (this.birdSpawnConfig && this.birdSpawnConfig.TILE_SHEET_PATH) {
+            const path = this.birdSpawnConfig.TILE_SHEET_PATH;
+            if (!this.preloadedImages[path]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[path] = img; console.log(`[Preload SUCCESS - Misc] Bird sheet: '${path}'`); resolve(); };
+                    img.onerror = () => { console.warn(`[Preload FAILED - Misc] Bird sheet: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                    img.src = path;
+                }));
+            }
+        }
+        // Add other misc assets here if needed
+
+        await Promise.all(imagePromises);
+        console.log("[Game] Miscellaneous assets preloading processed.");
+    }
+
 
     async preloadUnitAssets() {
         const imagePromises = [];
@@ -296,7 +342,7 @@ class Game {
         }
     }
 
-     async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
+    async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
@@ -311,7 +357,8 @@ class Game {
 
         await this.preloadLevelAssets();
         await this.preloadUnitAssets();
-        await this.preloadAudioAssets(); // Load audio
+        await this.preloadAudioAssets();
+        await this.preloadMiscAssets();
 
         this.deployedSquadRoster = selectedRecruitsForDeployment;
         this.deployedSquadRoster.forEach(r => {
@@ -320,7 +367,13 @@ class Game {
             r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false; r.isContinuousFiring = false;
         });
 
-        this.gameState = 'RUNNING'; this.isObjectiveComplete = false; this.missionStartedAndPopulated = false; this.fallenRaccoonsThisMission = []; this.missionStartTime = performance.now();
+        // gameState moved after preloads, before level gen
+        // this.gameState = 'RUNNING'; // This will be set after everything is ready
+
+        this.isObjectiveComplete = false;
+        this.missionStartedAndPopulated = false; // Will be set true at end of first update in RUNNING state
+        this.fallenRaccoonsThisMission = [];
+        this.missionStartTime = performance.now();
 
         const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.worldSizeFactor || 1);
         const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
@@ -328,23 +381,38 @@ class Game {
 
         this.generatePrerenderedBackground(worldWidth, worldHeight);
 
+        // generateLevelAndGetPlayerSpawns populates this.enemyUnits
         const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, this.currentMissionParams, this.deployedSquadRoster.length, this.preloadedImages);
+        
+        // --- CORRECTED PLACEMENT OF initialEnemyCount ---
         this.initialEnemyCount = this.enemyUnits ? this.enemyUnits.length : 0;
+        console.log(`[Game confirmSquadAndStartMission] Initial enemy count set to: ${this.initialEnemyCount}`);
+        // ---
+
         this.deployedSquadRoster.forEach((raccoon, index) => {
             if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
             else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
         });
-        this.selectedUnits = [...this.deployedSquadRoster]; this.gameObjects = []; this.visualEffects = []; this.isDragging = false; this.draggedFarEnough = false;
+        this.selectedUnits = [...this.deployedSquadRoster];
+        this.gameObjects = []; // Clear game objects (projectiles, birds from previous mission if any)
+        this.visualEffects = []; // Clear visual effects
+        this.isDragging = false; this.draggedFarEnough = false;
+
         if (this.deployedSquadRoster.length > 0) {
             let avgX = 0, avgY = 0; this.deployedSquadRoster.forEach(unit => { avgX += unit.x; avgY += unit.y; }); avgX /= this.deployedSquadRoster.length; avgY /= this.deployedSquadRoster.length;
             this.cameraX = avgX - this.canvas.width / 2; this.cameraY = avgY - this.canvas.height / 2; this.clampCamera();
         } else { this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2; this.clampCamera(); }
 
+        this.gameState = 'RUNNING'; // NOW set to running AFTER all setup
 
         if (this.ui && typeof this.ui.hideLoadingScreen === 'function') { this.ui.hideLoadingScreen(); }
         if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(this.currentMissionParams.name); this.ui.updateFormationButton(this.currentFormationType); }
         if (this.inputHandler) { this.inputHandler.isShiftHoldFiring = false; this.inputHandler.updateMouseCursor(); }
-        this.lastTime = performance.now();
+        
+        this.lastTime = performance.now(); // Reset lastTime for deltaTime calculation
+        this.setNextBirdSpawnTimer(); // Reset bird spawn timer
+        this.missionEndDelayTimer = -1; // Ensure mission end delay is reset
+        this.missionPendingOutcomeIsVictory = false;
     }
 
     handleShiftHoldStart(worldX, worldY) {
@@ -422,6 +490,61 @@ class Game {
             this.selectedUnits.forEach((unit, index) => { if (unit.isAlive() && unit.team === 'player') { const targetPoint = formationPoints[index] || {x:worldX, y:worldY}; unit.setMoveTarget(targetPoint.x, targetPoint.y);}});
         }
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
+    }
+    // --- Pause Logic ---
+    togglePause() {
+        if (this.gameState === 'RUNNING') {
+            this.previousGameState = this.gameState;
+            this.gameState = 'PAUSED';
+            this.isGamePausedManually = true;
+            if (this.ui) this.ui.showPauseMenuScreen();
+            // Optionally pause audio: this.audioManager.pauseAllLoopingSounds();
+            console.log("Game Paused");
+        } else if (this.gameState === 'PAUSED' && this.isGamePausedManually) {
+            this.gameState = this.previousGameState || 'RUNNING'; // Restore previous or default to RUNNING
+            this.isGamePausedManually = false;
+            if (this.ui) this.ui.hidePauseMenuScreen();
+            // Optionally resume audio: this.audioManager.resumeAllLoopingSounds();
+            this.lastTime = performance.now(); // Crucial: Reset lastTime to prevent large deltaTime jump
+            console.log("Game Resumed");
+        }
+        if (this.inputHandler) this.inputHandler.updateMouseCursor();
+    }
+
+    restartCurrentMission() {
+        if (this.currentMissionParams && this.getAvailableRecruits().length > 0) {
+            console.log("Restarting current mission...");
+            // Re-select squad might be tricky here if we don't store the last deployed one.
+            // For simplicity, let's go back to the recruit selection screen for the current mission.
+            if (this.loadMissionData(this.currentPhaseIndex, this.currentMissionIndex)) {
+                if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
+                    this.gameState = 'PRE_MISSION_SELECT';
+                    this.ui.hideHUD();
+                    this.ui.showPreMissionScreen_RecruitSelect(this.campaignData[this.currentPhaseIndex], this.currentMissionParams, this.getAvailableRecruits());
+                }
+            }
+        } else {
+            console.warn("Cannot restart mission: No mission loaded or no recruits available.");
+            this.quitToMainMenu(); // Fallback
+        }
+    }
+
+    quitToMainMenu() {
+        this.gameState = 'MAIN_MENU';
+        this.missionStartedAndPopulated = false;
+        this.deployedSquadRoster = [];
+        this.selectedUnits = [];
+        this.enemyUnits = [];
+        this.gameObjects = [];
+        this.visualEffects = [];
+        // Potentially reset camera, etc.
+        if (this.ui) {
+            this.ui.hideHUD();
+            this.ui.hidePostMissionScreen();
+            this.ui.hidePauseMenuScreen();
+            this.ui.showMainMenuScreen();
+        }
+        console.log("Quit to Main Menu");
     }
     initializeNewCampaign() {
         this.masterRoster = [];
@@ -519,8 +642,32 @@ class Game {
         const newRecruitId = `RCN-MR${this.masterRoster.length + this.fallenRaccoonsGlobal.length + 1}-${Math.random().toString(36).slice(-4)}`;
         this.masterRoster.push(new Raccoon(0, 0, this, newRecruitId, faceImageUrl, raccoonName));
     }
-    endMission(isVictory) {
+
+    initiateMissionEnd(isVictory) {
+        if (this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT' || this.gameState === 'POST_MISSION_DEBRIEF') {
+            // console.log(`[Game] initiateMissionEnd called but already ending or ended. State: ${this.gameState}`);
+            return;
+        }
+    //    console.log(`[Game] initiateMissionEnd. Victory: ${isVictory}. Starting ${this.MISSION_END_DELAY_SECONDS}s delay. Current gameState: ${this.gameState}`);
+        this.missionPendingOutcomeIsVictory = isVictory;
+        this.missionEndDelayTimer = this.MISSION_END_DELAY_SECONDS;
+        this.gameState = isVictory ? 'MISSION_ENDING_VICTORY' : 'MISSION_ENDING_DEFEAT';
+
+        // --- SET THE MESSAGE ---
+        if (isVictory) {
+            this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!";
+        } else {
+            this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.POST_MISSION_FAILED || "MISSION FAILED!";
+        }
+        // ---
+
+    //    console.log(`[Game] gameState changed to: ${this.gameState}. Message: "${this.missionEndMessage}"`);
+    }
+
+    actuallyEndMission(isVictory) {
+    //    console.log(`[Game] Calling actuallyEndMission. Victory: ${isVictory}. Current gameState BEFORE: ${this.gameState}`);
         this.gameState = 'POST_MISSION_DEBRIEF';
+        this.missionEndMessage = ""; // Clear the message after delay
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
         let enemiesKilledThisMission = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
 
@@ -541,7 +688,12 @@ class Game {
             fallenRaccoons: this.fallenRaccoonsThisMission, enemiesKilled: enemiesKilledThisMission, timeTaken: missionDuration.toFixed(1),
             campaignComplete: (!this.campaignData[this.currentPhaseIndex + (isVictory && this.currentMissionIndex >= (this.campaignData[this.currentPhaseIndex].missions.length -1) ? 1 : 0)] && isVictory)
         };
-        if (this.ui) { this.ui.hideHUD(); this.ui.showPostMissionScreen_Debrief(debriefData); if (this.inputHandler) this.inputHandler.updateMouseCursor(); }
+        if (this.ui) {
+            this.ui.hideHUD();
+            this.ui.showPostMissionScreen_Debrief(debriefData);
+            if (this.inputHandler) this.inputHandler.updateMouseCursor();
+        }
+        this.missionEndDelayTimer = -1; // Reset timer
     }
     proceedToNextLogicalStep() {
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
@@ -653,27 +805,131 @@ class Game {
         }
     }
     checkMissionStatus() {
-        if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated) return;
-        if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
-            this.isObjectiveComplete = this.enemyUnits ? this.enemyUnits.every(e => !e.isAlive()) : true;
-            if (this.initialEnemyCount === 0 && (!this.enemyUnits || this.enemyUnits.length === 0)) this.isObjectiveComplete = true;
-        } else { this.isObjectiveComplete = false; /* Other objective types later */ }
+        console.log(`[Game checkMissionStatus] Called. GameState: ${this.gameState}, Populated: ${this.missionStartedAndPopulated}, Initial Enemies: ${this.initialEnemyCount}`);
+        if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated) {
+            // console.log(`[Game checkMissionStatus] Returning early. GS: ${this.gameState}, Pop: ${this.missionStartedAndPopulated}`);
+            return;
+        }
 
-        if (this.isObjectiveComplete) this.endMission(true);
-        else if (this.deployedSquadRoster && this.deployedSquadRoster.length > 0 && this.deployedSquadRoster.every(unit => !unit.isAlive())) this.endMission(false);
+        let objectiveMet = false;
+        if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
+            const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()).length : 0;
+            // const totalEnemiesCurrently = this.enemyUnits ? this.enemyUnits.length : 0; // Includes spawned from huts
+            // console.log(`[Game checkMissionStatus] EXTERMINATE check. Alive: ${aliveEnemies}, Initial Total: ${this.initialEnemyCount}, Current Total on Map: ${totalEnemiesCurrently}`);
+
+            // Win if all enemies that were *initially* part of the mission are dead.
+            // Hut spawns are bonus / ongoing threat, not primary objective count unless defined differently.
+            if (this.initialEnemyCount > 0 && aliveEnemies === 0 && this.enemyUnits.every(e => !e.isAlive())) {
+                // This condition means all pre-placed enemies are dead.
+                // If huts can still spawn, the mission might still continue if you want "survive waves"
+                // For now, EXTERMINATE means all *initial* enemies.
+                console.log(`[Game checkMissionStatus] EXTERMINATE objective met (all initial ${this.initialEnemyCount} enemies defeated). Alive now: ${aliveEnemies}`);
+                objectiveMet = true;
+            } else if (this.initialEnemyCount === 0 && aliveEnemies === 0) {
+                // No initial enemies, and none have spawned and are alive (or all spawned are dead)
+                console.log(`[Game checkMissionStatus] EXTERMINATE objective met (no initial enemies and no live spawned enemies).`);
+                objectiveMet = true;
+            }
+            // If hut-spawned enemies should also be cleared for EXTERMINATE, the logic would be simpler:
+            // objectiveMet = this.enemyUnits.every(e => !e.isAlive());
+
+        } else {
+            if (this.currentMissionParams) {
+                console.log(`[Game checkMissionStatus] Objective type is NOT EXTERMINATE: ${this.currentMissionParams.objectiveType}`);
+            } else {
+                console.log(`[Game checkMissionStatus] No currentMissionParams to check objective type.`);
+            }
+        }
+
+        if (objectiveMet) {
+            console.log(`[Game checkMissionStatus] Objective Met! Initiating mission end (victory).`);
+            this.initiateMissionEnd(true);
+        } else if (this.deployedSquadRoster && this.deployedSquadRoster.length > 0 && this.deployedSquadRoster.every(unit => !unit.isAlive())) {
+            console.log(`[Game checkMissionStatus] All Raccoons KIA! Initiating mission end (defeat).`);
+            this.initiateMissionEnd(false);
+        }
+    }
+    spawnFlyingBirdFlock() {
+        if (!this.birdSpawnConfig || !this.preloadedImages[this.birdSpawnConfig.TILE_SHEET_PATH]) return;
+
+        const direction = Math.random() < 0.5 ? 1 : -1; // 1 for right, -1 for left
+        const flockSize = Math.floor(this.birdSpawnConfig.FLOCK_SIZE_MIN + Math.random() * (this.birdSpawnConfig.FLOCK_SIZE_MAX - this.birdSpawnConfig.FLOCK_SIZE_MIN + 1));
+
+        const worldHeight = CONFIG.WORLD_HEIGHT || this.canvas.height;
+        const minY = worldHeight * (this.birdSpawnConfig.MIN_Y_SPAWN_FACTOR || 0.1);
+        const maxY = worldHeight * (this.birdSpawnConfig.MAX_Y_SPAWN_FACTOR || 0.6);
+        const baseSpawnY = minY + Math.random() * (maxY - minY);
+
+        const birdWidth = (this.birdSpawnConfig.FRAME_WIDTH || 50) * (this.birdSpawnConfig.SCALE || 1);
+
+        for (let i = 0; i < flockSize; i++) {
+            let startX;
+            if (direction === 1) { // Flying right, start from left
+                startX = -birdWidth - (i * (this.birdSpawnConfig.FLOCK_SPACING_X || 30)) - Math.random() * 50;
+            } else { // Flying left, start from right
+                startX = CONFIG.WORLD_WIDTH + birdWidth + (i * (this.birdSpawnConfig.FLOCK_SPACING_X || 30)) + Math.random() * 50;
+            }
+            const startY = baseSpawnY + (Math.random() - 0.5) * (this.birdSpawnConfig.FLOCK_SPACING_Y || 10) * 2 * i;
+
+            const bird = new FlyingBird(this, startX, startY, direction);
+            this.gameObjects.push(bird); // Add to main game objects for update/render
+        }
+        if (CONFIG.DEBUG_PATHING_UNIT_ID) console.log(`Spawned bird flock of ${flockSize} flying ${direction === 1 ? 'right' : 'left'}`);
     }
     update(deltaTime) {
-        if (this.gameState !== 'RUNNING') return;
-        if (this.inputHandler.isShiftPressed &&
+    //    console.log(`[Game Update TOP] Frame Start. GameState: ${this.gameState}, Timer: ${this.missionEndDelayTimer.toFixed(3)}, Delta: ${deltaTime.toFixed(4)}`);
+
+        if (this.gameState === 'PAUSED') {
+    //        console.log("[Game Update] Is PAUSED, returning.");
+            return;
+        }
+
+        if (this.missionEndDelayTimer > 0) {
+            this.missionEndDelayTimer -= deltaTime;
+            console.log(`[Game Update] In Timer Block. Timer now: ${this.missionEndDelayTimer.toFixed(3)}, GameState: ${this.gameState}`);
+
+            if (this.missionEndDelayTimer <= 0) {
+    //            console.log(`[Game Update] Mission End Delay Timer EXPIRED. Calling actuallyEndMission.`);
+                this.missionEndDelayTimer = -1;
+                this.actuallyEndMission(this.missionPendingOutcomeIsVictory);
+    //            console.log(`[Game Update] Returned from actuallyEndMission. GameState now: ${this.gameState}. Returning from update.`);
+                return; // Stop further processing in this frame once debrief is initiated
+            }
+            // If timer is still > 0, we are in an ending state, allow some minimal updates to proceed.
+        }
+
+        // If gameState is one that should not run full updates, return.
+        // This check is crucial.
+        if (this.gameState !== 'RUNNING' &&
+            this.gameState !== 'MISSION_ENDING_VICTORY' &&
+            this.gameState !== 'MISSION_ENDING_DEFEAT') {
+    //        console.log(`[Game Update] NOT RUNNING or ENDING. GameState: ${this.gameState}. Returning.`);
+            return;
+        }
+
+    //    console.log(`[Game Update] Proceeding with active simulation updates. GameState: ${this.gameState}`);
+
+        // Bird Spawning (only if game is 'RUNNING')
+        if (this.birdSpawnConfig && this.gameState === 'RUNNING') {
+            this.nextBirdSpawnTime -= deltaTime;
+            if (this.nextBirdSpawnTime <= 0) {
+                this.spawnFlyingBirdFlock();
+                this.setNextBirdSpawnTimer();
+            }
+        }
+
+        // Input handling for continuous fire (only if game is 'RUNNING')
+        if (this.gameState === 'RUNNING' && this.inputHandler.isShiftPressed &&
             this.inputHandler.isLeftMouseDown &&
             !this.inputHandler.isShiftHoldFiring &&
             this.inputHandler.shiftLmbDownTime > 0 &&
             (performance.now() - this.inputHandler.shiftLmbDownTime > (this.inputHandler.TAP_THRESHOLD_MS || 150) )) {
-
             this.inputHandler.isShiftHoldFiring = true;
             this.handleShiftHoldStart(this.inputHandler.mousePos.worldX, this.inputHandler.mousePos.worldY);
         }
-        if (this.selectedUnits && this.selectedUnits.length > 0) {
+
+        // Camera Lerp (only if game is 'RUNNING' and units selected)
+        if (this.selectedUnits && this.selectedUnits.length > 0 && this.gameState === 'RUNNING') {
             let avgX = 0, avgY = 0, count = 0;
             this.selectedUnits.forEach(unit => { if (unit.isAlive()) { avgX += unit.x; avgY += unit.y; count++; } });
             if (count > 0) {
@@ -688,16 +944,37 @@ class Game {
                 this.clampCamera();
             }
         }
+
+        // Update game entities (Units, GameObjects, VisualEffects)
         const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
         allUnitsInGame.forEach(unit => {
             if (unit && typeof unit.update === 'function') {
                 unit.update(deltaTime);
             }
         });
-        this.gameObjects = this.gameObjects.filter(obj => { if(obj) obj.update(deltaTime); return obj && !obj.isMarkedForDeletion; });
-        this.visualEffects = this.visualEffects.filter(effect => { if(effect) effect.update(deltaTime); return effect && !effect.isMarkedForDeletion; });
-        if (!this.missionStartedAndPopulated) this.missionStartedAndPopulated = true;
-        this.checkMissionStatus();
+
+        this.gameObjects = this.gameObjects.filter(obj => {
+            if(obj) {
+                if (obj instanceof Projectile || obj instanceof FlyingBird || this.gameState === 'RUNNING') {
+                    obj.update(deltaTime);
+                }
+            }
+            return obj && !obj.isMarkedForDeletion;
+        });
+
+        this.visualEffects = this.visualEffects.filter(effect => {
+            if(effect) effect.update(deltaTime);
+            return effect && !effect.isMarkedForDeletion;
+        });
+
+        if (!this.missionStartedAndPopulated && this.gameState === 'RUNNING') {
+             this.missionStartedAndPopulated = true;
+        }
+
+        if (this.gameState === 'RUNNING') { // checkMissionStatus only when RUNNING
+            this.checkMissionStatus();
+        }
+    //    console.log(`[Game Update BOTTOM] Frame End. GameState: ${this.gameState}, Timer: ${this.missionEndDelayTimer.toFixed(3)}`);
     }
 
     render() {
@@ -852,8 +1129,8 @@ class Game {
                     this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
                     this.ctx.lineWidth = 2;
                     this.ctx.beginPath();
-                    const selectRadiusX = unit.size + 10;
-                    const selectRadiusY = unit.size + 6;
+                    const selectRadiusX = unit.size + 13;
+                    const selectRadiusY = unit.size + 13;
                     this.ctx.ellipse(unit.x, unit.y + unit.size * 0.2, selectRadiusX, selectRadiusY, 0, 0, Math.PI * 2);
                     this.ctx.stroke();
                 }
@@ -924,16 +1201,82 @@ class Game {
         }
 
         this.ctx.restore();
+
+        // --- NEW: Draw Mission End Message Overlay (drawn on top of everything, in screen space) ---
+        if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
+            this.ctx.save(); // Save context for full-screen overlay drawing
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // Semi-transparent dark overlay
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+            this.ctx.font = "bold 48px 'Impact', 'Arial Black', sans-serif";
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "middle";
+
+            const textX = this.canvas.width / 2;
+            const textY = this.canvas.height / 2;
+
+            // Text shadow for better readability
+            this.ctx.shadowColor = "rgba(0,0,0,0.7)";
+            this.ctx.shadowBlur = 5;
+            this.ctx.shadowOffsetX = 2;
+            this.ctx.shadowOffsetY = 2;
+
+            if (this.missionPendingOutcomeIsVictory) {
+                this.ctx.fillStyle = "#4CAF50"; // Green for victory
+            } else {
+                this.ctx.fillStyle = "#F44336"; // Red for defeat
+            }
+            this.ctx.fillText(this.missionEndMessage, textX, textY);
+
+            // Optional: Add timer text below
+            this.ctx.font = "24px 'Consolas', 'Lucida Console', monospace";
+            this.ctx.fillStyle = "#FFFFFF";
+            this.ctx.fillText(`Continuing in ${Math.max(0, this.missionEndDelayTimer).toFixed(1)}s...`, textX, textY + 50);
+
+            this.ctx.restore(); // Restore context from overlay drawing
+        }
     }
 
-    
     gameLoop(timestamp) {
-        const now = performance.now(); if (!this.lastTime) this.lastTime = now;
-        const deltaTime = Math.min((now - this.lastTime) / 1000, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
+        const now = performance.now();
+        if (!this.lastTime) {
+            this.lastTime = now;
+        }
+        let deltaTime = (now - this.lastTime) / 1000;
         this.lastTime = now;
-        if (this.gameState === 'RUNNING') this.update(deltaTime);
-        this.render(); requestAnimationFrame(this.gameLoop);
+
+        deltaTime = Math.min(deltaTime, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
+        if (deltaTime <= 0) { // Ensure deltaTime is positive and non-zero
+            deltaTime = 1 / 60; // Default to ~60fps if an issue occurs or tab was inactive
+        }
+
+        // --- CORRECTED LOGIC FOR CALLING UPDATE ---
+        // Call update if the game is in a state that involves active simulation or timers.
+        // The update() method itself will handle early returns for states like PAUSED
+        // or after the mission end timer fully elapses and transitions to POST_MISSION_DEBRIEF.
+        if (this.gameState === 'RUNNING' ||
+            this.gameState === 'PAUSED' || // update() handles PAUSED by returning early
+            this.gameState === 'MISSION_ENDING_VICTORY' ||
+            this.gameState === 'MISSION_ENDING_DEFEAT') {
+            this.update(deltaTime);
+        } else {
+            // For MAIN_MENU, PRE_MISSION_SELECT, POST_MISSION_DEBRIEF, GAME_OVER, CAMPAIGN_COMPLETE, LOADING_MISSION
+            // we generally don't need the main game world update loop.
+            // UI interactions are typically event-driven for these screens.
+            // console.log(`[Game Loop] Intentionally skipping main update for gameState: ${this.gameState}`);
+        }
+
+        try {
+            this.render(); // Use your full, operational render function
+        } catch (e) {
+            console.error("ERROR IN RENDER FUNCTION:", e);
+            // Consider how to handle render errors; stopping the loop might be abrupt.
+            // For now, log and let it try to continue if requestAnimationFrame is robust.
+            // return; // Uncomment to stop loop on render error
+        }
+        requestAnimationFrame(this.gameLoop);
     }
+
     calculateFormationPoints(centerX, centerY, units, formationType = 'HORIZONTAL') {
         const points = []; const aliveUnits = units ? units.filter(u => u.isAlive()) : []; const numUnits = aliveUnits.length;
         if (numUnits === 0) return points; if (numUnits === 1) { points.push({ x: centerX, y: centerY }); return points; }

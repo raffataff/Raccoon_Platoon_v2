@@ -23,7 +23,7 @@ const CONFIG = {
     GRID_CELL_SIZE: 4, // Reduced for finer grid, ensure performance
     // NEW: For pathing debug, set to a specific unit ID (e.g., "PSM-1") or null to disable
     DEBUG_PATHING_UNIT_ID: null, // For unit-specific path logs
-    DEBUG_DRAW_NAV_GRID_BLOCKED: false, // To draw red overlay for blocked nav grid cells
+    DEBUG_DRAW_NAV_GRID_BLOCKED: true, // To draw red overlay for blocked nav grid cells
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, // NEW: To draw actual obstacle collision shapes
 
     // --- Units: Raccoon (Player) ---
@@ -66,8 +66,8 @@ const CONFIG = {
     POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/', // NEW: Path to Possum Grunt sprite folders
     POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.45, // NEW: Adjust as needed
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
-    POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png'], // NEW
-    POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.05, // NEW - Adjust as needed
+    POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png', 'possum_grunt_dead_4.png'], // NEW
+    POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.4, // NEW - Adjust as needed
 
     // --- Units: Possum Heavy ---
     POSSUM_HEAVY_HP: 70,
@@ -83,8 +83,8 @@ const CONFIG = {
     POSSUM_HEAVY_SPRITE_PATH: 'assets/images/units/possum_heavy/', // NEW: Path for Heavy later
     POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.55, // NEW: For Heavy later
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',// Corrected path for consistency
-    POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_grunt_dead_3'], // NEW
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.055, // NEW - Adjust as needed
+    POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'], // NEW
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.5, // NEW - Adjust as needed
     
     // --- Units: General & AI ---
     UNIT_VISUALS: {
@@ -337,17 +337,17 @@ const CONFIG = {
             type: 'tree_palm_medium', name: 'Palm Tree Medium', color: '#005522',
             destructible: true, hp: 50, maxHp: 50, 
             blocksMovement: true, providesCover: true, 
-            width: 80, height: 160, 
+            width: 80, height: 125, 
             spawnWeight: 60, isDecoration: false,        
-            collisionShape: { type: 'rectangle', offsetX: 34, offsetY: 142, width: 23, height: 23 },
+            collisionShape: { type: 'rectangle', offsetX: 34, offsetY: 95, width: 23, height: 30 },
         },
         {
             type: 'tree_palm_tall', name: 'Palm Tree', color: '#005522', 
             destructible: true, hp: 100, maxHp: 100, 
             blocksMovement: true, providesCover: true, 
-            width: 125, height: 225, 
+            width: 152, height: 200, 
             spawnWeight: 20, isDecoration: false,        
-            collisionShape: { type: 'rectangle', offsetX: 30, offsetY: 200, width: 35, height: 35 },
+            collisionShape: { type: 'rectangle', offsetX: 30, offsetY: 160, width: 50, height: 40 },
         },
         {
             type: 'fence_wood', name: 'Wooden Fence', color: '#8B4513', destructible: true, hp: 40, maxHp: 40,
@@ -384,8 +384,8 @@ const CONFIG = {
             width: 32, height: 32, 
             spawnWeight: 1,
             pickupType: 'grenade', pickupQuantity: 2,
-            spriteNormal: 'assets/images/objects/crate/crate_full.png',
-            spriteDestroyed: 'assets/images/objects/crate/crate_empty.png',
+            spriteNormal: 'assets/images/objects/crates/crate_full.png',
+            spriteDestroyed: 'assets/images/objects/crates/crate_empty.png',
             collisionShape: { type: 'rectangle', offsetX: 2, offsetY: 2, width: 28, height: 27 },
             isPickup: true, // Added flag
         },
@@ -399,6 +399,32 @@ const CONFIG = {
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
             collisionShape: { type: 'circle', offsetX: 120, offsetY: 110, radius: 80 },
             isDecoration: false,  
+        },
+        {
+            type: 'forest_patch_dense_1',
+            name: 'Dense Forest Patch',
+            color: '#0E2908', // Fallback color if sprite fails - a very dark green
+            destructible: false, // Or very high HP if you want them eventually clearable
+            hp: Infinity,
+            maxHp: Infinity,
+            blocksMovement: true,
+            providesCover: true, // The whole area can be considered cover
+            width: 877, // Example in-game width (scaled down from original 800)
+            height: 363, // Example in-game height (scaled down from original 713)
+            // Collision shape: A rectangle representing the core impassable trunk area.
+            // These offsets and dimensions are relative to the obstacle's (x,y) top-left origin.
+            // We'll make it a bit smaller than the visual to allow sprites to appear slightly "under" the canopy edges.
+            collisionShape: {
+                type: 'rectangle',
+                offsetX: 30, // Start collision 30px in from the left edge of the sprite
+                offsetY: 150, // Start collision 80px down from the top edge (below some canopy)
+                width: 750,  // Collision width (320 - 30 - 30)
+                height: 200  // Collision height (285 - 80 - 5, leaving a bit of ground clear at the bottom visually)
+            },
+            spawnWeight: 5, // Adjust as needed - how often it appears
+            spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
+            spriteDestroyed: null, // No destroyed version if indestructible
+            isDecoration: false
         },
         //{
         //    type: 'building_shed', name: 'Shed', color: '#787860', destructible: true, hp: 200, maxHp: 200,
@@ -442,6 +468,27 @@ const CONFIG = {
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
             MAX_SPAWN_ATTEMPTS_PER_HUT_EVENT: 5,
             INITIAL_MOVE_OUT_DISTANCE: 25,
+        }
+    },
+
+    AMBIENT_EFFECTS: {
+        FLYING_BIRD: {
+            TILE_SHEET_PATH: 'assets/images/effects/flying_bird_sheet.png', // Path to your bird tilesheet
+            FRAME_WIDTH: 100,  // Approximate width of a single bird frame on the sheet (NEEDS ACCURATE VALUE)
+            FRAME_HEIGHT: 100, // Approximate height of a single bird frame (NEEDS ACCURATE VALUE)
+            NUM_FRAMES: 6,     // Number of frames in the animation cycle
+            ANIMATION_SPEED: 0.1, // Seconds per frame change (e.g., 0.1 = 10 FPS for animation)
+            FLIGHT_SPEED_MIN: 80,  // Min pixels per second
+            FLIGHT_SPEED_MAX: 90, // Max pixels per second
+            MIN_Y_SPAWN_FACTOR: 0.1, // Spawn between 10% and 60% of world height from top
+            MAX_Y_SPAWN_FACTOR: 0.6,
+            FLOCK_SIZE_MIN: 1,
+            FLOCK_SIZE_MAX: 3,
+            FLOCK_SPACING_X: 50,  // Horizontal spacing in a flock
+            FLOCK_SPACING_Y: 20,  // Vertical spacing in a flock
+            SPAWN_INTERVAL_MIN_SECONDS: 20,
+            SPAWN_INTERVAL_MAX_SECONDS: 60,
+            SCALE: 0.4, // Scale to draw the bird sprite
         }
     },
     

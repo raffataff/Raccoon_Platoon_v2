@@ -71,10 +71,19 @@
         <!-- NEW WRAPPER for buttons -->
         <div class="post-mission-buttons">
             <button id="retryMissionButton" style="display:none;">Retry Mission</button>
-            <button id="viewMemorialButton" style="display:none;">View Recruit Memorial</button> <!-- Removed margin-top -->
+            <button id="viewMemorialButton" style="display:none;">View Recruit Memorial</button>
             <button id="nextMissionButton" style="display:none;">Next</button>
         </div>
         <!-- END WRAPPER for buttons -->
+    </div>
+
+    <div id="pauseMenuScreen" class="ui-panel" style="display: none;">
+        <h2>GAME PAUSED</h2>
+        <div class="main-menu-buttons" style="width: 80%; margin-top: 20px;">
+            <button id="resumeGameButton">Resume Game</button>
+            <button id="restartMissionPauseButton">Restart Mission</button>
+            <button id="mainMenuPauseButton">Main Menu</button>
+        </div>
     </div>
 
     <div id="gameOverScreen" class="ui-panel" style="display: none; width: 400px; text-align: center;">
@@ -130,6 +139,7 @@
     <script src="js/raccoon.js"></script>
     <script src="js/possum.js"></script>
     <script src="js/possumHeavy.js"></script>
+    <script src="js/flyingBird.js"></script>
     <script src="js/level.js"></script>
     <script src="js/game.js"></script>
 </body>

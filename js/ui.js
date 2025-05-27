@@ -34,6 +34,10 @@ class UI {
         this.toggleFormationButton = document.getElementById('toggleFormationButton');
         this.formationSpacingSlider = document.getElementById('formationSpacingSlider');
         this.spacingValueDisplay = document.getElementById('spacingValueDisplay');
+        this.pauseMenuScreen = document.getElementById('pauseMenuScreen');
+        this.resumeGameButton = document.getElementById('resumeGameButton');
+        this.restartMissionPauseButton = document.getElementById('restartMissionPauseButton');
+        this.mainMenuPauseButton = document.getElementById('mainMenuPauseButton');
 
         // --- Event Listeners ---
         if (this.newCampaignButton) {
@@ -94,6 +98,28 @@ class UI {
                     } else {
                         this.game.proceedToNextLogicalStep();
                     }
+                }
+            });
+        }
+
+        if (this.resumeGameButton) {
+            this.resumeGameButton.addEventListener('click', () => {
+                if (this.game) this.game.togglePause(); // Game handles unpausing
+            });
+        }
+        if (this.restartMissionPauseButton) {
+            this.restartMissionPauseButton.addEventListener('click', () => {
+                if (this.game) {
+                    this.hidePauseMenuScreen();
+                    this.game.restartCurrentMission();
+                }
+            });
+        }
+        if (this.mainMenuPauseButton) {
+            this.mainMenuPauseButton.addEventListener('click', () => {
+                if (this.game) {
+                    this.hidePauseMenuScreen();
+                    this.game.quitToMainMenu();
                 }
             });
         }
@@ -367,6 +393,24 @@ class UI {
             this.memorialEntriesContainer.innerHTML = `<p style="text-align: center; padding: 20px;">${this.uiText.MEMORIAL_NO_FALLEN || "No Raccoons have fallen... yet."}</p>`;
         }
         this.recruitMemorialScreen.style.display = 'flex'; this.setCursor('default');
+    }
+
+    showPauseMenuScreen() {
+        if (!this.pauseMenuScreen) return;
+        // Hide other full-screen overlays if any were up, though usually not the case when pausing
+        this.pauseMenuScreen.style.display = 'flex';
+        this.setCursor('default'); // Ensure default cursor over menu
+        // Disable restart if no recruits available (or other conditions)
+        if (this.restartMissionPauseButton && this.game) {
+            this.restartMissionPauseButton.disabled = !(this.game.getAvailableRecruits().length > 0 && this.game.currentMissionParams);
+        }
+    }
+
+    hidePauseMenuScreen() {
+        if (this.pauseMenuScreen) {
+            this.pauseMenuScreen.style.display = 'none';
+        }
+        // Cursor will be updated by InputHandler when game resumes
     }
 
     showHUD() {

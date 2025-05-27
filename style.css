@@ -169,8 +169,37 @@ canvas#gameCanvas {
     text-align: center;
     text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
 }
+#pauseMenuScreen {
+    /* Inherits from .ui-panel: position: absolute; background, border, etc. */
+    width: 350px; /* Or whatever width you prefer */
+    min-height: 250px; /* Give it some minimum height */
+    padding: 25px;
+    text-align: center;
+    z-index: 200; /* Ensure it's on top */
 
+    /* --- ADD THESE FOR CENTERING --- */
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* --- END CENTERING --- */
 
+    display: flex; /* Already in your inline style, good for internal alignment */
+    flex-direction: column; /* Added for better structure if needed */
+    justify-content: center; /* Added for vertical centering of content */
+    align-items: center; /* Added for horizontal centering of content */
+}
+#pauseMenuScreen h2 {
+    color: #D09040; /* Example title color */
+    margin-top: 0;
+    margin-bottom: 25px;
+}
+
+/* You are reusing .main-menu-buttons, which is fine. */
+/* If you want specific styling for pause menu buttons: */
+#pauseMenuScreen .main-menu-buttons button {
+    padding: 10px 15px; /* Slightly smaller perhaps */
+    font-size: 1em;
+}
 #preMissionScreen {
     top: 50%;
     left: 50%;

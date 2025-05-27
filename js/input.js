@@ -73,10 +73,20 @@ class InputHandler {
             }
 
 
+        //    if (event.key === 'Escape') {
+        //        if (this.isShiftHoldFiring) { this.game.handleShiftHoldEnd(); this.isShiftHoldFiring = false; }
+        //        this.game.deselectAllUnits();
+        //    }
             if (event.key === 'Escape') {
-                if (this.isShiftHoldFiring) { this.game.handleShiftHoldEnd(); this.isShiftHoldFiring = false; }
-                this.game.deselectAllUnits();
+                if (this.game.gameState === 'RUNNING' || this.game.gameState === 'PAUSED') {
+                    event.preventDefault(); // Prevent default browser behavior for Esc
+                    this.game.togglePause();
+                } else if (this.game.gameState === 'PRE_MISSION_SELECT' || this.game.gameState === 'POST_MISSION_DEBRIEF') {
+                    // Optional: Esc to go back to main menu from these screens
+                    // this.game.quitToMainMenu();
+                }
             }
+            
             if (event.code === 'Space') {
                  const activeEl = document.activeElement;
                 if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {

@@ -278,7 +278,14 @@ class Unit {
     }
 
    
-    getCollisionShape() { }
+    getCollisionShape() {
+        return {
+            type: 'circle',
+            x: this.x,
+            y: this.y,
+            radius: this.size / 2 // Assuming this.size is the diameter
+        };
+    }
     
     calculatePath(explicitStartGrid = null) {
         if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; return false; }
@@ -1175,7 +1182,7 @@ class Unit {
                 console.warn(`Dead sprite not found for ${this.spriteBaseName}: ${this.assignedDeadSpritePath}`);
             }
             // Adjust offset for dead sprites to make them appear more grounded
-            drawOffsetY = spriteToDraw ? -(spriteToDraw.naturalHeight * spriteScale) * 0.8 : -this.size * 0.8;
+            drawOffsetY = spriteToDraw ? -(spriteToDraw.naturalHeight * spriteScale) * 0.2 : -this.size * 0.2;
         }
 
         // --- Draw Logic ---
