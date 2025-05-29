@@ -2,12 +2,21 @@
 // complete
 class AudioManager {
     constructor() {
-        this.sounds = {}; // Stores { key: { audio: HTMLAudioElement, defaultVolume: X, path: Y } }
+        this.sounds = {}; // Stores { key: { audio: HTMLAudioElement, defaultVolume: X, path: Y, loaded: true } }
         this.isMuted = false;
         this.globalVolume = 1.0;
         this.loadQueue = [];
         this.loadedCount = 0;
         this.totalCount = 0;
+
+        // --- NEW: For managing looping music ---
+        this.currentLoopingSound = {
+            key: null,
+            instance: null,
+            userVolume: 1.0 // Stores the volume set by playConfig for this specific track
+        };
+        // ---
+
         console.log("[AudioManager] Initialized.");
     }
 
@@ -30,12 +39,12 @@ class AudioManager {
             return new Promise((resolve, reject) => {
                 const audio = new Audio();
                 audio.src = soundData.path;
-                audio.preload = 'auto'; // Important for preloading
+                audio.preload = 'auto'; 
 
-                const soundKey = soundData.key; // Capture for logging
+                const soundKey = soundData.key; 
 
                 audio.oncanplaythrough = () => {
-                    if (this.sounds[soundKey] && this.sounds[soundKey].loaded) { // Avoid double resolving
+                    if (this.sounds[soundKey] && this.sounds[soundKey].loaded) { 
                         resolve();
                         return;
                     }
@@ -47,28 +56,23 @@ class AudioManager {
                     };
                     this.loadedCount++;
                     if (onProgress) onProgress(this.loadedCount, this.totalCount, soundKey);
-                    // console.log(`[AudioManager] Sound loaded: ${soundKey} (${this.loadedCount}/${this.totalCount})`);
                     resolve();
                 };
 
                 audio.onerror = (e) => {
                     console.error(`[AudioManager] Error loading sound: ${soundKey} from ${soundData.path}`, e);
-                    this.sounds[soundKey] = { audio: null, defaultVolume: 0, path: soundData.path, loaded: false, error: true }; // Mark as error
-                    this.loadedCount++; // Still count it as "processed" for progress
+                    this.sounds[soundKey] = { audio: null, defaultVolume: 0, path: soundData.path, loaded: false, error: true }; 
+                    this.loadedCount++; 
                     if (onProgress) onProgress(this.loadedCount, this.totalCount, soundKey, true);
-                    resolve(); // Resolve even on error to not block Promise.all
+                    resolve(); 
                 };
-
-                // Fallback for browsers that might not fire canplaythrough consistently for all files
-                // or if files are very small.
+                
                 audio.onloadeddata = () => {
                      if (this.sounds[soundKey] && this.sounds[soundKey].loaded) {
                         resolve();
                         return;
                     }
-                     // If canplaythrough hasn't fired yet, consider it loaded enough with loadeddata
-                    if (!audio.readyState || audio.readyState < 2) { // HTMLMediaElement.HAVE_CURRENT_DATA or more
-                       // console.log(`[AudioManager] Sound data loaded (fallback): ${soundKey}`);
+                    if (!audio.readyState || audio.readyState < 2) { 
                     }
                      this.sounds[soundKey] = {
                         audio: audio,
@@ -81,66 +85,137 @@ class AudioManager {
                     resolve();
                 };
 
-                audio.load(); // Explicitly call load
+                audio.load(); 
             });
         });
 
         await Promise.all(loadPromises);
         console.log("[AudioManager] All sounds processed.");
-        this.loadQueue = []; // Clear the queue
+        this.loadQueue = []; 
         if (onComplete) onComplete();
     }
 
-    playSound(key, playConfig = {}) {
-        if (this.isMuted || !this.sounds[key] || !this.sounds[key].audio || this.sounds[key].error) {
+    play(key, playConfig = {}) {
+        if (!this.sounds[key] || !this.sounds[key].audio || this.sounds[key].error) {
             if (!this.isMuted && (!this.sounds[key] || this.sounds[key].error)) {
                 // console.warn(`[AudioManager] Sound not loaded or error: ${key}`);
             }
-            return;
+            return null;
         }
 
         const masterAudio = this.sounds[key].audio;
-        const soundInstance = masterAudio.cloneNode(true); // Create a new instance to allow overlap
-
         const baseVolume = this.sounds[key].defaultVolume !== undefined ? this.sounds[key].defaultVolume : 0.5;
-        const requestedVolume = playConfig.volume !== undefined ? playConfig.volume : 0.5;
-        soundInstance.volume = this.globalVolume * baseVolume * requestedVolume;
+        const requestedVolume = playConfig.volume !== undefined ? playConfig.volume : 1.0; // Default to 1.0 for specific volume
+        const finalEffectiveVolume = this.globalVolume * baseVolume * requestedVolume;
 
-        soundInstance.loop = playConfig.loop || false;
+        if (playConfig.loop) {
+            // Stop any currently looping sound
+            if (this.currentLoopingSound.instance && this.currentLoopingSound.key !== key) {
+                this.currentLoopingSound.instance.pause();
+                this.currentLoopingSound.instance.currentTime = 0;
+            }
+            
+            // Use the master audio instance for looping
+            masterAudio.loop = true;
+            masterAudio.volume = this.isMuted ? 0 : finalEffectiveVolume;
+            
+            masterAudio.play().catch(error => {
+                // console.warn(`[AudioManager] Error playing looping sound ${key}:`, error);
+            });
+            
+            this.currentLoopingSound.key = key;
+            this.currentLoopingSound.instance = masterAudio;
+            this.currentLoopingSound.userVolume = requestedVolume; // Store the volume specifically requested for this track
+            return masterAudio;
 
-        if (playConfig.pitchVariation) {
-            const randomPitch = 1.0 + (Math.random() - 0.5) * playConfig.pitchVariation * 2;
-            if (soundInstance.mozPreservesPitch !== undefined) soundInstance.mozPreservesPitch = false;
-            if (soundInstance.preservesPitch !== undefined) soundInstance.preservesPitch = false;
-            soundInstance.playbackRate = Math.max(0.1, randomPitch); // Prevent negative or zero playback rate
+        } else { // Play as a one-shot sound effect (cloned)
+            if (this.isMuted) return null;
+
+            const soundInstance = masterAudio.cloneNode(true);
+            soundInstance.volume = finalEffectiveVolume;
+            soundInstance.loop = false; // Ensure it's not looping
+
+            if (playConfig.pitchVariation) {
+                const randomPitch = 1.0 + (Math.random() - 0.5) * playConfig.pitchVariation * 2;
+                if (soundInstance.mozPreservesPitch !== undefined) soundInstance.mozPreservesPitch = false;
+                if (soundInstance.preservesPitch !== undefined) soundInstance.preservesPitch = false;
+                soundInstance.playbackRate = Math.max(0.1, randomPitch); 
+            }
+
+            soundInstance.play().catch(error => {
+                // console.warn(`[AudioManager] Error playing sound ${key}:`, error);
+            });
+            return soundInstance;
         }
-
-        soundInstance.play().catch(error => {
-            // console.warn(`[AudioManager] Error playing sound ${key}:`, error);
-        });
     }
 
-    stopSound(key) {
-        if (this.sounds[key] && this.sounds[key].audio && !this.sounds[key].error) {
-            // This will only stop the original 'masterAudio'. Stopping cloned instances is harder.
-            // For short SFX, this is usually not an issue. For looped music, you'd need a reference.
-            this.sounds[key].audio.pause();
-            this.sounds[key].audio.currentTime = 0;
+    stop(keyOrInstance) {
+        if (typeof keyOrInstance === 'string') { // Key provided
+            const key = keyOrInstance;
+            if (this.currentLoopingSound.key === key && this.currentLoopingSound.instance) {
+                this.currentLoopingSound.instance.pause();
+                this.currentLoopingSound.instance.currentTime = 0;
+                this.currentLoopingSound.key = null;
+                this.currentLoopingSound.instance = null;
+                this.currentLoopingSound.userVolume = 1.0;
+            } else if (this.sounds[key] && this.sounds[key].audio && !this.sounds[key].error) {
+                // This stops the master audio, primarily for SFX if needed,
+                // but cloned SFX instances won't be affected.
+                this.sounds[key].audio.pause();
+                this.sounds[key].audio.currentTime = 0;
+            }
+        } else if (keyOrInstance instanceof HTMLAudioElement) { // Instance provided
+            const instance = keyOrInstance;
+            instance.pause();
+            instance.currentTime = 0;
+            if (this.currentLoopingSound.instance === instance) {
+                this.currentLoopingSound.key = null;
+                this.currentLoopingSound.instance = null;
+                this.currentLoopingSound.userVolume = 1.0;
+            }
         }
     }
+
+    stopAllLoopingSounds() {
+        if (this.currentLoopingSound.instance) {
+            this.currentLoopingSound.instance.pause();
+            this.currentLoopingSound.instance.currentTime = 0;
+            console.log(`[AudioManager] Stopped looping track: ${this.currentLoopingSound.key}`);
+        }
+        this.currentLoopingSound.key = null;
+        this.currentLoopingSound.instance = null;
+        this.currentLoopingSound.userVolume = 1.0;
+    }
+
 
     setGlobalVolume(volume) {
         this.globalVolume = Math.max(0, Math.min(1, volume));
-        // Optionally update volume of currently playing sounds if you store references to them.
+        
+        // Update volume of the currently playing looping sound
+        if (this.currentLoopingSound.instance && this.sounds[this.currentLoopingSound.key]) {
+            const soundData = this.sounds[this.currentLoopingSound.key];
+            const baseVolume = soundData.defaultVolume;
+            const userVolume = this.currentLoopingSound.userVolume; // Use the stored user-set volume for this track
+            this.currentLoopingSound.instance.volume = this.isMuted ? 0 : (this.globalVolume * baseVolume * userVolume);
+        }
+        // SFX volumes are set at the time of play based on the globalVolume then.
     }
 
     toggleMute() {
         this.isMuted = !this.isMuted;
-        if (this.isMuted) {
-            // Optionally pause all currently playing sounds if you store references.
-            console.log("[AudioManager] Sounds Muted.");
+        if (this.currentLoopingSound.instance && this.sounds[this.currentLoopingSound.key]) {
+            if (this.isMuted) {
+                this.currentLoopingSound.instance.volume = 0;
+                console.log("[AudioManager] Looping Music Muted.");
+            } else {
+                const soundData = this.sounds[this.currentLoopingSound.key];
+                const baseVolume = soundData.defaultVolume;
+                const userVolume = this.currentLoopingSound.userVolume;
+                this.currentLoopingSound.instance.volume = this.globalVolume * baseVolume * userVolume;
+                console.log("[AudioManager] Looping Music Unmuted.");
+            }
         } else {
-            console.log("[AudioManager] Sounds Unmuted.");
+             console.log(this.isMuted ? "[AudioManager] Sounds Muted." : "[AudioManager] Sounds Unmuted.");
         }
         return this.isMuted;
     }

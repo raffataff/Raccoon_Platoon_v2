@@ -9,8 +9,8 @@ class Raccoon extends Unit {
         this.name = name || "Recruit";
         this.grenadeAmmo = CONFIG.RACCOON_STARTING_GRENADES || 0;
         this.isAimingGrenade = false;
-        this.grenadeTargetUnit = null; // The enemy unit targeted for grenade, if any
-        this.grenadeMoveToTargetPos = null; // The specific point to move to for throwing at grenadeTargetUnit
+        this.grenadeTargetUnit = null; 
+        this.grenadeMoveToTargetPos = null; 
 
         this.xp = existingXP;
         this.rank = existingRank || (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[0] ? CONFIG.RANK_THRESHOLDS[0].rankName : "Recruit");
@@ -21,7 +21,7 @@ class Raccoon extends Unit {
         this.applyRankBonuses(true);
     }
 
-    updateXpToNextRank() { /* ... (Unchanged) ... */
+    updateXpToNextRank() { 
         if (!CONFIG.RANK_THRESHOLDS || CONFIG.RANK_THRESHOLDS.length === 0) { this.xpToNextRank = Infinity; return; }
         const currentRankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
         const currentRankIndex = currentRankData ? CONFIG.RANK_THRESHOLDS.indexOf(currentRankData) : -1;
@@ -29,7 +29,7 @@ class Raccoon extends Unit {
             this.xpToNextRank = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1].xpNeeded;
         } else { this.xpToNextRank = Infinity; }
     }
-    applyRankBonuses(isInitialSetup = false) { /* ... (Unchanged) ... */
+    applyRankBonuses(isInitialSetup = false) { 
         if (!CONFIG.RANK_THRESHOLDS) return;
         const rankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
         if (rankData && rankData.statBoosts) {
@@ -46,14 +46,14 @@ class Raccoon extends Unit {
              if (!isInitialSetup && this.hp > this.maxHp) this.hp = this.maxHp;
         }
     }
-    addXp(amount) { /* ... (Unchanged) ... */
+    addXp(amount) { 
         if (!this.isAlive() || (CONFIG.MAX_RANK_NAME && this.rank === CONFIG.MAX_RANK_NAME)) return;
         this.xp += amount;
         if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         this.checkPromotion();
     }
-    incrementKillCount() { /* ... (Unchanged) ... */ this.killCount = (this.killCount || 0) + 1; }
-    checkPromotion() { /* ... (Unchanged) ... */
+    incrementKillCount() { this.killCount = (this.killCount || 0) + 1; }
+    checkPromotion() { 
         if (!CONFIG.RANK_THRESHOLDS || CONFIG.RANK_THRESHOLDS.length === 0) return;
         let currentRankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
         let currentRankIndex = currentRankData ? CONFIG.RANK_THRESHOLDS.indexOf(currentRankData) : -1;
@@ -77,7 +77,7 @@ class Raccoon extends Unit {
         if (!this.isAlive()) return;
 
         if (this.isAimingGrenade) {
-            this._handleAimingMovement(deltaTime); // Handles facing mouse, and checks if reached grenadeMoveToTargetPos
+            this._handleAimingMovement(deltaTime); 
             return; 
         }
         super.update(deltaTime); 
@@ -85,24 +85,17 @@ class Raccoon extends Unit {
     }
 
     _handleAimingMovement(deltaTime) {
-        // Always face the mouse when aiming grenade
         if (this.game.inputHandler.mousePos) {
             this.facingAngle = Math.atan2( this.game.inputHandler.mousePos.worldY - this.y, this.game.inputHandler.mousePos.worldX - this.x );
-            this.gunAimAngle = this.facingAngle; // Gun also follows mouse when aiming grenade
+            this.gunAimAngle = this.facingAngle; 
         }
         
-        // If moving to a specific point to throw (grenadeMoveToTargetPos is set by moveToGrenadeRange)
-        // The actual movement is handled by the Unit's _handleMovement via currentPath.
-        // This method just needs to check if we've arrived.
         if (this.isMoving && this.grenadeMoveToTargetPos) {
             const distToGrenadePos = distance(this.x, this.y, this.grenadeMoveToTargetPos.x, this.grenadeMoveToTargetPos.y);
-            // Use a small tolerance, path end logic in _handleMovement should handle exact arrival.
             if (distToGrenadePos < this.game.level.gridCellSize * 0.5) { 
-                this.isMoving = false; // Stop specific grenade move state
-                this.currentPath = []; // Clear path
+                this.isMoving = false; 
+                this.currentPath = []; 
                 this.grenadeMoveToTargetPos = null; 
-                // Raccoon is now in position, player can click to throw.
-                // No automatic throw here.
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
                     console.log(`[${this.id} _handleAimingMovement] Arrived at grenade throw position.`);
                 }
@@ -110,7 +103,7 @@ class Raccoon extends Unit {
         }
      }
 
-    startGrenadeAim(targetUnit = null) { /* ... (Unchanged) ... */
+    startGrenadeAim(targetUnit = null) { 
         if (this.isContinuousFiring) { 
             this.setContinuousFire(false); 
             if (this.game && this.game.inputHandler && this.game.inputHandler.isShiftHoldFiring) {
@@ -119,10 +112,8 @@ class Raccoon extends Unit {
         }
         if (this.grenadeAmmo > 0 && this.actionTimer <= 0) {
             this.isAimingGrenade = true; this.manualTarget = null; this.autoTarget = null; 
-            // MODIFIED: Don't set isMoving here. moveToGrenadeRange will handle it.
-            // this.isMoving = false; 
             this.grenadeTargetUnit = targetUnit;
-            this.grenadeMoveToTargetPos = null; // Clear any previous move-to-throw point
+            this.grenadeMoveToTargetPos = null; 
             if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         } else if (this.grenadeAmmo <= 0) {
             const logMsgTemplate = (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.RACCOON_OUT_OF_GRENADES_LOG) || "Raccoon {ID}: Out of grenades!";
@@ -130,36 +121,35 @@ class Raccoon extends Unit {
         }
     }
 
-    cancelGrenadeAim() { /* ... (Unchanged) ... */
+    cancelGrenadeAim() { 
         if (!this.isAimingGrenade) return;
         this.isAimingGrenade = false; 
-        this.isMoving = false; // Explicitly stop movement if was moving for grenade
-        this.currentPath = []; // Clear any path related to grenade movement
+        this.isMoving = false; 
+        this.currentPath = []; 
         this.grenadeTargetUnit = null;
         this.grenadeMoveToTargetPos = null;
         if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         if (this.game && this.game.inputHandler) this.game.inputHandler.updateMouseCursor();
     }
 
-    confirmThrowGrenade(targetX, targetY) { /* ... (Unchanged) ... */
+    confirmThrowGrenade(targetX, targetY) { 
         if (!this.isAimingGrenade || this.grenadeAmmo <= 0 || this.actionTimer > 0) return false;
         this.grenadeAmmo--; 
         this.isAimingGrenade = false; 
         this.grenadeTargetUnit = null;
         this.grenadeMoveToTargetPos = null;
-        this.isMoving = false; // Stop any grenade-related movement
-        this.currentPath = []; // Clear path
+        this.isMoving = false; 
+        this.currentPath = []; 
 
         this.actionTimer = CONFIG.RACCOON_GRENADE_THROW_COOLDOWN || 1.0;
         this.facingAngle = Math.atan2(targetY - this.y, targetX - this.x);
-        this.gunAimAngle = this.facingAngle; // Gun aims at throw point
+        this.gunAimAngle = this.facingAngle; 
         const grenade = new GrenadeProjectile(this.x, this.y, targetX, targetY, this.game, this);
         this.game.addProjectile(grenade);
         if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         return true;
     }
 
-    // MODIFIED: moveToGrenadeRange now uses setMoveTarget for A* pathfinding
     moveToGrenadeRange(enemyTarget) {
         if (!this.isAimingGrenade || !enemyTarget || this.actionTimer > 0) return;
 
@@ -168,7 +158,7 @@ class Raccoon extends Unit {
         const distToEnemy = distance(this.x, this.y, enemyTarget.x, enemyTarget.y);
 
         if (distToEnemy <= preferredThrowRange) {
-            this.isMoving = false; // Already in range
+            this.isMoving = false; 
             this.currentPath = [];
             this.grenadeMoveToTargetPos = null;
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
@@ -177,14 +167,13 @@ class Raccoon extends Unit {
             return;
         }
 
-        // Calculate a point on the edge of the preferred throw range circle around the enemy
         let targetPointX, targetPointY;
-        if (distToEnemy > 0) { // Ensure distToEnemy is not zero to avoid division by zero
-            const vecX = this.x - enemyTarget.x; // Vector from enemy to raccoon
+        if (distToEnemy > 0) { 
+            const vecX = this.x - enemyTarget.x; 
             const vecY = this.y - enemyTarget.y;
             targetPointX = enemyTarget.x + (vecX / distToEnemy) * preferredThrowRange;
             targetPointY = enemyTarget.y + (vecY / distToEnemy) * preferredThrowRange;
-        } else { // Raccoon is exactly on top of the enemy, should not happen if distToEnemy > preferredThrowRange
+        } else { 
             targetPointX = this.x;
             targetPointY = this.y;
             this.isMoving = false;
@@ -196,23 +185,22 @@ class Raccoon extends Unit {
             return;
         }
         
-        this.grenadeTargetUnit = enemyTarget; // Keep track of who we are trying to throw at
-        this.grenadeMoveToTargetPos = { x: targetPointX, y: targetPointY }; // Store the calculated ideal position
+        this.grenadeTargetUnit = enemyTarget; 
+        this.grenadeMoveToTargetPos = { x: targetPointX, y: targetPointY }; 
 
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
             console.log(`[${this.id} moveToGrenadeRange] Setting move target to (${targetPointX.toFixed(0)}, ${targetPointY.toFixed(0)}) for grenade on ${enemyTarget.id}.`);
         }
-        this.setMoveTarget(targetPointX, targetPointY); // Use A* pathfinding
-        // isMoving will be set by setMoveTarget/calculatePath
+        this.setMoveTarget(targetPointX, targetPointY); 
     }
 
-    checkForAndApplyPickups() { /* ... (Unchanged) ... */
+    checkForAndApplyPickups() { 
         if (!this.isAlive() || !this.game || !this.game.level || !this.game.level.obstacles) {
             return;
         }
         for (let i = this.game.level.obstacles.length - 1; i >= 0; i--) {
             const obs = this.game.level.obstacles[i];
-            if (obs && obs.isPickup && !obs.isDestroyed && obs.pickupType && obs.pickupQuantity > 0) {
+            if (obs && obs.isPickup && !obs.isDestroyed && obs.pickupType && obs.pickupQuantity !== undefined) { // Check quantity defined
                 const raccoonLeft = this.x - this.size / 2;
                 const raccoonRight = this.x + this.size / 2;
                 const raccoonTop = this.y - this.size / 2;
@@ -226,24 +214,34 @@ class Raccoon extends Unit {
                     this.applyPickup(obs);
                     obs.isDestroyed = true; 
                     obs.hp = 0;             
-                    // Update nav grid if the pickup was blocking movement (e.g. a crate)
                     if (obs.blocksMovement && this.game.level.navGrid) {
-                        this.game.level.updateNavigationGridForObstacle(obs, true); // true for destroyed
+                        this.game.level.updateNavigationGridForObstacle(obs, true); 
                     }
                     break; 
                 }
             }
         }
     }
-    applyPickup(pickupObstacle) { /* ... (Unchanged) ... */
+    applyPickup(pickupObstacle) { 
         if (pickupObstacle.pickupType === 'grenade') {
             this.grenadeAmmo += pickupObstacle.pickupQuantity;
             if (this.game && this.game.ui) {
                 this.game.ui.updateSquadPanel();
             }
+        } else if (pickupObstacle.pickupType === 'health') { // --- NEW HEALTH PICKUP LOGIC ---
+            if (this.hp < this.maxHp) {
+                this.hp += pickupObstacle.pickupQuantity;
+                if (this.hp > this.maxHp) {
+                    this.hp = this.maxHp;
+                }
+                console.log(`[${this.id}] picked up health. HP: ${this.hp}/${this.maxHp}`);
+                if (this.game && this.game.ui) {
+                    this.game.ui.updateSquadPanel(); // Update UI to reflect new health
+                }
+            }
         }
     }
-    render(ctx) { /* ... (Unchanged) ... */
+    render(ctx) { 
         super.render(ctx); 
         const aimIndicatorCfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR;
         if (this.isAlive() && this.isAimingGrenade && aimIndicatorCfg) {

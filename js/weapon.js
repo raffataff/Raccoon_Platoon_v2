@@ -50,7 +50,7 @@ class Projectile {
         this.game = game;
         this.shooterUnit = shooterUnit;
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
-        this.effectiveAccuracy = effectiveAccuracy; // Already passed in
+        this.effectiveAccuracy = effectiveAccuracy;
 
         const bulletConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET) ? CONFIG.PROJECTILES.BULLET : {};
 
@@ -97,7 +97,7 @@ class Projectile {
         for (const targetUnit of potentialTargets) {
             if (targetUnit && targetUnit.isAlive()) {
                 const distToTarget = distance(this.x, this.y, targetUnit.x, targetUnit.y);
-                if (distToTarget < targetUnit.size + this.size) {
+                if (distToTarget < targetUnit.size + this.size) { // Using projectile size for a bit of leeway
                     targetUnit.takeDamage(this.damage, this.shooterUnit);
                     if (this.shooterUnit && this.shooterUnit.team === 'player' && typeof this.shooterUnit.addXp === 'function') {
                         this.shooterUnit.addXp(CONFIG.XP_PER_HIT || 1);
@@ -110,8 +110,10 @@ class Projectile {
 
         if (this.game && this.game.level && this.game.level.obstacles) {
             for (const obs of this.game.level.obstacles) {
-                if (!obs.isDestroyed) {
+                if (!obs.isDestroyed) { // Only check non-destroyed obstacles
                     const obsCollisionShape = this.game.level._getObstacleCollisionShape(obs);
+                    if (!obsCollisionShape) continue; // Skip if obstacle has no valid collision shape
+
                     let hitObstacle = false;
 
                     if (obsCollisionShape.type === 'rectangle') {
@@ -122,19 +124,21 @@ class Projectile {
                         if (pointInCircle(this.x, this.y, obsCollisionShape)) {
                             hitObstacle = true;
                         }
+                    } else if (obsCollisionShape.type === 'ellipse') { // *** NEW ELLIPSE CHECK ***
+                        if (pointInEllipse(this.x, this.y, obsCollisionShape)) {
+                            hitObstacle = true;
+                        }
                     }
 
                     if (hitObstacle) {
                         if (obs.destructible && (obs.type === 'explosive_barrel' || obs.type === 'explosive_barrel_cluster')) {
                             this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
                         }
-                        if (obs.providesCover) {
+                        // If the obstacle blocks movement or provides cover, the bullet should be deleted.
+                        // Pickups don't block bullets.
+                        if (obs.blocksMovement || obs.providesCover) {
                             this.isMarkedForDeletion = true;
                             return;
-                        }
-                        if(!obs.providesCover && obs.collisionShape){
-                             this.isMarkedForDeletion = true;
-                             return;
                         }
                     }
                 }
@@ -171,26 +175,36 @@ class GrenadeProjectile {
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
 
         const grenadeMainConfig = CONFIG;
-        const grenadeProjectileConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE) ? CONFIG.PROJECTILES.GRENADE : {};
+        const grenadeVisualConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE) ? CONFIG.PROJECTILES.GRENADE : {};
 
         this.damage = grenadeMainConfig.RACCOON_GRENADE_DAMAGE || 50;
         this.aoeRadius = grenadeMainConfig.RACCOON_GRENADE_AOE_RADIUS || 45;
         this.fuseTimer = grenadeMainConfig.RACCOON_GRENADE_FUSE_TIME || 2.5;
+
         this.color = grenadeMainConfig.GRENADE_PROJECTILE_COLOR || '#228B22';
-        this.size = grenadeProjectileConfig.SIZE || (CONFIG.PROJECTILE_SIZE || 2) + 2;
+        this.size = grenadeVisualConfig.SIZE || 8;
+        this.sprite = this.game.preloadedImages[grenadeVisualConfig.SPRITE_PATH] || null;
+        this.spriteScale = grenadeVisualConfig.SPRITE_SCALE || 1.0;
+        this.spriteWidth = 0;
+        this.spriteHeight = 0;
+        if (this.sprite) {
+            this.spriteWidth = this.sprite.naturalWidth * this.spriteScale;
+            this.spriteHeight = this.sprite.naturalHeight * this.spriteScale;
+        }
+        this.rotation = 0;
 
         this.flightTimeTotal = distance(startX, startY, targetX, targetY) / (grenadeMainConfig.RACCOON_GRENADE_PROJECTILE_SPEED || 120);
-        if (this.flightTimeTotal === 0) this.flightTimeTotal = grenadeProjectileConfig.MIN_FLIGHT_TIME || 0.05;
+        if (this.flightTimeTotal === 0) this.flightTimeTotal = grenadeVisualConfig.MIN_FLIGHT_TIME || 0.05;
         this.flightTimeElapsed = 0;
 
-        const arcPeakMin = grenadeProjectileConfig.ARC_PEAK_HEIGHT_MIN || 20;
-        const arcPeakFactor = grenadeProjectileConfig.ARC_PEAK_HEIGHT_DISTANCE_FACTOR || 0.2;
+        const arcPeakMin = grenadeVisualConfig.ARC_PEAK_HEIGHT_MIN || 20;
+        const arcPeakFactor = grenadeVisualConfig.ARC_PEAK_HEIGHT_DISTANCE_FACTOR || 0.2;
         this.currentHeight = 0;
         this.peakHeight = Math.max(arcPeakMin, distance(startX, startY, targetX, targetY) * arcPeakFactor);
 
         this.isMarkedForDeletion = false;
         this.exploded = false;
-        this.maxLifetime = this.fuseTimer + this.flightTimeTotal + (grenadeProjectileConfig.MAX_LIFETIME_BUFFER || 2.0);
+        this.maxLifetime = this.fuseTimer + this.flightTimeTotal + (grenadeVisualConfig.MAX_LIFETIME_BUFFER || 2.0);
     }
 
     update(deltaTime) {
@@ -213,6 +227,8 @@ class GrenadeProjectile {
 
             const t_over_T = Math.min(progress, 1.0);
             this.currentHeight = 4 * this.peakHeight * t_over_T * (1 - t_over_T);
+
+            this.rotation += deltaTime * 5;
         } else {
              this.x = this.targetX;
              this.y = this.targetY;
@@ -246,16 +262,12 @@ class GrenadeProjectile {
 
         if(this.game && this.game.level && this.game.level.obstacles) this.game.level.obstacles.forEach(obstacle => {
             if (obstacle.destructible && !obstacle.isDestroyed && obstacle.hp > 0) {
-                let testX = this.x; let testY = this.y;
-                if (this.x < obstacle.x) testX = obstacle.x;
-                else if (this.x > obstacle.x + obstacle.width) testX = obstacle.x + obstacle.width;
-                if (this.y < obstacle.y) testY = obstacle.y;
-                else if (this.y > obstacle.y + obstacle.height) testY = obstacle.y + obstacle.height;
+                // A simple check: if the explosion center is within AOE + half-width/height of obstacle's AABB center
+                const obsCenterX = obstacle.x + obstacle.width / 2;
+                const obsCenterY = obstacle.y + obstacle.height / 2;
+                const effectiveRadius = this.aoeRadius + Math.max(obstacle.width, obstacle.height) / 2; // Approximation
 
-                const distX = this.x - testX; const distY = this.y - testY;
-                const distSquared = (distX * distX) + (distY * distY);
-
-                if (distSquared <= this.aoeRadius * this.aoeRadius) {
+                if (distance(this.x, this.y, obsCenterX, obsCenterY) <= effectiveRadius) {
                      this.game.level.damageObstacle(obstacle, this.damage, this.shooterUnit);
                 }
             }
@@ -264,18 +276,21 @@ class GrenadeProjectile {
 
     render(ctx) {
         if (this.exploded) return;
-        const grenadeProjectileConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE) ? CONFIG.PROJECTILES.GRENADE : {};
-        const shadowConfig = grenadeProjectileConfig.SHADOW || {};
-        const fuseBlinkConfig = grenadeProjectileConfig.FUSE_BLINK || {};
+        const grenadeVisualConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE) ? CONFIG.PROJECTILES.GRENADE : {};
+        const shadowConfig = grenadeVisualConfig.SHADOW || {};
+        const fuseBlinkConfig = grenadeVisualConfig.FUSE_BLINK || {};
 
         const shadowColor = `rgba(${(shadowConfig.COLOR_RGBA || [0,0,0,0.3]).join(',')})`;
-        const shadowYOffset = this.size * (shadowConfig.Y_OFFSET_FACTOR || 0.5);
+        const visualHeightForShadow = this.sprite ? this.spriteHeight : this.size;
+        const shadowYOffset = visualHeightForShadow * (shadowConfig.Y_OFFSET_FACTOR || 0.5);
         const shadowEllipseYFactor = shadowConfig.ELLIPSE_Y_RADIUS_FACTOR || 0.5;
         const shadowHeightScale = shadowConfig.PEAK_HEIGHT_MULTIPLIER_SCALE || 1.5;
         const shadowMaxReduction = shadowConfig.MAX_REDUCTION_SCALE || 0.8;
 
         const shadowSizeFactor = 1 - Math.min(this.currentHeight / (this.peakHeight * shadowHeightScale + 1e-6), shadowMaxReduction);
-        const currentShadowSize = this.size * shadowSizeFactor;
+        const shadowBaseSize = this.sprite ? this.spriteWidth : this.size;
+        const currentShadowSize = shadowBaseSize * shadowSizeFactor;
+
 
         if (currentShadowSize > 1) {
             ctx.fillStyle = shadowColor;
@@ -284,16 +299,32 @@ class GrenadeProjectile {
             ctx.fill();
         }
 
-        ctx.fillStyle = this.color;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y - this.currentHeight, this.size, 0, Math.PI * 2);
-        ctx.fill();
+        ctx.save();
+        ctx.translate(this.x, this.y - this.currentHeight);
+
+        if (this.sprite) {
+            ctx.rotate(this.rotation);
+            ctx.drawImage(
+                this.sprite,
+                -this.spriteWidth / 2,
+                -this.spriteHeight / 2,
+                this.spriteWidth,
+                this.spriteHeight
+            );
+        } else {
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+
 
         const blinkThreshold = fuseBlinkConfig.THRESHOLD_SECONDS || 0.5;
         if (this.fuseTimer > 0 && this.fuseTimer < blinkThreshold && (Math.floor(this.fuseTimer * 10) % 2 === 0) ) {
              ctx.fillStyle = fuseBlinkConfig.COLOR || 'red';
              ctx.beginPath();
-             ctx.arc(this.x, this.y - this.currentHeight, this.size + (fuseBlinkConfig.SIZE_ADDITION || 2), 0, Math.PI * 2);
+             ctx.arc(this.x, this.y - this.currentHeight, (this.sprite ? this.spriteWidth/2 : this.size) + (fuseBlinkConfig.SIZE_ADDITION || 2), 0, Math.PI * 2);
              ctx.fill();
         }
     }

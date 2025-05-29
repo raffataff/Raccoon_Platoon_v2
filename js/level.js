@@ -21,23 +21,31 @@ class Level {
     _getObstacleCollisionShape(obstacle) {
         if (obstacle.collisionShape) {
             const shapeDef = obstacle.collisionShape;
-            const obsRenderWidth = obstacle.width;
-            const obsRenderHeight = obstacle.height;
+            const obsCurrentWidth = obstacle.width;
+            const obsCurrentHeight = obstacle.height;
 
             if (shapeDef.type === 'rectangle') {
                 return {
                     type: 'rectangle',
-                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obstacle) : (shapeDef.offsetX || 0)),
-                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obstacle) : (shapeDef.offsetY || 0)),
-                    width: (typeof shapeDef.width === 'function' ? shapeDef.width(obstacle) : (shapeDef.width || obsRenderWidth)),
-                    height: (typeof shapeDef.height === 'function' ? shapeDef.height(obstacle) : (shapeDef.height || obsRenderHeight))
+                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || 0)),
+                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || 0)),
+                    width: (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth)),
+                    height: (typeof shapeDef.height === 'function' ? shapeDef.height(obsCurrentWidth, obsCurrentHeight) : (shapeDef.height || obsCurrentHeight))
                 };
             } else if (shapeDef.type === 'circle') {
                 return {
                     type: 'circle',
-                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obstacle) : (shapeDef.offsetX || obsRenderWidth / 2)),
-                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obstacle) : (shapeDef.offsetY || obsRenderHeight / 2)),
-                    radius: (typeof shapeDef.radius === 'function' ? shapeDef.radius(obstacle) : (shapeDef.radius || Math.min(obsRenderWidth, obsRenderHeight) / 2))
+                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2)),
+                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
+                    radius: (typeof shapeDef.radius === 'function' ? shapeDef.radius(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radius || Math.min(obsCurrentWidth, obsCurrentHeight) / 2))
+                };
+            } else if (shapeDef.type === 'ellipse') {
+                return {
+                    type: 'ellipse',
+                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2)),
+                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
+                    radiusX: (typeof shapeDef.radiusX === 'function' ? shapeDef.radiusX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusX || obsCurrentWidth / 2)),
+                    radiusY: (typeof shapeDef.radiusY === 'function' ? shapeDef.radiusY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusY || obsCurrentHeight / 2))
                 };
             }
         }
@@ -50,10 +58,15 @@ class Level {
             if (!existing.isDestroyed && existing.blocksMovement) {
                 const existingCollisionShape = this._getObstacleCollisionShape(existing);
                 let collision = false;
-                if (movingShape.type === 'rectangle' && existingCollisionShape.type === 'rectangle') { collision = rectOverlap(movingShape, existingCollisionShape); }
-                else if (movingShape.type === 'circle' && existingCollisionShape.type === 'circle') { collision = circleOverlap(movingShape, existingCollisionShape); }
-                else if (movingShape.type === 'rectangle' && existingCollisionShape.type === 'circle') { collision = rectCircleOverlap(movingShape, existingCollisionShape); }
-                else if (movingShape.type === 'circle' && existingCollisionShape.type === 'rectangle') { collision = rectCircleOverlap(existingCollisionShape, movingShape); }
+                if (movingShape.type === 'rectangle') {
+                    if (existingCollisionShape.type === 'rectangle') collision = rectOverlap(movingShape, existingCollisionShape);
+                    else if (existingCollisionShape.type === 'circle') collision = rectCircleOverlap(movingShape, existingCollisionShape);
+                    else if (existingCollisionShape.type === 'ellipse') collision = rectEllipseOverlap(movingShape, existingCollisionShape);
+                } else if (movingShape.type === 'circle') {
+                    if (existingCollisionShape.type === 'rectangle') collision = rectCircleOverlap(existingCollisionShape, movingShape);
+                    else if (existingCollisionShape.type === 'circle') collision = circleOverlap(movingShape, existingCollisionShape);
+                    else if (existingCollisionShape.type === 'ellipse') collision = circleEllipseOverlap(movingShape, existingCollisionShape);
+                }
                 if (collision) return true;
             }
         }
@@ -64,7 +77,6 @@ class Level {
         if (this.isShapeOverlappingList(unitShape, existingObstacles)) {
             return false;
         }
-        // Check against other units
         for (const unit of existingUnits) {
             if (unit.isAlive()) {
                 const distSq = (x - unit.x) * (x - unit.x) + (y - unit.y) * (y - unit.y);
@@ -77,29 +89,30 @@ class Level {
     }
     damageObstacle(obstacle, amount, attackerUnit = null) {
         if (!obstacle || !obstacle.destructible || obstacle.isDestroyed || obstacle.hp === undefined) {
-            if (obstacle && obstacle.type === 'possum_hut') {
-            }
             return;
         }
         obstacle.hp -= amount;
-        if (obstacle.type === 'possum_hut') {
-        }
         if (obstacle.hp <= 0) {
             obstacle.hp = 0;
             obstacle.isDestroyed = true;
             if (obstacle.type === 'possum_hut') {
-                // Remove from active spawners if it was one
                 this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== obstacle);
             }
             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
             if (obstacleDef) {
                 obstacle.blocksMovement = obstacleDef.blocksMovementOnDestroy !== undefined ? obstacleDef.blocksMovementOnDestroy : false;
                 obstacle.providesCover = obstacleDef.providesCoverOnDestroy !== undefined ? obstacleDef.providesCoverOnDestroy : false;
+                if (obstacleDef.collisionShapeDestroyed) {
+                    obstacle.collisionShape = obstacleDef.collisionShapeDestroyed;
+                } else if (obstacle.blocksMovement === false) {
+                    obstacle.collisionShape = null;
+                }
             } else {
                 obstacle.blocksMovement = false;
                 obstacle.providesCover = false;
+                obstacle.collisionShape = null;
             }
-            if (this.navGrid && (!obstacleDef || obstacleDef.blocksMovement)) {
+            if (this.navGrid) {
                 this.updateNavigationGridForObstacle(obstacle, true);
             }
 
@@ -152,12 +165,10 @@ class Level {
         for (let y = 0; y < this.gridHeight; y++) {
             this.navGrid[y] = [];
             for (let x = 0; x < this.gridWidth; x++) {
-                this.navGrid[y][x] = 0; // 0 = walkable, 1 = blocked
-                const cellWorldX = x * this.gridCellSize;
-                const cellWorldY = y * this.gridCellSize;
+                this.navGrid[y][x] = 0;
                 const cellRect = {
-                    x: cellWorldX,
-                    y: cellWorldY,
+                    x: x * this.gridCellSize,
+                    y: y * this.gridCellSize,
                     width: this.gridCellSize,
                     height: this.gridCellSize
                 };
@@ -165,15 +176,18 @@ class Level {
                 for (const obs of this.obstacles) {
                     if (obs.blocksMovement && !obs.isDestroyed) {
                         const obsShape = this._getObstacleCollisionShape(obs);
+                        if (!obsShape) continue;
                         let collision = false;
                         if (obsShape.type === 'rectangle') {
                             collision = rectOverlap(cellRect, obsShape);
                         } else if (obsShape.type === 'circle') {
                             collision = rectCircleOverlap(cellRect, obsShape);
+                        } else if (obsShape.type === 'ellipse') {
+                            collision = rectEllipseOverlap(cellRect, obsShape);
                         }
                         if (collision) {
-                            this.navGrid[y][x] = 1; // Mark as blocked
-                            break; // No need to check other obstacles for this cell
+                            this.navGrid[y][x] = 1;
+                            break;
                         }
                     }
                 }
@@ -185,42 +199,63 @@ class Level {
     updateNavigationGridForObstacle(obstacle, isDestroyedAndNowWalkable) {
         if (!this.navGrid || !obstacle) return;
 
-        const startGridX = Math.max(0, Math.floor(obstacle.x / this.gridCellSize) -1); // -1 for buffer
-        const endGridX = Math.min(this.gridWidth -1, Math.ceil((obstacle.x + obstacle.width) / this.gridCellSize) +1);
-        const startGridY = Math.max(0, Math.floor(obstacle.y / this.gridCellSize) -1);
-        const endGridY = Math.min(this.gridHeight -1, Math.ceil((obstacle.y + obstacle.height) / this.gridCellSize) +1);
+        const obsShapeForBounds = this._getObstacleCollisionShape(obstacle);
+        let minObsX, maxObsX, minObsY, maxObsY;
 
+        if (!obsShapeForBounds) {
+            minObsX = obstacle.x;
+            maxObsX = obstacle.x + obstacle.width;
+            minObsY = obstacle.y;
+            maxObsY = obstacle.y + obstacle.height;
+        } else if (obsShapeForBounds.type === 'rectangle') {
+            minObsX = obsShapeForBounds.x;
+            maxObsX = obsShapeForBounds.x + obsShapeForBounds.width;
+            minObsY = obsShapeForBounds.y;
+            maxObsY = obsShapeForBounds.y + obsShapeForBounds.height;
+        } else if (obsShapeForBounds.type === 'circle') {
+            minObsX = obsShapeForBounds.x - obsShapeForBounds.radius;
+            maxObsX = obsShapeForBounds.x + obsShapeForBounds.radius;
+            minObsY = obsShapeForBounds.y - obsShapeForBounds.radius;
+            maxObsY = obsShapeForBounds.y + obsShapeForBounds.radius;
+        } else if (obsShapeForBounds.type === 'ellipse') {
+            minObsX = obsShapeForBounds.x - obsShapeForBounds.radiusX;
+            maxObsX = obsShapeForBounds.x + obsShapeForBounds.radiusX;
+            minObsY = obsShapeForBounds.y - obsShapeForBounds.radiusY;
+            maxObsY = obsShapeForBounds.y + obsShapeForBounds.radiusY;
+        } else {
+            minObsX = obstacle.x;
+            maxObsX = obstacle.x + obstacle.width;
+            minObsY = obstacle.y;
+            maxObsY = obstacle.y + obstacle.height;
+        }
+
+        const startGridX = Math.max(0, Math.floor(minObsX / this.gridCellSize) -1);
+        const endGridX = Math.min(this.gridWidth -1, Math.ceil(maxObsX / this.gridCellSize) +1);
+        const startGridY = Math.max(0, Math.floor(minObsY / this.gridCellSize) -1);
+        const endGridY = Math.min(this.gridHeight -1, Math.ceil(maxObsY / this.gridCellSize) +1);
 
         for (let y = startGridY; y <= endGridY; y++) {
             for (let x = startGridX; x <= endGridX; x++) {
                 if (y < 0 || y >= this.gridHeight || x < 0 || x >= this.gridWidth) continue;
 
-                const cellWorldX = x * this.gridCellSize;
-                const cellWorldY = y * this.gridCellSize;
-                const cellRect = { x: cellWorldX, y: cellWorldY, width: this.gridCellSize, height: this.gridCellSize };
+                const cellRect = { x: x * this.gridCellSize, y: y * this.gridCellSize, width: this.gridCellSize, height: this.gridCellSize };
+                let stillBlockedByOther = false;
+                for (const otherObs of this.obstacles) {
+                    if (otherObs.blocksMovement && !otherObs.isDestroyed) {
+                        const otherObsShape = this._getObstacleCollisionShape(otherObs);
+                        if (!otherObsShape) continue;
+                        let collisionWithOther = false;
+                        if (otherObsShape.type === 'rectangle') collisionWithOther = rectOverlap(cellRect, otherObsShape);
+                        else if (otherObsShape.type === 'circle') collisionWithOther = rectCircleOverlap(cellRect, otherObsShape);
+                        else if (otherObsShape.type === 'ellipse') collisionWithOther = rectEllipseOverlap(cellRect, otherObsShape);
 
-                if (isDestroyedAndNowWalkable) {
-                    let stillBlocked = false;
-                    for (const otherObs of this.obstacles) {
-                        if (otherObs !== obstacle && otherObs.blocksMovement && !otherObs.isDestroyed) {
-                            const otherObsShape = this._getObstacleCollisionShape(otherObs);
-                            let collision = false;
-                            if (otherObsShape.type === 'rectangle') collision = rectOverlap(cellRect, otherObsShape);
-                            else if (otherObsShape.type === 'circle') collision = rectCircleOverlap(cellRect, otherObsShape);
-                            if (collision) { stillBlocked = true; break; }
+                        if (collisionWithOther) {
+                            stillBlockedByOther = true;
+                            break;
                         }
                     }
-                    this.navGrid[y][x] = stillBlocked ? 1 : 0;
-                } else {
-                    const obsShape = this._getObstacleCollisionShape(obstacle);
-                     let collision = false;
-                    if (obsShape.type === 'rectangle') collision = rectOverlap(cellRect, obsShape);
-                    else if (obsShape.type === 'circle') collision = rectCircleOverlap(cellRect, obsShape);
-
-                    if (collision && obstacle.blocksMovement && !obstacle.isDestroyed) {
-                        this.navGrid[y][x] = 1;
-                    }
                 }
+                this.navGrid[y][x] = stillBlockedByOther ? 1 : 0;
             }
         }
     }
@@ -255,12 +290,11 @@ class Level {
 
     generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}) {
         this.obstacles = [];
-        this.potentialSpawnerHuts = []; // Reset for new level
-        this.activeSpawningHuts = [];   // Reset for new level
+        this.potentialSpawnerHuts = [];
+        this.activeSpawningHuts = [];
 
         if (this.game) { this.game.enemyUnits = []; this.game.gameObjects = []; }
 
-        // ... (Obstacle placement logic, largely unchanged, but ensure huts get added to this.potentialSpawnerHuts) ...
         const genConfig = CONFIG.LEVEL_GENERATION || {}; const worldMargin = genConfig.WORLD_MARGIN || 20;
         const borderWidth = genConfig.BORDER_WIDTH || 30; const borderColor = genConfig.BORDER_COLOR || '#25221D';
         this.obstacles.push({ x: 0, y: 0, width: worldWidth, height: borderWidth, type: 'border_wall', name: 'Border Wall', color: borderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
@@ -286,147 +320,119 @@ class Level {
                 continue;
             }
 
-            let obsWidth, obsHeight;
+            let obsRenderWidth, obsRenderHeight;
             let actualSpritePath = null;
             let actualImageObject = null;
             let actualDestroyedSpritePath = template.spriteDestroyed || null;
             let actualDestroyedImageObject = template.spriteDestroyed ? (preloadedAssetImages[template.spriteDestroyed] || null) : null;
-            let scale = 1.0;
+
+            let normalSpriteScale = template.spriteScale || 1.0;
+            let destroyedSpriteScale = template.spriteDestroyedScale;
 
             let filesArray = [];
             let pathBase = '';
             let useRandomSpriteFromList = false;
 
-            //if (template.isDecoration && template.type === 'decoration_grass') {
-            //    filesArray = CONFIG.GRASS_SPRITE_FILES || [];
-            //    pathBase = CONFIG.GRASS_SPRITE_PATH || '';
-            //    useRandomSpriteFromList = true;
-            if (template.type === 'bush_medium') {
-                filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || [];
-                pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || '';
+            if (template.type === 'bush_medium') { filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'bush_large') { filesArray = CONFIG.BUSH_SPRITES_64PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_64PX_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'rock_medium') { filesArray = CONFIG.ROCK_SPRITES_32PX_FILES || []; pathBase = CONFIG.ROCK_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'rock_large') { filesArray = CONFIG.ROCK_SPRITES_64PX_FILES || []; pathBase = CONFIG.ROCK_SPRITES_64PX_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm_medium') { filesArray = CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_MEDIUM_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm_tall') { filesArray = CONFIG.PALM_TREE_TALL_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'possum_hut') { filesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || []; pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'pickup_health') { filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || []; pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm_fallen') { 
+                filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || [];
+                pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || '';
                 useRandomSpriteFromList = true;
-            } else if (template.type === 'bush_large') {
-                filesArray = CONFIG.BUSH_SPRITES_64PX_FILES || [];
-                pathBase = CONFIG.BUSH_SPRITES_64PX_PATH || '';
-                useRandomSpriteFromList = true;
-            //} else if (template.type === 'rock_small') {
-            //    filesArray = CONFIG.ROCK_SPRITES_16PX_FILES || [];
-            //    pathBase = CONFIG.ROCK_SPRITES_16PX_PATH || '';
-            //    useRandomSpriteFromList = true;
-            } else if (template.type === 'rock_medium') {
-                filesArray = CONFIG.ROCK_SPRITES_32PX_FILES || [];
-                pathBase = CONFIG.ROCK_SPRITES_32PX_PATH || '';
-                useRandomSpriteFromList = true;
-            } else if (template.type === 'rock_large') {
-                filesArray = CONFIG.ROCK_SPRITES_64PX_FILES || [];
-                pathBase = CONFIG.ROCK_SPRITES_64PX_PATH || '';
-                useRandomSpriteFromList = true;
-            } else if (template.type === 'tree_palm_medium') {
-                filesArray = CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES || [];
-                pathBase = CONFIG.PALM_TREE_MEDIUM_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-            } else if (template.type === 'tree_palm_tall') {
-                filesArray = CONFIG.PALM_TREE_TALL_SPRITE_FILES || [];
-                pathBase = CONFIG.PALM_TREE_TALL_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-            } else if (template.type === 'possum_hut') { // Ensure this case is distinct
-                filesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
-                pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-            } else {
-                actualSpritePath = template.spriteNormal || null;
-                actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
-            }
+            } else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {
                 if (filesArray.length > 0 && pathBase) {
                     const randomFile = filesArray[Math.floor(Math.random() * filesArray.length)];
                     actualSpritePath = pathBase + randomFile;
-                    actualImageObject = preloadedAssetImages[actualSpritePath] || null;
-                } else {
-                    actualSpritePath = null;
-                    actualImageObject = null;
-                }
-                if (template.type === 'possum_hut' && template.spriteDestroyed) {
-                    actualDestroyedSpritePath = template.spriteDestroyed;
-                    actualDestroyedImageObject = preloadedAssetImages[template.spriteDestroyed] || null;
-                }
+                } else { actualSpritePath = null; }
             }
-
+            actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
 
             if (template.isDecoration && template.type === 'decoration_grass') {
                 const grassConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.GRASS_CLUTTER) || {};
-                const minScale = grassConfig.MIN_SCALE || 0.8;
-                const maxScale = grassConfig.MAX_SCALE || 1.2;
-                scale = minScale + Math.random() * (maxScale - minScale);
+                normalSpriteScale = (grassConfig.MIN_SCALE || 0.8) + Math.random() * ((grassConfig.MAX_SCALE || 1.2) - (grassConfig.MIN_SCALE || 0.8));
                 if (actualImageObject) {
-                    obsWidth = actualImageObject.naturalWidth * scale;
-                    obsHeight = actualImageObject.naturalHeight * scale;
+                    obsRenderWidth = actualImageObject.naturalWidth * normalSpriteScale;
+                    obsRenderHeight = actualImageObject.naturalHeight * normalSpriteScale;
                 } else {
-                    obsWidth = (template.width || 16) * scale;
-                    obsHeight = (template.height || 16) * scale;
+                    obsRenderWidth = (template.width || 16) * normalSpriteScale;
+                    obsRenderHeight = (template.height || 16) * normalSpriteScale;
                 }
-                actualDestroyedSpritePath = null;
-                actualDestroyedImageObject = null;
+            } else if (actualImageObject && template.spriteScale !== undefined) {
+                obsRenderWidth = actualImageObject.naturalWidth * template.spriteScale;
+                obsRenderHeight = actualImageObject.naturalHeight * template.spriteScale;
+                normalSpriteScale = template.spriteScale;
             } else if (template.width !== undefined && template.height !== undefined) {
-                obsWidth = template.width;
-                obsHeight = template.height;
-                scale = 1.0;
+                obsRenderWidth = template.width;
+                obsRenderHeight = template.height;
+                normalSpriteScale = 1.0;
+            } else if (actualImageObject) {
+                obsRenderWidth = actualImageObject.naturalWidth;
+                obsRenderHeight = actualImageObject.naturalHeight;
+                normalSpriteScale = 1.0;
             } else {
-                const minW = template.minW || 30; const maxW = template.maxW || 100;
-                const minH = template.minH || (template.type === 'fence_wood' ? 10 : 30);
-                const maxH = template.maxH || (template.type === 'fence_wood' ? 20 : 100);
-                obsWidth = minW + Math.random() * (maxW - minW);
-                if (template.height !== undefined) {
-                    obsHeight = template.height;
-                } else if (template.type === 'fence_wood') {
-                    obsHeight = minH + Math.random() * (maxH - minH);
-                } else {
-                    obsHeight = obsWidth * (0.6 + Math.random() * 0.8);
-                }
-                scale = 1.0;
+                console.warn(`Obstacle type ${template.type} has no sprite and no explicit width/height. Defaulting to 32x32.`);
+                obsRenderWidth = 32;
+                obsRenderHeight = 32;
+                normalSpriteScale = 1.0;
             }
 
             let obsX, obsY;
             let attempts = 0;
             let placed = false;
             do {
-                obsX = playableMinX + Math.random() * (playableWidth - obsWidth);
-                obsY = playableMinY + Math.random() * (playableHeight - obsHeight);
+                obsX = playableMinX + Math.random() * (playableWidth - obsRenderWidth);
+                obsY = playableMinY + Math.random() * (playableHeight - obsRenderHeight);
 
                 let collisionCheckShape;
                 const TcollisionShapeDef = template.collisionShape;
                 if (TcollisionShapeDef) {
-                    const currentObsDims = { width: obsWidth, height: obsHeight };
+                    const currentVisualDims = { width: obsRenderWidth, height: obsRenderHeight };
                     if (TcollisionShapeDef.type === 'circle') {
                         collisionCheckShape = { type: 'circle',
-                            x: obsX + (typeof TcollisionShapeDef.offsetX === 'function' ? TcollisionShapeDef.offsetX(currentObsDims) : (TcollisionShapeDef.offsetX || obsWidth / 2)),
-                            y: obsY + (typeof TcollisionShapeDef.offsetY === 'function' ? TcollisionShapeDef.offsetY(currentObsDims) : (TcollisionShapeDef.offsetY || obsHeight / 2)),
-                            radius: (typeof TcollisionShapeDef.radius === 'function' ? TcollisionShapeDef.radius(currentObsDims) : (TcollisionShapeDef.radius || Math.min(obsWidth, obsHeight) / 2))
+                            x: obsX + (typeof TcollisionShapeDef.offsetX === 'function' ? TcollisionShapeDef.offsetX(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.offsetX || obsRenderWidth / 2)),
+                            y: obsY + (typeof TcollisionShapeDef.offsetY === 'function' ? TcollisionShapeDef.offsetY(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.offsetY || obsRenderHeight / 2)),
+                            radius: (typeof TcollisionShapeDef.radius === 'function' ? TcollisionShapeDef.radius(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.radius || Math.min(obsRenderWidth, obsRenderHeight) / 2))
                         };
                     } else if (TcollisionShapeDef.type === 'rectangle') {
                         collisionCheckShape = { type: 'rectangle',
-                            x: obsX + (TcollisionShapeDef.offsetX || 0),
-                            y: obsY + (TcollisionShapeDef.offsetY || 0),
-                            width: TcollisionShapeDef.width || obsWidth,
-                            height: TcollisionShapeDef.height || obsHeight
+                            x: obsX + (typeof TcollisionShapeDef.offsetX === 'function' ? TcollisionShapeDef.offsetX(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.offsetX || 0)),
+                            y: obsY + (typeof TcollisionShapeDef.offsetY === 'function' ? TcollisionShapeDef.offsetY(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.offsetY || 0)),
+                            width: (typeof TcollisionShapeDef.width === 'function' ? TcollisionShapeDef.width(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.width || obsRenderWidth)),
+                            height: (typeof TcollisionShapeDef.height === 'function' ? TcollisionShapeDef.height(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.height || obsRenderHeight))
+                        };
+                    } else if (TcollisionShapeDef.type === 'ellipse') {
+                         collisionCheckShape = { type: 'ellipse',
+                            x: obsX + (typeof TcollisionShapeDef.offsetX === 'function' ? TcollisionShapeDef.offsetX(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.offsetX || obsRenderWidth / 2)),
+                            y: obsY + (typeof TcollisionShapeDef.offsetY === 'function' ? TcollisionShapeDef.offsetY(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.offsetY || obsRenderHeight / 2)),
+                            radiusX: (typeof TcollisionShapeDef.radiusX === 'function' ? TcollisionShapeDef.radiusX(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.radiusX || obsRenderWidth / 2)),
+                            radiusY: (typeof TcollisionShapeDef.radiusY === 'function' ? TcollisionShapeDef.radiusY(currentVisualDims.width, currentVisualDims.height) : (TcollisionShapeDef.radiusY || obsRenderHeight / 2))
                         };
                     } else {
-                        collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsWidth, height: obsHeight };
+                        collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight };
                     }
                 } else {
-                    collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsWidth, height: obsHeight };
+                    collisionCheckShape = { type: 'rectangle', x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight };
                 }
-                const renderBoxForPlayerZoneCheck = { x: obsX, y: obsY, width: obsWidth, height: obsHeight };
+                const renderBoxForPlayerZoneCheck = { x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight };
 
-                if (obsX < playableMinX || obsX + obsWidth > playableMaxX || obsY < playableMinY || obsY + obsHeight > playableMaxY) {
+                if (obsX < playableMinX || obsX + obsRenderWidth > playableMaxX || obsY < playableMinY || obsY + obsRenderHeight > playableMaxY) {
                     attempts++;
                     continue;
                 }
                 if (!this._rectOverlap(renderBoxForPlayerZoneCheck, playerSpawnZone) &&
                     !this.isShapeOverlappingList(collisionCheckShape, this.obstacles)) {
                     const newObstacle = {
-                        x: obsX, y: obsY, width: obsWidth, height: obsHeight,
+                        x: obsX, y: obsY,
+                        width: obsRenderWidth,
+                        height: obsRenderHeight,
                         type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible,
                         hp: template.destructible ? template.hp : Infinity,
@@ -442,12 +448,12 @@ class Level {
                         spriteDestroyedPath: actualDestroyedSpritePath,
                         imageNormal: actualImageObject,
                         imageDestroyed: actualDestroyedImageObject,
-                        scale: scale,
+                        spriteScale: normalSpriteScale,
+                        spriteDestroyedScale: destroyedSpriteScale,
                         collisionShape: template.collisionShape || null,
-                        // Hut specific spawning properties
-                        isSpawner: template.type === 'possum_hut', // Or check template.isSpawner
+                        isSpawner: template.type === 'possum_hut',
                         spawnCooldownTimer: 0,
-                        isActivelySpawning: false // Huts start inactive
+                        isActivelySpawning: false
                     };
                     this.obstacles.push(newObstacle);
                     if (newObstacle.isSpawner) {
@@ -531,22 +537,19 @@ class Level {
         return playerSpawnLocations;
     }
 
-    // --- NEW Hut Spawning Logic ---
     updateHutSpawning(deltaTime) {
         if (!this.game || !this.game.deployedSquadRoster || this.game.deployedSquadRoster.length === 0) {
-            return; // No players, no spawning
+            return;
         }
-        if (!this.hutSpawnConfig || Object.keys(this.hutSpawnConfig).length === 0) return; // No config
+        if (!this.hutSpawnConfig || Object.keys(this.hutSpawnConfig).length === 0) return;
 
         this.timeSinceLastHutActivationCheck += deltaTime;
 
-        // 1. Activate/Deactivate Huts based on Proximity
         if (this.timeSinceLastHutActivationCheck >= this.HUT_ACTIVATION_CHECK_INTERVAL) {
             this.timeSinceLastHutActivationCheck = 0;
             const maxAllowedActive = Math.floor(this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_BASE +
                                    (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
 
-            // Check inactive huts to activate
             for (const hut of this.potentialSpawnerHuts) {
                 if (hut.isDestroyed || hut.isActivelySpawning) continue;
 
@@ -566,12 +569,8 @@ class Level {
                     }
                 }
             }
-
-            // Check active huts to deactivate (optional - if too far from player)
-            // For now, once active, they stay active unless destroyed.
         }
 
-        // 2. Process Active Huts for Spawning
         for (let i = this.activeSpawningHuts.length - 1; i >= 0; i--) {
             const hut = this.activeSpawningHuts[i];
             if (hut.isDestroyed) {
@@ -606,10 +605,10 @@ class Level {
         const hutBottomEdgeY = hut.y + hut.height;
 
         const spawnOffsetX = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
-        const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0; // Negative for "up" from bottom
+        const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
         const spawnAreaWidth = this.hutSpawnConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
 
-        const spawnCenterY = hutBottomEdgeY + spawnOffsetY; // Actual Y coord for spawning
+        const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
         const spawnLineCenterX = hutCenterX + spawnOffsetX;
         const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
 
@@ -636,9 +635,8 @@ class Level {
                 newGrunt.phasingTimer = this.hutSpawnConfig.SPAWN_PHASING_DURATION || 1.0;
 
                 const moveOutDist = this.hutSpawnConfig.INITIAL_MOVE_OUT_DISTANCE || 50;
-                // Move directly "down" (positive Y) from the spawn point, or slightly away from hut center
-                let angleFromSpawn = Math.PI / 2; // Default to straight down
-                if(distance(spawnX, spawnCenterY, hutCenterX, hut.y + hut.height/2) > 10) { // If not spawning right at hut center
+                let angleFromSpawn = Math.PI / 2;
+                if(distance(spawnX, spawnCenterY, hutCenterX, hut.y + hut.height/2) > 10) {
                      angleFromSpawn = Math.atan2(spawnCenterY - (hut.y + hut.height/2), spawnX - hutCenterX);
                 }
 
@@ -665,9 +663,9 @@ class Level {
         if (!this.hutSpawnConfig.DEBUG_DRAW_SPAWN_AREAS) return;
 
         ctx.save();
-        const originalAlpha = ctx.globalAlpha; // Store original alpha
-        ctx.globalAlpha = 0.5; // Set alpha for debug drawing
-        ctx.fillStyle = 'rgba(255, 0, 255, 0.8)'; // Magenta, more opaque for visibility
+        const originalAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = 0.5;
+        ctx.fillStyle = 'rgba(255, 0, 255, 0.8)';
 
         for (const hut of this.potentialSpawnerHuts) {
             if (hut.isDestroyed) continue;
@@ -683,19 +681,18 @@ class Level {
             const spawnLineCenterX = hutCenterX + spawnOffsetX;
             const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
 
-            // Draw a small rectangle representing the spawn "line" or "door" area
-            const debugSpawnHeight = (CONFIG.POSSUM_GRUNT_SIZE || 14) * 0.5; // Make it a thin line
+            const debugSpawnHeight = (CONFIG.POSSUM_GRUNT_SIZE || 14) * 0.5;
             ctx.fillRect(spawnLineMinX, spawnCenterY - debugSpawnHeight / 2, spawnAreaWidth, debugSpawnHeight);
 
             if (hut.isActivelySpawning) {
-                ctx.fillStyle = 'rgba(255, 165, 0, 0.8)'; // Orange for active spawner hut itself
+                ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
                 ctx.beginPath();
                 ctx.arc(hut.x + hut.width / 2, hut.y + hut.height / 2, 12, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.fillStyle = 'rgba(255, 0, 255, 0.8)'; // Reset for next hut's spawn area
+                ctx.fillStyle = 'rgba(255, 0, 255, 0.8)';
             }
         }
-        ctx.globalAlpha = originalAlpha; // Restore original alpha
+        ctx.globalAlpha = originalAlpha;
         ctx.restore();
     }
 }

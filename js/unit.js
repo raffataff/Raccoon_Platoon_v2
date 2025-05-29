@@ -65,6 +65,7 @@ class Unit {
         this.isPhasing = false;
         this.phasingTimer = 0;
         this.assignedDeadSpritePath = null;
+        this.deathRotationAngle = 0; // NEW: Store rotation for dead sprite
     }
 
 
@@ -277,7 +278,7 @@ class Unit {
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
 
-   
+
     getCollisionShape() {
         return {
             type: 'circle',
@@ -286,7 +287,7 @@ class Unit {
             radius: this.size / 2 // Assuming this.size is the diameter
         };
     }
-    
+
     calculatePath(explicitStartGrid = null) {
         if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; return false; }
         const navGrid = this.game.level.getNavigationGrid();
@@ -314,7 +315,7 @@ class Unit {
         const rawPathGridCoords = findPath(startGrid, endGrid, navGrid);
 
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-            console.log(`[${this.id} calculatePath] From grid: (${startGrid.x},${startGrid.y}) To world: (${this.worldTargetX.toFixed(0)},${this.worldTargetY.toFixed(0)}), Grid: (${endGrid.x},${endGrid.y}). Raw path len: ${rawPathGridCoords ? rawPathGridCoords.length : 'null'}.`);
+          // console.log(`[${this.id} calculatePath] From grid: (${startGrid.x},${startGrid.y}) To world: (${this.worldTargetX.toFixed(0)},${this.worldTargetY.toFixed(0)}), Grid: (${endGrid.x},${endGrid.y}). Raw path len: ${rawPathGridCoords ? rawPathGridCoords.length : 'null'}.`);
         }
 
         if (rawPathGridCoords && rawPathGridCoords.length > 0) {
@@ -555,7 +556,7 @@ class Unit {
 
     setMoveTarget(worldX, worldY) {
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-             console.log(`[${this.id} setMoveTarget] Attempting to: (${worldX.toFixed(0)},${worldY.toFixed(0)}). Current AI State: ${this.aiState || 'N/A'}, isMoving: ${this.isMoving}`);
+           // console.log(`[${this.id} setMoveTarget] Attempting to: (${worldX.toFixed(0)},${worldY.toFixed(0)}). Current AI State: ${this.aiState || 'N/A'}, isMoving: ${this.isMoving}`);
         }
 
         if (this.isContinuousFiring) this.setContinuousFire(false);
@@ -690,11 +691,11 @@ class Unit {
     setContinuousFire(isFiring, targetX, targetY) {
         this.isContinuousFiring = isFiring;
         if (isFiring) {
-            this.manualTarget = null; 
+            this.manualTarget = null;
             this.autoTarget = null;
-        //    this.currentPath = []; 
+        //    this.currentPath = [];
         //    this.isMoving = false;
-        //    this.worldTargetX = this.x; 
+        //    this.worldTargetX = this.x;
         //    this.worldTargetY = this.y;
             this.continuousFireTargetEntity = null;
             const potentialTargets = (this.team === 'player') ? this.game.enemyUnits : this.game.deployedSquadRoster;
@@ -873,7 +874,7 @@ class Unit {
         const fireAngle = Math.atan2(targetEntity.y - this.y, targetEntity.x - this.x);
         this._executeFire(targetEntity.x, targetEntity.y, fireAngle);
     }
-    
+
     _executeFire(pointX, pointY, fireAngle = null) {
         if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) { return; }
         if (this.isMoving && !this.canShootWhileMoving) { return; }
@@ -898,7 +899,7 @@ class Unit {
         if (this.weapon.sfxFireKey && this.game && this.game.audioManager) {
             const sfxConfig = CONFIG.AUDIO_ASSETS[this.weapon.sfxFireKey];
             if (sfxConfig) {
-                this.game.audioManager.playSound(this.weapon.sfxFireKey, {
+                this.game.audioManager.play(this.weapon.sfxFireKey, { // Corrected: playSound -> play
                     volume: sfxConfig.defaultVolume, // AudioManager applies this internally from its cache
                     pitchVariation: sfxConfig.pitchVariation
                 });
@@ -910,7 +911,7 @@ class Unit {
         if (this.isContinuousFiring) this.setContinuousFire(false);
         const fireAngle = Math.atan2(pointY - this.y, pointX - this.x);
         this._executeFire(pointX, pointY, fireAngle);
-        this.manualTarget = null; 
+        this.manualTarget = null;
         this.autoTarget = null;
     }
 
@@ -938,7 +939,8 @@ class Unit {
 
             if (this.manualTarget !== attackerUnit) {
                 this.manualTarget = attackerUnit;
-                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} takeDamage] Took damage from ${attackerUnit.id}. Setting as manualTarget. AI will transition if not already engaging this target.`);
+                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id)
+                    // console.log(`[${this.id} takeDamage] Took damage from ${attackerUnit.id}. Setting as manualTarget. AI will transition if not already engaging this target.`);
                 becameAware = true;
             } else {
                 becameAware = true;
@@ -991,8 +993,17 @@ class Unit {
         if (this.team === 'player' && this.game && typeof this.game.recordRaccoonFallen === 'function') {
             this.game.recordRaccoonFallen(this);
         }
+
+        // --- NEW: Assign random death rotation ---
+        // Angle in radians. Math.PI * 2 is a full circle.
+    //    this.deathRotationAngle = Math.random() * Math.PI * 2;
+        // --- END NEW ---
+
         if (wasSelected && this.game && this.game.ui) this.game.ui.updateSquadPanel();
+        // Note: this.hp is already 0 from takeDamage before die() is usually called.
+        // currentVisualState will be set to 'death' in the update loop.
     }
+
     isAlive() { return this.hp > 0; }
 
     onStuck(reason = 'unknown') {
@@ -1109,7 +1120,7 @@ class Unit {
         const healthBarStyle = CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR;
 
         ctx.save();
-        ctx.translate(this.x, this.y);
+        ctx.translate(this.x, this.y); // Main translation for the unit
 
         if (this.isPhasing) {
             ctx.globalAlpha = CONFIG.UNIT_VISUALS.UNIT_PHASING_OPACITY || 0.5;
@@ -1121,22 +1132,21 @@ class Unit {
 
         let spriteToDraw = null;
         let spriteScale = 1.0;
-        let spriteWidth, spriteHeight;
-        let drawOffsetY = 0; // Default offset
+        let spriteWidth = 0; // Initialize
+        let spriteHeight = 0; // Initialize
+        let drawOffsetX = -this.size / 2; // Default for fallback circle centering
+        let drawOffsetY = -this.size / 2; // Default for fallback circle centering
 
         if (this.isAlive()) {
-            // Determine action folder (e.g., 'idle', 'walk', 'fire')
-            // For now, all alive units use 'idle' state for sprites until more are added
             const actionFolder = 'idle';
             const spriteKey = `${this.spriteBaseName}_${actionFolder}_${this.currentVisualDirection}`;
             spriteToDraw = this.game.preloadedImages[spriteKey];
 
-            if (!spriteToDraw) { // Fallback to south-facing idle if specific direction/action missing
+            if (!spriteToDraw) {
                 const fallbackSpriteKey = `${this.spriteBaseName}_${actionFolder}_s`;
                 spriteToDraw = this.game.preloadedImages[fallbackSpriteKey];
-                if (!spriteToDraw && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                     console.warn(`Missing ALIVE sprite for ${this.spriteBaseName}: ${spriteKey} and fallback ${fallbackSpriteKey}`);
-                }
+                // No console warn here to reduce spam if many fallbacks occur,
+                // rely on preload logs if an asset is truly missing.
             }
 
             if (this instanceof Raccoon) {
@@ -1144,10 +1154,16 @@ class Unit {
             } else if (this instanceof PossumGrunt) {
                 spriteScale = CONFIG.POSSUM_GRUNT_SPRITE_SCALE_FACTOR || 1.0;
             } else if (this instanceof PossumHeavy) {
-                spriteScale = CONFIG.POSSUM_HEAVY_SPRITE_SCALE_FACTOR || 1.0; // For future
+                spriteScale = CONFIG.POSSUM_HEAVY_SPRITE_SCALE_FACTOR || 1.0;
             }
-            drawOffsetY = - (spriteToDraw ? (spriteToDraw.naturalHeight * spriteScale) / 2 : this.size) ; // Center vertically
 
+            if (spriteToDraw) {
+                spriteWidth = spriteToDraw.naturalWidth * spriteScale;
+                spriteHeight = spriteToDraw.naturalHeight * spriteScale;
+                drawOffsetX = -spriteWidth / 2; // Center the sprite
+                drawOffsetY = -spriteHeight / 2; // Center the sprite
+            }
+            // If !spriteToDraw, drawOffsetX/Y remain at -this.size/2 for the fallback circle
 
         } else { // Unit is dead
             let deadSpriteConfigPath = null;
@@ -1176,21 +1192,27 @@ class Unit {
             if (this.assignedDeadSpritePath) {
                 spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
             }
-            spriteScale = deadSpriteConfigScale;
+            spriteScale = deadSpriteConfigScale; // Use the specific dead sprite scale
 
-            if (!spriteToDraw && this.assignedDeadSpritePath && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                console.warn(`Dead sprite not found for ${this.spriteBaseName}: ${this.assignedDeadSpritePath}`);
+            if (spriteToDraw) {
+                spriteWidth = spriteToDraw.naturalWidth * spriteScale;
+                spriteHeight = spriteToDraw.naturalHeight * spriteScale;
+                drawOffsetX = -spriteWidth / 2; // Center horizontally
+                drawOffsetY = -spriteHeight * 0.2; // Adjust to sit on ground, or -spriteHeight / 2 for center
             }
-            // Adjust offset for dead sprites to make them appear more grounded
-            drawOffsetY = spriteToDraw ? -(spriteToDraw.naturalHeight * spriteScale) * 0.2 : -this.size * 0.2;
+            // If !spriteToDraw for dead unit, drawOffsetX/Y remain -this.size/2 for fallback circle
+
+            // Apply death rotation IF a sprite is being drawn
+            if (spriteToDraw) {
+                ctx.rotate(this.deathRotationAngle);
+            }
         }
 
         // --- Draw Logic ---
         if (spriteToDraw) {
-            spriteWidth = spriteToDraw.naturalWidth * spriteScale;
-            spriteHeight = spriteToDraw.naturalHeight * spriteScale;
-            ctx.drawImage(spriteToDraw, -spriteWidth / 2, drawOffsetY, spriteWidth, spriteHeight);
-        } else { // Fallback to colored circle
+            // spriteWidth, spriteHeight, drawOffsetX, drawOffsetY are already set
+            ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
+        } else { // Fallback to colored circle (already centered at current translation 0,0)
             let originalAlpha = ctx.globalAlpha;
             if (!this.isAlive()) {
                 ctx.fillStyle = this.team === 'player' ? (kiaStyle && kiaStyle.PLAYER_FILL_COLOR || 'darkgrey') : (kiaStyle && kiaStyle.ENEMY_FILL_COLOR || '#555');
@@ -1199,17 +1221,26 @@ class Unit {
             } else {
                 ctx.fillStyle = this.color;
             }
-            ctx.beginPath(); ctx.arc(0, 0, this.size, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2); // Use radius for arc
+            ctx.fill();
             ctx.globalAlpha = originalAlpha;
         }
 
+        // Reset rotation if it was applied for a dead sprite
+        if (!this.isAlive() && spriteToDraw) {
+            ctx.rotate(-this.deathRotationAngle); // Rotate back
+        }
+
+        // Reset globalAlpha if it was changed by phasing
         if (!this.isPhasing) {
              if (this.isAlive() || (!this.isAlive() && !(kiaStyle && kiaStyle.OPACITY !== undefined))) {
                 ctx.globalAlpha = 1.0;
             }
         }
 
-        // Facing/Gun Aim indicator for alive units
+
+        // Gun Aim Indicator for alive units (drawn relative to unit's non-rotated center)
         if (this.isAlive() && CONFIG.UNIT_VISUALS.DRAW_GUN_AIM_INDICATOR && facingIndicatorStyle) {
             ctx.strokeStyle = facingIndicatorStyle.COLOR || 'black';
             ctx.lineWidth = facingIndicatorStyle.LINE_WIDTH || 1;
@@ -1218,9 +1249,10 @@ class Unit {
             ctx.lineTo(this.size * 1.2 * Math.cos(this.gunAimAngle), this.size * 1.2 * Math.sin(this.gunAimAngle));
             ctx.stroke();
         }
-        ctx.restore();
 
-        // Health bar for alive units
+        ctx.restore(); // Restores translation, globalAlpha, and any rotation state from before this unit's render
+
+        // Health bar for alive units (drawn in world space, not translated/rotated with unit)
         if (this.isAlive() && healthBarStyle) {
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
             const barHeight = healthBarStyle.HEIGHT || 4;

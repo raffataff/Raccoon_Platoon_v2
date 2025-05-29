@@ -1,5 +1,3 @@
-// js/game.js
-// complete
 class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -20,7 +18,7 @@ class Game {
         this.selectedUnits = [];
         this.visualEffects = [];
         this.preloadedImages = {};
-        this.audioManager = new AudioManager(); // Initialize AudioManager
+        this.audioManager = new AudioManager();
 
         this.isDragging = false;
         this.draggedFarEnough = false;
@@ -43,24 +41,24 @@ class Game {
         this.currentPhaseIndex = 0;
         this.currentMissionIndex = 0;
         this.currentMissionParams = null;
+        this.lastPlayedMusicKey = null;
 
         this.gameState = 'MAIN_MENU';
-        this.previousGameState = null; // For restoring state after pause
+        this.previousGameState = null;
 
-        this.missionEndDelayTimer = -1; // Timer for delaying mission end screen
-        this.MISSION_END_DELAY_SECONDS = 3.0; // Configurable delay
-        this.missionPendingOutcomeIsVictory = false; // To store outcome during delay
+        this.missionEndDelayTimer = -1;
+        this.MISSION_END_DELAY_SECONDS = 3.0;
+        this.missionPendingOutcomeIsVictory = false;
         this.missionEndMessage = "";
 
-        this.isGamePausedManually = false; // Tracks if pause was triggered by player vs system
-        
+        this.isGamePausedManually = false;
+
         this.missionObjective = null;
         this.isObjectiveComplete = false;
         this.initialEnemyCount = 0;
         this.missionStartedAndPopulated = false;
         this.missionStartTime = 0;
 
-        // Bird spawning timer
         this.birdSpawnConfig = CONFIG.AMBIENT_EFFECTS ? CONFIG.AMBIENT_EFFECTS.FLYING_BIRD : null;
         this.nextBirdSpawnTime = 0;
         this.setNextBirdSpawnTimer();
@@ -71,10 +69,13 @@ class Game {
         this.lastTime = 0;
         this.gameLoop = this.gameLoop.bind(this);
 
-        if (this.ui) {
-            this.ui.showMainMenuScreen();
-        }
-        this.gameLoop();
+        (async () => {
+            await this.preloadAudioAssets();
+            if (this.ui) {
+                this.ui.showMainMenuScreen();
+            }
+            this.gameLoop();
+        })();
     }
 
     setNextBirdSpawnTimer() {
@@ -83,11 +84,11 @@ class Game {
                                      Math.random() * ((this.birdSpawnConfig.SPAWN_INTERVAL_MAX_SECONDS || 20) -
                                                       (this.birdSpawnConfig.SPAWN_INTERVAL_MIN_SECONDS || 10));
         } else {
-            this.nextBirdSpawnTime = Infinity; // Effectively disable if no config
+            this.nextBirdSpawnTime = Infinity;
         }
     }
 
-    async preloadMiscAssets() { // New function for assets like birds
+    async preloadMiscAssets() {
         const imagePromises = [];
         console.log("[Game] Preloading miscellaneous assets...");
 
@@ -102,11 +103,24 @@ class Game {
                 }));
             }
         }
-        // Add other misc assets here if needed
+
+        const grenadeSpriteConfig = CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE;
+        if (grenadeSpriteConfig && grenadeSpriteConfig.SPRITE_PATH) {
+            const path = grenadeSpriteConfig.SPRITE_PATH;
+            if (!this.preloadedImages[path]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[path] = img; console.log(`[Preload SUCCESS - Misc] Grenade sprite: '${path}'`); resolve(); };
+                    img.onerror = () => { console.warn(`[Preload FAILED - Misc] Grenade sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                    img.src = path;
+                }));
+            }
+        }
 
         await Promise.all(imagePromises);
         console.log("[Game] Miscellaneous assets preloading processed.");
     }
+
 
 
     async preloadUnitAssets() {
@@ -117,14 +131,14 @@ class Game {
             {
                 name: 'raccoon',
                 basePath: CONFIG.RACCOON_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] /* Add 'walk', 'fire' later */ },
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
             },
             {
                 name: 'possum_grunt',
                 basePath: CONFIG.POSSUM_GRUNT_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] /* Add 'walk', 'fire' later */ },
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
             },
@@ -141,8 +155,8 @@ class Game {
             if (unitTypeConfig.basePath && unitTypeConfig.actions) {
                 for (const action in unitTypeConfig.actions) {
                     unitTypeConfig.actions[action].forEach(dir => {
-                        const spriteKey = `${unitTypeConfig.name}_${action}_${dir}`; // e.g., raccoon_idle_n, possum_grunt_walk_e
-                        const spritePath = `${unitTypeConfig.basePath}${action}/${spriteKey}.png`; // Assumes subfolders like /idle/, /walk/
+                        const spriteKey = `${unitTypeConfig.name}_${action}_${dir}`;
+                        const spritePath = `${unitTypeConfig.basePath}${action}/${spriteKey}.png`;
 
                         if (!this.preloadedImages[spriteKey]) {
                             imagePromises.push(new Promise((resolve) => {
@@ -155,10 +169,9 @@ class Game {
                     });
                 }
             }
-            // Preload dead sprites for the unit type
             if (unitTypeConfig.deadPath && unitTypeConfig.deadFiles) {
                 unitTypeConfig.deadFiles.forEach(fileName => {
-                    const fullPath = unitTypeConfig.deadPath + fileName; // Use full path as key
+                    const fullPath = unitTypeConfig.deadPath + fileName;
                     if (!this.preloadedImages[fullPath]) {
                          imagePromises.push(new Promise((resolve) => {
                             const img = new Image();
@@ -171,8 +184,6 @@ class Game {
             }
         });
 
-
-        // Raccoon Face Images (separate as they are not action/direction based)
         if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGE_PATH) {
             CONFIG.RACCOON_FACE_IMAGES.forEach(faceFile => {
                 const faceKey = CONFIG.RACCOON_FACE_IMAGE_PATH + faceFile;
@@ -202,11 +213,12 @@ class Game {
             if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) ||
                 (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) ||
                 (def.type === 'bush_large' && CONFIG.BUSH_SPRITES_64PX_FILES) ||
-            //    (def.type === 'rock_small' && CONFIG.ROCK_SPRITES_16PX_FILES) ||
                 (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) ||
                 (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) ||
                 (def.type === 'tree_palm_tall' && CONFIG.PALM_TREE_TALL_SPRITE_FILES) ||
                 (def.type === 'tree_palm_medium' && CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES) ||
+                (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) ||
+                (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
                 (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES)
             ) {
                 handledByDedicatedList = true;
@@ -228,7 +240,8 @@ class Game {
                             resolve();
                         };
                         img.onerror = () => {
-                            this.preloadedImages[spriteInfo.key] = null; // Mark as failed
+                            console.warn(`[Preload FAILED - Level Asset] ${spriteInfo.key} from ${spriteInfo.path}`);
+                            this.preloadedImages[spriteInfo.key] = null;
                             resolve();
                         };
                         img.src = spriteInfo.path;
@@ -241,11 +254,12 @@ class Game {
             { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
             { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
             { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
-        //    { files: CONFIG.ROCK_SPRITES_16PX_FILES, path: CONFIG.ROCK_SPRITES_16PX_PATH, name: "rock16" },
             { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" },
             { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" },
             { files: CONFIG.PALM_TREE_TALL_SPRITE_FILES, path: CONFIG.PALM_TREE_TALL_SPRITE_PATH, name: "palm_tall" },
             { files: CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES, path: CONFIG.PALM_TREE_MEDIUM_SPRITE_PATH, name: "palm_medium" },
+            { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" },
+            { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" },
             { files: CONFIG.POSSUM_HUT_SPRITE_FILES, path: CONFIG.POSSUM_HUT_SPRITE_PATH, name: "possum_hut" }
         ];
         listBasedSprites.forEach(spriteSet => {
@@ -264,9 +278,10 @@ class Game {
                 });
             }
         }
-        
+
     );
         await Promise.all(imagePromises);
+        console.log("[Game] Level assets preloading processed.");
     }
 
     async preloadAudioAssets() {
@@ -277,11 +292,9 @@ class Game {
                 this.audioManager.addSoundToLoadQueue(key, asset.path, asset.defaultVolume);
             }
             await this.audioManager.loadAllSounds(
-                (loaded, total, key, error) => { // onProgress
-                    // console.log(`Audio loaded: ${key} (${loaded}/${total}) ${error ? "- ERROR" : ""}`);
-                    // You could update a loading bar here if you had one
+                (loaded, total, key, error) => {
                 },
-                () => { // onComplete
+                () => {
                     console.log("[Game] All audio assets processed.");
                 }
             );
@@ -357,8 +370,20 @@ class Game {
 
         await this.preloadLevelAssets();
         await this.preloadUnitAssets();
-        await this.preloadAudioAssets();
         await this.preloadMiscAssets();
+
+        this.audioManager.stopAllLoopingSounds();
+        const musicKeys = CONFIG.AUDIO_ASSETS.AMBIENT_MUSIC_TROPICAL_FOREST_KEYS;
+        if (musicKeys && musicKeys.length > 0) {
+            const randomMusicKey = musicKeys[Math.floor(Math.random() * musicKeys.length)];
+            if (this.audioManager.sounds[randomMusicKey] && this.audioManager.sounds[randomMusicKey].loaded) {
+                this.audioManager.play(randomMusicKey, { loop: true, volume: CONFIG.AUDIO_ASSETS[randomMusicKey]?.defaultVolume || 0.35 });
+                this.lastPlayedMusicKey = randomMusicKey;
+                console.log(`[Game] Started looping music: ${randomMusicKey}`);
+            } else {
+                console.warn(`[Game] Ambient music track ${randomMusicKey} not loaded or found.`);
+            }
+        }
 
         this.deployedSquadRoster = selectedRecruitsForDeployment;
         this.deployedSquadRoster.forEach(r => {
@@ -367,11 +392,8 @@ class Game {
             r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false; r.isContinuousFiring = false;
         });
 
-        // gameState moved after preloads, before level gen
-        // this.gameState = 'RUNNING'; // This will be set after everything is ready
-
         this.isObjectiveComplete = false;
-        this.missionStartedAndPopulated = false; // Will be set true at end of first update in RUNNING state
+        this.missionStartedAndPopulated = false;
         this.fallenRaccoonsThisMission = [];
         this.missionStartTime = performance.now();
 
@@ -381,21 +403,18 @@ class Game {
 
         this.generatePrerenderedBackground(worldWidth, worldHeight);
 
-        // generateLevelAndGetPlayerSpawns populates this.enemyUnits
         const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, this.currentMissionParams, this.deployedSquadRoster.length, this.preloadedImages);
-        
-        // --- CORRECTED PLACEMENT OF initialEnemyCount ---
+
         this.initialEnemyCount = this.enemyUnits ? this.enemyUnits.length : 0;
         console.log(`[Game confirmSquadAndStartMission] Initial enemy count set to: ${this.initialEnemyCount}`);
-        // ---
 
         this.deployedSquadRoster.forEach((raccoon, index) => {
             if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
             else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
         });
         this.selectedUnits = [...this.deployedSquadRoster];
-        this.gameObjects = []; // Clear game objects (projectiles, birds from previous mission if any)
-        this.visualEffects = []; // Clear visual effects
+        this.gameObjects = [];
+        this.visualEffects = [];
         this.isDragging = false; this.draggedFarEnough = false;
 
         if (this.deployedSquadRoster.length > 0) {
@@ -403,15 +422,15 @@ class Game {
             this.cameraX = avgX - this.canvas.width / 2; this.cameraY = avgY - this.canvas.height / 2; this.clampCamera();
         } else { this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2; this.clampCamera(); }
 
-        this.gameState = 'RUNNING'; // NOW set to running AFTER all setup
+        this.gameState = 'RUNNING';
 
         if (this.ui && typeof this.ui.hideLoadingScreen === 'function') { this.ui.hideLoadingScreen(); }
         if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(this.currentMissionParams.name); this.ui.updateFormationButton(this.currentFormationType); }
         if (this.inputHandler) { this.inputHandler.isShiftHoldFiring = false; this.inputHandler.updateMouseCursor(); }
-        
-        this.lastTime = performance.now(); // Reset lastTime for deltaTime calculation
-        this.setNextBirdSpawnTimer(); // Reset bird spawn timer
-        this.missionEndDelayTimer = -1; // Ensure mission end delay is reset
+
+        this.lastTime = performance.now();
+        this.setNextBirdSpawnTimer();
+        this.missionEndDelayTimer = -1;
         this.missionPendingOutcomeIsVictory = false;
     }
 
@@ -491,21 +510,18 @@ class Game {
         }
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
-    // --- Pause Logic ---
     togglePause() {
         if (this.gameState === 'RUNNING') {
             this.previousGameState = this.gameState;
             this.gameState = 'PAUSED';
             this.isGamePausedManually = true;
             if (this.ui) this.ui.showPauseMenuScreen();
-            // Optionally pause audio: this.audioManager.pauseAllLoopingSounds();
             console.log("Game Paused");
         } else if (this.gameState === 'PAUSED' && this.isGamePausedManually) {
-            this.gameState = this.previousGameState || 'RUNNING'; // Restore previous or default to RUNNING
+            this.gameState = this.previousGameState || 'RUNNING';
             this.isGamePausedManually = false;
             if (this.ui) this.ui.hidePauseMenuScreen();
-            // Optionally resume audio: this.audioManager.resumeAllLoopingSounds();
-            this.lastTime = performance.now(); // Crucial: Reset lastTime to prevent large deltaTime jump
+            this.lastTime = performance.now();
             console.log("Game Resumed");
         }
         if (this.inputHandler) this.inputHandler.updateMouseCursor();
@@ -514,8 +530,6 @@ class Game {
     restartCurrentMission() {
         if (this.currentMissionParams && this.getAvailableRecruits().length > 0) {
             console.log("Restarting current mission...");
-            // Re-select squad might be tricky here if we don't store the last deployed one.
-            // For simplicity, let's go back to the recruit selection screen for the current mission.
             if (this.loadMissionData(this.currentPhaseIndex, this.currentMissionIndex)) {
                 if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
                     this.gameState = 'PRE_MISSION_SELECT';
@@ -525,11 +539,13 @@ class Game {
             }
         } else {
             console.warn("Cannot restart mission: No mission loaded or no recruits available.");
-            this.quitToMainMenu(); // Fallback
+            this.quitToMainMenu();
         }
     }
 
-    quitToMainMenu() {
+     quitToMainMenu() {
+        this.audioManager.stopAllLoopingSounds();
+        this.lastPlayedMusicKey = null;
         this.gameState = 'MAIN_MENU';
         this.missionStartedAndPopulated = false;
         this.deployedSquadRoster = [];
@@ -537,7 +553,6 @@ class Game {
         this.enemyUnits = [];
         this.gameObjects = [];
         this.visualEffects = [];
-        // Potentially reset camera, etc.
         if (this.ui) {
             this.ui.hideHUD();
             this.ui.hidePostMissionScreen();
@@ -546,7 +561,10 @@ class Game {
         }
         console.log("Quit to Main Menu");
     }
+
     initializeNewCampaign() {
+        this.audioManager.stopAllLoopingSounds();
+        this.lastPlayedMusicKey = null;
         this.masterRoster = [];
         this.fallenRaccoonsGlobal = [];
         this.currentPhaseIndex = 0;
@@ -554,13 +572,6 @@ class Game {
         this.deployedSquadRoster = [];
         this.selectedUnits = [];
         this.tempSelectedForDeployment = [];
-        this.preloadedImages = {};
-
-        // Reset audio manager state if any specific campaign sounds were loaded/cached
-        if (this.audioManager) {
-            // For now, just ensures AudioManager exists. If it had campaign-specific caches, clear here.
-        }
-
 
         const availableFaceImages = CONFIG.RACCOON_FACE_IMAGES ? [...CONFIG.RACCOON_FACE_IMAGES] : [];
         let nextRaccoonIdNum = 1;
@@ -645,29 +656,24 @@ class Game {
 
     initiateMissionEnd(isVictory) {
         if (this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT' || this.gameState === 'POST_MISSION_DEBRIEF') {
-            // console.log(`[Game] initiateMissionEnd called but already ending or ended. State: ${this.gameState}`);
             return;
         }
-    //    console.log(`[Game] initiateMissionEnd. Victory: ${isVictory}. Starting ${this.MISSION_END_DELAY_SECONDS}s delay. Current gameState: ${this.gameState}`);
         this.missionPendingOutcomeIsVictory = isVictory;
         this.missionEndDelayTimer = this.MISSION_END_DELAY_SECONDS;
         this.gameState = isVictory ? 'MISSION_ENDING_VICTORY' : 'MISSION_ENDING_DEFEAT';
 
-        // --- SET THE MESSAGE ---
         if (isVictory) {
             this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!";
         } else {
             this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.POST_MISSION_FAILED || "MISSION FAILED!";
         }
-        // ---
-
-    //    console.log(`[Game] gameState changed to: ${this.gameState}. Message: "${this.missionEndMessage}"`);
     }
 
     actuallyEndMission(isVictory) {
-    //    console.log(`[Game] Calling actuallyEndMission. Victory: ${isVictory}. Current gameState BEFORE: ${this.gameState}`);
+        this.audioManager.stopAllLoopingSounds();
+        this.lastPlayedMusicKey = null;
         this.gameState = 'POST_MISSION_DEBRIEF';
-        this.missionEndMessage = ""; // Clear the message after delay
+        this.missionEndMessage = "";
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
         let enemiesKilledThisMission = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
 
@@ -693,7 +699,7 @@ class Game {
             this.ui.showPostMissionScreen_Debrief(debriefData);
             if (this.inputHandler) this.inputHandler.updateMouseCursor();
         }
-        this.missionEndDelayTimer = -1; // Reset timer
+        this.missionEndDelayTimer = -1;
     }
     proceedToNextLogicalStep() {
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
@@ -805,33 +811,20 @@ class Game {
         }
     }
     checkMissionStatus() {
-        console.log(`[Game checkMissionStatus] Called. GameState: ${this.gameState}, Populated: ${this.missionStartedAndPopulated}, Initial Enemies: ${this.initialEnemyCount}`);
         if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated) {
-            // console.log(`[Game checkMissionStatus] Returning early. GS: ${this.gameState}, Pop: ${this.missionStartedAndPopulated}`);
             return;
         }
 
         let objectiveMet = false;
         if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
             const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()).length : 0;
-            // const totalEnemiesCurrently = this.enemyUnits ? this.enemyUnits.length : 0; // Includes spawned from huts
-            // console.log(`[Game checkMissionStatus] EXTERMINATE check. Alive: ${aliveEnemies}, Initial Total: ${this.initialEnemyCount}, Current Total on Map: ${totalEnemiesCurrently}`);
-
-            // Win if all enemies that were *initially* part of the mission are dead.
-            // Hut spawns are bonus / ongoing threat, not primary objective count unless defined differently.
             if (this.initialEnemyCount > 0 && aliveEnemies === 0 && this.enemyUnits.every(e => !e.isAlive())) {
-                // This condition means all pre-placed enemies are dead.
-                // If huts can still spawn, the mission might still continue if you want "survive waves"
-                // For now, EXTERMINATE means all *initial* enemies.
                 console.log(`[Game checkMissionStatus] EXTERMINATE objective met (all initial ${this.initialEnemyCount} enemies defeated). Alive now: ${aliveEnemies}`);
                 objectiveMet = true;
             } else if (this.initialEnemyCount === 0 && aliveEnemies === 0) {
-                // No initial enemies, and none have spawned and are alive (or all spawned are dead)
                 console.log(`[Game checkMissionStatus] EXTERMINATE objective met (no initial enemies and no live spawned enemies).`);
                 objectiveMet = true;
             }
-            // If hut-spawned enemies should also be cleared for EXTERMINATE, the logic would be simpler:
-            // objectiveMet = this.enemyUnits.every(e => !e.isAlive());
 
         } else {
             if (this.currentMissionParams) {
@@ -852,7 +845,7 @@ class Game {
     spawnFlyingBirdFlock() {
         if (!this.birdSpawnConfig || !this.preloadedImages[this.birdSpawnConfig.TILE_SHEET_PATH]) return;
 
-        const direction = Math.random() < 0.5 ? 1 : -1; // 1 for right, -1 for left
+        const direction = Math.random() < 0.5 ? 1 : -1;
         const flockSize = Math.floor(this.birdSpawnConfig.FLOCK_SIZE_MIN + Math.random() * (this.birdSpawnConfig.FLOCK_SIZE_MAX - this.birdSpawnConfig.FLOCK_SIZE_MIN + 1));
 
         const worldHeight = CONFIG.WORLD_HEIGHT || this.canvas.height;
@@ -864,52 +857,39 @@ class Game {
 
         for (let i = 0; i < flockSize; i++) {
             let startX;
-            if (direction === 1) { // Flying right, start from left
+            if (direction === 1) {
                 startX = -birdWidth - (i * (this.birdSpawnConfig.FLOCK_SPACING_X || 30)) - Math.random() * 50;
-            } else { // Flying left, start from right
+            } else {
                 startX = CONFIG.WORLD_WIDTH + birdWidth + (i * (this.birdSpawnConfig.FLOCK_SPACING_X || 30)) + Math.random() * 50;
             }
             const startY = baseSpawnY + (Math.random() - 0.5) * (this.birdSpawnConfig.FLOCK_SPACING_Y || 10) * 2 * i;
 
             const bird = new FlyingBird(this, startX, startY, direction);
-            this.gameObjects.push(bird); // Add to main game objects for update/render
+            this.gameObjects.push(bird);
         }
         if (CONFIG.DEBUG_PATHING_UNIT_ID) console.log(`Spawned bird flock of ${flockSize} flying ${direction === 1 ? 'right' : 'left'}`);
     }
     update(deltaTime) {
-    //    console.log(`[Game Update TOP] Frame Start. GameState: ${this.gameState}, Timer: ${this.missionEndDelayTimer.toFixed(3)}, Delta: ${deltaTime.toFixed(4)}`);
-
         if (this.gameState === 'PAUSED') {
-    //        console.log("[Game Update] Is PAUSED, returning.");
             return;
         }
 
         if (this.missionEndDelayTimer > 0) {
             this.missionEndDelayTimer -= deltaTime;
-            console.log(`[Game Update] In Timer Block. Timer now: ${this.missionEndDelayTimer.toFixed(3)}, GameState: ${this.gameState}`);
 
             if (this.missionEndDelayTimer <= 0) {
-    //            console.log(`[Game Update] Mission End Delay Timer EXPIRED. Calling actuallyEndMission.`);
                 this.missionEndDelayTimer = -1;
                 this.actuallyEndMission(this.missionPendingOutcomeIsVictory);
-    //            console.log(`[Game Update] Returned from actuallyEndMission. GameState now: ${this.gameState}. Returning from update.`);
-                return; // Stop further processing in this frame once debrief is initiated
+                return;
             }
-            // If timer is still > 0, we are in an ending state, allow some minimal updates to proceed.
         }
 
-        // If gameState is one that should not run full updates, return.
-        // This check is crucial.
         if (this.gameState !== 'RUNNING' &&
             this.gameState !== 'MISSION_ENDING_VICTORY' &&
             this.gameState !== 'MISSION_ENDING_DEFEAT') {
-    //        console.log(`[Game Update] NOT RUNNING or ENDING. GameState: ${this.gameState}. Returning.`);
             return;
         }
 
-    //    console.log(`[Game Update] Proceeding with active simulation updates. GameState: ${this.gameState}`);
-
-        // Bird Spawning (only if game is 'RUNNING')
         if (this.birdSpawnConfig && this.gameState === 'RUNNING') {
             this.nextBirdSpawnTime -= deltaTime;
             if (this.nextBirdSpawnTime <= 0) {
@@ -918,7 +898,6 @@ class Game {
             }
         }
 
-        // Input handling for continuous fire (only if game is 'RUNNING')
         if (this.gameState === 'RUNNING' && this.inputHandler.isShiftPressed &&
             this.inputHandler.isLeftMouseDown &&
             !this.inputHandler.isShiftHoldFiring &&
@@ -928,7 +907,6 @@ class Game {
             this.handleShiftHoldStart(this.inputHandler.mousePos.worldX, this.inputHandler.mousePos.worldY);
         }
 
-        // Camera Lerp (only if game is 'RUNNING' and units selected)
         if (this.selectedUnits && this.selectedUnits.length > 0 && this.gameState === 'RUNNING') {
             let avgX = 0, avgY = 0, count = 0;
             this.selectedUnits.forEach(unit => { if (unit.isAlive()) { avgX += unit.x; avgY += unit.y; count++; } });
@@ -945,7 +923,6 @@ class Game {
             }
         }
 
-        // Update game entities (Units, GameObjects, VisualEffects)
         const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
         allUnitsInGame.forEach(unit => {
             if (unit && typeof unit.update === 'function') {
@@ -971,10 +948,9 @@ class Game {
              this.missionStartedAndPopulated = true;
         }
 
-        if (this.gameState === 'RUNNING') { // checkMissionStatus only when RUNNING
+        if (this.gameState === 'RUNNING') {
             this.checkMissionStatus();
         }
-    //    console.log(`[Game Update BOTTOM] Frame End. GameState: ${this.gameState}, Timer: ${this.missionEndDelayTimer.toFixed(3)}`);
     }
 
     render() {
@@ -985,7 +961,6 @@ class Game {
         this.ctx.save();
         this.ctx.translate(-this.cameraX, -this.cameraY);
 
-        // 1. Draw Prerendered Background
         if (this.prerenderedBackgroundCanvas.width > 0 && this.prerenderedBackgroundCanvas.height > 0) {
             this.ctx.drawImage(this.prerenderedBackgroundCanvas, 0, 0);
         } else {
@@ -993,31 +968,22 @@ class Game {
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
         }
 
-        // 2. Debug NavGrid (Blocked Cell Overlay - "Dead Ground")
-        // Draw if CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED is true and level has navGrid
         if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid && this.level.gridCellSize > 0) {
             const grid = this.level.navGrid;
             const cellSize = this.level.gridCellSize;
-            this.ctx.globalAlpha = 0.45; // You can tune this value (0.0 to 1.0)
+            this.ctx.globalAlpha = 0.45;
             this.ctx.fillStyle = "rgba(85, 44, 11, 0.73)";
 
             for (let y = 0; y < grid.length; y++) {
                 for (let x = 0; x < grid[y].length; x++) {
-                    if (grid[y][x] === 1) { // If cell is blocked
+                    if (grid[y][x] === 1) {
                         this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
                     }
                 }
             }
-            this.ctx.globalAlpha = 1.0; // Reset alpha for subsequent drawing
+            this.ctx.globalAlpha = 1.0;
         }
 
-        // 4. Y-Sorted Game Entities (Obstacles and Units) - Step 3 (Hut Debug) is after this.
-        // The label "4." is from previous context, actual order is now:
-        // 1. Background
-        // 2. NavGrid Debug (Blocked Cells Overlay)
-        // 3. Y-Sorted Entities (Obstacles, Units)
-        // 4. Hut Spawn Area Debug (Overlay)
-        // 5. Projectiles, etc.
         let sortableObjects = [];
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
@@ -1025,9 +991,20 @@ class Game {
             this.level.obstacles.forEach(obstacle => {
                 if (obstacle.type === 'border_wall') return;
                 if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) {
-                    let sortYValue = obstacle.y + obstacle.height;
+                    let sortYValue = obstacle.y + obstacle.height; // Default sort by visual bottom
+                    const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;
+
+                    // Refined Y-sort for specific types or shapes
                     if (obstacle.type === 'tree_palm_medium' || obstacle.type === 'tree_palm_tall') {
-                        sortYValue = obstacle.y + obstacle.height * 0.99;
+                        if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) {
+                             sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1);
+                        } else if (collisionShape && collisionShape.type === 'circle') {
+                            sortYValue = collisionShape.y + collisionShape.radius;
+                        }
+                    } else if (collisionShape && collisionShape.type === 'ellipse') {
+                        sortYValue = collisionShape.y + collisionShape.radiusY;
+                    } else if (collisionShape && collisionShape.type === 'circle') {
+                        sortYValue = collisionShape.y + collisionShape.radius;
                     }
                     sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false });
                 }
@@ -1039,11 +1016,30 @@ class Game {
             const obj = item.entity;
             if (item.isUnit) {
                 obj.render(this.ctx);
-            } else { // Obstacle rendering (copied from your latest game.js)
+            } else { // Obstacle rendering
                 if (obj.isDestroyed && obj.imageDestroyed) {
-                    this.ctx.drawImage(obj.imageDestroyed, obj.x, obj.y, obj.width, obj.height);
+                    let renderWidth, renderHeight, drawX, drawY;
+                    if (obj.spriteDestroyedScale !== undefined && obj.spriteDestroyedScale !== null) {
+                        // Use specific destroyed scale relative to destroyed sprite's natural dimensions
+                        renderWidth = obj.imageDestroyed.naturalWidth * obj.spriteDestroyedScale;
+                        renderHeight = obj.imageDestroyed.naturalHeight * obj.spriteDestroyedScale;
+                        // Position appropriately (e.g., align base of stump with original base)
+                        drawX = obj.x + (obj.width / 2) - (renderWidth / 2); // Center horizontally based on original width
+                        drawY = obj.y + obj.height - renderHeight;          // Align bottom of new sprite with bottom of original visual
+                    } else {
+                        // Default: render destroyed sprite at the original obstacle's dimensions
+                        renderWidth = obj.width;
+                        renderHeight = obj.height;
+                        drawX = obj.x;
+                        drawY = obj.y;
+                    }
+                    this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight);
+
                 } else if (!obj.isDestroyed && obj.imageNormal) {
+                    // For normal (alive) sprites, always use their obj.width and obj.height
+                    // which were calculated during level generation based on their spriteScale or fixed dimensions.
                     this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
+
                 } else if (!obj.isDecoration || !obj.imageNormal) {
                     let obsColor = obj.color || '#555555';
                     if (obj.isDestroyed) {
@@ -1062,12 +1058,13 @@ class Game {
                         }
                     }
                     this.ctx.fillStyle = obsColor;
-                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height); // Use obj.width/height for fallback rect
                 }
+                // Health bar logic
                 if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
                     const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
                     const hpBarHeight = healthBarStyle.HEIGHT || 4;
-                    const hpBarWidth = Math.min(obj.width * 0.7, 60);
+                    const hpBarWidth = Math.min(obj.width * 0.7, 60); // Health bar width relative to obstacle's visual width
                     const barX = obj.x + (obj.width - hpBarWidth) / 2;
                     const barY = obj.y - hpBarHeight - 4;
                     this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111';
@@ -1087,16 +1084,17 @@ class Game {
 
         if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) {
             this.ctx.save();
-            this.ctx.globalAlpha = 0.5; // Make shapes semi-transparent
+            this.ctx.globalAlpha = 0.5;
             this.ctx.lineWidth = 1;
 
             this.level.obstacles.forEach(obstacle => {
-                if (obstacle.type === 'border_wall') return; // Usually don't need to see these
+                if (obstacle.type === 'border_wall') return;
 
                 const collisionShape = this.level._getObstacleCollisionShape(obstacle);
-                if (obstacle.isDestroyed && !obstacle.blocksMovement) { // Don't draw for destroyed non-blocking
-                     // Or maybe draw with a different color if you want to see their "ghost"
-                } else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { // Draw for relevant obstacles
+                if (!collisionShape) return;
+
+                if (obstacle.isDestroyed && !obstacle.blocksMovement) {
+                } else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) {
                     if (collisionShape.type === 'rectangle') {
                         this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta');
                         this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height);
@@ -1105,24 +1103,24 @@ class Game {
                         this.ctx.beginPath();
                         this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2);
                         this.ctx.stroke();
+                    } else if (collisionShape.type === 'ellipse') {
+                        this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange');
+                        this.ctx.beginPath();
+                        this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2);
+                        this.ctx.stroke();
                     }
                 }
             });
-            this.ctx.restore(); // Restore globalAlpha and lineWidth
+            this.ctx.restore();
         }
 
-        // Debug Hut Spawn Areas (Rendered AFTER main objects so it's visible on top of huts)
         if (this.level && CONFIG.ENEMY_SPAWNING && CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING && CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING.DEBUG_DRAW_SPAWN_AREAS) {
             this.level.renderHutSpawnAreas(this.ctx);
         }
 
-        // Projectiles & Other Game Objects
         this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
-
-        // Visual Effects
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function' && effect.type !== 'explosion_ground_mark') { effect.render(this.ctx); } });
 
-        // 7. Selection Highlights & Target Lines
         if(this.selectedUnits) {
             this.selectedUnits.forEach(unit => {
                 if (unit && unit.isAlive()) {
@@ -1151,7 +1149,6 @@ class Game {
             });
         }
 
-        // 8. Grenade Aiming Indicator
         const aimingRaccoon = this.selectedUnits && this.selectedUnits.find(unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive());
         if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) {
             const worldMouseX = this.inputHandler.mousePos.worldX;
@@ -1161,7 +1158,7 @@ class Game {
             this.ctx.beginPath();
             this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2);
             this.ctx.fill();
-            this.ctx.strokeStyle = 'rgb(111, 0, 255)'; // Your purple color
+            this.ctx.strokeStyle = 'rgb(111, 0, 255)';
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
             this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
@@ -1183,7 +1180,6 @@ class Game {
             }
         }
 
-        // 9. Drag Selection Rectangle
         if (this.isDragging && this.draggedFarEnough) {
             const dragRectWorldStartX = this.dragStartX + this.cameraX;
             const dragRectWorldStartY = this.dragStartY + this.cameraY;
@@ -1202,10 +1198,9 @@ class Game {
 
         this.ctx.restore();
 
-        // --- NEW: Draw Mission End Message Overlay (drawn on top of everything, in screen space) ---
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
-            this.ctx.save(); // Save context for full-screen overlay drawing
-            this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; // Semi-transparent dark overlay
+            this.ctx.save();
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
             this.ctx.font = "bold 48px 'Impact', 'Arial Black', sans-serif";
@@ -1215,25 +1210,24 @@ class Game {
             const textX = this.canvas.width / 2;
             const textY = this.canvas.height / 2;
 
-            // Text shadow for better readability
             this.ctx.shadowColor = "rgba(0,0,0,0.7)";
             this.ctx.shadowBlur = 5;
             this.ctx.shadowOffsetX = 2;
             this.ctx.shadowOffsetY = 2;
 
             if (this.missionPendingOutcomeIsVictory) {
-                this.ctx.fillStyle = "#4CAF50"; // Green for victory
+                this.ctx.fillStyle = "#4CAF50";
             } else {
-                this.ctx.fillStyle = "#F44336"; // Red for defeat
+                this.ctx.fillStyle = "#F44336";
             }
             this.ctx.fillText(this.missionEndMessage, textX, textY);
 
-            // Optional: Add timer text below
             this.ctx.font = "24px 'Consolas', 'Lucida Console', monospace";
             this.ctx.fillStyle = "#FFFFFF";
-            this.ctx.fillText(`Continuing in ${Math.max(0, this.missionEndDelayTimer).toFixed(1)}s...`, textX, textY + 50);
+            const timeLeft = Math.ceil(Math.max(0, this.missionEndDelayTimer));
+            this.ctx.fillText(`Continuing in ${timeLeft}s...`, textX, textY + 50);
 
-            this.ctx.restore(); // Restore context from overlay drawing
+            this.ctx.restore();
         }
     }
 
@@ -1246,33 +1240,22 @@ class Game {
         this.lastTime = now;
 
         deltaTime = Math.min(deltaTime, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
-        if (deltaTime <= 0) { // Ensure deltaTime is positive and non-zero
-            deltaTime = 1 / 60; // Default to ~60fps if an issue occurs or tab was inactive
+        if (deltaTime <= 0) {
+            deltaTime = 1 / 60;
         }
 
-        // --- CORRECTED LOGIC FOR CALLING UPDATE ---
-        // Call update if the game is in a state that involves active simulation or timers.
-        // The update() method itself will handle early returns for states like PAUSED
-        // or after the mission end timer fully elapses and transitions to POST_MISSION_DEBRIEF.
         if (this.gameState === 'RUNNING' ||
-            this.gameState === 'PAUSED' || // update() handles PAUSED by returning early
+            this.gameState === 'PAUSED' ||
             this.gameState === 'MISSION_ENDING_VICTORY' ||
             this.gameState === 'MISSION_ENDING_DEFEAT') {
             this.update(deltaTime);
         } else {
-            // For MAIN_MENU, PRE_MISSION_SELECT, POST_MISSION_DEBRIEF, GAME_OVER, CAMPAIGN_COMPLETE, LOADING_MISSION
-            // we generally don't need the main game world update loop.
-            // UI interactions are typically event-driven for these screens.
-            // console.log(`[Game Loop] Intentionally skipping main update for gameState: ${this.gameState}`);
         }
 
         try {
-            this.render(); // Use your full, operational render function
+            this.render();
         } catch (e) {
             console.error("ERROR IN RENDER FUNCTION:", e);
-            // Consider how to handle render errors; stopping the loop might be abrupt.
-            // For now, log and let it try to continue if requestAnimationFrame is robust.
-            // return; // Uncomment to stop loop on render error
         }
         requestAnimationFrame(this.gameLoop);
     }

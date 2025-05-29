@@ -1,8 +1,9 @@
 // js/ui.js
+// complete
 class UI {
     constructor(game) {
         this.game = game;
-        this.uiText = CONFIG.UI_TEXT_STRINGS || {}; // Cache for quicker access with fallbacks
+        this.uiText = CONFIG.UI_TEXT_STRINGS || {};
         this.uiSettings = CONFIG.UI_SETTINGS || {};
 
         // Main Menu Elements
@@ -18,7 +19,7 @@ class UI {
         this.recruitMemorialScreen = document.getElementById('recruitMemorialScreen');
         this.memorialEntriesContainer = document.getElementById('memorialEntriesContainer');
         this.backFromMemorialButton = document.getElementById('backFromMemorialButton');
-        this.viewMemorialButton = document.getElementById('viewMemorialButton');
+        this.viewMemorialButton = document.getElementById('viewMemorialButton'); // On post-mission screen
         this.leftHudPanel = document.getElementById('left-hud-panel');
         this.squadPanel = document.getElementById('hud-squad');
         this.objectiveText = document.getElementById('objectiveText');
@@ -30,7 +31,7 @@ class UI {
         this.deployedSquadList = document.getElementById('deployedSquadList');
         this.gameOverTitle = document.getElementById('gameOverTitle');
         this.gameOverMessage = document.getElementById('gameOverMessage');
-        this.restartCampaignButton = document.getElementById('restartCampaignButton'); // On Game Over screen
+        this.restartCampaignButton = document.getElementById('restartCampaignButton');
         this.toggleFormationButton = document.getElementById('toggleFormationButton');
         this.formationSpacingSlider = document.getElementById('formationSpacingSlider');
         this.spacingValueDisplay = document.getElementById('spacingValueDisplay');
@@ -38,104 +39,87 @@ class UI {
         this.resumeGameButton = document.getElementById('resumeGameButton');
         this.restartMissionPauseButton = document.getElementById('restartMissionPauseButton');
         this.mainMenuPauseButton = document.getElementById('mainMenuPauseButton');
+        this.startMissionButton = document.getElementById('startMissionButton');
+        this.retryMissionButton = document.getElementById('retryMissionButton');
+        this.nextMissionButton = document.getElementById('nextMissionButton');
+
 
         // --- Event Listeners ---
-        if (this.newCampaignButton) {
-            this.newCampaignButton.addEventListener('click', () => {
-                if (this.game) {
-                    this.hideMainMenuScreen();
+        this._addSoundToButton(this.newCampaignButton, () => {
+            if (this.game) {
+                this.hideMainMenuScreen();
+                this.game.initializeNewCampaign();
+                this.game.start();
+            }
+        });
+
+        this._addSoundToButton(this.mainMenuMemorialButton, () => this.showRecruitMemorialScreen());
+
+        this._addSoundToButton(this.startMissionButton, () => {
+            if (this.game) {
+                const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
+                const currentCount = this.game.tempSelectedForDeployment ? this.game.tempSelectedForDeployment.length : 0;
+                if (currentCount > 0 && currentCount <= maxSquadSize) {
+                    this.game.confirmSquadAndStartMission(this.game.tempSelectedForDeployment);
+                } else if (currentCount > maxSquadSize) {
+                    alert((this.uiText.START_MISSION_BUTTON_ALERT_MAX_SIZE || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()));
+                } else {
+                    alert(this.uiText.START_MISSION_BUTTON_ALERT_MIN_SIZE || "Select at least one Raccoon for the mission!");
+                }
+            }
+        });
+
+        this._addSoundToButton(this.retryMissionButton, () => {
+             if (this.game) {
+                if (this.game.loadMissionData(this.game.currentPhaseIndex, this.game.currentMissionIndex)) {
+                    this.showPreMissionScreen_RecruitSelect(
+                        this.game.campaignData[this.game.currentPhaseIndex],
+                        this.game.currentMissionParams,
+                        this.game.getAvailableRecruits()
+                    );
+                } else {
+                    this.showGameOverScreen(this.uiText.ERROR_LOADING_MISSION_RETRY || "Error reloading mission for retry.");
+                }
+            }
+        });
+
+        this._addSoundToButton(this.nextMissionButton, () => {
+            if (this.game) {
+                if (this.nextMissionButton.textContent === (this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign") ||
+                    this.nextMissionButton.textContent === (this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats") ) {
                     this.game.initializeNewCampaign();
                     this.game.start();
+                } else {
+                    this.game.proceedToNextLogicalStep();
                 }
-            });
-        }
-        if (this.mainMenuMemorialButton) {
-            this.mainMenuMemorialButton.addEventListener('click', () => this.showRecruitMemorialScreen());
-        }
+            }
+        });
 
-        const startBtn = document.getElementById('startMissionButton');
-        if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                if (this.game) {
-                    const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
-                    const currentCount = this.game.tempSelectedForDeployment ? this.game.tempSelectedForDeployment.length : 0;
-                    if (currentCount > 0 && currentCount <= maxSquadSize) {
-                        this.game.confirmSquadAndStartMission(this.game.tempSelectedForDeployment);
-                    } else if (currentCount > maxSquadSize) {
-                        alert((this.uiText.START_MISSION_BUTTON_ALERT_MAX_SIZE || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()));
-                    } else {
-                        alert(this.uiText.START_MISSION_BUTTON_ALERT_MIN_SIZE || "Select at least one Raccoon for the mission!");
-                    }
-                }
-            });
-        }
+        this._addSoundToButton(this.resumeGameButton, () => {
+            if (this.game) this.game.togglePause();
+        });
+        this._addSoundToButton(this.restartMissionPauseButton, () => {
+            if (this.game) {
+                this.hidePauseMenuScreen();
+                this.game.restartCurrentMission();
+            }
+        });
+        this._addSoundToButton(this.mainMenuPauseButton, () => {
+            if (this.game) {
+                this.hidePauseMenuScreen();
+                this.game.quitToMainMenu();
+            }
+        });
 
-        const retryBtn = document.getElementById('retryMissionButton');
-        if (retryBtn) {
-             retryBtn.addEventListener('click', () => {
-                 if (this.game) {
-                    if (this.game.loadMissionData(this.game.currentPhaseIndex, this.game.currentMissionIndex)) {
-                        this.showPreMissionScreen_RecruitSelect(
-                            this.game.campaignData[this.game.currentPhaseIndex],
-                            this.game.currentMissionParams,
-                            this.game.getAvailableRecruits()
-                        );
-                    } else {
-                        this.showGameOverScreen(this.uiText.ERROR_LOADING_MISSION_RETRY || "Error reloading mission for retry.");
-                    }
-                }
-             });
-        }
+        this._addSoundToButton(this.restartCampaignButton, () => {
+             if (this.game) { this.game.initializeNewCampaign(); this.game.start(); }
+        });
 
-        const nextMissionButton = document.getElementById('nextMissionButton');
-        if (nextMissionButton) {
-            nextMissionButton.addEventListener('click', () => {
-                if (this.game) {
-                    if (nextMissionButton.textContent === (this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign") ||
-                        nextMissionButton.textContent === (this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats") ) { // Check for final state text
-                        this.game.initializeNewCampaign();
-                        this.game.start();
-                    } else {
-                        this.game.proceedToNextLogicalStep();
-                    }
-                }
-            });
-        }
+        this._addSoundToButton(this.toggleFormationButton, () => {
+            if (this.game && typeof this.game.toggleFormation === 'function') this.game.toggleFormation();
+        });
 
-        if (this.resumeGameButton) {
-            this.resumeGameButton.addEventListener('click', () => {
-                if (this.game) this.game.togglePause(); // Game handles unpausing
-            });
-        }
-        if (this.restartMissionPauseButton) {
-            this.restartMissionPauseButton.addEventListener('click', () => {
-                if (this.game) {
-                    this.hidePauseMenuScreen();
-                    this.game.restartCurrentMission();
-                }
-            });
-        }
-        if (this.mainMenuPauseButton) {
-            this.mainMenuPauseButton.addEventListener('click', () => {
-                if (this.game) {
-                    this.hidePauseMenuScreen();
-                    this.game.quitToMainMenu();
-                }
-            });
-        }
-
-        if (this.restartCampaignButton) { // Game Over screen button
-            this.restartCampaignButton.addEventListener('click', () => {
-                 if (this.game) { this.game.initializeNewCampaign(); this.game.start(); }
-            });
-        }
-
-        if (this.toggleFormationButton && this.game) {
-            this.toggleFormationButton.addEventListener('click', () => {
-                if (this.game && typeof this.game.toggleFormation === 'function') this.game.toggleFormation();
-            });
-        }
-
+        // No click sound for slider, but hover could be added if desired (might be too noisy)
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game) {
             const initialSpacing = (this.game && this.game.formationSpacingMultiplier !== undefined) ? this.game.formationSpacingMultiplier : (CONFIG.INITIAL_FORMATION_SPACING || 3.5);
             this.formationSpacingSlider.value = initialSpacing.toString();
@@ -147,11 +131,14 @@ class UI {
             });
         }
 
+
         if (this.squadPanel) {
             this.squadPanel.addEventListener('click', (event) => {
                 if (!this.game || this.game.gameState !== 'RUNNING') return;
                 const clickedCard = event.target.closest('.squad-member');
                 if (clickedCard && clickedCard.dataset.id) {
+                    // Play click sound for squad panel interaction if desired
+                    // this.game.audioManager.play('UI_BUTTON_CLICK');
                     const clickedRaccoonId = clickedCard.dataset.id;
                     const raccoon = this.game.deployedSquadRoster.find(r => r.id === clickedRaccoonId);
                     if (raccoon && raccoon.isAlive()) {
@@ -168,22 +155,58 @@ class UI {
             });
         }
 
-        if (this.viewMemorialButton) {
-            this.viewMemorialButton.addEventListener('click', () => this.showRecruitMemorialScreen());
-        }
-        if (this.backFromMemorialButton) {
-            this.backFromMemorialButton.addEventListener('click', () => {
-                this.hideRecruitMemorialScreen();
-                if (this.game && this.game.gameState === 'POST_MISSION_DEBRIEF' && this.postMissionScreen) {
-                     this.postMissionScreen.style.display = 'flex';
-                } else if (this.game && this.game.gameState === 'MAIN_MENU' && this.mainMenuScreen) {
-                     this.mainMenuScreen.style.display = 'flex';
+        this._addSoundToButton(this.viewMemorialButton, () => this.showRecruitMemorialScreen());
+
+        this._addSoundToButton(this.backFromMemorialButton, () => {
+            this.hideRecruitMemorialScreen();
+            if (this.game && this.game.gameState === 'POST_MISSION_DEBRIEF' && this.postMissionScreen) {
+                 this.postMissionScreen.style.display = 'flex';
+            } else if (this.game && this.game.gameState === 'MAIN_MENU' && this.mainMenuScreen) {
+                 this.mainMenuScreen.style.display = 'flex';
+            }
+        });
+
+        // Add hover sounds to all buttons collected so far
+        this._applyHoverSoundsToAllButtons();
+    }
+
+    // --- NEW HELPER METHOD to add click and hover sounds to a button ---
+    _addSoundToButton(buttonElement, clickCallback) {
+        if (buttonElement) {
+            buttonElement.addEventListener('click', () => {
+                if (this.game && this.game.audioManager) {
+                    this.game.audioManager.play('UI_BUTTON_CLICK'); // Corrected: playSound -> play
+                }
+                if (clickCallback) {
+                    clickCallback();
                 }
             });
+            // Hover sound will be added by _applyHoverSoundsToAllButtons
         }
     }
 
-    showMainMenuScreen() { /* ... (no changes needed other than using this.uiText if any text was hardcoded) ... */
+    _applyHoverSoundsToAllButtons() {
+        const buttons = [
+            this.newCampaignButton, this.mainMenuMemorialButton, this.optionsButton,
+            this.startMissionButton, this.retryMissionButton, this.nextMissionButton,
+            this.resumeGameButton, this.restartMissionPauseButton, this.mainMenuPauseButton,
+            this.restartCampaignButton, this.toggleFormationButton, this.viewMemorialButton,
+            this.backFromMemorialButton
+        ];
+
+        buttons.forEach(button => {
+            if (button) {
+                button.addEventListener('mouseenter', () => {
+                    if (this.game && this.game.audioManager && !button.disabled) {
+                        this.game.audioManager.play('UI_BUTTON_HOVER'); // Corrected: playSound -> play
+                    }
+                });
+            }
+        });
+    }
+
+
+    showMainMenuScreen() {
         if (!this.mainMenuScreen) return;
         this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
@@ -205,7 +228,7 @@ class UI {
             if (isCampaignVictory) this.gameOverTitle.classList.add('victory');
             else this.gameOverTitle.classList.remove('victory');
         }
-        if (this.gameOverMessage) this.gameOverMessage.textContent = message; // Message is usually dynamic from game.js
+        if (this.gameOverMessage) this.gameOverMessage.textContent = message;
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideRecruitMemorialScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
         this.gameOverScreen.style.display = 'flex'; this.setCursor('default');
@@ -234,7 +257,18 @@ class UI {
             <div class="hp">HP: ${recruit.hp} / ${recruit.maxHp}</div>
             <div class="xp">XP: ${recruit.xp || 0}</div>`;
         card.appendChild(faceDiv); card.appendChild(infoDiv);
-        card.addEventListener('click', () => { /* ... (click logic remains same) ... */
+
+        // Add hover sound to recruit selection cards
+        card.addEventListener('mouseenter', () => {
+            if (this.game && this.game.audioManager) {
+                this.game.audioManager.play('UI_BUTTON_HOVER', { volume: 0.2 }); // Corrected: playSound -> play
+            }
+        });
+
+        card.addEventListener('click', () => {
+            if (this.game && this.game.audioManager) {
+                this.game.audioManager.play('UI_BUTTON_CLICK'); // Corrected: playSound -> play
+            }
             if (!this.game) return;
             const currentlyInDeployed = this.game.tempSelectedForDeployment.find(depR => depR.id === recruit.id);
             const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
@@ -356,13 +390,13 @@ class UI {
                      if (this.game.campaignData[this.game.currentPhaseIndex + 1]) {
                          nextMissionBtn.textContent = (this.uiText.BUTTON_TEXT_START_PHASE_PREFIX || "Start ") + this.game.campaignData[this.game.currentPhaseIndex + 1].name;
                      } else {
-                         nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats"; // Or "Restart Campaign"
+                         nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats";
                      }
                  }
                  nextMissionBtn.style.display = 'inline-block'; nextMissionBtn.disabled = false;
             }
             if (retryMissionBtn) retryMissionBtn.style.display = 'none';
-        } else { // Defeat
+        } else {
             if (nextMissionBtn) nextMissionBtn.style.display = 'none';
             if (retryMissionBtn) { retryMissionBtn.textContent = this.uiText.BUTTON_TEXT_RETRY_MISSION || "Retry Mission"; retryMissionBtn.style.display = 'inline-block'; retryMissionBtn.disabled = !(this.game && this.game.getAvailableRecruits().length > 0); }
         }
@@ -397,10 +431,8 @@ class UI {
 
     showPauseMenuScreen() {
         if (!this.pauseMenuScreen) return;
-        // Hide other full-screen overlays if any were up, though usually not the case when pausing
         this.pauseMenuScreen.style.display = 'flex';
-        this.setCursor('default'); // Ensure default cursor over menu
-        // Disable restart if no recruits available (or other conditions)
+        this.setCursor('default');
         if (this.restartMissionPauseButton && this.game) {
             this.restartMissionPauseButton.disabled = !(this.game.getAvailableRecruits().length > 0 && this.game.currentMissionParams);
         }
@@ -410,7 +442,6 @@ class UI {
         if (this.pauseMenuScreen) {
             this.pauseMenuScreen.style.display = 'none';
         }
-        // Cursor will be updated by InputHandler when game resumes
     }
 
     showHUD() {
@@ -447,20 +478,20 @@ class UI {
         const displaySquad = this.game.deployedSquadRoster;
         const selectedUnits = this.game.selectedUnits || [];
         this.squadPanel.innerHTML = '';
-        displaySquad.forEach((raccoon) => { /* ... (rest of squad panel rendering is mostly dynamic data) ... */
+        displaySquad.forEach((raccoon) => {
             if (!raccoon) return;
             const memberDiv = document.createElement('div');
             memberDiv.classList.add('squad-member');
             memberDiv.dataset.id = raccoon.id;
             if (selectedUnits.includes(raccoon)) memberDiv.classList.add('selected');
             if (raccoon.faceImageUrl) memberDiv.style.backgroundImage = `url('${raccoon.faceImageUrl}')`;
-            // else: background-color for card is set by CSS, no specific fallback needed here for face image if none
-            if (raccoon.isAimingGrenade) { // This highlight should probably be a class too
+
+            if (raccoon.isAimingGrenade) {
                 memberDiv.style.borderColor = (CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR.COLOR) || 'orange';
                 memberDiv.style.borderWidth = '2px'; memberDiv.style.borderStyle = 'solid';
             } else if (!selectedUnits.includes(raccoon)){
                  memberDiv.style.borderColor = ''; memberDiv.style.borderWidth = ''; memberDiv.style.borderStyle = '';
-            } // Selected border is handled by .selected class
+            }
 
             const isKIA = !raccoon.isAlive(); let statusText = 'Active';
             if (isKIA) statusText = 'KIA';
@@ -491,7 +522,7 @@ class UI {
         });
     }
 
-    setCursor(styleName) { /* ... (no changes needed) ... */
+    setCursor(styleName) {
         if (this.game && this.game.canvas) {
             this.game.canvas.classList.remove('cursor-default', 'cursor-attack', 'cursor-cell');
             this.game.canvas.style.cursor = '';
