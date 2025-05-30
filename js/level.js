@@ -1,5 +1,3 @@
-// js/level.js
-// complete
 class Level {
     constructor(game) {
         this.game = game;
@@ -48,6 +46,10 @@ class Level {
                     radiusY: (typeof shapeDef.radiusY === 'function' ? shapeDef.radiusY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusY || obsCurrentHeight / 2))
                 };
             }
+        }
+        // Default collision for border_fence_segment (or any border type) should use its actual width/height
+        if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || obstacle.type === 'border_wall') {
+             return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
         }
         return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
     }
@@ -107,7 +109,7 @@ class Level {
                 } else if (obstacle.blocksMovement === false) {
                     obstacle.collisionShape = null;
                 }
-            } else {
+            } else { // Should not happen for border_fence_segment as it's from OBSTACLE_DEFINITIONS
                 obstacle.blocksMovement = false;
                 obstacle.providesCover = false;
                 obstacle.collisionShape = null;
@@ -295,14 +297,101 @@ class Level {
 
         if (this.game) { this.game.enemyUnits = []; this.game.gameObjects = []; }
 
-        const genConfig = CONFIG.LEVEL_GENERATION || {}; const worldMargin = genConfig.WORLD_MARGIN || 20;
-        const borderWidth = genConfig.BORDER_WIDTH || 30; const borderColor = genConfig.BORDER_COLOR || '#25221D';
-        this.obstacles.push({ x: 0, y: 0, width: worldWidth, height: borderWidth, type: 'border_wall', name: 'Border Wall', color: borderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
-        this.obstacles.push({ x: 0, y: worldHeight - borderWidth, width: worldWidth, height: borderWidth, type: 'border_wall', name: 'Border Wall', color: borderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
-        this.obstacles.push({ x: 0, y: borderWidth, width: borderWidth, height: worldHeight - 2 * borderWidth, type: 'border_wall', name: 'Border Wall', color: borderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
-        this.obstacles.push({ x: worldWidth - borderWidth, y: borderWidth, width: borderWidth, height: worldHeight - 2 * borderWidth, type: 'border_wall', name: 'Border Wall', color: borderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
-        const playableMinX = borderWidth + worldMargin; const playableMaxX = worldWidth - borderWidth - worldMargin;
-        const playableMinY = borderWidth + worldMargin; const playableMaxY = worldHeight - borderWidth - worldMargin;
+        const genConfig = CONFIG.LEVEL_GENERATION || {};
+        const worldMargin = genConfig.WORLD_MARGIN || 20;
+        const sideBorderWidth = genConfig.BORDER_WIDTH || 30;
+        const sideBorderColor = genConfig.BORDER_COLOR || '#25221D';
+
+        const borderObstacleTypeName = genConfig.BORDER_OBSTACLE_TYPE;
+        let borderObstacleTemplate = null;
+        if (borderObstacleTypeName) {
+            borderObstacleTemplate = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === borderObstacleTypeName);
+        }
+
+        let borderSpriteImage = null;
+        let borderSegmentWidth = 0;
+        let borderSegmentHeight = 0;
+        let borderSpriteScale = 1.0;
+        let borderSpritePath = null;
+
+        if (borderObstacleTemplate) {
+            // Determine sprite path for the chosen border obstacle type
+            if (borderObstacleTemplate.spriteNormal) {
+                borderSpritePath = borderObstacleTemplate.spriteNormal;
+            } else if (borderObstacleTemplate.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES.length > 0) {
+                borderSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + CONFIG.FENCE_BARBED_LONG_SPRITE_FILES[0]; // Use first from list
+            } // Add other specific list-based lookups if needed for other types
+
+            if (borderSpritePath) {
+                borderSpriteImage = preloadedAssetImages[borderSpritePath];
+            }
+            borderSpriteScale = borderObstacleTemplate.spriteScale || 1.0;
+
+            if (borderSpriteImage) {
+                borderSegmentWidth = borderSpriteImage.naturalWidth * borderSpriteScale;
+                borderSegmentHeight = borderSpriteImage.naturalHeight * borderSpriteScale;
+            } else if (borderObstacleTemplate.width && borderObstacleTemplate.height) { // Fallback to template dimensions if sprite missing
+                borderSegmentWidth = borderObstacleTemplate.width;
+                borderSegmentHeight = borderObstacleTemplate.height;
+                console.warn(`Border obstacle type '${borderObstacleTypeName}' has no preloaded sprite, using defined dimensions.`);
+            } else {
+                console.warn(`Border obstacle type '${borderObstacleTypeName}' has no sprite or dimensions. Defaulting border height.`);
+                borderSegmentHeight = genConfig.BORDER_WIDTH || 30; // Fallback to old border width as height
+                borderObstacleTemplate = null; // Invalidate template use if essential info missing
+            }
+        }
+
+        let topBottomBorderHeight = (borderObstacleTemplate && borderSegmentHeight > 0) ? borderSegmentHeight : (genConfig.BORDER_WIDTH || 30);
+
+        if (borderObstacleTemplate && borderSpriteImage && borderSegmentWidth > 0) {
+            const numSegments = Math.ceil(worldWidth / borderSegmentWidth);
+            for (let i = 0; i < numSegments; i++) {
+                const segmentX = i * borderSegmentWidth;
+                // Top Border Segments
+                this.obstacles.push({
+                    x: segmentX, y: 0,
+                    width: borderSegmentWidth, height: topBottomBorderHeight,
+                    type: borderObstacleTemplate.type, name: borderObstacleTemplate.name + " (Border Top)",
+                    destructible: borderObstacleTemplate.destructible || false, // Borders usually not destructible
+                    hp: borderObstacleTemplate.hp || Infinity,
+                    maxHp: borderObstacleTemplate.maxHp || Infinity,
+                    isDestroyed: false,
+                    blocksMovement: true, providesCover: true, // Borders must block & cover
+                    spriteNormalPath: borderSpritePath, imageNormal: borderSpriteImage,
+                    spriteScale: borderSpriteScale,
+                    collisionShape: borderObstacleTemplate.collisionShape ? JSON.parse(JSON.stringify(borderObstacleTemplate.collisionShape)) : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w=>w, height: h=>h }
+                });
+                // Bottom Border Segments
+                this.obstacles.push({
+                    x: segmentX, y: worldHeight - topBottomBorderHeight,
+                    width: borderSegmentWidth, height: topBottomBorderHeight,
+                    type: borderObstacleTemplate.type, name: borderObstacleTemplate.name + " (Border Bottom)",
+                    destructible: borderObstacleTemplate.destructible || false,
+                    hp: borderObstacleTemplate.hp || Infinity,
+                    maxHp: borderObstacleTemplate.maxHp || Infinity,
+                    isDestroyed: false,
+                    blocksMovement: true, providesCover: true,
+                    spriteNormalPath: borderSpritePath, imageNormal: borderSpriteImage,
+                    spriteScale: borderSpriteScale,
+                    collisionShape: borderObstacleTemplate.collisionShape ? JSON.parse(JSON.stringify(borderObstacleTemplate.collisionShape)) : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w=>w, height: h=>h }
+                });
+            }
+        } else {
+            // Fallback to old colored borders if sprite or template not properly set up
+            this.obstacles.push({ x: 0, y: 0, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Top', color: sideBorderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
+            this.obstacles.push({ x: 0, y: worldHeight - topBottomBorderHeight, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Bottom', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
+        }
+
+        // Side Borders (still colored rectangles)
+        this.obstacles.push({ x: 0, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Left', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
+        this.obstacles.push({ x: worldWidth - sideBorderWidth, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Right', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
+
+
+        const playableMinX = sideBorderWidth + worldMargin;
+        const playableMaxX = worldWidth - sideBorderWidth - worldMargin;
+        const playableMinY = topBottomBorderHeight + worldMargin;
+        const playableMaxY = worldHeight - topBottomBorderHeight - worldMargin;
+
         const playableWidth = Math.max(0, playableMaxX - playableMinX); const playableHeight = Math.max(0, playableMaxY - playableMinY);
         const pSpawnCfg = genConfig.PLAYER_SPAWN_ZONE || {};
         const playerSpawnZoneWidth = Math.max(pSpawnCfg.MIN_WIDTH || 150, playableWidth * (pSpawnCfg.WIDTH_FACTOR || 0.20));
@@ -333,19 +422,19 @@ class Level {
             let pathBase = '';
             let useRandomSpriteFromList = false;
 
-            if (template.type === 'bush_medium') { filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
+                 if (template.type === 'bush_medium') { filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'bush_large') { filesArray = CONFIG.BUSH_SPRITES_64PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_64PX_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'fence_barbed_straight_short') { filesArray = CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'fence_barbed_straight_long') { filesArray = CONFIG.FENCE_BARBED_LONG_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'rock_medium') { filesArray = CONFIG.ROCK_SPRITES_32PX_FILES || []; pathBase = CONFIG.ROCK_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'rock_large') { filesArray = CONFIG.ROCK_SPRITES_64PX_FILES || []; pathBase = CONFIG.ROCK_SPRITES_64PX_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm_medium') { filesArray = CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_MEDIUM_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm_tall') { filesArray = CONFIG.PALM_TREE_TALL_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm_single') { filesArray = CONFIG.PALM_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm_double') { filesArray = CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm_triple') { filesArray = CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'possum_hut') { filesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || []; pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'pickup_health') { filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || []; pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm_fallen') { 
-                filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || [];
-                pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-            } else { actualSpritePath = template.spriteNormal || null; }
+            else if (template.type === 'tree_palm_fallen') { filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {
                 if (filesArray.length > 0 && pathBase) {

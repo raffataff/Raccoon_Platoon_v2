@@ -245,6 +245,13 @@ class GrenadeProjectile {
         this.exploded = true;
         this.isMarkedForDeletion = true;
 
+        // Play explosion sound effect
+        if (this.game && this.game.audioManager) {
+            // The AudioManager will use the defaultVolume and pitchVariation from config
+            // if 'GRENADE_EXPLODE' is defined in CONFIG.AUDIO_ASSETS.
+            this.game.audioManager.play('GRENADE_EXPLODE');
+        }
+
         if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('explosion', this.x, this.y, this.aoeRadius);
 
         const unitsToDamage = [];

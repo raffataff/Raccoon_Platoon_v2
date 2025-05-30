@@ -65,7 +65,7 @@ class Unit {
         this.isPhasing = false;
         this.phasingTimer = 0;
         this.assignedDeadSpritePath = null;
-        this.deathRotationAngle = 0; // NEW: Store rotation for dead sprite
+        this.deathRotationAngle = 0; 
     }
 
 
@@ -198,7 +198,6 @@ class Unit {
                     this.gunAimAngle = Math.atan2(this.autoTarget.y - this.y, this.autoTarget.x - this.x);
                 }
             }
-            // If no specific target, gunAimAngle will be aligned with facingAngle later.
         }
 
         // Combat logic
@@ -221,49 +220,28 @@ class Unit {
             this.currentVisualState = 'idle';
         }
 
-        // --- SIMPLIFIED AND DIRECT Logic for this.facingAngle (which controls sprite) ---
         if (this instanceof Raccoon && this.isAimingGrenade) {
-            // Raccoon.js _handleAimingMovement directly sets this.facingAngle (and gunAimAngle) to mouse.
-            // this.facingAngle is already correct for the sprite direction.
-            // No specific action needed here for facingAngle, it's handled by Raccoon class.
         } else if (this instanceof Raccoon) {
-            // For Raccoons (not aiming grenade):
-            // If they have any kind of shooting engagement (continuous, manual, or auto),
-            // their body/sprite (facingAngle) aligns with the gunAimAngle.
-            // Otherwise (moving without a target, or idle), their body/sprite faces
-            // the physical movement direction or their last orientation.
-
             const isPotentiallyEngaging = (this.isContinuousFiring && this.continuousFireTargetPos) ||
                                        (this.manualTarget && this.manualTarget.isAlive()) ||
-                                       (this.autoTarget && this.autoTarget.isAlive()); // Removed attackCooldown check for VISUAL facing
-
+                                       (this.autoTarget && this.autoTarget.isAlive()); 
             if (isPotentiallyEngaging) {
-                this.facingAngle = this.gunAimAngle; // Raccoon's body/sprite directly faces gun if there's any engagement
+                this.facingAngle = this.gunAimAngle; 
             } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5)) {
-                // Moving but not engaged, face movement direction
                 this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
             }
-            // Else (idle, not engaged), facingAngle remains its last value (previous orientation set by last move/engagement).
-
-        } else if (this.team === 'enemy') { // For enemies
+        } else if (this.team === 'enemy') { 
             const isActivelyEngagedForEnemy = (this.manualTarget && this.manualTarget.isAlive()) ||
                                           (this.autoTarget && this.autoTarget.isAlive() && this.attackCooldown <= 0);
-            if (isActivelyEngagedForEnemy && !this.isMoving) { // Stationary and shooting
+            if (isActivelyEngagedForEnemy && !this.isMoving) { 
                 this.facingAngle = this.gunAimAngle;
             } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5)) {
-                // Moving, face movement direction (unless a specific enemy AI overrides later for kiting)
                 this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
             }
-            // Else (enemy idle, not engaged), facingAngle remains.
         } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5)) {
-            // Default for other potential units: if moving, face movement direction
             this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
         }
-        // (If idle and not covered above, facingAngle just remains its last set value)
 
-
-        // Ensure gunAimAngle aligns with facingAngle if there was no specific gun target earlier
-        // and not aiming a grenade (where gun follows mouse independently).
         const hasSpecificGunTarget = (this.isContinuousFiring && this.continuousFireTargetPos) ||
                                    (this.manualTarget && this.manualTarget.isAlive()) ||
                                    (this.autoTarget && this.autoTarget.isAlive());
@@ -272,9 +250,7 @@ class Unit {
             this.gunAimAngle = this.facingAngle;
         }
 
-        this.updateVisualDirection(this.facingAngle); // Sprite always follows the final this.facingAngle
-        // --- END SIMPLIFIED Logic ---
-
+        this.updateVisualDirection(this.facingAngle); 
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
 
@@ -284,7 +260,7 @@ class Unit {
             type: 'circle',
             x: this.x,
             y: this.y,
-            radius: this.size / 2 // Assuming this.size is the diameter
+            radius: this.size / 2 
         };
     }
 
@@ -313,10 +289,6 @@ class Unit {
 
 
         const rawPathGridCoords = findPath(startGrid, endGrid, navGrid);
-
-        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-          // console.log(`[${this.id} calculatePath] From grid: (${startGrid.x},${startGrid.y}) To world: (${this.worldTargetX.toFixed(0)},${this.worldTargetY.toFixed(0)}), Grid: (${endGrid.x},${endGrid.y}). Raw path len: ${rawPathGridCoords ? rawPathGridCoords.length : 'null'}.`);
-        }
 
         if (rawPathGridCoords && rawPathGridCoords.length > 0) {
             this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level);
@@ -353,10 +325,6 @@ class Unit {
     }
 
     _handleMovement(deltaTime) {
-        // Store initial position to calculate actual delta for this frame later
-        // const originalX = this.x;
-        // const originalY = this.y;
-
         if (!this.isAlive() || !this.isMoving || this.isPhasing) {
             if (this.isPhasing) {
                 if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
@@ -376,10 +344,9 @@ class Unit {
                 }
 
                 this.x += phaseMoveX; this.y += phaseMoveY;
-                this.lastDeltaX = phaseMoveX; // Store actual delta for phasing
+                this.lastDeltaX = phaseMoveX; 
                 this.lastDeltaY = phaseMoveY;
 
-                // facingAngle during phasing IS updated to movement direction here
                 if (Math.abs(phaseMoveX) > 1e-5 || Math.abs(phaseMoveY) > 1e-5) {
                      this.facingAngle = Math.atan2(phaseMoveY, phaseMoveX);
                 }
@@ -444,7 +411,7 @@ class Unit {
         let finalDeltaX = desiredDeltaX;
         let finalDeltaY = desiredDeltaY;
 
-        if (distToNextNode > 1e-5) { // Collision checks and sliding logic
+        if (distToNextNode > 1e-5) { 
             const potentialNewX_combined = this.x + desiredDeltaX;
             const potentialNewY_combined = this.y + desiredDeltaY;
             const collisionCheckRadius = this.size / 2 + 0.5;
@@ -490,11 +457,11 @@ class Unit {
                     if (!collisionY) canMoveY = true;
                 }
 
-                if (canMoveX && !canMoveY) { // Only X is clear
+                if (canMoveX && !canMoveY) { 
                     finalDeltaY = 0;
-                } else if (!canMoveX && canMoveY) { // Only Y is clear
+                } else if (!canMoveX && canMoveY) { 
                     finalDeltaX = 0;
-                } else if (canMoveX && canMoveY) { // Both individually clear (corner)
+                } else if (canMoveX && canMoveY) { 
                     const angleToNode = Math.atan2(dyToNode, dxToNode);
                     const angleOfXMove = (desiredDeltaX >= 0) ? 0 : Math.PI;
                     const angleOfYMove = (desiredDeltaY >= 0) ? Math.PI / 2 : -Math.PI / 2;
@@ -506,17 +473,15 @@ class Unit {
                     else if (Math.abs(desiredDeltaX) > Math.abs(desiredDeltaY) + 1e-4 && Math.abs(desiredDeltaX) > 1e-5) finalDeltaY = 0;
                     else if (Math.abs(desiredDeltaY) > 1e-5) finalDeltaX = 0;
                     else { finalDeltaX = 0; finalDeltaY = 0; }
-                } else { // Neither axis-only move is clear
+                } else { 
                     finalDeltaX = 0; finalDeltaY = 0;
                 }
             }
         }
-        // If distToNextNode is very small, finalDeltaX/Y might remain 0 from initialization, which is fine.
-
         this.x += finalDeltaX;
         this.y += finalDeltaY;
 
-        this.lastDeltaX = finalDeltaX; // Store the actual delta applied this frame
+        this.lastDeltaX = finalDeltaX; 
         this.lastDeltaY = finalDeltaY;
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
@@ -534,12 +499,12 @@ class Unit {
                 if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < arrivalTolerance * 1.5) {
                     this.isMoving = false;
                     this.x = this.worldTargetX; this.y = this.worldTargetY;
-                    this.lastDeltaX = 0; this.lastDeltaY = 0; // No movement at destination
+                    this.lastDeltaX = 0; this.lastDeltaY = 0; 
                 } else if (this.isMoving) {
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Path ended, not at final target. Re-pathing.`);
                     this.setMoveTarget(this.worldTargetX, this.worldTargetY);
                 }
-            } else { // More nodes in current path
+            } else { 
                 const nextNextNode = this.currentPath[this.currentPathNodeIndex];
                  this.pathingStuckCheckPosition = {
                     distToNode: distance(this.x, this.y, nextNextNode.x, nextNextNode.y),
@@ -555,15 +520,10 @@ class Unit {
 
 
     setMoveTarget(worldX, worldY) {
-        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-           // console.log(`[${this.id} setMoveTarget] Attempting to: (${worldX.toFixed(0)},${worldY.toFixed(0)}). Current AI State: ${this.aiState || 'N/A'}, isMoving: ${this.isMoving}`);
-        }
-
         if (this.isContinuousFiring) this.setContinuousFire(false);
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
 
         if (this.team === 'player') {
-        //    this.manualTarget = null;
             this.autoTarget = null;
         } else {
             this.autoTarget = null;
@@ -667,36 +627,25 @@ class Unit {
         }
     }
     setManualTarget(target) {
-        if (this.isContinuousFiring) this.setContinuousFire(false); // Cancel continuous fire
-
+        if (this.isContinuousFiring) this.setContinuousFire(false); 
         this.manualTarget = target;
-        this.autoTarget = null; // Manual target overrides auto-target
-        this.stuckFrames = 0; // Reset stuck counter as behavior is changing
-
-        // Update gun aim and potentially body facing if stationary
+        this.autoTarget = null; 
+        this.stuckFrames = 0; 
         if (target && target.isAlive()) {
             if (distance(this.x, this.y, target.x, target.y) > 0.1) {
                 const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
-                this.gunAimAngle = angleToTarget; // Always aim gun at new manual target
-                if (!this.isMoving) { // If stationary, body also faces new target
+                this.gunAimAngle = angleToTarget; 
+                if (!this.isMoving) { 
                     this.facingAngle = angleToTarget;
                 }
-                // If moving, facingAngle (body) is controlled by movement,
-                // but gunAimAngle (and thus sprite for Raccoons) will be this new target.
             }
         }
-        // If target is null (e.g. clicked empty ground after target lock),
-        // gunAimAngle will align with facingAngle in the update loop if not shooting.
     }
     setContinuousFire(isFiring, targetX, targetY) {
         this.isContinuousFiring = isFiring;
         if (isFiring) {
             this.manualTarget = null;
             this.autoTarget = null;
-        //    this.currentPath = [];
-        //    this.isMoving = false;
-        //    this.worldTargetX = this.x;
-        //    this.worldTargetY = this.y;
             this.continuousFireTargetEntity = null;
             const potentialTargets = (this.team === 'player') ? this.game.enemyUnits : this.game.deployedSquadRoster;
             if(potentialTargets && targetX !== undefined && targetY !== undefined) {
@@ -887,20 +836,26 @@ class Unit {
 
         const projectile = new Projectile(
             this.x, this.y,
-            this.x + Math.cos(angleForProjectile) * this.weapon.range, // Target for projectile calculation
+            this.x + Math.cos(angleForProjectile) * this.weapon.range, 
             this.y + Math.sin(angleForProjectile) * this.weapon.range,
             this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor,
             this.game, this, effectiveAccuracy
         );
         this.game.addProjectile(projectile);
-        this.attackCooldown = 1 / this.weapon.rof;
+        
+        const baseCooldown = 1 / this.weapon.rof;
+        const jitterPercentage = (CONFIG.WEAPON_SETTINGS && CONFIG.WEAPON_SETTINGS.ROF_JITTER_PERCENTAGE !== undefined)
+                                 ? CONFIG.WEAPON_SETTINGS.ROF_JITTER_PERCENTAGE
+                                 : 0; // Default to 0 if not defined
+        const jitter = Math.random() * baseCooldown * jitterPercentage;
+        this.attackCooldown = baseCooldown + jitter;
 
-        // Play fire sound
+
         if (this.weapon.sfxFireKey && this.game && this.game.audioManager) {
             const sfxConfig = CONFIG.AUDIO_ASSETS[this.weapon.sfxFireKey];
             if (sfxConfig) {
-                this.game.audioManager.play(this.weapon.sfxFireKey, { // Corrected: playSound -> play
-                    volume: sfxConfig.defaultVolume, // AudioManager applies this internally from its cache
+                this.game.audioManager.play(this.weapon.sfxFireKey, { 
+                    volume: sfxConfig.defaultVolume, 
                     pitchVariation: sfxConfig.pitchVariation
                 });
             }
@@ -939,18 +894,12 @@ class Unit {
 
             if (this.manualTarget !== attackerUnit) {
                 this.manualTarget = attackerUnit;
-                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id)
-                    // console.log(`[${this.id} takeDamage] Took damage from ${attackerUnit.id}. Setting as manualTarget. AI will transition if not already engaging this target.`);
                 becameAware = true;
             } else {
                 becameAware = true;
             }
 
             this.lastKnownPlayerPosition = { x: attackerUnit.x, y: attackerUnit.y };
-
-            if (this.aiState === 'PATROLLING' || this.aiState === 'GUARDING' || this.aiState === 'SUSPICIOUS') {
-                // AI logic will pick up manualTarget and transition
-            }
 
             const alertDmgThreshold = this.maxHp * (CONFIG.ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT || 0.10);
             if (becameAware || (amount >= alertDmgThreshold) || (prevHp === this.maxHp && amount > 0) ) {
@@ -993,15 +942,7 @@ class Unit {
         if (this.team === 'player' && this.game && typeof this.game.recordRaccoonFallen === 'function') {
             this.game.recordRaccoonFallen(this);
         }
-
-        // --- NEW: Assign random death rotation ---
-        // Angle in radians. Math.PI * 2 is a full circle.
-    //    this.deathRotationAngle = Math.random() * Math.PI * 2;
-        // --- END NEW ---
-
         if (wasSelected && this.game && this.game.ui) this.game.ui.updateSquadPanel();
-        // Note: this.hp is already 0 from takeDamage before die() is usually called.
-        // currentVisualState will be set to 'death' in the update loop.
     }
 
     isAlive() { return this.hp > 0; }
@@ -1012,11 +953,9 @@ class Unit {
             console.warn(`[${this.id} onStuck BASE] Reason: ${reason}. AI State: ${this.aiState || 'N/A'}. Pos:(${this.x.toFixed(0)},${this.y.toFixed(0)}), Target:(${this.worldTargetX.toFixed(0)},${this.worldTargetY.toFixed(0)})`);
         }
 
-        this.isMoving = false; // Stop current movement attempt
-        // Do NOT clear currentPath immediately here if we want to try phasing along it.
-        // this.currentPath = [];
+        this.isMoving = false; 
         this.stuckFrames = 0;
-        this.pathingStuckFrames = 0; // Reset for the next attempt
+        this.pathingStuckFrames = 0; 
         this.lastRepathAttemptTime = currentTime;
 
         if (currentTime - this.lastOnStuckTime < this.STUCK_RECOVERY_COOLDOWN_INTERNAL) {
@@ -1032,20 +971,17 @@ class Unit {
                 console.warn(`[${this.id} onStuck BASE] Max consecutive stuck attempts (${this.consecutiveStuckAttempts}). Initiating Phasing.`);
             }
             this.isPhasing = true;
-            this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75; // Add to CONFIG
+            this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75; 
             this.consecutiveStuckAttempts = 0;
-            if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) { // Only if still far from target
-                 this.isMoving = true; // Re-enable movement for phasing
-                 // Try to resume path if valid, otherwise make a direct path for phasing
+            if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) { 
+                 this.isMoving = true; 
                  if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
-                    // Create a direct path to the world target for phasing
                     const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
                     this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
                     this.currentPathNodeIndex = 0;
                  }
-                 // If currentPath is still valid (e.g. from a previous setMoveTarget), phasing will use it.
             } else {
-                this.isMoving = false; // Close enough, stop
+                this.isMoving = false; 
             }
             return;
         }
@@ -1055,7 +991,7 @@ class Unit {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
                 console.log(`[${this.id} onStuck PLAYER] Player unit stuck. Stopping. Consecutive: ${this.consecutiveStuckAttempts}`);
             }
-             this.currentPath = []; // Player units stop and clear path fully.
+             this.currentPath = []; 
         } else {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
                 console.log(`[${this.id} onStuck BASE ENEMY] Fallback. Consecutive: ${this.consecutiveStuckAttempts}. Attempting desperate move.`);
@@ -1064,7 +1000,7 @@ class Unit {
                 if(!this._attemptDesperateMove()){
                      if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} onStuck BASE] Desperate move failed for enemy. Reverting to base AI state.`);
                      this.aiState = (this instanceof PossumHeavy) ? 'GUARDING' : 'PATROLLING';
-                     this.currentPath = []; // Clear path on full fallback
+                     this.currentPath = []; 
                      if (this.aiState === 'GUARDING' && typeof this.guardPost !== 'undefined' && this.guardPost) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
                      else if (this.aiState === 'PATROLLING' && typeof this.patrolPoint1 !== 'undefined' && this.patrolPoint1) this.setMoveTarget(this.patrolPoint1.x, this.patrolPoint1.y);
                 }
@@ -1077,7 +1013,6 @@ class Unit {
         if (!navGrid) return false;
 
         const currentGridPos = this.game.level.worldToGridCoords(this.x, this.y);
-        // Use the unit-specific desperate radius if defined, otherwise a small default
         const desperateRadiusCells = (this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL !== undefined ? this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL : 3);
 
         for (let attempt = 0; attempt < 15; attempt++) {
@@ -1103,7 +1038,7 @@ class Unit {
                 if (walkableNeighbors >= 2) {
                     const worldCoords = this.game.level.gridToWorldCoords(desperateGridX, desperateGridY);
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _attemptDesperateMove] Found desperate spot (${desperateGridX},${desperateGridY}). Moving.`);
-                    this.currentPath = []; // Clear old path before setting new target for desperate move
+                    this.currentPath = []; 
                     this.setMoveTarget(worldCoords.x, worldCoords.y);
                     return true;
                 }
@@ -1120,7 +1055,7 @@ class Unit {
         const healthBarStyle = CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR;
 
         ctx.save();
-        ctx.translate(this.x, this.y); // Main translation for the unit
+        ctx.translate(this.x, this.y); 
 
         if (this.isPhasing) {
             ctx.globalAlpha = CONFIG.UNIT_VISUALS.UNIT_PHASING_OPACITY || 0.5;
@@ -1132,10 +1067,10 @@ class Unit {
 
         let spriteToDraw = null;
         let spriteScale = 1.0;
-        let spriteWidth = 0; // Initialize
-        let spriteHeight = 0; // Initialize
-        let drawOffsetX = -this.size / 2; // Default for fallback circle centering
-        let drawOffsetY = -this.size / 2; // Default for fallback circle centering
+        let spriteWidth = 0; 
+        let spriteHeight = 0; 
+        let drawOffsetX = -this.size / 2; 
+        let drawOffsetY = -this.size / 2; 
 
         if (this.isAlive()) {
             const actionFolder = 'idle';
@@ -1145,8 +1080,6 @@ class Unit {
             if (!spriteToDraw) {
                 const fallbackSpriteKey = `${this.spriteBaseName}_${actionFolder}_s`;
                 spriteToDraw = this.game.preloadedImages[fallbackSpriteKey];
-                // No console warn here to reduce spam if many fallbacks occur,
-                // rely on preload logs if an asset is truly missing.
             }
 
             if (this instanceof Raccoon) {
@@ -1160,12 +1093,10 @@ class Unit {
             if (spriteToDraw) {
                 spriteWidth = spriteToDraw.naturalWidth * spriteScale;
                 spriteHeight = spriteToDraw.naturalHeight * spriteScale;
-                drawOffsetX = -spriteWidth / 2; // Center the sprite
-                drawOffsetY = -spriteHeight / 2; // Center the sprite
+                drawOffsetX = -spriteWidth / 2; 
+                drawOffsetY = -spriteHeight / 2; 
             }
-            // If !spriteToDraw, drawOffsetX/Y remain at -this.size/2 for the fallback circle
-
-        } else { // Unit is dead
+        } else { 
             let deadSpriteConfigPath = null;
             let deadSpriteConfigFiles = null;
             let deadSpriteConfigScale = 1.0;
@@ -1192,27 +1123,22 @@ class Unit {
             if (this.assignedDeadSpritePath) {
                 spriteToDraw = this.game.preloadedImages[this.assignedDeadSpritePath];
             }
-            spriteScale = deadSpriteConfigScale; // Use the specific dead sprite scale
+            spriteScale = deadSpriteConfigScale; 
 
             if (spriteToDraw) {
                 spriteWidth = spriteToDraw.naturalWidth * spriteScale;
                 spriteHeight = spriteToDraw.naturalHeight * spriteScale;
-                drawOffsetX = -spriteWidth / 2; // Center horizontally
-                drawOffsetY = -spriteHeight * 0.2; // Adjust to sit on ground, or -spriteHeight / 2 for center
+                drawOffsetX = -spriteWidth / 2; 
+                drawOffsetY = -spriteHeight * 0.2; 
             }
-            // If !spriteToDraw for dead unit, drawOffsetX/Y remain -this.size/2 for fallback circle
-
-            // Apply death rotation IF a sprite is being drawn
             if (spriteToDraw) {
                 ctx.rotate(this.deathRotationAngle);
             }
         }
 
-        // --- Draw Logic ---
         if (spriteToDraw) {
-            // spriteWidth, spriteHeight, drawOffsetX, drawOffsetY are already set
             ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
-        } else { // Fallback to colored circle (already centered at current translation 0,0)
+        } else { 
             let originalAlpha = ctx.globalAlpha;
             if (!this.isAlive()) {
                 ctx.fillStyle = this.team === 'player' ? (kiaStyle && kiaStyle.PLAYER_FILL_COLOR || 'darkgrey') : (kiaStyle && kiaStyle.ENEMY_FILL_COLOR || '#555');
@@ -1222,25 +1148,20 @@ class Unit {
                 ctx.fillStyle = this.color;
             }
             ctx.beginPath();
-            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2); // Use radius for arc
+            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2); 
             ctx.fill();
             ctx.globalAlpha = originalAlpha;
         }
 
-        // Reset rotation if it was applied for a dead sprite
         if (!this.isAlive() && spriteToDraw) {
-            ctx.rotate(-this.deathRotationAngle); // Rotate back
+            ctx.rotate(-this.deathRotationAngle); 
         }
-
-        // Reset globalAlpha if it was changed by phasing
         if (!this.isPhasing) {
              if (this.isAlive() || (!this.isAlive() && !(kiaStyle && kiaStyle.OPACITY !== undefined))) {
                 ctx.globalAlpha = 1.0;
             }
         }
 
-
-        // Gun Aim Indicator for alive units (drawn relative to unit's non-rotated center)
         if (this.isAlive() && CONFIG.UNIT_VISUALS.DRAW_GUN_AIM_INDICATOR && facingIndicatorStyle) {
             ctx.strokeStyle = facingIndicatorStyle.COLOR || 'black';
             ctx.lineWidth = facingIndicatorStyle.LINE_WIDTH || 1;
@@ -1250,9 +1171,7 @@ class Unit {
             ctx.stroke();
         }
 
-        ctx.restore(); // Restores translation, globalAlpha, and any rotation state from before this unit's render
-
-        // Health bar for alive units (drawn in world space, not translated/rotated with unit)
+        ctx.restore(); 
         if (this.isAlive() && healthBarStyle) {
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
             const barHeight = healthBarStyle.HEIGHT || 4;

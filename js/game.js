@@ -208,15 +208,20 @@ class Game {
         const imagePromises = [];
          console.log("[Game] Preloading level assets...");
 
+        // Specific border fence sprite preloading is removed as it's now part of OBSTACLE_DEFINITIONS logic
+
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
             if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) ||
+                (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) ||
+                (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || // This will be preloaded here if it's the BORDER_OBSTACLE_TYPE
                 (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) ||
                 (def.type === 'bush_large' && CONFIG.BUSH_SPRITES_64PX_FILES) ||
                 (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) ||
                 (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) ||
-                (def.type === 'tree_palm_tall' && CONFIG.PALM_TREE_TALL_SPRITE_FILES) ||
-                (def.type === 'tree_palm_medium' && CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES) ||
+                (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) ||
                 (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) ||
                 (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
                 (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES)
@@ -224,10 +229,10 @@ class Game {
                 handledByDedicatedList = true;
             }
             const spritesToLoadOnTemplate = [];
-            if (!handledByDedicatedList) {
+            if (!handledByDedicatedList) { // If not handled by a file list, check spriteNormal
                 if (def.spriteNormal) spritesToLoadOnTemplate.push({ path: def.spriteNormal, key: def.spriteNormal });
             }
-            if (def.spriteDestroyed) {
+            if (def.spriteDestroyed) { // Always check for destroyed sprite
                  spritesToLoadOnTemplate.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
             }
 
@@ -252,12 +257,15 @@ class Game {
 
         const listBasedSprites = [
             { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
+            { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" },
+            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, // This covers the border type if it uses this list
             { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
             { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
             { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" },
             { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" },
-            { files: CONFIG.PALM_TREE_TALL_SPRITE_FILES, path: CONFIG.PALM_TREE_TALL_SPRITE_PATH, name: "palm_tall" },
-            { files: CONFIG.PALM_TREE_MEDIUM_SPRITE_FILES, path: CONFIG.PALM_TREE_MEDIUM_SPRITE_PATH, name: "palm_medium" },
+            { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" },
+            { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" },
+            { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" },
             { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" },
             { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" },
             { files: CONFIG.POSSUM_HUT_SPRITE_FILES, path: CONFIG.POSSUM_HUT_SPRITE_PATH, name: "possum_hut" }
@@ -950,6 +958,9 @@ class Game {
 
         if (this.gameState === 'RUNNING') {
             this.checkMissionStatus();
+            if (this.level && typeof this.level.updateHutSpawning === 'function') { // Ensure hut spawning logic is called
+                this.level.updateHutSpawning(deltaTime);
+            }
         }
     }
 
@@ -989,13 +1000,21 @@ class Game {
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.level.obstacles) {
             this.level.obstacles.forEach(obstacle => {
-                if (obstacle.type === 'border_wall') return;
+                // MODIFIED: Do not add 'border_wall' of the old type if we are using a defined obstacle type for top/bottom.
+                if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
+                    const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
+                    if (borderObstacleType) { // If a type is specified, new system is active
+                        return; // Skip rendering the old colored top/bottom border_wall.
+                    }
+                }
+
+
                 if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) {
                     let sortYValue = obstacle.y + obstacle.height; // Default sort by visual bottom
                     const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;
 
                     // Refined Y-sort for specific types or shapes
-                    if (obstacle.type === 'tree_palm_medium' || obstacle.type === 'tree_palm_tall') {
+                    if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple') {
                         if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) {
                              sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1);
                         } else if (collisionShape && collisionShape.type === 'circle') {
@@ -1041,6 +1060,7 @@ class Game {
                     this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
 
                 } else if (!obj.isDecoration || !obj.imageNormal) {
+                     // Fallback for obstacles without sprites (e.g., side border walls if they are still type 'border_wall')
                     let obsColor = obj.color || '#555555';
                     if (obj.isDestroyed) {
                         obsColor = 'rgba(50, 40, 30, 0.7)';
@@ -1088,7 +1108,14 @@ class Game {
             this.ctx.lineWidth = 1;
 
             this.level.obstacles.forEach(obstacle => {
-                if (obstacle.type === 'border_wall') return;
+                // Do not draw collision for old 'border_wall' if sprite borders are active for top/bottom
+                if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
+                     const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
+                    if (borderObstacleType) { // If a type is specified, new system is active
+                        return;
+                    }
+                }
+
 
                 const collisionShape = this.level._getObstacleCollisionShape(obstacle);
                 if (!collisionShape) return;
