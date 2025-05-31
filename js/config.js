@@ -50,7 +50,7 @@ const CONFIG = {
     RACCOON_SPRITE_SCALE_FACTOR: 0.5,
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/', 
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
-    RACCOON_DEAD_SPRITE_SCALE: 0.05,
+    RACCOON_DEAD_SPRITE_SCALE: 0.06,
 
     // --- Units: Possum Grunt ---
     POSSUM_GRUNT_HP: 30,
@@ -67,7 +67,7 @@ const CONFIG = {
     POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.5, 
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
     POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png', 'possum_grunt_dead_4.png'], 
-    POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.4, 
+    POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.5, 
 
     // --- Units: Possum Heavy ---
     POSSUM_HEAVY_HP: 70,
@@ -84,7 +84,7 @@ const CONFIG = {
     POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.55, 
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'], 
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.5, 
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.55, 
     
     // --- Units: General & AI ---
     UNIT_VISUALS: {
@@ -553,6 +553,27 @@ const CONFIG = {
             MAX_SPAWN_ATTEMPTS_PER_HUT_EVENT: 5,
             INITIAL_MOVE_OUT_DISTANCE: 25,
         }
+    },
+
+    HOSTAGE_SETTINGS: {
+        HP: 35, // Or use CONFIG.RACCOON_HP
+        SPEED: 110, // Or use CONFIG.RACCOON_SPEED
+        COLOR: '#ADD8E6', // Color when rescued (light blue)
+        NEUTRAL_COLOR: '#FFD700', // Color when not yet rescued (gold/yellow)
+        RESCUE_RADIUS: 60,
+        FOLLOW_DISTANCE: 40,
+        FOLLOW_LERP_SPEED: 0.04, // Smoother following
+        // SPRITE_BASE_NAME: 'raccoon_hostage', // If you have specific sprites
+        POSSIBLE_RANKS_ON_RESCUE: [ // Define ranks and optionally starting XP
+            { rankName: "Recruit", xpNeeded: 0 },
+            { rankName: "Recruit", xpNeeded: 0 }, // Higher chance of recruit
+            { rankName: "Private", xpNeeded: 100 },
+            { rankName: "Corporal", xpNeeded: 300 },
+            { rankName: "Sergeant", xpNeeded: 600 },
+            { rankName: "Elite", xpNeeded: 1000 }
+        ],
+        MAX_HOSTAGES_PER_MISSION: 3, // Example: max hostages that can spawn in a rescue mission
+        MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1 // Example: win condition for a rescue mission
     },
 
     AMBIENT_EFFECTS: {

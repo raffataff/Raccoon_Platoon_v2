@@ -1,3 +1,5 @@
+// js/ui.js
+// complete
 class UI {
     constructor(game) {
         this.game = game;
@@ -409,8 +411,8 @@ class UI {
                 infoDiv.innerHTML = `
                     <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_NAME || "Name:"}</span> <span class="field-value">${fallen.name || fallen.id}</span></div>
                     <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_RANK || "Rank Achieved:"}</span> <span class="field-value">${fallen.rank || 'Recruit'}</span></div>
-                    <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_MISSION || "Fell In:"}</span> <span class="field-value">${fallen.missionDied || (this.uiText.UNKNOWN_MISSION_TEXT || "Unknown Mission")}</span></div>
-                    <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_PHASE || "During:"}</span> <span class="field-value">${fallen.phaseDied || (this.uiText.UNKNOWN_PHASE_TEXT || "Unknown Phase")}</span></div>`;
+                    <div><span class.field-label">${this.uiText.MEMORIAL_LABEL_MISSION || "Fell In:"}</span> <span class="field-value">${fallen.missionDied || (this.uiText.UNKNOWN_MISSION_TEXT || "Unknown Mission")}</span></div>
+                    <div><span class.field-label">${this.uiText.MEMORIAL_LABEL_PHASE || "During:"}</span> <span class="field-value">${fallen.phaseDied || (this.uiText.UNKNOWN_PHASE_TEXT || "Unknown Phase")}</span></div>`;
                 entryDiv.appendChild(infoDiv); this.memorialEntriesContainer.appendChild(entryDiv);
             });
         } else {
@@ -443,16 +445,51 @@ class UI {
         }
          if(this.game && this.game.ui && this.game.currentFormationType) this.updateFormationButton(this.game.currentFormationType);
          this.updateSquadPanel();
+         this.updateObjective(); // Call to initialize objective text
     }
     hideHUD() { if (this.leftHudPanel) this.leftHudPanel.style.display = 'none'; }
 
-    updateObjective(text) {
-        if(this.objectiveText && this.game && this.game.currentMissionParams) {
-            this.objectiveText.textContent = this.game.currentMissionParams.name || (this.uiText.DEFAULT_OBJECTIVE_TEXT || "Defeat Possums");
+    updateObjective() { // Removed 'text' parameter as it's now dynamic
+        if (this.objectiveText && this.game && this.game.currentMissionParams) {
+            const params = this.game.currentMissionParams;
+            let objectiveStr = params.name || (this.uiText.DEFAULT_OBJECTIVE_TEXT || "Complete Objective");
+
+            if (params.objectiveType === "EXTERMINATE") {
+                const aliveEnemies = this.game.enemyUnits ? this.game.enemyUnits.filter(e => e.isAlive()).length : 0;
+                const totalEnemies = this.game.initialEnemyCount || (this.game.enemyUnits ? this.game.enemyUnits.length : 0);
+                if (totalEnemies > 0) { // Only show count if enemies were expected
+                    objectiveStr = `Eliminate Possums: ${totalEnemies - aliveEnemies} / ${totalEnemies}`;
+                } else if (this.game.missionStartedAndPopulated && aliveEnemies === 0) {
+                     objectiveStr = `All Possums Eliminated!`; // Or specific message
+                } else {
+                    objectiveStr = `Eliminate All Possums`;
+                }
+            } else if (params.objectiveType === "RESCUE_HOSTAGES") {
+                const rescuedAliveCount = this.game.hostageUnits ? this.game.hostageUnits.filter(h => h.isRescued && h.isAlive()).length : 0;
+                const totalToSpawn = params.numHostagesToSpawn || (this.game.level && this.game.level.initialHostageCount) || 0;
+                const minToWin = params.minHostagesToRescueForWin || (CONFIG.HOSTAGE_SETTINGS && CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN) || 1;
+                objectiveStr = `Rescue Hostages: ${rescuedAliveCount} / ${minToWin} (Min)`;
+                if (totalToSpawn > 0 && rescuedAliveCount >= totalToSpawn && this.game.hostageUnits.every(h=> h.isRescued || !h.isAlive())) {
+                    objectiveStr = `All Hostages Rescued!`;
+                } else if (totalToSpawn > 0 && rescuedAliveCount >= minToWin) {
+                     objectiveStr = `Hostages Rescued: ${rescuedAliveCount} / ${minToWin} (Min) - Proceed to extraction!`; // If extraction is next step
+                }
+            }
+            // Add more objective types here if needed
+
+            this.objectiveText.textContent = objectiveStr;
         } else if (this.objectiveText) {
-            this.objectiveText.textContent = text || (this.uiText.UNKNOWN_OBJECTIVE_TEXT || "Unknown Objective");
+            this.objectiveText.textContent = (this.uiText.UNKNOWN_OBJECTIVE_TEXT || "Unknown Objective");
         }
     }
+    
+    // NEW method to be called when a hostage is rescued or dies, to update the count
+    updateHostageStatus(hostage, wasRescuedAndIsAlive) {
+        if (this.game.currentMissionParams && this.game.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
+            this.updateObjective(); // Re-calculate and update the objective text
+        }
+    }
+
 
     updateFormationButton(formationType) {
         if (this.toggleFormationButton && formationType) {
@@ -485,8 +522,8 @@ class UI {
 
             const isKIA = !raccoon.isAlive(); let statusText = 'Active';
             if (isKIA) statusText = 'KIA';
-            else if (raccoon.isAimingGrenade) statusText = 'Aiming Grnd'; 
-            else if (raccoon.isPlayerDirectFiring) statusText = 'Firing MG'; 
+            else if (raccoon.isAimingGrenade) statusText = 'Aiming Grnd';
+            else if (raccoon.isPlayerDirectFiring) statusText = 'Firing MG';
             else if (raccoon.actionTimer > 0) statusText = 'Busy';
             else if (raccoon.manualTarget) statusText = 'Targeting';
             const statusClass = isKIA ? 'status-kia' : '';
@@ -518,14 +555,14 @@ class UI {
         if (this.game && this.game.canvas) {
             this.game.canvas.classList.remove(
                 'cursor-default', 'cursor-attack', 'cursor-cell',
-                'cursor-target-mode-default', 'cursor-target-mode-enemy' 
+                'cursor-target-mode-default', 'cursor-target-mode-enemy'
             );
-            this.game.canvas.style.cursor = ''; 
+            this.game.canvas.style.cursor = '';
 
             if (styleName === 'attack') this.game.canvas.classList.add('cursor-attack');
-            else if (styleName === 'cell') this.game.canvas.classList.add('cursor-cell'); 
-            else if (styleName === 'target-mode-default') this.game.canvas.classList.add('cursor-target-mode-default'); 
-            else if (styleName === 'target-enemy-hover') this.game.canvas.classList.add('cursor-target-mode-enemy'); 
+            else if (styleName === 'cell') this.game.canvas.classList.add('cursor-cell');
+            else if (styleName === 'target-mode-default') this.game.canvas.classList.add('cursor-target-mode-default');
+            else if (styleName === 'target-enemy-hover') this.game.canvas.classList.add('cursor-target-mode-enemy');
             else {
                 this.game.canvas.classList.add('cursor-default');
                 if (styleName !== 'default' && styleName !== 'attack' && styleName !== 'cell' &&

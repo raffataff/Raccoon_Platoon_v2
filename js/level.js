@@ -1,3 +1,5 @@
+// js/level.js
+// complete
 class Level {
     constructor(game) {
         this.game = game;
@@ -14,6 +16,7 @@ class Level {
                             : {};
         this.timeSinceLastHutActivationCheck = 0;
         this.HUT_ACTIVATION_CHECK_INTERVAL = 1.0;
+        this.initialHostageCount = 0; // To track spawned hostages for objective UI
     }
 
     _getObstacleCollisionShape(obstacle) {
@@ -47,7 +50,6 @@ class Level {
                 };
             }
         }
-        // Default collision for border_fence_segment (or any border type) should use its actual width/height
         if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || obstacle.type === 'border_wall') {
              return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
         }
@@ -109,7 +111,7 @@ class Level {
                 } else if (obstacle.blocksMovement === false) {
                     obstacle.collisionShape = null;
                 }
-            } else { // Should not happen for border_fence_segment as it's from OBSTACLE_DEFINITIONS
+            } else { 
                 obstacle.blocksMovement = false;
                 obstacle.providesCover = false;
                 obstacle.collisionShape = null;
@@ -294,8 +296,13 @@ class Level {
         this.obstacles = [];
         this.potentialSpawnerHuts = [];
         this.activeSpawningHuts = [];
+        this.initialHostageCount = 0; // Reset for new level
 
-        if (this.game) { this.game.enemyUnits = []; this.game.gameObjects = []; }
+        if (this.game) {
+            this.game.enemyUnits = [];
+            this.game.gameObjects = [];
+            this.game.hostageUnits = []; // Clear previous hostages
+        }
 
         const genConfig = CONFIG.LEVEL_GENERATION || {};
         const worldMargin = genConfig.WORLD_MARGIN || 20;
@@ -315,74 +322,68 @@ class Level {
         let borderSpritePath = null;
 
         if (borderObstacleTemplate) {
-            // Determine sprite path for the chosen border obstacle type
-            if (borderObstacleTemplate.spriteNormal) {
+            if (borderObstacleTemplate.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES.length > 0) {
+                borderSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + CONFIG.FENCE_BARBED_LONG_SPRITE_FILES[0];
+            } else if (borderObstacleTemplate.spriteNormal) { // Generic fallback for other types
                 borderSpritePath = borderObstacleTemplate.spriteNormal;
-            } else if (borderObstacleTemplate.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES.length > 0) {
-                borderSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + CONFIG.FENCE_BARBED_LONG_SPRITE_FILES[0]; // Use first from list
-            } // Add other specific list-based lookups if needed for other types
+            }
 
             if (borderSpritePath) {
                 borderSpriteImage = preloadedAssetImages[borderSpritePath];
             }
-            borderSpriteScale = borderObstacleTemplate.spriteScale || 1.0;
+            borderSpriteScale = borderObstacleTemplate.spriteScale !== undefined ? borderObstacleTemplate.spriteScale : 1.0;
 
             if (borderSpriteImage) {
                 borderSegmentWidth = borderSpriteImage.naturalWidth * borderSpriteScale;
                 borderSegmentHeight = borderSpriteImage.naturalHeight * borderSpriteScale;
-            } else if (borderObstacleTemplate.width && borderObstacleTemplate.height) { // Fallback to template dimensions if sprite missing
-                borderSegmentWidth = borderObstacleTemplate.width;
+            } else if (borderObstacleTemplate.width && borderObstacleTemplate.height) {
+                borderSegmentWidth = borderObstacleTemplate.width; // These would be absolute if spriteScale not used
                 borderSegmentHeight = borderObstacleTemplate.height;
                 console.warn(`Border obstacle type '${borderObstacleTypeName}' has no preloaded sprite, using defined dimensions.`);
             } else {
                 console.warn(`Border obstacle type '${borderObstacleTypeName}' has no sprite or dimensions. Defaulting border height.`);
-                borderSegmentHeight = genConfig.BORDER_WIDTH || 30; // Fallback to old border width as height
-                borderObstacleTemplate = null; // Invalidate template use if essential info missing
+                borderSegmentHeight = genConfig.BORDER_WIDTH || 30;
+                borderObstacleTemplate = null;
             }
         }
 
         let topBottomBorderHeight = (borderObstacleTemplate && borderSegmentHeight > 0) ? borderSegmentHeight : (genConfig.BORDER_WIDTH || 30);
 
-        if (borderObstacleTemplate && borderSpriteImage && borderSegmentWidth > 0) {
+        if (borderObstacleTemplate && borderSpriteImage && borderSegmentWidth > 0 && borderSegmentHeight > 0) {
             const numSegments = Math.ceil(worldWidth / borderSegmentWidth);
             for (let i = 0; i < numSegments; i++) {
                 const segmentX = i * borderSegmentWidth;
-                // Top Border Segments
-                this.obstacles.push({
-                    x: segmentX, y: 0,
-                    width: borderSegmentWidth, height: topBottomBorderHeight,
-                    type: borderObstacleTemplate.type, name: borderObstacleTemplate.name + " (Border Top)",
-                    destructible: borderObstacleTemplate.destructible || false, // Borders usually not destructible
-                    hp: borderObstacleTemplate.hp || Infinity,
-                    maxHp: borderObstacleTemplate.maxHp || Infinity,
-                    isDestroyed: false,
-                    blocksMovement: true, providesCover: true, // Borders must block & cover
-                    spriteNormalPath: borderSpritePath, imageNormal: borderSpriteImage,
-                    spriteScale: borderSpriteScale,
-                    collisionShape: borderObstacleTemplate.collisionShape ? JSON.parse(JSON.stringify(borderObstacleTemplate.collisionShape)) : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w=>w, height: h=>h }
-                });
-                // Bottom Border Segments
-                this.obstacles.push({
-                    x: segmentX, y: worldHeight - topBottomBorderHeight,
-                    width: borderSegmentWidth, height: topBottomBorderHeight,
-                    type: borderObstacleTemplate.type, name: borderObstacleTemplate.name + " (Border Bottom)",
-                    destructible: borderObstacleTemplate.destructible || false,
-                    hp: borderObstacleTemplate.hp || Infinity,
-                    maxHp: borderObstacleTemplate.maxHp || Infinity,
-                    isDestroyed: false,
+                const commonProps = {
+                    type: borderObstacleTemplate.type,
+                    name: borderObstacleTemplate.name, // Will append (Border Top/Bottom) later
+                    destructible: false, // Borders are indestructible
+                    hp: Infinity, maxHp: Infinity, isDestroyed: false,
                     blocksMovement: true, providesCover: true,
                     spriteNormalPath: borderSpritePath, imageNormal: borderSpriteImage,
                     spriteScale: borderSpriteScale,
-                    collisionShape: borderObstacleTemplate.collisionShape ? JSON.parse(JSON.stringify(borderObstacleTemplate.collisionShape)) : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w=>w, height: h=>h }
+                    // Deep copy collisionShape, applying scaling if functions are used
+                    collisionShape: borderObstacleTemplate.collisionShape ? JSON.parse(JSON.stringify(borderObstacleTemplate.collisionShape)) : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w => w, height: h => h }
+                };
+
+                this.obstacles.push({
+                    ...commonProps,
+                    x: segmentX, y: 0,
+                    width: borderSegmentWidth, height: topBottomBorderHeight,
+                    name: `${borderObstacleTemplate.name} (Border Top)`,
+                });
+                this.obstacles.push({
+                    ...commonProps,
+                    x: segmentX, y: worldHeight - topBottomBorderHeight,
+                    width: borderSegmentWidth, height: topBottomBorderHeight,
+                    name: `${borderObstacleTemplate.name} (Border Bottom)`,
                 });
             }
         } else {
-            // Fallback to old colored borders if sprite or template not properly set up
+            topBottomBorderHeight = genConfig.BORDER_WIDTH || 30; // Ensure fallback uses default height
             this.obstacles.push({ x: 0, y: 0, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Top', color: sideBorderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
             this.obstacles.push({ x: 0, y: worldHeight - topBottomBorderHeight, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Bottom', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
         }
 
-        // Side Borders (still colored rectangles)
         this.obstacles.push({ x: 0, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Left', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
         this.obstacles.push({ x: worldWidth - sideBorderWidth, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Right', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
 
@@ -554,6 +555,53 @@ class Level {
             } while (!placed && attempts < placementMaxAttempts);
         }
 
+        // --- HOSTAGE SPAWNING LOGIC ---
+        if (missionParams.objectiveType === 'RESCUE_HOSTAGES') {
+            const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
+            // Prioritize mission-specific count, then config, then default
+            const numHostagesToSpawn = missionParams.numHostagesToSpawn !== undefined ? missionParams.numHostagesToSpawn : (hostageConf.MAX_HOSTAGES_PER_MISSION !== undefined ? hostageConf.MAX_HOSTAGES_PER_MISSION : 1);
+            this.initialHostageCount = numHostagesToSpawn;
+
+            console.log(`[Level] Attempting to spawn ${numHostagesToSpawn} hostages for mission: ${missionParams.name}`);
+
+            for (let i = 0; i < numHostagesToSpawn; i++) {
+                let hostageX, hostageY, attempts = 0;
+                const maxPlacementAttempts = 30; // Increased attempts for hostages
+                let placed = false;
+                const hostageSize = CONFIG.RACCOON_SIZE || 12; // Use raccoon size for hostages
+
+                do {
+                    // Try to place them away from player spawn, maybe towards middle/top of map
+                    // and ensure not overlapping existing obstacles or other hostages
+                    hostageX = playableMinX + Math.random() * (playableWidth - hostageSize);
+                    // Try to place them further away from player spawn zone vertically
+                    hostageY = playableMinY + Math.random() * (playableHeight * 0.6 - hostageSize); // e.g. in top 60% of playable height
+
+
+                    const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
+                    let existingUnitsForClearance = this.game.enemyUnits.concat(this.game.hostageUnits || []);
+
+
+                    if (!this._rectOverlap(tempHostageShapeForPlayerZone, playerSpawnZone) && // Not in player spawn zone
+                        distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2) > 150 && // Min distance from player spawn center
+                        this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, existingUnitsForClearance)) {
+
+                        const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${i}`);
+                        if(this.game.hostageUnits) this.game.hostageUnits.push(newHostage);
+                        else this.game.hostageUnits = [newHostage];
+                        placed = true;
+                        console.log(`[Level] Spawned hostage ${newHostage.id} at (${hostageX.toFixed(0)}, ${hostageY.toFixed(0)})`);
+                    }
+                    attempts++;
+                } while (!placed && attempts < maxPlacementAttempts);
+
+                if(!placed) {
+                    console.warn(`[Level] Could not find suitable placement for hostage ${i + 1} after ${maxPlacementAttempts} attempts.`);
+                }
+            }
+        }
+
+
         this.generateNavigationGrid(worldWidth, worldHeight);
 
         const pSpawnPlaceCfg = genConfig.PLAYER_SPAWN_PLACEMENT || {}; const playerSpawnLocations = []; const playerUnitSize = CONFIG.RACCOON_SIZE || 12;
@@ -593,14 +641,28 @@ class Level {
             let currentGroupSizeAttempt = Math.random() < smallGroupChance ? Math.floor(smallGroupMin + Math.random() * (smallGroupMax - smallGroupMin + 1)) : (smallGroupMax + Math.floor(Math.random() * 2));
             currentGroupSizeAttempt = Math.min(currentGroupSizeAttempt, totalEnemiesToSpawn - enemiesSpawnedCount); if (currentGroupSizeAttempt <= 0) continue;
             let groupLeaderX, groupLeaderY, isLeaderSpawnClear; let leaderPlacementAttempts = 0; const leaderMaxAttempts = enemySpawnCfg.LEADER_PLACEMENT_MAX_ATTEMPTS || 20;
-            const minSpawnDistFromPlayerZone = enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 50; const enemySpawnMinX = playerSpawnZone.x + playerSpawnZone.width + minSpawnDistFromPlayerZone;
-            const enemySpawnableWidth = Math.max(0, playableMaxX - enemySpawnMinX); if (enemySpawnableWidth <= heavySize * 2) { continue; }
+            const minSpawnDistFromPlayerZone = enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 50;
+            let enemySpawnMinX = playableMinX; // Default spawn anywhere in playable area
+             // If player spawn is on the left, spawn enemies to the right of it
+            if (playerSpawnZone.x < worldWidth / 2) {
+                 enemySpawnMinX = playerSpawnZone.x + playerSpawnZone.width + minSpawnDistFromPlayerZone;
+            }
+            const enemySpawnableWidth = Math.max(0, playableMaxX - enemySpawnMinX); if (enemySpawnableWidth <= heavySize * 2 && playerSpawnZone.x < worldWidth / 2) { continue; } // Not enough space to the right
+            
             do {
-                groupLeaderX = enemySpawnMinX + Math.random() * (enemySpawnableWidth - heavySize); groupLeaderY = playableMinY + Math.random() * (playableHeight - heavySize);
-                groupLeaderX = Math.max(playableMinX + heavySize / 2, Math.min(groupLeaderX, playableMaxX - heavySize / 2)); groupLeaderY = Math.max(playableMinY + heavySize / 2, Math.min(groupLeaderY, playableMaxY - heavySize / 2));
+                if (playerSpawnZone.x < worldWidth / 2 && enemySpawnableWidth > heavySize) { // Spawn to the right
+                     groupLeaderX = enemySpawnMinX + Math.random() * (enemySpawnableWidth - heavySize);
+                } else { // Spawn anywhere in playable X if player is not on left, or not enough space right
+                     groupLeaderX = playableMinX + Math.random() * (playableWidth - heavySize);
+                }
+                groupLeaderY = playableMinY + Math.random() * (playableHeight - heavySize);
+
+                groupLeaderX = Math.max(playableMinX + heavySize / 2, Math.min(groupLeaderX, playableMaxX - heavySize / 2));
+                groupLeaderY = Math.max(playableMinY + heavySize / 2, Math.min(groupLeaderY, playableMaxY - heavySize / 2));
                 const leaderFootprint = {x: groupLeaderX - heavySize/2, y: groupLeaderY - heavySize/2, width: heavySize, height: heavySize};
                 isLeaderSpawnClear = this.isSpawnPointClear(groupLeaderX, groupLeaderY, heavySize, this.obstacles, this.game.enemyUnits) && !this._rectOverlap(leaderFootprint, playerSpawnZone); leaderPlacementAttempts++;
             } while (!isLeaderSpawnClear && leaderPlacementAttempts < leaderMaxAttempts);
+
             if (isLeaderSpawnClear) {
                 for (let m = 0; m < currentGroupSizeAttempt && enemiesSpawnedCount < totalEnemiesToSpawn; m++) {
                     let memberX, memberY, isMemberSpawnClear; let memberPlacementAttempts = 0; const memberMaxAttempts = enemySpawnCfg.MEMBER_PLACEMENT_MAX_ATTEMPTS || 10;

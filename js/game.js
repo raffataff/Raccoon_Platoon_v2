@@ -16,6 +16,7 @@ class Game {
 
         this.gameObjects = [];
         this.enemyUnits = [];
+        this.hostageUnits = []; 
         this.selectedUnits = [];
         this.visualEffects = [];
         this.preloadedImages = {};
@@ -258,7 +259,7 @@ class Game {
         const listBasedSprites = [
             { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
             { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" },
-            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, 
+            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" },
             { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
             { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
             { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" },
@@ -405,6 +406,7 @@ class Game {
         this.missionStartedAndPopulated = false;
         this.fallenRaccoonsThisMission = [];
         this.missionStartTime = performance.now();
+        this.hostageUnits = []; 
 
         const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.worldSizeFactor || 1);
         const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
@@ -438,7 +440,7 @@ class Game {
         this.gameState = 'RUNNING';
 
         if (this.ui && typeof this.ui.hideLoadingScreen === 'function') { this.ui.hideLoadingScreen(); }
-        if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(this.currentMissionParams.name); this.ui.updateFormationButton(this.currentFormationType); }
+        if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); } 
         if (this.inputHandler) { this.inputHandler.isLMBHoldFiringActionActive = false; this.inputHandler.updateMouseCursor(); }
 
         this.lastTime = performance.now();
@@ -464,7 +466,6 @@ class Game {
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive() && unit.isPlayerDirectFiring) {
                 unit.playerDirectFireTargetPos = { x: worldX, y: worldY };
-                // Continuous fire will be handled by Unit.update checking isPlayerDirectFiring
             }
         });
     }
@@ -483,7 +484,7 @@ class Game {
         if (!this.selectedUnits || this.selectedUnits.length === 0 || !enemyUnit || !enemyUnit.isAlive()) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive()) {
-                unit.isPlayerDirectFiring = false; 
+                unit.isPlayerDirectFiring = false;
                 unit.setManualTarget(enemyUnit);
             }
         });
@@ -515,7 +516,7 @@ class Game {
                 console.log("Grenade target out of max range and not an enemy.");
             }
 
-            if (this.inputHandler) this.inputHandler.updateMouseCursor(); 
+            if (this.inputHandler) this.inputHandler.updateMouseCursor();
         }
     }
 
@@ -544,7 +545,6 @@ class Game {
             this.previousGameState = this.gameState;
             this.gameState = 'PAUSED';
             this.isGamePausedManually = true;
-            // MODIFICATION: Stop player direct fire on pause
             if (this.inputHandler.isLMBHoldFiringActionActive) {
                 this.handleLMBFireActionEnd();
                 this.inputHandler.isLMBHoldFiringActionActive = false;
@@ -564,7 +564,6 @@ class Game {
     restartCurrentMission() {
         if (this.currentMissionParams && this.getAvailableRecruits().length > 0) {
             console.log("Restarting current mission...");
-            // MODIFICATION: Stop player direct fire on restart
             if (this.inputHandler.isLMBHoldFiringActionActive) {
                 this.handleLMBFireActionEnd();
                 this.inputHandler.isLMBHoldFiringActionActive = false;
@@ -587,7 +586,6 @@ class Game {
         this.lastPlayedMusicKey = null;
         this.gameState = 'MAIN_MENU';
         this.missionStartedAndPopulated = false;
-        // MODIFICATION: Stop player direct fire on quit
         if (this.inputHandler && this.inputHandler.isLMBHoldFiringActionActive) {
              this.handleLMBFireActionEnd();
              this.inputHandler.isLMBHoldFiringActionActive = false;
@@ -595,6 +593,7 @@ class Game {
         this.deployedSquadRoster = [];
         this.selectedUnits = [];
         this.enemyUnits = [];
+        this.hostageUnits = []; 
         this.gameObjects = [];
         this.visualEffects = [];
         if (this.ui) {
@@ -616,6 +615,7 @@ class Game {
         this.deployedSquadRoster = [];
         this.selectedUnits = [];
         this.tempSelectedForDeployment = [];
+        this.hostageUnits = []; 
 
         const availableFaceImages = CONFIG.RACCOON_FACE_IMAGES ? [...CONFIG.RACCOON_FACE_IMAGES] : [];
         let nextRaccoonIdNum = 1;
@@ -702,7 +702,6 @@ class Game {
         if (this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT' || this.gameState === 'POST_MISSION_DEBRIEF') {
             return;
         }
-        // MODIFICATION: Stop any ongoing player direct fire when mission ends
         if (this.inputHandler.isLMBHoldFiringActionActive) {
             this.handleLMBFireActionEnd();
             this.inputHandler.isLMBHoldFiringActionActive = false;
@@ -720,12 +719,10 @@ class Game {
     }
 
     actuallyEndMission(isVictory) {
-        // MODIFICATION: Ensure direct fire flags are cleared if not already by initiateMissionEnd
         if (this.inputHandler.isLMBHoldFiringActionActive) {
-            this.handleLMBFireActionEnd(); // Clears flags on units
-            this.inputHandler.isLMBHoldFiringActionActive = false; // Clears flag in input handler
+            this.handleLMBFireActionEnd(); 
+            this.inputHandler.isLMBHoldFiringActionActive = false; 
         }
-        // Also ensure units themselves are not stuck in a direct firing state
         this.deployedSquadRoster.forEach(unit => {
             if (unit instanceof Raccoon) {
                 unit.isPlayerDirectFiring = false;
@@ -749,20 +746,71 @@ class Game {
             const maxRoster = CONFIG.MAX_TOTAL_ROSTER_SIZE || Infinity;
             for (let i=0; i < recruitsToAdd && this.masterRoster.length < maxRoster; i++) this.addNewRecruitToMasterRoster();
         }
+        
+        let newlyRecruitedFromMission = 0;
+        if (isVictory && this.currentMissionParams && this.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
+            if (this.hostageUnits) { 
+                this.hostageUnits.forEach(hostage => {
+                    if (hostage.isAlive() && hostage.isRescued) {
+                        const currentRosterNames = this.masterRoster.map(r => r.name); 
+                        let faceImageFile = 'default_face.png';
+                        const availableFaceImages = CONFIG.RACCOON_FACE_IMAGES ? [...CONFIG.RACCOON_FACE_IMAGES] : [];
+                        let chosenFaceUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
+
+                        if (availableFaceImages.length > 0) {
+                            let attempts = 0;
+                            const maxFaceAttempts = availableFaceImages.length * 2 + 5; 
+                            const existingFaceUrls = this.masterRoster.map(r => r.faceImageUrl);
+                            do {
+                                faceImageFile = availableFaceImages[Math.floor(Math.random() * availableFaceImages.length)];
+                                chosenFaceUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
+                                if (!existingFaceUrls.includes(chosenFaceUrl) || existingFaceUrls.length >= availableFaceImages.length) break;
+                                attempts++;
+                            } while (attempts < maxFaceAttempts);
+                        } else if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGES.length > 0) {
+                             faceImageFile = CONFIG.RACCOON_FACE_IMAGES[(this.masterRoster.length + newlyRecruitedFromMission) % CONFIG.RACCOON_FACE_IMAGES.length];
+                             chosenFaceUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
+                        }
+
+                        const newName = getRandomRaccoonName(currentRosterNames);
+                        
+                        const newRecruit = new Raccoon(0, 0, this, `RCN-RES-${Date.now().toString(36).slice(-4)}-${this.masterRoster.length}`, chosenFaceUrl, newName);
+                        newRecruit.rank = hostage.assignedRankOnRescue;
+                        newRecruit.xp = hostage.assignedXpOnRescue || 0;
+                        newRecruit.applyRankBonuses(true);
+                        newRecruit.updateXpToNextRank();
+
+                        if (this.masterRoster.length < (CONFIG.MAX_TOTAL_ROSTER_SIZE || 20)) {
+                            this.masterRoster.push(newRecruit);
+                            newlyRecruitedFromMission++;
+                            console.log(`Rescued hostage ${hostage.id} added to roster as ${newRecruit.name} (Rank: ${newRecruit.rank})`);
+                        } else {
+                            console.log(`Rescued hostage ${hostage.id} survived, but roster is full.`);
+                        }
+                    }
+                });
+            }
+        }
+        
         const debriefData = {
             isVictory: isVictory,
             phaseData: this.campaignData[this.currentPhaseIndex] || {name: CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT},
             missionData: this.currentMissionParams || {name: CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT},
             survivingRaccoons: this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [],
-            fallenRaccoons: this.fallenRaccoonsThisMission, enemiesKilled: enemiesKilledThisMission, timeTaken: missionDuration.toFixed(1),
-            campaignComplete: (!this.campaignData[this.currentPhaseIndex + (isVictory && this.currentMissionIndex >= (this.campaignData[this.currentPhaseIndex].missions.length -1) ? 1 : 0)] && isVictory)
+            fallenRaccoons: this.fallenRaccoonsThisMission, 
+            enemiesKilled: enemiesKilledThisMission, 
+            timeTaken: missionDuration.toFixed(1),
+            campaignComplete: (!this.campaignData[this.currentPhaseIndex + (isVictory && this.currentMissionIndex >= (this.campaignData[this.currentPhaseIndex].missions.length -1) ? 1 : 0)] && isVictory),
+            hostagesRecruitedCount: newlyRecruitedFromMission 
         };
+
         if (this.ui) {
             this.ui.hideHUD();
             this.ui.showPostMissionScreen_Debrief(debriefData);
             if (this.inputHandler) this.inputHandler.updateMouseCursor();
         }
         this.missionEndDelayTimer = -1;
+        this.hostageUnits = []; 
     }
     proceedToNextLogicalStep() {
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
@@ -875,24 +923,43 @@ class Game {
         }
 
         let objectiveMet = false;
+        const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()).length : 0;
+        const allInitialEnemiesDefeated = (this.initialEnemyCount > 0 && aliveEnemies === 0 && this.enemyUnits.every(e => !e.isAlive())) || (this.initialEnemyCount === 0 && aliveEnemies === 0);
+
+
         if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
-            const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()).length : 0;
-            if (this.initialEnemyCount > 0 && aliveEnemies === 0 && this.enemyUnits.every(e => !e.isAlive())) {
-                console.log(`[Game checkMissionStatus] EXTERMINATE objective met (all initial ${this.initialEnemyCount} enemies defeated). Alive now: ${aliveEnemies}`);
-                objectiveMet = true;
-            } else if (this.initialEnemyCount === 0 && aliveEnemies === 0) {
-                console.log(`[Game checkMissionStatus] EXTERMINATE objective met (no initial enemies and no live spawned enemies).`);
+            if (allInitialEnemiesDefeated) {
                 objectiveMet = true;
             }
-
-        } else {
-            if (this.currentMissionParams) {
-                console.log(`[Game checkMissionStatus] Objective type is NOT EXTERMINATE: ${this.currentMissionParams.objectiveType}`);
+        } else if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
+            const minToRescue = (this.currentMissionParams.minHostagesToRescueForWin !== undefined)
+                                ? this.currentMissionParams.minHostagesToRescueForWin
+                                : (CONFIG.HOSTAGE_SETTINGS && CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN !== undefined
+                                    ? CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN
+                                    : 1);
+            
+            const rescuedAndAliveCount = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()).length : 0;
+            
+            // For RESCUE_HOSTAGES, primary condition is rescuing hostages.
+            // We ADD the condition that all initial enemies must also be defeated.
+            if (rescuedAndAliveCount >= minToRescue && allInitialEnemiesDefeated) {
+                objectiveMet = true;
+                console.log(`[Game checkMissionStatus] RESCUE objective met: ${rescuedAndAliveCount} / ${minToRescue} (min) hostages rescued AND all initial enemies defeated.`);
             } else {
-                console.log(`[Game checkMissionStatus] No currentMissionParams to check objective type.`);
+                 // console.log(`[Game checkMissionStatus] RESCUE_HOSTAGES not yet met. Rescued & Alive: ${rescuedAndAliveCount} (Need ${minToRescue}). Initial Enemies Defeated: ${allInitialEnemiesDefeated}`);
+            }
+        } else {
+            // Fallback for unknown or future objective types that might ALSO require all enemies defeated by default.
+            if (this.currentMissionParams) {
+                 // console.log(`[Game checkMissionStatus] Objective type is ${this.currentMissionParams.objectiveType}. Defaulting to requiring enemy extermination as well.`);
+                 if (allInitialEnemiesDefeated) { // If it's not EXTERMINATE or RESCUE, assume for now it means "do X AND kill all"
+                     objectiveMet = true; // This part might need to be more nuanced if you have objectives that DON'T require killing all enemies.
+                 }
+            } else {
+                console.log(`[Game checkMissionStatus] No currentMissionParams.`);
             }
         }
-
+        
         if (objectiveMet) {
             console.log(`[Game checkMissionStatus] Objective Met! Initiating mission end (victory).`);
             this.initiateMissionEnd(true);
@@ -974,6 +1041,10 @@ class Game {
         }
 
         const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
+        if (this.hostageUnits) {
+            allUnitsInGame.push(...this.hostageUnits);
+        }
+
         allUnitsInGame.forEach(unit => {
             if (unit && typeof unit.update === 'function') {
                 unit.update(deltaTime);
@@ -1000,8 +1071,11 @@ class Game {
 
         if (this.gameState === 'RUNNING') {
             this.checkMissionStatus();
-            if (this.level && typeof this.level.updateHutSpawning === 'function') { 
+            if (this.level && typeof this.level.updateHutSpawning === 'function') {
                 this.level.updateHutSpawning(deltaTime);
+            }
+            if (this.ui) { 
+                this.ui.updateObjective();
             }
         }
     }
@@ -1040,6 +1114,11 @@ class Game {
         let sortableObjects = [];
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
+        if (this.hostageUnits) {
+            this.hostageUnits.forEach(unit => {
+                if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); }
+            });
+        }
         if (this.level.obstacles) {
             this.level.obstacles.forEach(obstacle => {
                 if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
