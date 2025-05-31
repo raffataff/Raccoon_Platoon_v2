@@ -5,21 +5,18 @@ class InputHandler {
         this.canvas = canvas;
         this.game = game;
         this.mousePos = { screenX: 0, screenY: 0, worldX: 0, worldY: 0 };
+
         this.isShiftPressed = false;
         this.isCtrlPressed = false;
         this.isLeftMouseDown = false;
 
-        this.shiftLmbDownTime = 0;
-        this.TAP_THRESHOLD_MS = CONFIG.INPUT_TAP_THRESHOLD_MS || 30;
-        this.isShiftHoldFiring = false;
+        this.lmbDownTime = 0;
+        this.TAP_THRESHOLD_MS = CONFIG.INPUT_TAP_THRESHOLD_MS || 150;
+        this.isLMBHoldFiringActionActive = false;
 
-        // SCALED screen coordinates at mousedown
-        this.mouseDownScreenX = 0;
-        this.mouseDownScreenY = 0;
-
-        // Unscaled screen coordinates for visual drag box drawing
-        this.visualDragStartUnscaledX = 0;
-        this.visualDragStartUnscaledY = 0;
+        this.isCtrlDragSelecting = false;
+        this.ctrlDragStartScreenX = 0;
+        this.ctrlDragStartScreenY = 0;
 
 
         this.canvas.addEventListener('mousedown', (event) => this.handleMouseDown(event));
@@ -27,14 +24,12 @@ class InputHandler {
         this.canvas.addEventListener('mouseup', (event) => this.handleMouseUp(event));
         this.canvas.addEventListener('mouseleave', (event) => this.handleMouseLeave(event));
         this.canvas.addEventListener('contextmenu', (event) => {
-            // Always prevent default for canvas context menu if game is running
             if (this.game && this.game.gameState === 'RUNNING') {
                 event.preventDefault();
-                if (this.isShiftHoldFiring) { this.game.handleShiftHoldEnd(); this.isShiftHoldFiring = false; }
-                if (this.game.isDragging) { this.game.isDragging = false; this.game.draggedFarEnough = false; }
+                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false;}
 
-                // _updateMousePositions IS NOT NEEDED HERE because right-click is a single point event.
-                // We get coords directly.
+
                 const rect = this.canvas.getBoundingClientRect();
                 const scaleX = this.canvas.width / rect.width;
                 const scaleY = this.canvas.height / rect.height;
@@ -49,54 +44,74 @@ class InputHandler {
                 }
                 this.updateMouseCursor();
             }
-            // If not in 'RUNNING' state, allow default context menu for browser dev tools etc.
         });
 
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Shift') {
                 if (!this.isShiftPressed) {
                     this.isShiftPressed = true;
-                    if (this.isLeftMouseDown && this.game.gameState === 'RUNNING' && this.game.selectedUnits && this.game.selectedUnits.length > 0 && !this.isShiftHoldFiring) {
-                        this.shiftLmbDownTime = performance.now();
+                    // MODIFICATION: If LMB was being held for firing, stop that action
+                    if (this.isLeftMouseDown && this.isLMBHoldFiringActionActive) {
+                        this.game.handleLMBFireActionEnd();
+                        this.isLMBHoldFiringActionActive = false;
                     }
+                     this.updateMouseCursor();
                 }
-                this.updateMouseCursor();
+            } else if (event.key === 'Control' || event.key === 'Meta') {
+                if (!this.isCtrlPressed) {
+                    this.isCtrlPressed = true;
+                    // MODIFICATION: If LMB was being held for firing, stop that action
+                    if (this.isLeftMouseDown && this.isLMBHoldFiringActionActive) {
+                        this.game.handleLMBFireActionEnd();
+                        this.isLMBHoldFiringActionActive = false;
+                    }
+                    this.updateMouseCursor();
+                }
             }
-            if (event.key === 'Control' || event.key === 'Meta') { this.isCtrlPressed = true; }
 
-            if (!this.game || this.game.gameState !== 'RUNNING') return; // Gameplay keybinds only in RUNNING
-            if (['Escape', 'f', 'F', 'g', 'G'].includes(event.key) || event.code === 'Space') { // Allow space if not input field focused
+            if (!this.game || this.game.gameState !== 'RUNNING') {
+                 if (event.key === 'Escape' && (this.game.gameState === 'PRE_MISSION_SELECT' || this.game.gameState === 'POST_MISSION_DEBRIEF' || this.game.gameState === 'RECRUIT_MEMORIAL')) {
+                    this.game.quitToMainMenu();
+                } else if (event.key === 'Escape' && this.game.gameState === 'PAUSED') {
+                     this.game.togglePause();
+                }
+                return;
+            }
+
+            if (['f', 'F', 'g', 'G'].includes(event.key) || event.code === 'Space' || event.key === 'Escape') {
                 const activeEl = document.activeElement;
                 if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
                     event.preventDefault();
                 }
             }
 
-
-        //    if (event.key === 'Escape') {
-        //        if (this.isShiftHoldFiring) { this.game.handleShiftHoldEnd(); this.isShiftHoldFiring = false; }
-        //        this.game.deselectAllUnits();
-        //    }
             if (event.key === 'Escape') {
-                if (this.game.gameState === 'RUNNING' || this.game.gameState === 'PAUSED') {
-                    event.preventDefault(); // Prevent default browser behavior for Esc
-                    this.game.togglePause();
-                } else if (this.game.gameState === 'PRE_MISSION_SELECT' || this.game.gameState === 'POST_MISSION_DEBRIEF') {
-                    // Optional: Esc to go back to main menu from these screens
-                    // this.game.quitToMainMenu();
+                if (this.game.gameState === 'RUNNING') {
+                    if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                    if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false; }
+                    
+                    const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade);
+                    if (aimingRaccoon) {
+                        aimingRaccoon.cancelGrenadeAim();
+                    } else if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                        this.game.deselectAllUnits();
+                    } else {
+                        this.game.togglePause();
+                    }
+                    this.updateMouseCursor();
                 }
             }
-            
+
             if (event.code === 'Space') {
                  const activeEl = document.activeElement;
                 if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
-                    if (this.isShiftHoldFiring) { this.game.handleShiftHoldEnd(); this.isShiftHoldFiring = false; }
+                    if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
                     this.game.selectAllPlayerUnits();
                 }
             }
             if (event.key === 'f' || event.key === 'F') { if (this.game.toggleFormation) this.game.toggleFormation(); }
             if (event.key === 'g' || event.key === 'G') {
-                if (this.isShiftHoldFiring) { this.game.handleShiftHoldEnd(); this.isShiftHoldFiring = false; }
+                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
                 let anyAiming = this.game.selectedUnits && this.game.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade);
                 if (this.game.selectedUnits) this.game.selectedUnits.forEach(unit => {
                     if (unit instanceof Raccoon && unit.isAlive()) { if (anyAiming) unit.cancelGrenadeAim(); else if (unit.grenadeAmmo > 0) unit.startGrenadeAim(); }
@@ -108,16 +123,17 @@ class InputHandler {
 
         document.addEventListener('keyup', (event) => {
             if (event.key === 'Shift') {
-                if (this.isShiftPressed) {
-                    this.isShiftPressed = false;
-                    if (this.isShiftHoldFiring) {
-                        this.game.handleShiftHoldEnd();
-                        this.isShiftHoldFiring = false;
-                    }
+                this.isShiftPressed = false;
+            } else if (event.key === 'Control' || event.key === 'Meta') {
+                this.isCtrlPressed = false;
+                if (this.isCtrlDragSelecting) {
+                    if(this.game.draggedFarEnough) this.game.selectUnitsInCtrlDragRectangle();
+                    this.isCtrlDragSelecting = false;
+                    this.game.isDragging = false;
+                    this.game.draggedFarEnough = false;
                 }
-                this.updateMouseCursor();
             }
-            if (event.key === 'Control' || event.key === 'Meta') { this.isCtrlPressed = false; }
+            this.updateMouseCursor();
         });
     }
 
@@ -134,7 +150,7 @@ class InputHandler {
         if (this.game && this.game.gameState === 'RUNNING') {
             this.mousePos.worldX = this.mousePos.screenX + this.game.cameraX;
             this.mousePos.worldY = this.mousePos.screenY + this.game.cameraY;
-        } else { // For UI screens, world coords are same as screen
+        } else {
             this.mousePos.worldX = this.mousePos.screenX;
             this.mousePos.worldY = this.mousePos.screenY;
         }
@@ -142,40 +158,33 @@ class InputHandler {
 
 
     handleMouseDown(event) {
-        // Allow mousedown for UI interactions on non-running screens if needed by game logic later
-        // For now, most UI is button elements handled by ui.js
-        if (!this.game) return;
-        // if (this.game.gameState !== 'RUNNING') return; // Keep this to restrict gameplay mouse actions
+        if (!this.game || this.game.gameState !== 'RUNNING') return;
+         event.preventDefault();
+        this._updateMousePositions(event);
 
-        this._updateMousePositions(event); // Update all mousePos, including scaled screenX/Y
-
-        // Store the SCALED screen coordinates for initiating actions like click
-        this.mouseDownScreenX = this.mousePos.screenX;
-        this.mouseDownScreenY = this.mousePos.screenY;
-
-        // For visual drag box, store unscaled relative to canvas element
-        const rect = this.canvas.getBoundingClientRect();
-        this.visualDragStartUnscaledX = event.clientX - rect.left;
-        this.visualDragStartUnscaledY = event.clientY - rect.top;
-
-
-        if (event.button === 0) { // Left mouse button
-            if (this.game.gameState !== 'RUNNING') return; // Gameplay actions only in RUNNING state
-            event.preventDefault(); // Prevent default for gameplay interactions
-
+        if (event.button === 0) {
             this.isLeftMouseDown = true;
-            this.isShiftHoldFiring = false;
+            this.lmbDownTime = performance.now();
+            this.isLMBHoldFiringActionActive = false;
 
-            if (this.isShiftPressed) {
-                this.shiftLmbDownTime = performance.now();
-                this.game.isDragging = false; this.game.draggedFarEnough = false;
-            } else {
-                this.game.isDragging = true; this.game.draggedFarEnough = false;
-                // Game's dragStart/Current are for the visual box, use unscaled.
-                this.game.dragStartX = this.visualDragStartUnscaledX;
-                this.game.dragStartY = this.visualDragStartUnscaledY;
+            const aimingRaccoons = this.game.selectedUnits ? this.game.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive()) : [];
+            if (aimingRaccoons.length > 0) {
+                this.game.handleGrenadeThrowConfirm(this.mousePos.worldX, this.mousePos.worldY);
+            } else if (this.isCtrlPressed) {
+                this.isCtrlDragSelecting = true;
+                this.game.isDragging = true;
+                this.game.draggedFarEnough = false;
+                this.game.dragStartX = this.mousePos.screenX;
+                this.game.dragStartY = this.mousePos.screenY;
                 this.game.dragCurrentX = this.game.dragStartX;
                 this.game.dragCurrentY = this.game.dragStartY;
+            } else if (this.isShiftPressed) {
+                const enemyUnit = this.getEnemyUnitUnderCursor(this.mousePos.worldX, this.mousePos.worldY);
+                if (enemyUnit) {
+                    this.game.handleSetManualTargetCommand(enemyUnit);
+                }
+            } else {
+                this.game.handleLMBFireActionStart(this.mousePos.worldX, this.mousePos.worldY);
             }
         }
         this.updateMouseCursor();
@@ -186,65 +195,59 @@ class InputHandler {
         this._updateMousePositions(event);
 
         if (this.game.gameState === 'RUNNING') {
-            if (this.isShiftPressed && this.isLeftMouseDown && !this.isShiftHoldFiring) {
-                const rect = this.canvas.getBoundingClientRect(); // Needed for unscaled mouse pos
-                const unscaledMouseX = event.clientX - rect.left;
-                const unscaledMouseY = event.clientY - rect.top;
-
-                if ((performance.now() - this.shiftLmbDownTime > (this.TAP_THRESHOLD_MS || 150)) ||
-                    distance(this.visualDragStartUnscaledX, this.visualDragStartUnscaledY, unscaledMouseX, unscaledMouseY) > (this.game.DRAG_THRESHOLD || 5) / 2) {
-                    this.isShiftHoldFiring = true;
-                    this.game.handleShiftHoldStart(this.mousePos.worldX, this.mousePos.worldY);
+            const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
+            if (aimingRaccoon) {
+                // Raccoon._handleAimingMovement updates facingAngle. Cursor updates below.
+            } else if (this.isCtrlPressed && this.isLeftMouseDown && this.isCtrlDragSelecting) {
+                this.game.dragCurrentX = this.mousePos.screenX;
+                this.game.dragCurrentY = this.mousePos.screenY;
+                if (!this.game.draggedFarEnough &&
+                    distance(this.game.dragStartX, this.game.dragStartY, this.game.dragCurrentX, this.game.dragCurrentY) > this.game.DRAG_THRESHOLD) {
+                    this.game.draggedFarEnough = true;
                 }
-            }
-            if (this.isShiftHoldFiring) {
-                this.game.updateShiftHoldTarget(this.mousePos.worldX, this.mousePos.worldY);
-            }
-        }
-
-        if (this.game.isDragging && !this.isShiftPressed && this.game.gameState === 'RUNNING') {
-            const rect = this.canvas.getBoundingClientRect();
-            this.game.dragCurrentX = event.clientX - rect.left;
-            this.game.dragCurrentY = event.clientY - rect.top;
-            if (!this.game.draggedFarEnough &&
-                distance(this.game.dragStartX, this.game.dragStartY, this.game.dragCurrentX, this.game.dragCurrentY) > this.game.DRAG_THRESHOLD) {
-                this.game.draggedFarEnough = true;
+            } else if (this.isLeftMouseDown && !this.isShiftPressed && !this.isCtrlPressed) {
+                if (!this.isLMBHoldFiringActionActive && (performance.now() - this.lmbDownTime > this.TAP_THRESHOLD_MS)) {
+                    this.isLMBHoldFiringActionActive = true;
+                    // If it just became a hold, ensure the game knows the target for continuous fire
+                    this.game.updateLMBFireActionTarget(this.mousePos.worldX, this.mousePos.worldY);
+                } else if (this.isLMBHoldFiringActionActive) { // If already holding, continue updating target
+                     this.game.updateLMBFireActionTarget(this.mousePos.worldX, this.mousePos.worldY);
+                }
             }
         }
         this.updateMouseCursor();
     }
 
     handleMouseUp(event) {
-        if (!this.game) return;
-        // _updateMousePositions would have been called by mousemove or mousedown.
-        // this.mousePos is current.
+        if (!this.game || this.game.gameState !== 'RUNNING') return;
 
-        // SCALED original mousedown coordinates for click logic
-        const originalMouseDownWorldX = this.mouseDownScreenX + (this.game.gameState === 'RUNNING' ? this.game.cameraX : 0);
-        const originalMouseDownWorldY = this.mouseDownScreenY + (this.game.gameState === 'RUNNING' ? this.game.cameraY : 0);
+        if (event.button === 0) {
+            const wasLMBDown = this.isLeftMouseDown;
+            this.isLeftMouseDown = false; // Set this first
 
-        if (event.button === 0) { // Left mouse button released
-            if (this.game.gameState !== 'RUNNING') return; // Gameplay actions only in RUNNING state
-            event.preventDefault(); // Prevent default for gameplay interactions
-
-            const wasMouseDown = this.isLeftMouseDown;
-            this.isLeftMouseDown = false;
-
-            if (wasMouseDown) {
-                if (this.isShiftHoldFiring) {
-                    this.game.handleShiftHoldEnd();
-                    this.isShiftHoldFiring = false;
-                } else if (this.isShiftPressed) {
-                    this.game.handleShiftFireAtPointCommand(this.mousePos.worldX, this.mousePos.worldY);
-                } else {
-                    if (this.game.isDragging && this.game.draggedFarEnough) {
-                        this.game.selectUnitsInDragRectangle(); // This method in game.js needs to handle scaling of dragStart/Current
-                    } else {
-                        this.game.handlePrimaryLeftClick(originalMouseDownWorldX, originalMouseDownWorldY);
+            if (wasLMBDown) {
+                const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
+                if (aimingRaccoon) {
+                    // Grenade throw was on mousedown.
+                } else if (this.isCtrlPressed && this.isCtrlDragSelecting) {
+                    if (this.game.draggedFarEnough) {
+                        this.game.selectUnitsInCtrlDragRectangle();
                     }
+                } else if (this.isShiftPressed) {
+                    // Targeting was on mousedown.
+                } else {
+                    // LMB fire action (tap or hold) ended.
+                    // This ensures isPlayerDirectFiring is cleared on the units.
+                    this.game.handleLMBFireActionEnd();
                 }
             }
-            this.game.isDragging = false; this.game.draggedFarEnough = false;
+            // Reset flags related to LMB actions
+            this.isLMBHoldFiringActionActive = false;
+            this.isCtrlDragSelecting = false; // Ensure this is reset if Ctrl was released before mouseup
+            if(this.game.isDragging && !this.isCtrlPressed) { // If it was a generic drag that wasn't Ctrl
+                this.game.isDragging = false;
+                this.game.draggedFarEnough = false;
+            }
         }
         this.updateMouseCursor();
     }
@@ -252,45 +255,63 @@ class InputHandler {
     handleMouseLeave(event) {
         if (!this.game) return;
         if (this.isLeftMouseDown && this.game.gameState === 'RUNNING') {
-            if (this.isShiftHoldFiring) {
-                this.game.handleShiftHoldEnd();
-                this.isShiftHoldFiring = false;
+            if (this.isLMBHoldFiringActionActive && !this.isShiftPressed && !this.isCtrlPressed) {
+                this.game.handleLMBFireActionEnd();
+                this.isLMBHoldFiringActionActive = false;
+            }
+            if (this.isCtrlDragSelecting) {
+                 this.isCtrlDragSelecting = false;
+                 this.game.isDragging = false;
+                 this.game.draggedFarEnough = false;
             }
             this.isLeftMouseDown = false;
         }
-        if (this.game.isDragging) { this.game.isDragging = false; this.game.draggedFarEnough = false; }
-        if (this.game.ui) this.game.ui.setCursor('default');
+        this.updateMouseCursor();
+    }
+
+    getEnemyUnitUnderCursor(worldX, worldY) {
+        if (this.game && this.game.enemyUnits) {
+            for (const enemy of this.game.enemyUnits) {
+                if (enemy.isAlive() && distance(worldX, worldY, enemy.x, enemy.y) < enemy.size + 7) {
+                    return enemy;
+                }
+            }
+        }
+        return null;
     }
 
     updateMouseCursor() {
-        if (!this.game || !this.game.ui ) { // Removed gameState check here, cursor should update on other screens too
+        if (!this.game || !this.game.ui ) {
             if (this.game && this.game.ui) this.game.ui.setCursor('default');
             return;
         }
-        if (this.game.gameState !== 'RUNNING') { // If not running, default cursor
+        if (this.game.gameState !== 'RUNNING' && this.game.gameState !== 'PAUSED') {
+             this.game.ui.setCursor('default');
+             return;
+        }
+        if (this.game.gameState === 'PAUSED') {
              this.game.ui.setCursor('default');
              return;
         }
 
-        const isAimingGrenade = this.game.selectedUnits && this.game.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
-        if (isAimingGrenade) { this.game.ui.setCursor('cell'); return; }
 
-        if ((this.isShiftPressed || this.isShiftHoldFiring) && this.game.selectedUnits && this.game.selectedUnits.length > 0) {
-            this.game.ui.setCursor('attack');
+        const isAimingGrenade = this.game.selectedUnits && this.game.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
+        if (isAimingGrenade) {
+            this.game.ui.setCursor('cell');
             return;
         }
-        let overEnemy = false;
-        if (this.game.enemyUnits && this.mousePos && this.mousePos.screenX !== undefined) {
-            for (const enemy of this.game.enemyUnits) {
-                if (enemy.isAlive()) {
-                    const enemyScreenX = enemy.x - this.game.cameraX;
-                    const enemyScreenY = enemy.y - this.game.cameraY;
-                    if (distance(this.mousePos.screenX, this.mousePos.screenY, enemyScreenX, enemyScreenY) < enemy.size + 7) {
-                         overEnemy = true; break;
-                    }
-                }
+
+        if (this.isShiftPressed) {
+            const enemyUnderCursor = this.getEnemyUnitUnderCursor(this.mousePos.worldX, this.mousePos.worldY);
+            if (enemyUnderCursor) {
+                this.game.ui.setCursor('target-enemy-hover');
+            } else {
+                this.game.ui.setCursor('target-mode-default');
             }
+        } else if (this.isLeftMouseDown && !this.isCtrlPressed) { // If LMB is down (for shooting) and not Ctrl-dragging
+            this.game.ui.setCursor('attack');
+        } else {
+            this.game.ui.setCursor('default');
         }
-        if (overEnemy) { this.game.ui.setCursor('attack'); } else { this.game.ui.setCursor('default'); }
     }
 }

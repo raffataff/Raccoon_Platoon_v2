@@ -1,3 +1,4 @@
+// js/game.js
 class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -20,11 +21,12 @@ class Game {
         this.preloadedImages = {};
         this.audioManager = new AudioManager();
 
-        this.isDragging = false;
-        this.draggedFarEnough = false;
-        this.dragStartX = 0; this.dragStartY = 0;
-        this.dragCurrentX = 0; this.dragCurrentY = 0;
+        this.isDragging = false; 
+        this.draggedFarEnough = false; 
+        this.dragStartX = 0; this.dragStartY = 0; 
+        this.dragCurrentX = 0; this.dragCurrentY = 0; 
         this.DRAG_THRESHOLD = CONFIG.INPUT_DRAG_THRESHOLD || 5;
+
 
         this.FORMATION_TYPES = ['HORIZONTAL', 'VERTICAL'];
         this.currentFormationIndex = 0;
@@ -208,13 +210,11 @@ class Game {
         const imagePromises = [];
          console.log("[Game] Preloading level assets...");
 
-        // Specific border fence sprite preloading is removed as it's now part of OBSTACLE_DEFINITIONS logic
-
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
             if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) ||
                 (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) ||
-                (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || // This will be preloaded here if it's the BORDER_OBSTACLE_TYPE
+                (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) ||
                 (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) ||
                 (def.type === 'bush_large' && CONFIG.BUSH_SPRITES_64PX_FILES) ||
                 (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) ||
@@ -229,10 +229,10 @@ class Game {
                 handledByDedicatedList = true;
             }
             const spritesToLoadOnTemplate = [];
-            if (!handledByDedicatedList) { // If not handled by a file list, check spriteNormal
+            if (!handledByDedicatedList) {
                 if (def.spriteNormal) spritesToLoadOnTemplate.push({ path: def.spriteNormal, key: def.spriteNormal });
             }
-            if (def.spriteDestroyed) { // Always check for destroyed sprite
+            if (def.spriteDestroyed) {
                  spritesToLoadOnTemplate.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
             }
 
@@ -258,7 +258,7 @@ class Game {
         const listBasedSprites = [
             { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
             { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" },
-            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, // This covers the border type if it uses this list
+            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, 
             { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
             { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" },
             { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" },
@@ -397,7 +397,8 @@ class Game {
         this.deployedSquadRoster.forEach(r => {
             r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
             if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
-            r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false; r.isContinuousFiring = false;
+            r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false;
+            r.isPlayerDirectFiring = false;
         });
 
         this.isObjectiveComplete = false;
@@ -423,7 +424,11 @@ class Game {
         this.selectedUnits = [...this.deployedSquadRoster];
         this.gameObjects = [];
         this.visualEffects = [];
-        this.isDragging = false; this.draggedFarEnough = false;
+
+        this.inputHandler.isCtrlDragSelecting = false;
+        this.isDragging = false;
+        this.draggedFarEnough = false;
+
 
         if (this.deployedSquadRoster.length > 0) {
             let avgX = 0, avgY = 0; this.deployedSquadRoster.forEach(unit => { avgX += unit.x; avgY += unit.y; }); avgX /= this.deployedSquadRoster.length; avgY /= this.deployedSquadRoster.length;
@@ -434,7 +439,7 @@ class Game {
 
         if (this.ui && typeof this.ui.hideLoadingScreen === 'function') { this.ui.hideLoadingScreen(); }
         if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(this.currentMissionParams.name); this.ui.updateFormationButton(this.currentFormationType); }
-        if (this.inputHandler) { this.inputHandler.isShiftHoldFiring = false; this.inputHandler.updateMouseCursor(); }
+        if (this.inputHandler) { this.inputHandler.isLMBHoldFiringActionActive = false; this.inputHandler.updateMouseCursor(); }
 
         this.lastTime = performance.now();
         this.setNextBirdSpawnTimer();
@@ -442,79 +447,95 @@ class Game {
         this.missionPendingOutcomeIsVictory = false;
     }
 
-    handleShiftHoldStart(worldX, worldY) {
+    handleLMBFireActionStart(worldX, worldY) {
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
-            if (unit instanceof Raccoon && unit.isAimingGrenade) unit.cancelGrenadeAim();
-            if (typeof unit.setContinuousFire === 'function') unit.setContinuousFire(true, worldX, worldY);
-        });
-        if (this.ui) this.ui.updateSquadPanel();
-    }
-    updateShiftHoldTarget(worldX, worldY) {
-        if (!this.selectedUnits || this.selectedUnits.length === 0) return;
-        this.selectedUnits.forEach(unit => {
-            if (unit.isContinuousFiring && typeof unit.updateContinuousFireTarget === 'function') {
-                unit.updateContinuousFireTarget(worldX, worldY);
+            if (unit instanceof Raccoon && unit.isAlive() && typeof unit._executeFire === 'function') {
+                unit.isPlayerDirectFiring = true;
+                unit.playerDirectFireTargetPos = { x: worldX, y: worldY };
+                const angle = Math.atan2(worldY - unit.y, worldX - unit.x);
+                unit._executeFire(worldX, worldY, angle);
             }
         });
     }
-    handleShiftHoldEnd() {
+
+    updateLMBFireActionTarget(worldX, worldY) {
+        if (!this.selectedUnits || this.selectedUnits.length === 0) return;
+        this.selectedUnits.forEach(unit => {
+            if (unit instanceof Raccoon && unit.isAlive() && unit.isPlayerDirectFiring) {
+                unit.playerDirectFireTargetPos = { x: worldX, y: worldY };
+                // Continuous fire will be handled by Unit.update checking isPlayerDirectFiring
+            }
+        });
+    }
+
+    handleLMBFireActionEnd() {
         if (!this.selectedUnits) return;
         this.selectedUnits.forEach(unit => {
-            if (typeof unit.setContinuousFire === 'function' && unit.isContinuousFiring) {
-                unit.setContinuousFire(false);
+            if (unit instanceof Raccoon) {
+                unit.isPlayerDirectFiring = false;
             }
         });
         if (this.ui) this.ui.updateSquadPanel();
     }
-    handlePrimaryLeftClick(worldX, worldY) {
-        if (this.gameState !== 'RUNNING') return;
-        if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
-        let selectionChanged = false;
-        const aimingRaccoons = this.selectedUnits ? this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive()) : [];
-        if (aimingRaccoons.length > 0) {
-            const leaderAimer = aimingRaccoons[0]; let clickedEnemy = null;
-            if(this.enemyUnits) this.enemyUnits.forEach(e => { if (e.isAlive() && distance(worldX,worldY,e.x,e.y) < e.size+5) clickedEnemy=e; });
-            if (distance(leaderAimer.x,leaderAimer.y,worldX,worldY) <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) leaderAimer.confirmThrowGrenade(worldX,worldY);
-            else if (clickedEnemy) leaderAimer.moveToGrenadeRange(clickedEnemy);
-            if(this.inputHandler) this.inputHandler.updateMouseCursor(); return;
-        }
-        let clickedPlayerUnit = null;
-        if(this.deployedSquadRoster) for(const u of this.deployedSquadRoster){ if(u.isAlive()&&distance(worldX,worldY,u.x,u.y)<u.size+7){clickedPlayerUnit=u;break;}}
-        if (clickedPlayerUnit) { if (this.selectedUnits.length !== 1 || this.selectedUnits[0] !== clickedPlayerUnit) { this.selectedUnits = [clickedPlayerUnit]; selectionChanged = true; }}
-        else {
-            let clickedEnemy = null;
-            if(this.enemyUnits) this.enemyUnits.forEach(e=>{if(e.isAlive()&&distance(worldX,worldY,e.x,e.y)<e.size+5)clickedEnemy=e;});
-            if (clickedEnemy) { if(this.selectedUnits)this.selectedUnits.forEach(u=>{if(u.isAlive()&&u.team==='player')u.setManualTarget(clickedEnemy);});}
-            else { if (this.selectedUnits.length > 0) this.deselectAllUnits(); }
-        }
-        if (selectionChanged && this.ui) this.ui.updateSquadPanel();
-        if(this.inputHandler) this.inputHandler.updateMouseCursor();
+
+    handleSetManualTargetCommand(enemyUnit) {
+        if (!this.selectedUnits || this.selectedUnits.length === 0 || !enemyUnit || !enemyUnit.isAlive()) return;
+        this.selectedUnits.forEach(unit => {
+            if (unit instanceof Raccoon && unit.isAlive()) {
+                unit.isPlayerDirectFiring = false; 
+                unit.setManualTarget(enemyUnit);
+            }
+        });
+        if (this.ui) this.ui.updateSquadPanel();
     }
-    handleShiftFireAtPointCommand(worldX, worldY) {
+
+    handleGrenadeThrowConfirm(worldX, worldY) {
         if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) return;
-        if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
 
         const aimingRaccoons = this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
         if (aimingRaccoons.length > 0) {
-            const leaderAimer = aimingRaccoons[0]; let clickedEnemy = null;
-            if(this.enemyUnits) this.enemyUnits.forEach(e=>{if(e.isAlive()&&distance(worldX,worldY,e.x,e.y)<e.size+5)clickedEnemy=e;});
-            if(distance(leaderAimer.x,leaderAimer.y,worldX,worldY) <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) leaderAimer.confirmThrowGrenade(worldX,worldY);
-            else if (clickedEnemy) leaderAimer.moveToGrenadeRange(clickedEnemy);
-            return;
+            const leadAimer = aimingRaccoons[0];
+
+            let clickedEnemy = null;
+            if (this.enemyUnits) {
+                for (const enemy of this.enemyUnits) {
+                    if (enemy.isAlive() && distance(worldX, worldY, enemy.x, enemy.y) < enemy.size + 5) {
+                        clickedEnemy = enemy;
+                        break;
+                    }
+                }
+            }
+
+            if (distance(leadAimer.x, leadAimer.y, worldX, worldY) <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
+                leadAimer.confirmThrowGrenade(worldX, worldY);
+            } else if (clickedEnemy) {
+                leadAimer.moveToGrenadeRange(clickedEnemy);
+            } else {
+                console.log("Grenade target out of max range and not an enemy.");
+            }
+
+            if (this.inputHandler) this.inputHandler.updateMouseCursor(); 
         }
-        this.selectedUnits.forEach(unit => { if (unit.isAlive() && typeof unit.fireAtPoint === 'function') unit.fireAtPoint(worldX, worldY); });
-        if (this.inputHandler) this.inputHandler.updateMouseCursor();
     }
+
+
     handleRightClickCommand(worldX, worldY) {
         if (this.gameState !== 'RUNNING') return;
-        if (this.inputHandler.isShiftHoldFiring) { this.handleShiftHoldEnd(); this.inputHandler.isShiftHoldFiring = false; }
+        if (this.inputHandler.isLMBHoldFiringActionActive) { this.handleLMBFireActionEnd(); this.inputHandler.isLMBHoldFiringActionActive = false; }
+
         let didCancelGrenade = false;
         if (this.selectedUnits) this.selectedUnits.forEach(u => { if (u instanceof Raccoon && u.isAimingGrenade) { u.cancelGrenadeAim(); didCancelGrenade = true; }});
         if(didCancelGrenade) { if(this.inputHandler) this.inputHandler.updateMouseCursor(); return; }
+
         if (this.selectedUnits && this.selectedUnits.length > 0) {
             const formationPoints = this.calculateFormationPoints(worldX, worldY, this.selectedUnits, this.currentFormationType);
-            this.selectedUnits.forEach((unit, index) => { if (unit.isAlive() && unit.team === 'player') { const targetPoint = formationPoints[index] || {x:worldX, y:worldY}; unit.setMoveTarget(targetPoint.x, targetPoint.y);}});
+            this.selectedUnits.forEach((unit, index) => {
+                if (unit.isAlive() && unit.team === 'player') {
+                    const targetPoint = formationPoints[index] || {x:worldX, y:worldY};
+                    unit.setMoveTarget(targetPoint.x, targetPoint.y);
+                }
+            });
         }
         if(this.inputHandler) this.inputHandler.updateMouseCursor();
     }
@@ -523,6 +544,11 @@ class Game {
             this.previousGameState = this.gameState;
             this.gameState = 'PAUSED';
             this.isGamePausedManually = true;
+            // MODIFICATION: Stop player direct fire on pause
+            if (this.inputHandler.isLMBHoldFiringActionActive) {
+                this.handleLMBFireActionEnd();
+                this.inputHandler.isLMBHoldFiringActionActive = false;
+            }
             if (this.ui) this.ui.showPauseMenuScreen();
             console.log("Game Paused");
         } else if (this.gameState === 'PAUSED' && this.isGamePausedManually) {
@@ -538,6 +564,11 @@ class Game {
     restartCurrentMission() {
         if (this.currentMissionParams && this.getAvailableRecruits().length > 0) {
             console.log("Restarting current mission...");
+            // MODIFICATION: Stop player direct fire on restart
+            if (this.inputHandler.isLMBHoldFiringActionActive) {
+                this.handleLMBFireActionEnd();
+                this.inputHandler.isLMBHoldFiringActionActive = false;
+            }
             if (this.loadMissionData(this.currentPhaseIndex, this.currentMissionIndex)) {
                 if (this.ui && this.campaignData && this.campaignData[this.currentPhaseIndex] && this.currentMissionParams) {
                     this.gameState = 'PRE_MISSION_SELECT';
@@ -556,6 +587,11 @@ class Game {
         this.lastPlayedMusicKey = null;
         this.gameState = 'MAIN_MENU';
         this.missionStartedAndPopulated = false;
+        // MODIFICATION: Stop player direct fire on quit
+        if (this.inputHandler && this.inputHandler.isLMBHoldFiringActionActive) {
+             this.handleLMBFireActionEnd();
+             this.inputHandler.isLMBHoldFiringActionActive = false;
+        }
         this.deployedSquadRoster = [];
         this.selectedUnits = [];
         this.enemyUnits = [];
@@ -666,6 +702,12 @@ class Game {
         if (this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT' || this.gameState === 'POST_MISSION_DEBRIEF') {
             return;
         }
+        // MODIFICATION: Stop any ongoing player direct fire when mission ends
+        if (this.inputHandler.isLMBHoldFiringActionActive) {
+            this.handleLMBFireActionEnd();
+            this.inputHandler.isLMBHoldFiringActionActive = false;
+        }
+
         this.missionPendingOutcomeIsVictory = isVictory;
         this.missionEndDelayTimer = this.MISSION_END_DELAY_SECONDS;
         this.gameState = isVictory ? 'MISSION_ENDING_VICTORY' : 'MISSION_ENDING_DEFEAT';
@@ -678,6 +720,19 @@ class Game {
     }
 
     actuallyEndMission(isVictory) {
+        // MODIFICATION: Ensure direct fire flags are cleared if not already by initiateMissionEnd
+        if (this.inputHandler.isLMBHoldFiringActionActive) {
+            this.handleLMBFireActionEnd(); // Clears flags on units
+            this.inputHandler.isLMBHoldFiringActionActive = false; // Clears flag in input handler
+        }
+        // Also ensure units themselves are not stuck in a direct firing state
+        this.deployedSquadRoster.forEach(unit => {
+            if (unit instanceof Raccoon) {
+                unit.isPlayerDirectFiring = false;
+            }
+        });
+
+
         this.audioManager.stopAllLoopingSounds();
         this.lastPlayedMusicKey = null;
         this.gameState = 'POST_MISSION_DEBRIEF';
@@ -752,19 +807,14 @@ class Game {
     setFormationSpacing(multiplier) {
         if (this.gameState === 'RUNNING') this.formationSpacingMultiplier = parseFloat(multiplier);
     }
-    selectUnitsInDragRectangle() {
+
+    selectUnitsInCtrlDragRectangle() {
         if (!this.draggedFarEnough || this.gameState !== 'RUNNING') return;
-        const rect = this.canvas.getBoundingClientRect();
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
-        const scaledDragStartX = this.dragStartX * scaleX;
-        const scaledDragStartY = this.dragStartY * scaleY;
-        const scaledDragCurrentX = this.dragCurrentX * scaleX;
-        const scaledDragCurrentY = this.dragCurrentY * scaleY;
-        const worldDragStartX = scaledDragStartX + this.cameraX;
-        const worldDragStartY = scaledDragStartY + this.cameraY;
-        const worldDragCurrentX = scaledDragCurrentX + this.cameraX;
-        const worldDragCurrentY = scaledDragCurrentY + this.cameraY;
+        const worldDragStartX = this.dragStartX + this.cameraX;
+        const worldDragStartY = this.dragStartY + this.cameraY;
+        const worldDragCurrentX = this.dragCurrentX + this.cameraX;
+        const worldDragCurrentY = this.dragCurrentY + this.cameraY;
+
         const selectionRectX = Math.min(worldDragStartX, worldDragCurrentX);
         const selectionRectY = Math.min(worldDragStartY, worldDragCurrentY);
         const selectionRectWidth = Math.abs(worldDragCurrentX - worldDragStartX);
@@ -779,6 +829,7 @@ class Game {
         });
         const oldSelectionIds = this.selectedUnits.map(u => u.id).sort().join(',');
         const newSelectionIds = newlySelectedUnits.map(u => u.id).sort().join(',');
+
         if (oldSelectionIds !== newSelectionIds) {
             this.selectedUnits = newlySelectedUnits;
             let aimingCancelled = false;
@@ -786,8 +837,8 @@ class Game {
             if (!aimingCancelled && this.ui) this.ui.updateSquadPanel();
             if (this.inputHandler) this.inputHandler.updateMouseCursor();
         }
-        this.isDragging = false; this.draggedFarEnough = false;
     }
+
     deselectAllUnits() {
         if (this.selectedUnits.length === 0) return;
         let aimingCancelled = false;
@@ -906,15 +957,6 @@ class Game {
             }
         }
 
-        if (this.gameState === 'RUNNING' && this.inputHandler.isShiftPressed &&
-            this.inputHandler.isLeftMouseDown &&
-            !this.inputHandler.isShiftHoldFiring &&
-            this.inputHandler.shiftLmbDownTime > 0 &&
-            (performance.now() - this.inputHandler.shiftLmbDownTime > (this.inputHandler.TAP_THRESHOLD_MS || 150) )) {
-            this.inputHandler.isShiftHoldFiring = true;
-            this.handleShiftHoldStart(this.inputHandler.mousePos.worldX, this.inputHandler.mousePos.worldY);
-        }
-
         if (this.selectedUnits && this.selectedUnits.length > 0 && this.gameState === 'RUNNING') {
             let avgX = 0, avgY = 0, count = 0;
             this.selectedUnits.forEach(unit => { if (unit.isAlive()) { avgX += unit.x; avgY += unit.y; count++; } });
@@ -958,7 +1000,7 @@ class Game {
 
         if (this.gameState === 'RUNNING') {
             this.checkMissionStatus();
-            if (this.level && typeof this.level.updateHutSpawning === 'function') { // Ensure hut spawning logic is called
+            if (this.level && typeof this.level.updateHutSpawning === 'function') { 
                 this.level.updateHutSpawning(deltaTime);
             }
         }
@@ -1000,20 +1042,18 @@ class Game {
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit) { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.level.obstacles) {
             this.level.obstacles.forEach(obstacle => {
-                // MODIFIED: Do not add 'border_wall' of the old type if we are using a defined obstacle type for top/bottom.
                 if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
                     const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
-                    if (borderObstacleType) { // If a type is specified, new system is active
-                        return; // Skip rendering the old colored top/bottom border_wall.
+                    if (borderObstacleType) {
+                        return;
                     }
                 }
 
 
                 if (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)) {
-                    let sortYValue = obstacle.y + obstacle.height; // Default sort by visual bottom
+                    let sortYValue = obstacle.y + obstacle.height;
                     const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;
 
-                    // Refined Y-sort for specific types or shapes
                     if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple') {
                         if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) {
                              sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1);
@@ -1035,18 +1075,15 @@ class Game {
             const obj = item.entity;
             if (item.isUnit) {
                 obj.render(this.ctx);
-            } else { // Obstacle rendering
+            } else {
                 if (obj.isDestroyed && obj.imageDestroyed) {
                     let renderWidth, renderHeight, drawX, drawY;
                     if (obj.spriteDestroyedScale !== undefined && obj.spriteDestroyedScale !== null) {
-                        // Use specific destroyed scale relative to destroyed sprite's natural dimensions
                         renderWidth = obj.imageDestroyed.naturalWidth * obj.spriteDestroyedScale;
                         renderHeight = obj.imageDestroyed.naturalHeight * obj.spriteDestroyedScale;
-                        // Position appropriately (e.g., align base of stump with original base)
-                        drawX = obj.x + (obj.width / 2) - (renderWidth / 2); // Center horizontally based on original width
-                        drawY = obj.y + obj.height - renderHeight;          // Align bottom of new sprite with bottom of original visual
+                        drawX = obj.x + (obj.width / 2) - (renderWidth / 2);
+                        drawY = obj.y + obj.height - renderHeight;
                     } else {
-                        // Default: render destroyed sprite at the original obstacle's dimensions
                         renderWidth = obj.width;
                         renderHeight = obj.height;
                         drawX = obj.x;
@@ -1055,12 +1092,9 @@ class Game {
                     this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight);
 
                 } else if (!obj.isDestroyed && obj.imageNormal) {
-                    // For normal (alive) sprites, always use their obj.width and obj.height
-                    // which were calculated during level generation based on their spriteScale or fixed dimensions.
                     this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
 
                 } else if (!obj.isDecoration || !obj.imageNormal) {
-                     // Fallback for obstacles without sprites (e.g., side border walls if they are still type 'border_wall')
                     let obsColor = obj.color || '#555555';
                     if (obj.isDestroyed) {
                         obsColor = 'rgba(50, 40, 30, 0.7)';
@@ -1078,13 +1112,12 @@ class Game {
                         }
                     }
                     this.ctx.fillStyle = obsColor;
-                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height); // Use obj.width/height for fallback rect
+                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                 }
-                // Health bar logic
                 if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
                     const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
                     const hpBarHeight = healthBarStyle.HEIGHT || 4;
-                    const hpBarWidth = Math.min(obj.width * 0.7, 60); // Health bar width relative to obstacle's visual width
+                    const hpBarWidth = Math.min(obj.width * 0.7, 60);
                     const barX = obj.x + (obj.width - hpBarWidth) / 2;
                     const barY = obj.y - hpBarHeight - 4;
                     this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111';
@@ -1108,10 +1141,9 @@ class Game {
             this.ctx.lineWidth = 1;
 
             this.level.obstacles.forEach(obstacle => {
-                // Do not draw collision for old 'border_wall' if sprite borders are active for top/bottom
                 if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
                      const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
-                    if (borderObstacleType) { // If a type is specified, new system is active
+                    if (borderObstacleType) {
                         return;
                     }
                 }
@@ -1207,18 +1239,19 @@ class Game {
             }
         }
 
-        if (this.isDragging && this.draggedFarEnough) {
-            const dragRectWorldStartX = this.dragStartX + this.cameraX;
-            const dragRectWorldStartY = this.dragStartY + this.cameraY;
-            const dragRectWorldCurrentX = this.dragCurrentX + this.cameraX;
-            const dragRectWorldCurrentY = this.dragCurrentY + this.cameraY;
+        if (this.isDragging && this.draggedFarEnough && this.inputHandler.isCtrlPressed) {
+            const worldDragStartX = this.dragStartX + this.cameraX;
+            const worldDragStartY = this.dragStartY + this.cameraY;
+            const worldDragCurrentX = this.dragCurrentX + this.cameraX;
+            const worldDragCurrentY = this.dragCurrentY + this.cameraY;
+
             this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)';
             this.ctx.lineWidth = 1;
             this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)';
-            const rectX = Math.min(dragRectWorldStartX, dragRectWorldCurrentX);
-            const rectY = Math.min(dragRectWorldStartY, dragRectWorldCurrentY);
-            const rectWidth = Math.abs(dragRectWorldCurrentX - dragRectWorldStartX);
-            const rectHeight = Math.abs(dragRectWorldCurrentY - dragRectWorldStartY);
+            const rectX = Math.min(worldDragStartX, worldDragCurrentX);
+            const rectY = Math.min(worldDragStartY, worldDragCurrentY);
+            const rectWidth = Math.abs(worldDragCurrentX - worldDragStartX);
+            const rectHeight = Math.abs(worldDragCurrentY - worldDragStartY);
             this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
             this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
         }

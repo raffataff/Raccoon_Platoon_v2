@@ -1,5 +1,3 @@
-// js/ui.js
-// complete
 class UI {
     constructor(game) {
         this.game = game;
@@ -19,7 +17,7 @@ class UI {
         this.recruitMemorialScreen = document.getElementById('recruitMemorialScreen');
         this.memorialEntriesContainer = document.getElementById('memorialEntriesContainer');
         this.backFromMemorialButton = document.getElementById('backFromMemorialButton');
-        this.viewMemorialButton = document.getElementById('viewMemorialButton'); // On post-mission screen
+        this.viewMemorialButton = document.getElementById('viewMemorialButton');
         this.leftHudPanel = document.getElementById('left-hud-panel');
         this.squadPanel = document.getElementById('hud-squad');
         this.objectiveText = document.getElementById('objectiveText');
@@ -119,7 +117,6 @@ class UI {
             if (this.game && typeof this.game.toggleFormation === 'function') this.game.toggleFormation();
         });
 
-        // No click sound for slider, but hover could be added if desired (might be too noisy)
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game) {
             const initialSpacing = (this.game && this.game.formationSpacingMultiplier !== undefined) ? this.game.formationSpacingMultiplier : (CONFIG.INITIAL_FORMATION_SPACING || 3.5);
             this.formationSpacingSlider.value = initialSpacing.toString();
@@ -137,8 +134,6 @@ class UI {
                 if (!this.game || this.game.gameState !== 'RUNNING') return;
                 const clickedCard = event.target.closest('.squad-member');
                 if (clickedCard && clickedCard.dataset.id) {
-                    // Play click sound for squad panel interaction if desired
-                    // this.game.audioManager.play('UI_BUTTON_CLICK');
                     const clickedRaccoonId = clickedCard.dataset.id;
                     const raccoon = this.game.deployedSquadRoster.find(r => r.id === clickedRaccoonId);
                     if (raccoon && raccoon.isAlive()) {
@@ -165,23 +160,19 @@ class UI {
                  this.mainMenuScreen.style.display = 'flex';
             }
         });
-
-        // Add hover sounds to all buttons collected so far
         this._applyHoverSoundsToAllButtons();
     }
 
-    // --- NEW HELPER METHOD to add click and hover sounds to a button ---
     _addSoundToButton(buttonElement, clickCallback) {
         if (buttonElement) {
             buttonElement.addEventListener('click', () => {
                 if (this.game && this.game.audioManager) {
-                    this.game.audioManager.play('UI_BUTTON_CLICK'); // Corrected: playSound -> play
+                    this.game.audioManager.play('UI_BUTTON_CLICK');
                 }
                 if (clickCallback) {
                     clickCallback();
                 }
             });
-            // Hover sound will be added by _applyHoverSoundsToAllButtons
         }
     }
 
@@ -198,7 +189,7 @@ class UI {
             if (button) {
                 button.addEventListener('mouseenter', () => {
                     if (this.game && this.game.audioManager && !button.disabled) {
-                        this.game.audioManager.play('UI_BUTTON_HOVER'); // Corrected: playSound -> play
+                        this.game.audioManager.play('UI_BUTTON_HOVER');
                     }
                 });
             }
@@ -258,16 +249,15 @@ class UI {
             <div class="xp">XP: ${recruit.xp || 0}</div>`;
         card.appendChild(faceDiv); card.appendChild(infoDiv);
 
-        // Add hover sound to recruit selection cards
         card.addEventListener('mouseenter', () => {
             if (this.game && this.game.audioManager) {
-                this.game.audioManager.play('UI_BUTTON_HOVER', { volume: 0.2 }); // Corrected: playSound -> play
+                this.game.audioManager.play('UI_BUTTON_HOVER', { volume: 0.2 });
             }
         });
 
         card.addEventListener('click', () => {
             if (this.game && this.game.audioManager) {
-                this.game.audioManager.play('UI_BUTTON_CLICK'); // Corrected: playSound -> play
+                this.game.audioManager.play('UI_BUTTON_CLICK');
             }
             if (!this.game) return;
             const currentlyInDeployed = this.game.tempSelectedForDeployment.find(depR => depR.id === recruit.id);
@@ -495,8 +485,10 @@ class UI {
 
             const isKIA = !raccoon.isAlive(); let statusText = 'Active';
             if (isKIA) statusText = 'KIA';
-            else if (raccoon.isAimingGrenade) statusText = 'Aiming';
+            else if (raccoon.isAimingGrenade) statusText = 'Aiming Grnd'; 
+            else if (raccoon.isPlayerDirectFiring) statusText = 'Firing MG'; 
             else if (raccoon.actionTimer > 0) statusText = 'Busy';
+            else if (raccoon.manualTarget) statusText = 'Targeting';
             const statusClass = isKIA ? 'status-kia' : '';
             const hpPercent = isKIA ? 0 : Math.max(0, (raccoon.hp / raccoon.maxHp)) * 100;
 
@@ -524,14 +516,24 @@ class UI {
 
     setCursor(styleName) {
         if (this.game && this.game.canvas) {
-            this.game.canvas.classList.remove('cursor-default', 'cursor-attack', 'cursor-cell');
-            this.game.canvas.style.cursor = '';
+            this.game.canvas.classList.remove(
+                'cursor-default', 'cursor-attack', 'cursor-cell',
+                'cursor-target-mode-default', 'cursor-target-mode-enemy' 
+            );
+            this.game.canvas.style.cursor = ''; 
+
             if (styleName === 'attack') this.game.canvas.classList.add('cursor-attack');
-            else if (styleName === 'cell') this.game.canvas.classList.add('cursor-cell');
+            else if (styleName === 'cell') this.game.canvas.classList.add('cursor-cell'); 
+            else if (styleName === 'target-mode-default') this.game.canvas.classList.add('cursor-target-mode-default'); 
+            else if (styleName === 'target-enemy-hover') this.game.canvas.classList.add('cursor-target-mode-enemy'); 
             else {
                 this.game.canvas.classList.add('cursor-default');
-                if (styleName !== 'default' && styleName !== 'attack' && styleName !== 'cell') this.game.canvas.style.cursor = styleName;
-                else this.game.canvas.style.cursor = 'default';
+                if (styleName !== 'default' && styleName !== 'attack' && styleName !== 'cell' &&
+                    styleName !== 'target-mode-default' && styleName !== 'target-enemy-hover') {
+                    this.game.canvas.style.cursor = styleName;
+                } else {
+                    this.game.canvas.style.cursor = 'default';
+                }
             }
         }
     }

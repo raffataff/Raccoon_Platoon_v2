@@ -47,7 +47,7 @@ const CONFIG = {
     RACCOON_GRENADE_PROJECTILE_SPEED: 120,
     RACCOON_GRENADE_PREFERRED_THROW_RANGE_FACTOR: 0.9,
     RACCOON_SPRITE_PATH: 'assets/images/units/raccoon/',
-    RACCOON_SPRITE_SCALE_FACTOR: 0.4,
+    RACCOON_SPRITE_SCALE_FACTOR: 0.5,
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/', 
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
     RACCOON_DEAD_SPRITE_SCALE: 0.05,
@@ -64,7 +64,7 @@ const CONFIG = {
     POSSUM_RIFLE_ACCURACY_STATIONARY: 0.75,
     POSSUM_RIFLE_ACCURACY_MOVING: 0.45,
     POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/', 
-    POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.45, 
+    POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.5, 
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
     POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png', 'possum_grunt_dead_4.png'], 
     POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.4, 
@@ -452,7 +452,7 @@ const CONFIG = {
             spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
             spriteScale: 1.20, // Assuming palm_forest_1.png is 877x363 or desired size
             spriteDestroyed: null,
-            collisionShape: { type: 'rectangle', offsetX: (w=>w*0.034), offsetY: (h=>h*0.2), width: (w=>w*0.855), height: (h=>h*0.2) },
+            collisionShape: { type: 'rectangle', offsetX: (w=>w*0.041), offsetY: (h=>h*0.2), width: (w=>w*0.852), height: (h=>h*0.2) },
             isDecoration: false
         },
         {

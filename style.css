@@ -583,8 +583,10 @@ input[type="range"]::-moz-range-thumb {
 
 /* Cursor classes */
 .cursor-default { cursor: default; }
-.cursor-attack { cursor: url('assets/cursors/crosshair.png') 16 16, crosshair; }
+.cursor-attack { cursor: url('assets/images/ui/cursors/crosshair.png') 16 16, crosshair; }
 .cursor-cell { cursor: cell; }
+.cursor-target-mode-default { cursor: url('assets/images/ui/cursors/target_default.png') 16 16, crosshair; }
+.cursor-target-mode-enemy { cursor: url('assets/images/ui/cursors/target_enemy_hover.png') 16 16, crosshair; }
 
 /* --- Post-Mission Screen Enhancements --- */
 #postMissionScreen {
@@ -693,7 +695,7 @@ input[type="range"]::-moz-range-thumb {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 700px;
+    width: 800px;
     min-height: 500px;
     max-height: 85vh;
     padding: 25px;
@@ -737,14 +739,14 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .memorial-entry-face {
-    width: 66px;
-    height: 66px;
+    width: 99px;
+    height: 99px;
     background-size: cover;
     background-position: center;
     border-radius: 3px;
     border: 1px solid #2A2825;
     flex-shrink: 0;
-    filter: grayscale(80%) sepia(20%);
+    filter: grayscale(30%) sepia(40%);
 }
 
 .memorial-entry-info {
