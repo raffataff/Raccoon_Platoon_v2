@@ -1,5 +1,3 @@
-// js/level.js
-// complete
 class Level {
     constructor(game) {
         this.game = game;
@@ -16,7 +14,7 @@ class Level {
                             : {};
         this.timeSinceLastHutActivationCheck = 0;
         this.HUT_ACTIVATION_CHECK_INTERVAL = 1.0;
-        this.initialHostageCount = 0; // To track spawned hostages for objective UI
+        this.initialHostageCount = 0; 
     }
 
     _getObstacleCollisionShape(obstacle) {
@@ -50,7 +48,7 @@ class Level {
                 };
             }
         }
-        if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || obstacle.type === 'border_wall') {
+        if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || obstacle.type === 'border_wall' || obstacle.type === 'extraction_zone') { // Add extraction_zone here
              return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
         }
         return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
@@ -59,7 +57,7 @@ class Level {
     _rectOverlap(rect1, rect2) { return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y); }
     isShapeOverlappingList(movingShape, existingObstacles) {
         for (const existing of existingObstacles) {
-            if (!existing.isDestroyed && existing.blocksMovement) {
+            if (!existing.isDestroyed && existing.blocksMovement) { // Only check against movement-blocking obstacles
                 const existingCollisionShape = this._getObstacleCollisionShape(existing);
                 let collision = false;
                 if (movingShape.type === 'rectangle') {
@@ -135,7 +133,7 @@ class Level {
                         }
                     }
                 });
-                const allUnits = [...(this.game.deployedSquadRoster || []), ...(this.game.enemyUnits || [])];
+                const allUnits = this.game.getLivingPlayerControlledUnits().concat(this.game.enemyUnits || []); // Include all living units
                 allUnits.forEach(unit => {
                     if (unit.isAlive()) {
                         const distToUnit = distance(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, unit.x, unit.y);
@@ -178,7 +176,7 @@ class Level {
                 };
 
                 for (const obs of this.obstacles) {
-                    if (obs.blocksMovement && !obs.isDestroyed) {
+                    if (obs.blocksMovement && !obs.isDestroyed) { // Only consider movement-blocking obstacles for navgrid
                         const obsShape = this._getObstacleCollisionShape(obs);
                         if (!obsShape) continue;
                         let collision = false;
@@ -206,7 +204,7 @@ class Level {
         const obsShapeForBounds = this._getObstacleCollisionShape(obstacle);
         let minObsX, maxObsX, minObsY, maxObsY;
 
-        if (!obsShapeForBounds) {
+        if (!obsShapeForBounds) { // Fallback if no specific collision shape (e.g., after destruction with no destroyed shape)
             minObsX = obstacle.x;
             maxObsX = obstacle.x + obstacle.width;
             minObsY = obstacle.y;
@@ -226,14 +224,14 @@ class Level {
             maxObsX = obsShapeForBounds.x + obsShapeForBounds.radiusX;
             minObsY = obsShapeForBounds.y - obsShapeForBounds.radiusY;
             maxObsY = obsShapeForBounds.y + obsShapeForBounds.radiusY;
-        } else {
+        } else { // Default to obstacle's visual bounds if collision shape type is unknown
             minObsX = obstacle.x;
             maxObsX = obstacle.x + obstacle.width;
             minObsY = obstacle.y;
             maxObsY = obstacle.y + obstacle.height;
         }
 
-        const startGridX = Math.max(0, Math.floor(minObsX / this.gridCellSize) -1);
+        const startGridX = Math.max(0, Math.floor(minObsX / this.gridCellSize) -1); // -1 and +1 to ensure we cover edges
         const endGridX = Math.min(this.gridWidth -1, Math.ceil(maxObsX / this.gridCellSize) +1);
         const startGridY = Math.max(0, Math.floor(minObsY / this.gridCellSize) -1);
         const endGridY = Math.min(this.gridHeight -1, Math.ceil(maxObsY / this.gridCellSize) +1);
@@ -245,7 +243,7 @@ class Level {
                 const cellRect = { x: x * this.gridCellSize, y: y * this.gridCellSize, width: this.gridCellSize, height: this.gridCellSize };
                 let stillBlockedByOther = false;
                 for (const otherObs of this.obstacles) {
-                    if (otherObs.blocksMovement && !otherObs.isDestroyed) {
+                    if (otherObs.blocksMovement && !otherObs.isDestroyed) { // Only check against active movement blockers
                         const otherObsShape = this._getObstacleCollisionShape(otherObs);
                         if (!otherObsShape) continue;
                         let collisionWithOther = false;
@@ -296,12 +294,12 @@ class Level {
         this.obstacles = [];
         this.potentialSpawnerHuts = [];
         this.activeSpawningHuts = [];
-        this.initialHostageCount = 0; // Reset for new level
+        this.initialHostageCount = 0; 
 
         if (this.game) {
             this.game.enemyUnits = [];
             this.game.gameObjects = [];
-            this.game.hostageUnits = []; // Clear previous hostages
+            this.game.hostageUnits = []; 
         }
 
         const genConfig = CONFIG.LEVEL_GENERATION || {};
@@ -324,7 +322,7 @@ class Level {
         if (borderObstacleTemplate) {
             if (borderObstacleTemplate.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES.length > 0) {
                 borderSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + CONFIG.FENCE_BARBED_LONG_SPRITE_FILES[0];
-            } else if (borderObstacleTemplate.spriteNormal) { // Generic fallback for other types
+            } else if (borderObstacleTemplate.spriteNormal) { 
                 borderSpritePath = borderObstacleTemplate.spriteNormal;
             }
 
@@ -337,7 +335,7 @@ class Level {
                 borderSegmentWidth = borderSpriteImage.naturalWidth * borderSpriteScale;
                 borderSegmentHeight = borderSpriteImage.naturalHeight * borderSpriteScale;
             } else if (borderObstacleTemplate.width && borderObstacleTemplate.height) {
-                borderSegmentWidth = borderObstacleTemplate.width; // These would be absolute if spriteScale not used
+                borderSegmentWidth = borderObstacleTemplate.width; 
                 borderSegmentHeight = borderObstacleTemplate.height;
                 console.warn(`Border obstacle type '${borderObstacleTypeName}' has no preloaded sprite, using defined dimensions.`);
             } else {
@@ -355,13 +353,12 @@ class Level {
                 const segmentX = i * borderSegmentWidth;
                 const commonProps = {
                     type: borderObstacleTemplate.type,
-                    name: borderObstacleTemplate.name, // Will append (Border Top/Bottom) later
-                    destructible: false, // Borders are indestructible
+                    name: borderObstacleTemplate.name, 
+                    destructible: false, 
                     hp: Infinity, maxHp: Infinity, isDestroyed: false,
                     blocksMovement: true, providesCover: true,
                     spriteNormalPath: borderSpritePath, imageNormal: borderSpriteImage,
                     spriteScale: borderSpriteScale,
-                    // Deep copy collisionShape, applying scaling if functions are used
                     collisionShape: borderObstacleTemplate.collisionShape ? JSON.parse(JSON.stringify(borderObstacleTemplate.collisionShape)) : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w => w, height: h => h }
                 };
 
@@ -379,7 +376,7 @@ class Level {
                 });
             }
         } else {
-            topBottomBorderHeight = genConfig.BORDER_WIDTH || 30; // Ensure fallback uses default height
+            topBottomBorderHeight = genConfig.BORDER_WIDTH || 30; 
             this.obstacles.push({ x: 0, y: 0, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Top', color: sideBorderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
             this.obstacles.push({ x: 0, y: worldHeight - topBottomBorderHeight, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Bottom', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true });
         }
@@ -555,10 +552,9 @@ class Level {
             } while (!placed && attempts < placementMaxAttempts);
         }
 
-        // --- HOSTAGE SPAWNING LOGIC ---
+        
         if (missionParams.objectiveType === 'RESCUE_HOSTAGES') {
             const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
-            // Prioritize mission-specific count, then config, then default
             const numHostagesToSpawn = missionParams.numHostagesToSpawn !== undefined ? missionParams.numHostagesToSpawn : (hostageConf.MAX_HOSTAGES_PER_MISSION !== undefined ? hostageConf.MAX_HOSTAGES_PER_MISSION : 1);
             this.initialHostageCount = numHostagesToSpawn;
 
@@ -566,24 +562,18 @@ class Level {
 
             for (let i = 0; i < numHostagesToSpawn; i++) {
                 let hostageX, hostageY, attempts = 0;
-                const maxPlacementAttempts = 30; // Increased attempts for hostages
+                const maxPlacementAttempts = 30; 
                 let placed = false;
-                const hostageSize = CONFIG.RACCOON_SIZE || 12; // Use raccoon size for hostages
+                const hostageSize = CONFIG.RACCOON_SIZE || 12; 
 
                 do {
-                    // Try to place them away from player spawn, maybe towards middle/top of map
-                    // and ensure not overlapping existing obstacles or other hostages
                     hostageX = playableMinX + Math.random() * (playableWidth - hostageSize);
-                    // Try to place them further away from player spawn zone vertically
-                    hostageY = playableMinY + Math.random() * (playableHeight * 0.6 - hostageSize); // e.g. in top 60% of playable height
-
-
+                    hostageY = playableMinY + Math.random() * (playableHeight * 0.6 - hostageSize); 
                     const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
                     let existingUnitsForClearance = this.game.enemyUnits.concat(this.game.hostageUnits || []);
 
-
-                    if (!this._rectOverlap(tempHostageShapeForPlayerZone, playerSpawnZone) && // Not in player spawn zone
-                        distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2) > 150 && // Min distance from player spawn center
+                    if (!this._rectOverlap(tempHostageShapeForPlayerZone, playerSpawnZone) && 
+                        distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2) > 150 && 
                         this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, existingUnitsForClearance)) {
 
                         const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${i}`);
@@ -600,6 +590,78 @@ class Level {
                 }
             }
         }
+
+        // --- NEW: SPAWN EXTRACTION ZONE for RESCUE_HOSTAGES missions ---
+        if (missionParams.objectiveType === 'RESCUE_HOSTAGES') {
+            const ezConfig = genConfig.EXTRACTION_ZONE_SETTINGS || {};
+            let ezX, ezY, ezWidth, ezHeight;
+            let ezImage = null;
+
+            if (ezConfig.SPRITE_PATH && preloadedAssetImages[ezConfig.SPRITE_PATH]) {
+                ezImage = preloadedAssetImages[ezConfig.SPRITE_PATH];
+                ezWidth = ezImage.naturalWidth; // Assuming sprite scale is 1 or handled elsewhere if needed
+                ezHeight = ezImage.naturalHeight;
+            } else {
+                ezWidth = ezConfig.WIDTH || 100;
+                ezHeight = ezConfig.HEIGHT || 100;
+            }
+
+            let placedEZ = false;
+            for (let attempt = 0; attempt < (ezConfig.MAX_PLACEMENT_ATTEMPTS || 20); attempt++) {
+                // Try to place near an edge, away from player spawn
+                const edgeChoice = Math.random();
+                if (edgeChoice < 0.25) { // Top edge
+                    ezX = playableMinX + Math.random() * (playableWidth - ezWidth);
+                    ezY = playableMinY + (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
+                } else if (edgeChoice < 0.5) { // Left edge (but not too close to player spawn if player is left)
+                    ezX = playableMinX + (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
+                    ezY = playableMinY + Math.random() * (playableHeight - ezHeight);
+                } else if (edgeChoice < 0.75) { // Right edge
+                    ezX = playableMaxX - ezWidth - (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
+                    ezY = playableMinY + Math.random() * (playableHeight - ezHeight);
+                } else { // Bottom edge (less ideal if player spawns bottom, but a fallback)
+                    ezX = playableMinX + Math.random() * (playableWidth - ezWidth);
+                    ezY = playableMaxY - ezHeight - (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
+                }
+                
+                ezX = Math.max(playableMinX, Math.min(ezX, playableMaxX - ezWidth));
+                ezY = Math.max(playableMinY, Math.min(ezY, playableMaxY - ezHeight));
+
+                const ezRect = { x: ezX, y: ezY, width: ezWidth, height: ezHeight };
+                const distToPlayerSpawn = distance(ezX + ezWidth/2, ezY + ezHeight/2, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2);
+
+                if (!this._rectOverlap(ezRect, playerSpawnZone) && distToPlayerSpawn > (ezConfig.MIN_DISTANCE_FROM_PLAYER_SPAWN || 300)) {
+                    // Check if it overlaps significantly with existing *blocking* obstacles
+                    let overlapsBlockingObstacle = false;
+                    for (const obs of this.obstacles) {
+                        if (obs.blocksMovement && !obs.isDestroyed && this._rectOverlap(ezRect, this._getObstacleCollisionShape(obs))) {
+                            overlapsBlockingObstacle = true;
+                            break;
+                        }
+                    }
+                    if (!overlapsBlockingObstacle) {
+                        this.obstacles.push({
+                            x: ezX, y: ezY, width: ezWidth, height: ezHeight,
+                            type: 'extraction_zone',
+                            name: ezConfig.NAME || "Extraction Zone",
+                            color: ezConfig.FALLBACK_COLOR || 'rgba(0,0,255,0.3)',
+                            imageNormal: ezImage, // Store preloaded image
+                            spriteNormalPath: ezConfig.SPRITE_PATH, // Store path for reference
+                            blocksMovement: false, providesCover: false, destructible: false,
+                            isDestroyed: false, isPickup: false, isDecoration: true, // Treat as decoration for rendering logic if no sprite
+                            hp: Infinity, maxHp: Infinity
+                        });
+                        placedEZ = true;
+                        console.log(`[Level] Placed Extraction Zone at (${ezX.toFixed(0)}, ${ezY.toFixed(0)})`);
+                        break;
+                    }
+                }
+            }
+            if (!placedEZ) {
+                console.warn("[Level] Could not place extraction zone. Rescue mission might be unfinishable if it relies on it.");
+            }
+        }
+        // --- END EXTRACTION ZONE ---
 
 
         this.generateNavigationGrid(worldWidth, worldHeight);
@@ -642,17 +704,16 @@ class Level {
             currentGroupSizeAttempt = Math.min(currentGroupSizeAttempt, totalEnemiesToSpawn - enemiesSpawnedCount); if (currentGroupSizeAttempt <= 0) continue;
             let groupLeaderX, groupLeaderY, isLeaderSpawnClear; let leaderPlacementAttempts = 0; const leaderMaxAttempts = enemySpawnCfg.LEADER_PLACEMENT_MAX_ATTEMPTS || 20;
             const minSpawnDistFromPlayerZone = enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 50;
-            let enemySpawnMinX = playableMinX; // Default spawn anywhere in playable area
-             // If player spawn is on the left, spawn enemies to the right of it
+            let enemySpawnMinX = playableMinX; 
             if (playerSpawnZone.x < worldWidth / 2) {
                  enemySpawnMinX = playerSpawnZone.x + playerSpawnZone.width + minSpawnDistFromPlayerZone;
             }
-            const enemySpawnableWidth = Math.max(0, playableMaxX - enemySpawnMinX); if (enemySpawnableWidth <= heavySize * 2 && playerSpawnZone.x < worldWidth / 2) { continue; } // Not enough space to the right
+            const enemySpawnableWidth = Math.max(0, playableMaxX - enemySpawnMinX); if (enemySpawnableWidth <= heavySize * 2 && playerSpawnZone.x < worldWidth / 2) { continue; } 
             
             do {
-                if (playerSpawnZone.x < worldWidth / 2 && enemySpawnableWidth > heavySize) { // Spawn to the right
+                if (playerSpawnZone.x < worldWidth / 2 && enemySpawnableWidth > heavySize) { 
                      groupLeaderX = enemySpawnMinX + Math.random() * (enemySpawnableWidth - heavySize);
-                } else { // Spawn anywhere in playable X if player is not on left, or not enough space right
+                } else { 
                      groupLeaderX = playableMinX + Math.random() * (playableWidth - heavySize);
                 }
                 groupLeaderY = playableMinY + Math.random() * (playableHeight - heavySize);

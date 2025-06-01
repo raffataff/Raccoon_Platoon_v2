@@ -81,6 +81,12 @@ class Game {
         })();
     }
 
+    getLivingPlayerControlledUnits() {
+        const livingRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [];
+        const livingRescuedHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
+        return [...livingRaccoons, ...livingRescuedHostages];
+    }
+
     setNextBirdSpawnTimer() {
         if (this.birdSpawnConfig) {
             this.nextBirdSpawnTime = (this.birdSpawnConfig.SPAWN_INTERVAL_MIN_SECONDS || 10) +
@@ -119,6 +125,21 @@ class Game {
                 }));
             }
         }
+        
+        // Preload extraction zone sprite if defined
+        const ezConfig = CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.EXTRACTION_ZONE_SETTINGS;
+        if (ezConfig && ezConfig.SPRITE_PATH) {
+            const path = ezConfig.SPRITE_PATH;
+            if (!this.preloadedImages[path]) {
+                 imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[path] = img; console.log(`[Preload SUCCESS - Misc] Extraction Zone: '${path}'`); resolve(); };
+                    img.onerror = () => { console.warn(`[Preload FAILED - Misc] Extraction Zone: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                    img.src = path;
+                }));
+            }
+        }
+
 
         await Promise.all(imagePromises);
         console.log("[Game] Miscellaneous assets preloading processed.");
@@ -132,23 +153,23 @@ class Game {
 
         const unitTypesToPreload = [
             {
-                name: 'raccoon',
+                name: 'raccoon', 
                 basePath: CONFIG.RACCOON_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], walk: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], fire: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
             },
             {
                 name: 'possum_grunt',
                 basePath: CONFIG.POSSUM_GRUNT_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], walk: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], fire: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
             },
             {
                 name: 'possum_heavy',
                 basePath: CONFIG.POSSUM_HEAVY_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], walk: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], fire: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES
             }
@@ -298,7 +319,9 @@ class Game {
         if (CONFIG.AUDIO_ASSETS && this.audioManager) {
             for (const key in CONFIG.AUDIO_ASSETS) {
                 const asset = CONFIG.AUDIO_ASSETS[key];
-                this.audioManager.addSoundToLoadQueue(key, asset.path, asset.defaultVolume);
+                if (typeof asset === 'object' && asset !== null && asset.hasOwnProperty('path')) {
+                    this.audioManager.addSoundToLoadQueue(key, asset.path, asset.defaultVolume);
+                }
             }
             await this.audioManager.loadAllSounds(
                 (loaded, total, key, error) => {
@@ -397,9 +420,14 @@ class Game {
         this.deployedSquadRoster = selectedRecruitsForDeployment;
         this.deployedSquadRoster.forEach(r => {
             r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-            if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
+            if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); 
+            if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
+            if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0); 
+            if (r.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 0);
             r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false;
             r.isPlayerDirectFiring = false;
+            r.isHoldingPosition = false; 
+            r.isHoldingFire = false;   
         });
 
         this.isObjectiveComplete = false;
@@ -456,7 +484,7 @@ class Game {
                 unit.isPlayerDirectFiring = true;
                 unit.playerDirectFireTargetPos = { x: worldX, y: worldY };
                 const angle = Math.atan2(worldY - unit.y, worldX - unit.x);
-                unit._executeFire(worldX, worldY, angle);
+                unit._executeFire(worldX, worldY, angle); 
             }
         });
     }
@@ -484,8 +512,11 @@ class Game {
         if (!this.selectedUnits || this.selectedUnits.length === 0 || !enemyUnit || !enemyUnit.isAlive()) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive()) {
-                unit.isPlayerDirectFiring = false;
+                unit.isPlayerDirectFiring = false; 
                 unit.setManualTarget(enemyUnit);
+                if (unit.isHoldingFire) {
+                     console.log(`Unit ${unit.id} is Holding Fire. Manual target ${enemyUnit.id} set but will not engage automatically.`);
+                }
             }
         });
         if (this.ui) this.ui.updateSquadPanel();
@@ -496,7 +527,7 @@ class Game {
 
         const aimingRaccoons = this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
         if (aimingRaccoons.length > 0) {
-            const leadAimer = aimingRaccoons[0];
+            const leadAimer = aimingRaccoons[0]; 
 
             let clickedEnemy = null;
             if (this.enemyUnits) {
@@ -511,7 +542,11 @@ class Game {
             if (distance(leadAimer.x, leadAimer.y, worldX, worldY) <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
                 leadAimer.confirmThrowGrenade(worldX, worldY);
             } else if (clickedEnemy) {
-                leadAimer.moveToGrenadeRange(clickedEnemy);
+                if (leadAimer.isHoldingPosition) {
+                    console.log(`Raccoon ${leadAimer.id} is Holding Position, cannot move to throw grenade at out-of-range target.`);
+                } else {
+                    leadAimer.moveToGrenadeRange(clickedEnemy);
+                }
             } else {
                 console.log("Grenade target out of max range and not an enemy.");
             }
@@ -534,7 +569,7 @@ class Game {
             this.selectedUnits.forEach((unit, index) => {
                 if (unit.isAlive() && unit.team === 'player') {
                     const targetPoint = formationPoints[index] || {x:worldX, y:worldY};
-                    unit.setMoveTarget(targetPoint.x, targetPoint.y);
+                    unit.setMoveTarget(targetPoint.x, targetPoint.y); 
                 }
             });
         }
@@ -921,51 +956,89 @@ class Game {
         if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated) {
             return;
         }
-
+    
         let objectiveMet = false;
         const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()).length : 0;
         const allInitialEnemiesDefeated = (this.initialEnemyCount > 0 && aliveEnemies === 0 && this.enemyUnits.every(e => !e.isAlive())) || (this.initialEnemyCount === 0 && aliveEnemies === 0);
-
-
+    
         if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
             if (allInitialEnemiesDefeated) {
                 objectiveMet = true;
             }
         } else if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
-            const minToRescue = (this.currentMissionParams.minHostagesToRescueForWin !== undefined)
-                                ? this.currentMissionParams.minHostagesToRescueForWin
-                                : (CONFIG.HOSTAGE_SETTINGS && CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN !== undefined
-                                    ? CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN
-                                    : 1);
-            
-            const rescuedAndAliveCount = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()).length : 0;
-            
-            // For RESCUE_HOSTAGES, primary condition is rescuing hostages.
-            // We ADD the condition that all initial enemies must also be defeated.
+            const minToRescue = this.currentMissionParams.minHostagesToRescueForWin !== undefined
+                ? this.currentMissionParams.minHostagesToRescueForWin
+                : (CONFIG.HOSTAGE_SETTINGS && CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN !== undefined
+                    ? CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN
+                    : 1);
+    
+            const rescuedAndAliveHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
+            const rescuedAndAliveCount = rescuedAndAliveHostages.length;
+    
             if (rescuedAndAliveCount >= minToRescue && allInitialEnemiesDefeated) {
-                objectiveMet = true;
-                console.log(`[Game checkMissionStatus] RESCUE objective met: ${rescuedAndAliveCount} / ${minToRescue} (min) hostages rescued AND all initial enemies defeated.`);
+                // All primary conditions met, now check extraction
+                const extractionZones = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
+                if (extractionZones.length > 0) {
+                    let hostagesInZoneCount = 0;
+                    let playerRaccoonInZone = false;
+    
+                    rescuedAndAliveHostages.forEach(hostage => {
+                        for (const zone of extractionZones) {
+                            if (hostage.x >= zone.x && hostage.x <= zone.x + zone.width &&
+                                hostage.y >= zone.y && hostage.y <= zone.y + zone.height) {
+                                hostagesInZoneCount++;
+                                break; 
+                            }
+                        }
+                    });
+    
+                    if (this.deployedSquadRoster) {
+                        for (const raccoon of this.deployedSquadRoster) {
+                            if (raccoon.isAlive()) {
+                                for (const zone of extractionZones) {
+                                    if (raccoon.x >= zone.x && raccoon.x <= zone.x + zone.width &&
+                                        raccoon.y >= zone.y && raccoon.y <= zone.y + zone.height) {
+                                        playerRaccoonInZone = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (playerRaccoonInZone) break;
+                        }
+                    }
+                    
+                    // Ensure enough distinct hostages are in an extraction zone
+                    // This simple count assumes any rescued hostage in any zone counts.
+                    // If you need specific hostages or specific zones, logic would be more complex.
+                    if (hostagesInZoneCount >= minToRescue && playerRaccoonInZone) {
+                        objectiveMet = true;
+                        console.log(`[Game checkMissionStatus] RESCUE objective met: ${rescuedAndAliveCount}/${minToRescue} hostages rescued, all enemies defeated, AND required hostages + player in extraction zone.`);
+                    } else {
+                         // console.log(`[Game checkMissionStatus] RESCUE: Hostages/Player not in extraction. Hostages in Zone: ${hostagesInZoneCount}/${minToRescue}. Player in Zone: ${playerRaccoonInZone}`);
+                    }
+                } else {
+                    console.warn("[Game checkMissionStatus] RESCUE objective: No extraction zones found on map!");
+                    // objectiveMet remains false, as extraction is impossible
+                }
             } else {
-                 // console.log(`[Game checkMissionStatus] RESCUE_HOSTAGES not yet met. Rescued & Alive: ${rescuedAndAliveCount} (Need ${minToRescue}). Initial Enemies Defeated: ${allInitialEnemiesDefeated}`);
+                // console.log(`[Game checkMissionStatus] RESCUE: Primary conditions not met. Rescued: ${rescuedAndAliveCount}/${minToRescue}. Enemies defeated: ${allInitialEnemiesDefeated}`);
             }
         } else {
-            // Fallback for unknown or future objective types that might ALSO require all enemies defeated by default.
-            if (this.currentMissionParams) {
-                 // console.log(`[Game checkMissionStatus] Objective type is ${this.currentMissionParams.objectiveType}. Defaulting to requiring enemy extermination as well.`);
-                 if (allInitialEnemiesDefeated) { // If it's not EXTERMINATE or RESCUE, assume for now it means "do X AND kill all"
-                     objectiveMet = true; // This part might need to be more nuanced if you have objectives that DON'T require killing all enemies.
-                 }
-            } else {
-                console.log(`[Game checkMissionStatus] No currentMissionParams.`);
+            if (this.currentMissionParams && allInitialEnemiesDefeated) {
+                objectiveMet = true; 
             }
         }
-        
+    
+        const livingPlayerRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()).length : 0;
+        if (livingPlayerRaccoons === 0 && this.deployedSquadRoster.length > 0) {
+            console.log(`[Game checkMissionStatus] All deployed Raccoons KIA! Initiating mission end (defeat).`);
+            this.initiateMissionEnd(false);
+            return; 
+        }
+    
         if (objectiveMet) {
             console.log(`[Game checkMissionStatus] Objective Met! Initiating mission end (victory).`);
             this.initiateMissionEnd(true);
-        } else if (this.deployedSquadRoster && this.deployedSquadRoster.length > 0 && this.deployedSquadRoster.every(unit => !unit.isAlive())) {
-            console.log(`[Game checkMissionStatus] All Raccoons KIA! Initiating mission end (defeat).`);
-            this.initiateMissionEnd(false);
         }
     }
     spawnFlyingBirdFlock() {
@@ -1124,7 +1197,7 @@ class Game {
                 if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
                     const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
                     if (borderObstacleType) {
-                        return;
+                        return; 
                     }
                 }
 
@@ -1154,15 +1227,15 @@ class Game {
             const obj = item.entity;
             if (item.isUnit) {
                 obj.render(this.ctx);
-            } else {
+            } else { 
                 if (obj.isDestroyed && obj.imageDestroyed) {
                     let renderWidth, renderHeight, drawX, drawY;
                     if (obj.spriteDestroyedScale !== undefined && obj.spriteDestroyedScale !== null) {
                         renderWidth = obj.imageDestroyed.naturalWidth * obj.spriteDestroyedScale;
                         renderHeight = obj.imageDestroyed.naturalHeight * obj.spriteDestroyedScale;
-                        drawX = obj.x + (obj.width / 2) - (renderWidth / 2);
-                        drawY = obj.y + obj.height - renderHeight;
-                    } else {
+                        drawX = obj.x + (obj.width / 2) - (renderWidth / 2); 
+                        drawY = obj.y + obj.height - renderHeight; 
+                    } else { 
                         renderWidth = obj.width;
                         renderHeight = obj.height;
                         drawX = obj.x;
@@ -1173,17 +1246,28 @@ class Game {
                 } else if (!obj.isDestroyed && obj.imageNormal) {
                     this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
 
-                } else if (!obj.isDecoration || !obj.imageNormal) {
+                } else if (obj.type === 'extraction_zone' && !obj.imageNormal) { // Fallback for extraction zone
+                    this.ctx.fillStyle = obj.color || 'rgba(0,0,255,0.3)';
+                    this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+                    this.ctx.strokeStyle = 'rgba(200,200,255,0.8)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
+                    this.ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                    this.ctx.font = "bold 16px Arial";
+                    this.ctx.textAlign = "center";
+                    this.ctx.fillText("EVAC", obj.x + obj.width/2, obj.y + obj.height/2 + 6);
+
+                } else if (!obj.isDecoration || !obj.imageNormal) { 
                     let obsColor = obj.color || '#555555';
-                    if (obj.isDestroyed) {
+                    if (obj.isDestroyed) { 
                         obsColor = 'rgba(50, 40, 30, 0.7)';
                     } else if (obj.destructible && obj.hp < obj.maxHp && obj.hp > 0 && obj.color) {
                         const damageRatio = Math.max(0, obj.hp / obj.maxHp);
-                        if (/^#[0-9A-F]{6}$/i.test(obsColor)) {
+                        if (/^#[0-9A-F]{6}$/i.test(obsColor)) { 
                             let r = parseInt(obsColor.substring(1,3),16);
                             let g = parseInt(obsColor.substring(3,5),16);
                             let b = parseInt(obsColor.substring(5,7),16);
-                            const greyVal = 80;
+                            const greyVal = 80; 
                             r = Math.floor(r*damageRatio + greyVal*(1-damageRatio));
                             g = Math.floor(g*damageRatio + greyVal*(1-damageRatio));
                             b = Math.floor(b*damageRatio + greyVal*(1-damageRatio));
@@ -1193,12 +1277,13 @@ class Game {
                     this.ctx.fillStyle = obsColor;
                     this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                 }
+                
                 if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
                     const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
                     const hpBarHeight = healthBarStyle.HEIGHT || 4;
-                    const hpBarWidth = Math.min(obj.width * 0.7, 60);
+                    const hpBarWidth = Math.min(obj.width * 0.7, 60); 
                     const barX = obj.x + (obj.width - hpBarWidth) / 2;
-                    const barY = obj.y - hpBarHeight - 4;
+                    const barY = obj.y - hpBarHeight - 4; 
                     this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111';
                     this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2);
                     let fillColor = healthBarStyle.HP_COLOR_FULL ||'#0c0';
@@ -1223,7 +1308,7 @@ class Game {
                 if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
                      const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
                     if (borderObstacleType) {
-                        return;
+                        return; 
                     }
                 }
 
@@ -1265,9 +1350,9 @@ class Game {
                     this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
                     this.ctx.lineWidth = 2;
                     this.ctx.beginPath();
-                    const selectRadiusX = unit.size + 13;
-                    const selectRadiusY = unit.size + 13;
-                    this.ctx.ellipse(unit.x, unit.y + unit.size * 0.2, selectRadiusX, selectRadiusY, 0, 0, Math.PI * 2);
+                    const selectRadiusX = unit.size + 13; 
+                    const selectRadiusY = unit.size + 13; 
+                    this.ctx.ellipse(unit.x, unit.y + unit.size * 0.2, selectRadiusX, selectRadiusY, 0, 0, Math.PI * 2); 
                     this.ctx.stroke();
                 }
             });
@@ -1287,44 +1372,49 @@ class Game {
             });
         }
 
+        
         const aimingRaccoon = this.selectedUnits && this.selectedUnits.find(unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive());
         if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) {
             const worldMouseX = this.inputHandler.mousePos.worldX;
             const worldMouseY = this.inputHandler.mousePos.worldY;
             const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY);
+            
             this.ctx.fillStyle = 'rgba(255, 165, 0, 0.3)';
             this.ctx.beginPath();
             this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2);
             this.ctx.fill();
-            this.ctx.strokeStyle = 'rgb(111, 0, 255)';
+            
+            this.ctx.strokeStyle = 'rgb(111, 0, 255)'; 
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
             this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
             if (throwDist > CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
+                 
                  const angle = Math.atan2(worldMouseY - aimingRaccoon.y, worldMouseX - aimingRaccoon.x);
                  const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
                  const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
                  this.ctx.lineTo(cappedX, cappedY);
-                 this.ctx.stroke();
-                 this.ctx.beginPath();
+                 this.ctx.stroke(); 
+                 this.ctx.beginPath(); 
                  this.ctx.moveTo(cappedX, cappedY);
                  this.ctx.setLineDash([5, 5]);
                  this.ctx.lineTo(worldMouseX, worldMouseY);
                  this.ctx.stroke();
-                 this.ctx.setLineDash([]);
+                 this.ctx.setLineDash([]); 
             } else {
                  this.ctx.lineTo(worldMouseX, worldMouseY);
                  this.ctx.stroke();
             }
         }
 
+        
         if (this.isDragging && this.draggedFarEnough && this.inputHandler.isCtrlPressed) {
             const worldDragStartX = this.dragStartX + this.cameraX;
             const worldDragStartY = this.dragStartY + this.cameraY;
             const worldDragCurrentX = this.dragCurrentX + this.cameraX;
             const worldDragCurrentY = this.dragCurrentY + this.cameraY;
 
-            this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)';
+            this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)'; 
             this.ctx.lineWidth = 1;
             this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)';
             const rectX = Math.min(worldDragStartX, worldDragCurrentX);
@@ -1335,11 +1425,12 @@ class Game {
             this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
         }
 
-        this.ctx.restore();
+        this.ctx.restore(); 
 
+        
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
             this.ctx.save();
-            this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+            this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; 
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
             this.ctx.font = "bold 48px 'Impact', 'Arial Black', sans-serif";
@@ -1349,20 +1440,22 @@ class Game {
             const textX = this.canvas.width / 2;
             const textY = this.canvas.height / 2;
 
+            
             this.ctx.shadowColor = "rgba(0,0,0,0.7)";
             this.ctx.shadowBlur = 5;
             this.ctx.shadowOffsetX = 2;
             this.ctx.shadowOffsetY = 2;
 
             if (this.missionPendingOutcomeIsVictory) {
-                this.ctx.fillStyle = "#4CAF50";
+                this.ctx.fillStyle = "#4CAF50"; 
             } else {
-                this.ctx.fillStyle = "#F44336";
+                this.ctx.fillStyle = "#F44336"; 
             }
             this.ctx.fillText(this.missionEndMessage, textX, textY);
 
+            
             this.ctx.font = "24px 'Consolas', 'Lucida Console', monospace";
-            this.ctx.fillStyle = "#FFFFFF";
+            this.ctx.fillStyle = "#FFFFFF"; 
             const timeLeft = Math.ceil(Math.max(0, this.missionEndDelayTimer));
             this.ctx.fillText(`Continuing in ${timeLeft}s...`, textX, textY + 50);
 
@@ -1378,23 +1471,28 @@ class Game {
         let deltaTime = (now - this.lastTime) / 1000;
         this.lastTime = now;
 
+        
         deltaTime = Math.min(deltaTime, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
-        if (deltaTime <= 0) {
-            deltaTime = 1 / 60;
+        if (deltaTime <= 0) { 
+            deltaTime = 1 / 60; 
         }
 
+        
         if (this.gameState === 'RUNNING' ||
-            this.gameState === 'PAUSED' ||
+            this.gameState === 'PAUSED' || 
             this.gameState === 'MISSION_ENDING_VICTORY' ||
             this.gameState === 'MISSION_ENDING_DEFEAT') {
             this.update(deltaTime);
         } else {
+            
         }
 
+        
         try {
             this.render();
         } catch (e) {
             console.error("ERROR IN RENDER FUNCTION:", e);
+            
         }
         requestAnimationFrame(this.gameLoop);
     }
@@ -1406,12 +1504,13 @@ class Game {
         if (formationType === 'HORIZONTAL') {
             const totalWidth = (numUnits - 1) * spacing; let startX = centerX - totalWidth / 2;
             for (let i = 0; i < numUnits; i++) points.push({ x: startX + i * spacing, y: centerY });
-        } else {
+        } else { // VERTICAL
             const totalHeight = (numUnits - 1) * spacing; let startY = centerY - totalHeight / 2;
             for (let i = 0; i < numUnits; i++) points.push({ x: centerX, y: startY + i * spacing });
         } return points;
     }
 }
+
 
 class PromotionEffect {
     constructor(x, y, gameInstance) {
@@ -1420,10 +1519,10 @@ class PromotionEffect {
         this.text = this.effectConfig.TEXT || "PROMOTED!"; this.lifetime = this.effectConfig.LIFETIME || 1.5;
         this.elapsedTime = 0; this.isMarkedForDeletion = false; this.type = 'promotion_text'; this.opacity = 1;
         this.velocityY = this.effectConfig.VELOCITY_Y || -20; this.font = this.effectConfig.FONT || "bold 16px 'Consolas'";
-        this.colorRGB = this.effectConfig.COLOR_RGB_FADE_START || [255, 223, 0];
+        this.colorRGB = this.effectConfig.COLOR_RGB_FADE_START || [255, 223, 0]; 
     }
     update(deltaTime) { this.elapsedTime += deltaTime; this.y += this.velocityY * deltaTime; this.opacity = 1 - (this.elapsedTime / this.lifetime); if (this.elapsedTime >= this.lifetime || this.opacity <= 0) this.isMarkedForDeletion = true; }
-    render(ctx) { ctx.font = this.font; ctx.fillStyle = `rgba(${this.colorRGB[0]}, ${this.colorRGB[1]}, ${this.colorRGB[2]}, ${Math.max(0, this.opacity)})`; ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.textAlign = 'left'; }
+    render(ctx) { ctx.font = this.font; ctx.fillStyle = `rgba(${this.colorRGB[0]}, ${this.colorRGB[1]}, ${this.colorRGB[2]}, ${Math.max(0, this.opacity)})`; ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.textAlign = 'left';  }
 }
 
 class ExplosionEffect {
@@ -1435,10 +1534,14 @@ class ExplosionEffect {
     update(deltaTime) { this.elapsedTime += deltaTime; this.currentRadius = (this.elapsedTime / this.lifetime) * this.maxRadius; if (this.elapsedTime >= this.lifetime) this.isMarkedForDeletion = true; }
     render(ctx) {
         const progress = this.elapsedTime / this.lifetime; const alpha = 1 - progress;
-        const colorIntensity = Math.floor(255 * (1 - progress*0.5)); const gIntensity = Math.floor(255 * (1-progress));
+        
+        const colorIntensity = Math.floor(255 * (1 - progress*0.5)); 
+        const gIntensity = Math.floor(255 * (1-progress)); 
         ctx.fillStyle = `rgba(${colorIntensity}, ${Math.floor(gIntensity*0.6)}, 0, ${alpha*0.7})`; ctx.beginPath(); ctx.arc(this.x,this.y,this.currentRadius,0,Math.PI*2); ctx.fill();
+        
         if (progress < 0.4) { ctx.fillStyle = `rgba(255,255,${Math.floor(150+105*(1-progress/0.4))},${alpha})`; ctx.beginPath(); ctx.arc(this.x,this.y,this.currentRadius*0.5,0,Math.PI*2); ctx.fill(); }
     }
 }
+
 
 window.addEventListener('DOMContentLoaded', () => { new Game('gameCanvas'); });

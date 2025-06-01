@@ -1,41 +1,46 @@
 // js/raccoonHostage.js
 
-class RaccoonHostage extends Raccoon { // MODIFIED: Extends Raccoon
+class RaccoonHostage extends Raccoon {
     constructor(x, y, game, id) {
         const hostageConfig = CONFIG.HOSTAGE_SETTINGS || {};
         
-        // Create a temporary unique name for the Raccoon constructor, can be refined
-        const tempName = `Hostage ${id.slice(-4)}`; 
-        const tempFace = (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGES.length > 0) ? 
-                         `${CONFIG.RACCOON_FACE_IMAGE_PATH}${CONFIG.RACCOON_FACE_IMAGES[Math.floor(Math.random() * CONFIG.RACCOON_FACE_IMAGES.length)]}` : 
+        const tempName = `Hostage ${id.slice(-4)}`;
+        const tempFace = (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGES.length > 0) ?
+                         `${CONFIG.RACCOON_FACE_IMAGE_PATH}${CONFIG.RACCOON_FACE_IMAGES[Math.floor(Math.random() * CONFIG.RACCOON_FACE_IMAGES.length)]}` :
                          'assets/images/raccoons/default_face.png';
 
-        // Call Raccoon constructor. XP, Rank will be overridden later by assignedRankOnRescue.
         super(x, y, game, id, tempFace, tempName, 0, "Recruit", 0);
 
-        this.team = 'neutral'; // Override team to neutral initially
-        this.originalColor = hostageConfig.NEUTRAL_COLOR || '#FFD700'; // Store for unrescued state
-        this.color = this.originalColor; // Set initial color
+        this.team = 'neutral'; // Initial team
+        this.originalColor = hostageConfig.NEUTRAL_COLOR || '#FFD700';
+        this.color = this.originalColor;
 
         this.isRescued = false;
         this.followTarget = null;
-        this.hasWeapon = false;
-        this.weapon = null; // Explicitly nullify weapon inherited from Raccoon
+        this.hasWeapon = false; // Hostages don't use weapons
+        this.weapon = null;
 
-        this.RESCUE_RADIUS = hostageConfig.RESCUE_RADIUS || 50;
-        this.FOLLOW_DISTANCE = hostageConfig.FOLLOW_DISTANCE || (this.size * 2.5);
-        this.FOLLOW_LERP_SPEED = hostageConfig.FOLLOW_LERP_SPEED || 0.04;
+        this.RESCUE_RADIUS = hostageConfig.RESCUE_RADIUS || 60;
+        this.FOLLOW_DISTANCE = hostageConfig.FOLLOW_DISTANCE || (this.size * 3.0);
+        this.FOLLOW_STOP_DISTANCE_THRESHOLD = this.FOLLOW_DISTANCE * 0.7;
+        this.REPATH_TARGET_MOVE_THRESHOLD = this.size * 7.5; 
+        this.lastFollowTargetPosition = { x: 0, y: 0 };
+        this.minTimeBetweenRepath = 0.25; 
+        this.lastRepathTime = 0;          
 
         const possibleRanks = hostageConfig.POSSIBLE_RANKS_ON_RESCUE || [{ rankName: "Recruit", xpNeeded: 0 }];
         const randomRankEntry = possibleRanks[Math.floor(Math.random() * possibleRanks.length)];
         this.assignedRankOnRescue = randomRankEntry.rankName;
         this.assignedXpOnRescue = randomRankEntry.xpNeeded !== undefined ? randomRankEntry.xpNeeded : 0;
 
-        // spriteBaseName is inherited as 'raccoon' from Raccoon class
-        // Raccoon's constructor will set spriteScaleFactor from CONFIG.RACCOON_SPRITE_SCALE_FACTOR
-        this.canShootWhileMoving = false;
+        this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 1.0;
+        this.canShootWhileMoving = false; // Not applicable as they don't shoot
         this.aiState = 'IDLE_HOSTAGE';
-        this.isPlayerDirectFiring = false; // Ensure this is false for hostages
+        this.isPlayerDirectFiring = false; // Not applicable
+
+        // --- NEW: Hostage Specific State ---
+        this.isHoldingPosition = false; // For the 'K' key command
+        // ---
     }
 
     update(deltaTime) {
@@ -44,32 +49,20 @@ class RaccoonHostage extends Raccoon { // MODIFIED: Extends Raccoon
             return;
         }
 
-        // Call Raccoon's update, but it will handle movement and its own combat logic.
-        // We need to be careful here. Hostages shouldn't use Raccoon's combat logic.
-        // Let's call Unit's update for basic things, then our specific logic.
-        
-        // Basic updates from Unit (velocity, phasing - if hostages ever phase)
-        this._updateVelocity(deltaTime);
-        if (this.isPhasing) {
+        this._updateVelocity(deltaTime); // Inherited
+        if (this.isPhasing) { // Inherited
             this.phasingTimer -= deltaTime;
             if (this.phasingTimer <= 0) this.isPhasing = false;
         }
-        // No call to Raccoon's full update as that includes combat.
-        // Hostages have their own movement logic when rescued.
+        
+        // Hostages don't have attack/action/grenade cooldowns in the same way
+        // but we can keep these for consistency with base class if needed for other timers.
+        if (this.attackCooldown > 0) this.attackCooldown -= deltaTime;
+        if (this.actionTimer > 0) this.actionTimer -= deltaTime;
+        if (this.grenadeCooldownTimer > 0) this.grenadeCooldownTimer -= deltaTime;
 
-        if (this.attackCooldown > 0) { // Ensure attack cooldown (inherited) ticks down
-            this.attackCooldown -= deltaTime;
-            if (this.attackCooldown < 0) this.attackCooldown = 0;
-        }
-        if (this.actionTimer > 0) { // Ensure action timer (inherited) ticks down
-            this.actionTimer -= deltaTime;
-            if (this.actionTimer < 0) this.actionTimer = 0;
-        }
-        if (this.grenadeCooldownTimer > 0) { // Ensure grenade cooldown (inherited) ticks down
-            this.grenadeCooldownTimer -= deltaTime;
-            if (this.grenadeCooldownTimer < 0) this.grenadeCooldownTimer = 0;
-        }
 
+        const currentTime = this.game.lastTime / 1000; 
 
         if (!this.isRescued) {
             for (const playerUnit of this.game.deployedSquadRoster) {
@@ -78,69 +71,95 @@ class RaccoonHostage extends Raccoon { // MODIFIED: Extends Raccoon
                     break;
                 }
             }
-             // If not rescued, they don't move based on pathfinding.
-             // Their facingAngle might just stay as is or be random. Let's set it to default 's'
-            if (!this.isMoving) { // If they were somehow moving, stop it.
+            if (this.isMoving) { 
+                this.isMoving = false;
                 this.currentPath = [];
             }
-            this.updateVisualDirection(Math.PI / 2); // Face South
-            this.currentVisualState = 'idle'; // Stay idle
-
+            this.currentVisualState = 'idle';
+            if (this.facingAngle === undefined) this.facingAngle = Math.PI / 2; 
+            this.updateVisualDirection(this.facingAngle);
 
         } else { // Is rescued
-            if (this.followTarget && this.followTarget.isAlive()) {
-                const distToFollowTarget = distance(this.x, this.y, this.followTarget.x, this.followTarget.y);
-                
-                if (distToFollowTarget > this.FOLLOW_DISTANCE) {
-                    const angleToTarget = Math.atan2(this.followTarget.y - this.y, this.followTarget.x - this.x);
-                    const targetX = this.followTarget.x - Math.cos(angleToTarget) * (this.FOLLOW_DISTANCE * 0.8);
-                    const targetY = this.followTarget.y - Math.sin(angleToTarget) * (this.FOLLOW_DISTANCE * 0.8);
-                    
-                    if (!this.isMoving || distance(this.worldTargetX, this.worldTargetY, targetX, targetY) > this.size * 0.5) {
-                         this.setMoveTarget(targetX, targetY);
-                    }
-                } else if (distToFollowTarget < this.FOLLOW_DISTANCE * 0.7 && this.isMoving) {
+            // --- NEW: Check for holding position ---
+            if (this.isHoldingPosition) {
+                if (this.isMoving) {
                     this.isMoving = false;
                     this.currentPath = [];
                 }
-            } else {
-                let closestPlayer = null;
-                let minDistSq = Infinity;
-                for (const playerUnit of this.game.deployedSquadRoster) {
-                    if (playerUnit.isAlive()) {
-                        const dSq = distanceSq(this.x, this.y, playerUnit.x, playerUnit.y);
-                        if (dSq < minDistSq) {
-                            minDistSq = dSq;
-                            closestPlayer = playerUnit;
+                this.currentVisualState = 'idle'; // Remain idle if holding
+            } else { // Not holding position, try to follow
+                if (this.followTarget && this.followTarget.isAlive()) {
+                    const distToFollowTarget = distance(this.x, this.y, this.followTarget.x, this.followTarget.y);
+                    
+                    let desiredFollowX = this.followTarget.x;
+                    let desiredFollowY = this.followTarget.y;
+                    if (distToFollowTarget > 1e-5) {
+                        // Aim to be slightly behind the follow target
+                        let behindAngle = this.followTarget.facingAngle + Math.PI; 
+                        desiredFollowX = this.followTarget.x + Math.cos(behindAngle) * (this.FOLLOW_DISTANCE * 0.8);
+                        desiredFollowY = this.followTarget.y + Math.sin(behindAngle) * (this.FOLLOW_DISTANCE * 0.8);
+                    }
+
+                    const distToDesiredFollowPoint = distance(this.x, this.y, desiredFollowX, desiredFollowY);
+
+                    if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5) { // If too far from ideal follow spot
+                        const targetMovedSignificantly = distance(this.followTarget.x, this.followTarget.y, this.lastFollowTargetPosition.x, this.lastFollowTargetPosition.y) > this.REPATH_TARGET_MOVE_THRESHOLD;
+                        const currentPathTargetOutdated = this.isMoving && this.currentPath.length > 0 && distance(this.worldTargetX, this.worldTargetY, desiredFollowX, desiredFollowY) > this.REPATH_TARGET_MOVE_THRESHOLD;
+                        const canRepathNow = (currentTime - this.lastRepathTime) > this.minTimeBetweenRepath;
+
+                        if (canRepathNow && (!this.isMoving || (this.currentPath.length === 0 && this.currentPathNodeIndex === 0) || targetMovedSignificantly || currentPathTargetOutdated)) {
+                            if (this.setMoveTarget(desiredFollowX, desiredFollowY)) {
+                                this.lastFollowTargetPosition.x = this.followTarget.x;
+                                this.lastFollowTargetPosition.y = this.followTarget.y;
+                                this.lastRepathTime = currentTime;
+                            }
+                        }
+                    } else if (distToDesiredFollowPoint < this.FOLLOW_STOP_DISTANCE_THRESHOLD && this.isMoving) {
+                        this.isMoving = false; // Stop if close enough
+                        this.currentPath = [];
+                    }
+                } else { // No valid follow target, try to find one
+                    let closestPlayer = null;
+                    let minDistSq = Infinity;
+                    if (this.game.deployedSquadRoster) {
+                        for (const playerUnit of this.game.deployedSquadRoster) {
+                            if (playerUnit.isAlive()) {
+                                const dSq = distanceSq(this.x, this.y, playerUnit.x, playerUnit.y);
+                                if (dSq < minDistSq) {
+                                    minDistSq = dSq;
+                                    closestPlayer = playerUnit;
+                                }
+                            }
                         }
                     }
+                    this.followTarget = closestPlayer;
+                    if (!this.followTarget && this.isMoving) { // If still no target, stop.
+                        this.isMoving = false;
+                        this.currentPath = [];
+                    }
                 }
-                this.followTarget = closestPlayer;
-                if (!this.followTarget && this.isMoving) {
-                    this.isMoving = false;
-                    this.currentPath = [];
-                }
-            }
-            // Movement handling for rescued hostages (if they have a path)
-            if (this.isMoving) {
-                this._handleMovement(deltaTime); // Use Unit's movement execution
-            }
+            } // End of not holding position
 
-            // Visual state for rescued hostages
+            // Visual state update for rescued hostages
             if (this.isMoving) {
+                this._handleMovement(deltaTime); 
                 this.currentVisualState = 'walk';
-                if (Math.abs(this.lastDeltaX) > 1e-5 || Math.abs(this.lastDeltaY) > 1e-5) {
+                if (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6) {
                     this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
                 }
-            } else {
+            } else { // Not moving (either holding or close enough to follow target)
                 this.currentVisualState = 'idle';
-                // Optionally, face the followTarget if idle and rescued
-                if (this.followTarget && this.followTarget.isAlive()) {
-                    this.facingAngle = Math.atan2(this.followTarget.y - this.y, this.followTarget.x - this.x);
+                if (!this.isHoldingPosition && this.followTarget && this.followTarget.isAlive()) {
+                    // If following and stopped, face the follow target
+                    const angleToFollowTarget = Math.atan2(this.followTarget.y - this.y, this.followTarget.x - this.x);
+                    if (distance(this.x, this.y, this.followTarget.x, this.followTarget.y) > 1) { // Avoid rapid spinning if too close
+                        this.facingAngle = angleToFollowTarget;
+                    }
                 }
+                // If holding position, facingAngle remains as it was.
             }
             this.updateVisualDirection(this.facingAngle);
-            this.gunAimAngle = this.facingAngle; // Align gun with body as they don't shoot
+            this.gunAimAngle = this.facingAngle; // Hostages don't aim guns, but align this for consistency
         }
     }
 
@@ -148,84 +167,97 @@ class RaccoonHostage extends Raccoon { // MODIFIED: Extends Raccoon
         if (this.isRescued) return;
 
         this.isRescued = true;
-        this.team = 'player';
+        this.team = 'player'; // Now part of the player's "team" for targeting purposes
         this.followTarget = rescuer;
-        this.aiState = 'FOLLOWING_PLAYER';
-        this.color = CONFIG.RACCOON_COLOR; // Change to standard Raccoon color upon rescue
-        console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer.id}. isRescued: ${this.isRescued}, Team: ${this.team}`);
+        if (rescuer) { 
+            this.lastFollowTargetPosition = { x: rescuer.x, y: rescuer.y };
+        }
+        this.aiState = 'FOLLOWING_PLAYER'; // More descriptive AI state
+        this.color = CONFIG.RACCOON_COLOR; // Change color to player team color
+        this.isHoldingPosition = false; // Ensure not holding position on rescue
+
+        console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);
 
         if (this.game.ui && typeof this.game.ui.updateHostageStatus === 'function') {
             this.game.ui.updateHostageStatus(this, true);
         }
-        this.currentPath = [];
+        this.currentPath = []; // Clear any previous path
         this.isMoving = false;
+        this.lastRepathTime = 0; // Allow immediate pathing on rescue
     }
 
+    // Override setMoveTarget to ensure hostages only move if rescued and not holding
     setMoveTarget(worldX, worldY) {
-        if (!this.isAlive() || !this.isRescued) {
+        if (!this.isAlive() || !this.isRescued || this.isHoldingPosition) {
             this.isMoving = false;
             this.currentPath = [];
             return false;
         }
-        this.isPlayerDirectFiring = false;
-        // Call Unit's setMoveTarget, not Raccoon's, to avoid Raccoon-specific logic like clearing manualTarget
+        // Call the original Unit.setMoveTarget logic
         return Unit.prototype.setMoveTarget.call(this, worldX, worldY);
     }
 
-    // Override Raccoon methods that hostages shouldn't use
+    // Hostages don't use these Raccoon-specific abilities
     addXp() {}
     incrementKillCount() {}
     checkPromotion() {}
-    applyRankBonuses() {
-        // Hostages get their rank/stats when added to roster, not during mission
-    }
+    applyRankBonuses() {} // Base HP is fine
     startGrenadeAim() {}
     cancelGrenadeAim() {}
     confirmThrowGrenade() { return false; }
     moveToGrenadeRange() {}
-    checkForAndApplyPickups() {} // Hostages don't pick up items
-    _executeFire() {}           // Hostages don't fire
-    _handlePlayerCombat() {}    // Hostages don't engage in player-like combat AI
-    _handleEnemyCombat() {}     // Hostages don't have enemy AI
+    checkForAndApplyPickups() {} // Hostages don't pick things up
+    _executeFire() {} // Hostages don't fire
+    _handlePlayerCombat() {} // Not applicable
+    _handleEnemyCombat() {} // Not applicable
 
     die() {
-        const wasRescued = this.isRescued;
-        // Call Unit's die method directly to bypass Raccoon's die if it has specific logic we don't want
-        Unit.prototype.die.call(this);
-        console.log(`Hostage ${this.id} (${this.name || ''}) has fallen. Was rescued: ${wasRescued}`);
+        const wasRescuedBeforeDeath = this.isRescued;
+        // Call Unit's die method first to handle common death logic
+        Unit.prototype.die.call(this); 
+        
+        console.log(`Hostage ${this.id} (${this.name || ''}) has fallen. Was rescued: ${wasRescuedBeforeDeath}`);
+        
+        // Specific cleanup for hostages
+        if (this.game.hostageUnits) {
+            const index = this.game.hostageUnits.indexOf(this);
+            if (index > -1) {
+                this.game.hostageUnits.splice(index, 1);
+            }
+        }
+        
         if (this.game.ui && typeof this.game.ui.updateHostageStatus === 'function') {
-            this.game.ui.updateHostageStatus(this, false);
+            this.game.ui.updateHostageStatus(this, false); // Notify UI they are no longer alive & rescued
         }
-        if(this.game.hostageUnits) {
-            this.game.hostageUnits = this.game.hostageUnits.filter(h => h !== this);
-        }
+        // Mission failure check due to hostage death will be handled in Game.checkMissionStatus
     }
 
     render(ctx) {
-        // The color is set in constructor (neutral) and rescue() (player team color)
-        // The spriteBaseName is 'raccoon' from Raccoon class.
-        // The Unit.render() method will use this.spriteBaseName and CONFIG.RACCOON_SPRITE_SCALE_FACTOR.
-        Unit.prototype.render.call(this, ctx); // Explicitly call Unit's render
+        super.render(ctx); // Use Raccoon's render method
 
         if (!this.isRescued && this.isAlive()) {
             let playerNear = false;
-            for (const playerUnit of this.game.deployedSquadRoster) {
-                if (playerUnit.isAlive() && distance(this.x, this.y, playerUnit.x, playerUnit.y) < this.RESCUE_RADIUS * 1.5) {
-                    playerNear = true;
-                    break;
+            if (this.game.deployedSquadRoster) { 
+                for (const playerUnit of this.game.deployedSquadRoster) {
+                    if (playerUnit.isAlive() && distance(this.x, this.y, playerUnit.x, playerUnit.y) < this.RESCUE_RADIUS * 1.5) {
+                        playerNear = true;
+                        break;
+                    }
                 }
             }
+            // Visual cue that they can be rescued
             if (playerNear) {
                 ctx.fillStyle = "yellow";
                 ctx.font = "bold 20px Arial";
                 ctx.textAlign = "center";
-                ctx.fillText("!", this.x, this.y - this.size - 10);
-                ctx.textAlign = "left";
+                ctx.fillText("!", this.x, this.y - this.size - 10); // Exclamation mark above head
+                ctx.textAlign = "left"; // Reset alignment
             }
         }
     }
 }
 
+// Helper function (if not already globally available or in utils.js)
 function distanceSq(x1, y1, x2, y2) {
     const dx = x2 - x1;
     const dy = y2 - y1;

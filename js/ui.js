@@ -1,5 +1,5 @@
-// js/ui.js
-// complete
+
+
 class UI {
     constructor(game) {
         this.game = game;
@@ -445,48 +445,60 @@ class UI {
         }
          if(this.game && this.game.ui && this.game.currentFormationType) this.updateFormationButton(this.game.currentFormationType);
          this.updateSquadPanel();
-         this.updateObjective(); // Call to initialize objective text
+         this.updateObjective(); 
     }
     hideHUD() { if (this.leftHudPanel) this.leftHudPanel.style.display = 'none'; }
 
-    updateObjective() { // Removed 'text' parameter as it's now dynamic
+    updateObjective() { 
         if (this.objectiveText && this.game && this.game.currentMissionParams) {
             const params = this.game.currentMissionParams;
             let objectiveStr = params.name || (this.uiText.DEFAULT_OBJECTIVE_TEXT || "Complete Objective");
+            const aliveEnemies = this.game.enemyUnits ? this.game.enemyUnits.filter(e => e.isAlive()).length : 0;
+            const allInitialEnemiesDefeated = (this.game.initialEnemyCount > 0 && aliveEnemies === 0 && this.game.enemyUnits.every(e => !e.isAlive())) || (this.game.initialEnemyCount === 0 && aliveEnemies === 0);
 
             if (params.objectiveType === "EXTERMINATE") {
-                const aliveEnemies = this.game.enemyUnits ? this.game.enemyUnits.filter(e => e.isAlive()).length : 0;
                 const totalEnemies = this.game.initialEnemyCount || (this.game.enemyUnits ? this.game.enemyUnits.length : 0);
-                if (totalEnemies > 0) { // Only show count if enemies were expected
+                if (totalEnemies > 0) { 
                     objectiveStr = `Eliminate Possums: ${totalEnemies - aliveEnemies} / ${totalEnemies}`;
                 } else if (this.game.missionStartedAndPopulated && aliveEnemies === 0) {
-                     objectiveStr = `All Possums Eliminated!`; // Or specific message
+                     objectiveStr = `All Possums Eliminated!`; 
                 } else {
                     objectiveStr = `Eliminate All Possums`;
                 }
             } else if (params.objectiveType === "RESCUE_HOSTAGES") {
                 const rescuedAliveCount = this.game.hostageUnits ? this.game.hostageUnits.filter(h => h.isRescued && h.isAlive()).length : 0;
-                const totalToSpawn = params.numHostagesToSpawn || (this.game.level && this.game.level.initialHostageCount) || 0;
                 const minToWin = params.minHostagesToRescueForWin || (CONFIG.HOSTAGE_SETTINGS && CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN) || 1;
-                objectiveStr = `Rescue Hostages: ${rescuedAliveCount} / ${minToWin} (Min)`;
-                if (totalToSpawn > 0 && rescuedAliveCount >= totalToSpawn && this.game.hostageUnits.every(h=> h.isRescued || !h.isAlive())) {
-                    objectiveStr = `All Hostages Rescued!`;
-                } else if (totalToSpawn > 0 && rescuedAliveCount >= minToWin) {
-                     objectiveStr = `Hostages Rescued: ${rescuedAliveCount} / ${minToWin} (Min) - Proceed to extraction!`; // If extraction is next step
+                
+                if (allInitialEnemiesDefeated && rescuedAliveCount >= minToWin) {
+                    // Check if hostages are at extraction
+                    let hostagesAtEvac = 0;
+                    const extractionZones = this.game.level.obstacles.filter(obs => obs.type === 'extraction_zone');
+                    if (extractionZones.length > 0) {
+                        const firstZone = extractionZones[0]; // Assuming one zone for now
+                        this.game.hostageUnits.forEach(h => {
+                            if (h.isRescued && h.isAlive() &&
+                                h.x >= firstZone.x && h.x <= firstZone.x + firstZone.width &&
+                                h.y >= firstZone.y && h.y <= firstZone.y + firstZone.height) {
+                                hostagesAtEvac++;
+                            }
+                        });
+                    }
+                    objectiveStr = (this.uiText.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION || "Lead survivors to Extraction!") + 
+                                   ` (${this.uiText.OBJECTIVE_RESCUE_HOSTAGES_AT_EVAC.replace('{COUNT}', hostagesAtEvac).replace('{TOTAL}', minToWin)})`;
+                } else {
+                     objectiveStr = `Rescue: ${rescuedAliveCount}/${minToWin} (Min). Defeat Possums: ${this.game.initialEnemyCount - aliveEnemies}/${this.game.initialEnemyCount}`;
                 }
             }
-            // Add more objective types here if needed
-
+            
             this.objectiveText.textContent = objectiveStr;
         } else if (this.objectiveText) {
             this.objectiveText.textContent = (this.uiText.UNKNOWN_OBJECTIVE_TEXT || "Unknown Objective");
         }
     }
     
-    // NEW method to be called when a hostage is rescued or dies, to update the count
     updateHostageStatus(hostage, wasRescuedAndIsAlive) {
         if (this.game.currentMissionParams && this.game.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
-            this.updateObjective(); // Re-calculate and update the objective text
+            this.updateObjective(); 
         }
     }
 
@@ -520,12 +532,17 @@ class UI {
                  memberDiv.style.borderColor = ''; memberDiv.style.borderWidth = ''; memberDiv.style.borderStyle = '';
             }
 
-            const isKIA = !raccoon.isAlive(); let statusText = 'Active';
+            const isKIA = !raccoon.isAlive(); 
+            let statusText = 'Active';
             if (isKIA) statusText = 'KIA';
+            else if (raccoon.isHoldingPosition && raccoon.isHoldingFire) statusText = 'Hold Pos & Fire';
+            else if (raccoon.isHoldingPosition) statusText = 'Holding Position';
+            else if (raccoon.isHoldingFire) statusText = 'Holding Fire';
             else if (raccoon.isAimingGrenade) statusText = 'Aiming Grnd';
             else if (raccoon.isPlayerDirectFiring) statusText = 'Firing MG';
             else if (raccoon.actionTimer > 0) statusText = 'Busy';
             else if (raccoon.manualTarget) statusText = 'Targeting';
+
             const statusClass = isKIA ? 'status-kia' : '';
             const hpPercent = isKIA ? 0 : Math.max(0, (raccoon.hp / raccoon.maxHp)) * 100;
 

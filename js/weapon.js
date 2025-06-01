@@ -2,7 +2,7 @@
 // complete
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
-                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null) { // Added sfxFireKey
+                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null) { 
         this.name = name;
         this.damage = damage;
         this.rof = rof;
@@ -11,7 +11,7 @@ class Weapon {
         this.projectileColor = projectileColor;
         this.accuracyStationary = accuracyStationary;
         this.accuracyMoving = accuracyMoving;
-        this.sfxFireKey = sfxFireKey; // Store it
+        this.sfxFireKey = sfxFireKey; 
     }
 }
 
@@ -21,21 +21,21 @@ const WEAPONS = {
         CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
         CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON,
         CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
-        'RACCOON_MG_FIRE' // SFX Key
+        'RACCOON_MG_FIRE' 
     ),
     POSSUM_RIFLE: new Weapon(
         'Possum Rifle',
         CONFIG.POSSUM_RIFLE_DAMAGE, CONFIG.POSSUM_RIFLE_ROF, CONFIG.POSSUM_RIFLE_RANGE,
         CONFIG.POSSUM_RIFLE_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM,
         CONFIG.POSSUM_RIFLE_ACCURACY_STATIONARY, CONFIG.POSSUM_RIFLE_ACCURACY_MOVING,
-        'POSSUM_RIFLE_FIRE' // SFX Key
+        'POSSUM_RIFLE_FIRE' 
     ),
     POSSUM_HEAVY_WEAPON: new Weapon(
         'Possum Heavy MG',
         CONFIG.POSSUM_HEAVY_WEAPON_DAMAGE, CONFIG.POSSUM_HEAVY_WEAPON_ROF, CONFIG.POSSUM_HEAVY_WEAPON_RANGE,
         CONFIG.POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM_HEAVY,
         CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY, CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_MOVING,
-        'POSSUM_HEAVY_MG_FIRE' // SFX Key
+        'POSSUM_HEAVY_MG_FIRE' 
     )
 };
 
@@ -46,7 +46,7 @@ class Projectile {
         this.damage = damage;
         this.speed = speed;
         this.color = color;
-        this.size = CONFIG.PROJECTILE_SIZE || 2; // Use from config
+        this.size = CONFIG.PROJECTILE_SIZE || 2; 
         this.game = game;
         this.shooterUnit = shooterUnit;
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
@@ -88,18 +88,31 @@ class Projectile {
         }
 
         let potentialTargets = [];
-        if (this.shooterTeam === 'player' && this.game && this.game.enemyUnits) {
-            potentialTargets = this.game.enemyUnits;
-        } else if (this.shooterTeam === 'enemy' && this.game && this.game.deployedSquadRoster) {
-            potentialTargets = this.game.deployedSquadRoster;
+        if (this.shooterTeam === 'player' && this.game) {
+            // Player bullets ONLY target enemy units now.
+            potentialTargets = this.game.enemyUnits || [];
+        } else if (this.shooterTeam === 'enemy' && this.game) {
+            // Enemy bullets target player-controlled units (Raccoons and rescued Hostages)
+            potentialTargets = this.game.getLivingPlayerControlledUnits();
         }
+
 
         for (const targetUnit of potentialTargets) {
             if (targetUnit && targetUnit.isAlive()) {
+                // For player bullets, targetUnit will always be an enemy.
+                // For enemy bullets, targetUnit will be a player-controlled unit.
+                // No need for extra team checks here as potentialTargets is already filtered.
+
                 const distToTarget = distance(this.x, this.y, targetUnit.x, targetUnit.y);
-                if (distToTarget < targetUnit.size + this.size) { // Using projectile size for a bit of leeway
-                    targetUnit.takeDamage(this.damage, this.shooterUnit);
-                    if (this.shooterUnit && this.shooterUnit.team === 'player' && typeof this.shooterUnit.addXp === 'function') {
+                if (distToTarget < targetUnit.size + this.size) { 
+                    let actualDamage = this.damage;
+                    // Friendly fire multiplier is no longer needed here for player bullets,
+                    // as they won't target other player units.
+                    // If we re-introduce it, the logic would go here.
+
+                    targetUnit.takeDamage(actualDamage, this.shooterUnit);
+
+                    if (this.shooterUnit && this.shooterUnit.team === 'player' && targetUnit.team === 'enemy' && typeof this.shooterUnit.addXp === 'function') {
                         this.shooterUnit.addXp(CONFIG.XP_PER_HIT || 1);
                     }
                     this.isMarkedForDeletion = true;
@@ -110,9 +123,9 @@ class Projectile {
 
         if (this.game && this.game.level && this.game.level.obstacles) {
             for (const obs of this.game.level.obstacles) {
-                if (!obs.isDestroyed) { // Only check non-destroyed obstacles
+                if (!obs.isDestroyed) { 
                     const obsCollisionShape = this.game.level._getObstacleCollisionShape(obs);
-                    if (!obsCollisionShape) continue; // Skip if obstacle has no valid collision shape
+                    if (!obsCollisionShape) continue; 
 
                     let hitObstacle = false;
 
@@ -124,7 +137,7 @@ class Projectile {
                         if (pointInCircle(this.x, this.y, obsCollisionShape)) {
                             hitObstacle = true;
                         }
-                    } else if (obsCollisionShape.type === 'ellipse') { // *** NEW ELLIPSE CHECK ***
+                    } else if (obsCollisionShape.type === 'ellipse') { 
                         if (pointInEllipse(this.x, this.y, obsCollisionShape)) {
                             hitObstacle = true;
                         }
@@ -134,8 +147,7 @@ class Projectile {
                         if (obs.destructible && (obs.type === 'explosive_barrel' || obs.type === 'explosive_barrel_cluster')) {
                             this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
                         }
-                        // If the obstacle blocks movement or provides cover, the bullet should be deleted.
-                        // Pickups don't block bullets.
+                        
                         if (obs.blocksMovement || obs.providesCover) {
                             this.isMarkedForDeletion = true;
                             return;
@@ -245,10 +257,7 @@ class GrenadeProjectile {
         this.exploded = true;
         this.isMarkedForDeletion = true;
 
-        // Play explosion sound effect
         if (this.game && this.game.audioManager) {
-            // The AudioManager will use the defaultVolume and pitchVariation from config
-            // if 'GRENADE_EXPLODE' is defined in CONFIG.AUDIO_ASSETS.
             this.game.audioManager.play('GRENADE_EXPLODE');
         }
 
@@ -257,22 +266,29 @@ class GrenadeProjectile {
         const unitsToDamage = [];
         if (this.game && this.game.deployedSquadRoster) unitsToDamage.push(...this.game.deployedSquadRoster);
         if (this.game && this.game.enemyUnits) unitsToDamage.push(...this.game.enemyUnits);
+        if (this.game && this.game.hostageUnits) unitsToDamage.push(...this.game.hostageUnits); // Include all hostages (rescued or not) for grenade AOE
+
 
         unitsToDamage.forEach(unit => {
             if (unit && unit.isAlive()) {
                 const distToUnit = distance(this.x, this.y, unit.x, unit.y);
                 if (distToUnit <= this.aoeRadius + unit.size) {
-                    unit.takeDamage(this.damage, this.shooterUnit);
+                    let damageMultiplier = 1.0;
+                    // Optional: Reduced friendly fire from player grenades to other player units
+                    // This will affect Raccoons and rescued Hostages if shooter is player
+                    if (this.shooterTeam === 'player' && unit.team === 'player' && unit !== this.shooterUnit) {
+                        damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5; 
+                    }
+                    unit.takeDamage(this.damage * damageMultiplier, this.shooterUnit);
                 }
             }
         });
 
         if(this.game && this.game.level && this.game.level.obstacles) this.game.level.obstacles.forEach(obstacle => {
             if (obstacle.destructible && !obstacle.isDestroyed && obstacle.hp > 0) {
-                // A simple check: if the explosion center is within AOE + half-width/height of obstacle's AABB center
                 const obsCenterX = obstacle.x + obstacle.width / 2;
                 const obsCenterY = obstacle.y + obstacle.height / 2;
-                const effectiveRadius = this.aoeRadius + Math.max(obstacle.width, obstacle.height) / 2; // Approximation
+                const effectiveRadius = this.aoeRadius + Math.max(obstacle.width, obstacle.height) / 4; 
 
                 if (distance(this.x, this.y, obsCenterX, obsCenterY) <= effectiveRadius) {
                      this.game.level.damageObstacle(obstacle, this.damage, this.shooterUnit);

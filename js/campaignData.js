@@ -10,7 +10,7 @@ const CAMPAIGN_DATA = [
                 enemyDensityFactor: 0.7, // You can keep enemies or set to 0 for easier hostage testing
                 objectiveType: "RESCUE_HOSTAGES", // Changed to RESCUE_HOSTAGES
                 numHostagesToSpawn: 2,        // Example: Spawn 2 hostages
-                minHostagesToRescueForWin: 2  // Example: Need to rescue at least 2
+                minHostagesToRescueForWin: 1  // Example: Need to rescue at least 2
                 // NOTE: If you want an EXTERMINATE objective alongside, we'll need to handle multiple objectives later.
                 // For now, we'll focus on making RESCUE_HOSTAGES work as the sole objective.
             },

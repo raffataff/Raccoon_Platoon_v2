@@ -1,5 +1,3 @@
-// js/input.js
-// complete
 class InputHandler {
     constructor(canvas, game) {
         this.canvas = canvas;
@@ -50,7 +48,6 @@ class InputHandler {
             if (event.key === 'Shift') {
                 if (!this.isShiftPressed) {
                     this.isShiftPressed = true;
-                    // MODIFICATION: If LMB was being held for firing, stop that action
                     if (this.isLeftMouseDown && this.isLMBHoldFiringActionActive) {
                         this.game.handleLMBFireActionEnd();
                         this.isLMBHoldFiringActionActive = false;
@@ -60,7 +57,6 @@ class InputHandler {
             } else if (event.key === 'Control' || event.key === 'Meta') {
                 if (!this.isCtrlPressed) {
                     this.isCtrlPressed = true;
-                    // MODIFICATION: If LMB was being held for firing, stop that action
                     if (this.isLeftMouseDown && this.isLMBHoldFiringActionActive) {
                         this.game.handleLMBFireActionEnd();
                         this.isLMBHoldFiringActionActive = false;
@@ -78,12 +74,14 @@ class InputHandler {
                 return;
             }
 
-            if (['f', 'F', 'g', 'G'].includes(event.key) || event.code === 'Space' || event.key === 'Escape') {
-                const activeEl = document.activeElement;
-                if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
-                    event.preventDefault();
-                }
+            const gameKeys = ['f', 'g', 'h', 'j', 'k', ' ', 'escape']; // Added 'k'
+            const activeEl = document.activeElement;
+            const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+
+            if (gameKeys.includes(event.key.toLowerCase()) && !isInputFieldActive) {
+                event.preventDefault();
             }
+
 
             if (event.key === 'Escape') {
                 if (this.game.gameState === 'RUNNING') {
@@ -102,15 +100,14 @@ class InputHandler {
                 }
             }
 
-            if (event.code === 'Space') {
-                 const activeEl = document.activeElement;
-                if (!activeEl || (activeEl.tagName !== 'INPUT' && activeEl.tagName !== 'TEXTAREA')) {
-                    if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
-                    this.game.selectAllPlayerUnits();
-                }
+            if (event.code === 'Space' && !isInputFieldActive) {
+                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                this.game.selectAllPlayerUnits();
             }
-            if (event.key === 'f' || event.key === 'F') { if (this.game.toggleFormation) this.game.toggleFormation(); }
-            if (event.key === 'g' || event.key === 'G') {
+            if ((event.key === 'f' || event.key === 'F') && !isInputFieldActive) {
+                 if (this.game.toggleFormation) this.game.toggleFormation();
+            }
+            if ((event.key === 'g' || event.key === 'G') && !isInputFieldActive) {
                 if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
                 let anyAiming = this.game.selectedUnits && this.game.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade);
                 if (this.game.selectedUnits) this.game.selectedUnits.forEach(unit => {
@@ -119,6 +116,58 @@ class InputHandler {
                 if (this.game.ui) this.game.ui.updateSquadPanel();
                 this.updateMouseCursor();
             }
+
+            if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {
+                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                    this.game.selectedUnits.forEach(unit => {
+                        if (unit.team === 'player' && unit instanceof Raccoon && !(unit instanceof RaccoonHostage)) { // Only affect deployed Raccoons
+                            unit.isHoldingPosition = !unit.isHoldingPosition;
+                            if (unit.isHoldingPosition) { 
+                                unit.isMoving = false;
+                                unit.currentPath = [];
+                            }
+                        }
+                    });
+                    if (this.game.ui) this.game.ui.updateSquadPanel();
+                    console.log("Hold Position toggled for selected Raccoons.");
+                }
+            }
+            if ((event.key === 'j' || event.key === 'J') && !isInputFieldActive) {
+                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                    this.game.selectedUnits.forEach(unit => {
+                        if (unit.team === 'player' && unit instanceof Raccoon && !(unit instanceof RaccoonHostage)) { // Only affect deployed Raccoons
+                            unit.isHoldingFire = !unit.isHoldingFire;
+                        }
+                    });
+                    if (this.game.ui) this.game.ui.updateSquadPanel();
+                    console.log("Hold Fire toggled for selected Raccoons.");
+                }
+            }
+            // --- NEW: Hostage Hold/Follow Command (K) ---
+            if ((event.key === 'k' || event.key === 'K') && !isInputFieldActive) {
+                const rescuedHostages = this.game.hostageUnits.filter(h => h.isRescued && h.isAlive());
+                if (rescuedHostages.length > 0) {
+                    // Determine if any hostage is currently following (not holding position)
+                    const anyHostageFollowing = rescuedHostages.some(h => !h.isHoldingPosition);
+                    
+                    if (anyHostageFollowing) { // If any are following, make all hold
+                        rescuedHostages.forEach(h => {
+                            h.isHoldingPosition = true;
+                            h.isMoving = false;
+                            h.currentPath = [];
+                        });
+                        console.log("All rescued hostages now Holding Position.");
+                    } else { // If all are holding, make all follow
+                        rescuedHostages.forEach(h => {
+                            h.isHoldingPosition = false;
+                            // They will attempt to re-acquire follow target and path on their next update
+                        });
+                        console.log("All rescued hostages now set to Follow.");
+                    }
+                    // No direct UI update for hostage status here, their behavior change is the feedback
+                }
+            }
+            // ---
         });
 
         document.addEventListener('keyup', (event) => {
@@ -162,10 +211,10 @@ class InputHandler {
          event.preventDefault();
         this._updateMousePositions(event);
 
-        if (event.button === 0) {
+        if (event.button === 0) { // Left Mouse Button
             this.isLeftMouseDown = true;
             this.lmbDownTime = performance.now();
-            this.isLMBHoldFiringActionActive = false;
+            this.isLMBHoldFiringActionActive = false; 
 
             const aimingRaccoons = this.game.selectedUnits ? this.game.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive()) : [];
             if (aimingRaccoons.length > 0) {
@@ -197,7 +246,6 @@ class InputHandler {
         if (this.game.gameState === 'RUNNING') {
             const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
             if (aimingRaccoon) {
-                // Raccoon._handleAimingMovement updates facingAngle. Cursor updates below.
             } else if (this.isCtrlPressed && this.isLeftMouseDown && this.isCtrlDragSelecting) {
                 this.game.dragCurrentX = this.mousePos.screenX;
                 this.game.dragCurrentY = this.mousePos.screenY;
@@ -208,9 +256,8 @@ class InputHandler {
             } else if (this.isLeftMouseDown && !this.isShiftPressed && !this.isCtrlPressed) {
                 if (!this.isLMBHoldFiringActionActive && (performance.now() - this.lmbDownTime > this.TAP_THRESHOLD_MS)) {
                     this.isLMBHoldFiringActionActive = true;
-                    // If it just became a hold, ensure the game knows the target for continuous fire
                     this.game.updateLMBFireActionTarget(this.mousePos.worldX, this.mousePos.worldY);
-                } else if (this.isLMBHoldFiringActionActive) { // If already holding, continue updating target
+                } else if (this.isLMBHoldFiringActionActive) { 
                      this.game.updateLMBFireActionTarget(this.mousePos.worldX, this.mousePos.worldY);
                 }
             }
@@ -221,30 +268,25 @@ class InputHandler {
     handleMouseUp(event) {
         if (!this.game || this.game.gameState !== 'RUNNING') return;
 
-        if (event.button === 0) {
+        if (event.button === 0) { // Left Mouse Button
             const wasLMBDown = this.isLeftMouseDown;
-            this.isLeftMouseDown = false; // Set this first
+            this.isLeftMouseDown = false; 
 
-            if (wasLMBDown) {
+            if (wasLMBDown) { 
                 const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
                 if (aimingRaccoon) {
-                    // Grenade throw was on mousedown.
                 } else if (this.isCtrlPressed && this.isCtrlDragSelecting) {
                     if (this.game.draggedFarEnough) {
                         this.game.selectUnitsInCtrlDragRectangle();
                     }
                 } else if (this.isShiftPressed) {
-                    // Targeting was on mousedown.
                 } else {
-                    // LMB fire action (tap or hold) ended.
-                    // This ensures isPlayerDirectFiring is cleared on the units.
                     this.game.handleLMBFireActionEnd();
                 }
             }
-            // Reset flags related to LMB actions
             this.isLMBHoldFiringActionActive = false;
-            this.isCtrlDragSelecting = false; // Ensure this is reset if Ctrl was released before mouseup
-            if(this.game.isDragging && !this.isCtrlPressed) { // If it was a generic drag that wasn't Ctrl
+            this.isCtrlDragSelecting = false; 
+            if(this.game.isDragging && !this.isCtrlPressed) { 
                 this.game.isDragging = false;
                 this.game.draggedFarEnough = false;
             }
@@ -297,7 +339,7 @@ class InputHandler {
 
         const isAimingGrenade = this.game.selectedUnits && this.game.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
         if (isAimingGrenade) {
-            this.game.ui.setCursor('cell');
+            this.game.ui.setCursor('cell'); 
             return;
         }
 
@@ -308,7 +350,7 @@ class InputHandler {
             } else {
                 this.game.ui.setCursor('target-mode-default');
             }
-        } else if (this.isLeftMouseDown && !this.isCtrlPressed) { // If LMB is down (for shooting) and not Ctrl-dragging
+        } else if (this.isLeftMouseDown && !this.isCtrlPressed) { 
             this.game.ui.setCursor('attack');
         } else {
             this.game.ui.setCursor('default');

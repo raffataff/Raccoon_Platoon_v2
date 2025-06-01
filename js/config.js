@@ -1,5 +1,3 @@
-// js/config.js
-// complete
 const CONFIG = {
     // --- Core Game & World ---
     BASE_WORLD_WIDTH: 1280,
@@ -21,10 +19,9 @@ const CONFIG = {
 
     // --- Pathfinding ---
     GRID_CELL_SIZE: 6, // Reduced for finer grid, ensure performance
-    // NEW: For pathing debug, set to a specific unit ID (e.g., "PSM-1") or null to disable
-    DEBUG_PATHING_UNIT_ID: null, // For unit-specific path logs
-    DEBUG_DRAW_NAV_GRID_BLOCKED: true, // To draw red overlay for blocked nav grid cells
-    DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, // NEW: To draw actual obstacle collision shapes
+    DEBUG_PATHING_UNIT_ID: null, 
+    DEBUG_DRAW_NAV_GRID_BLOCKED: true, 
+    DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, 
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 50,
@@ -142,10 +139,10 @@ const CONFIG = {
     PROJECTILE_COLOR_POSSUM: '#FFA500',
     PROJECTILE_COLOR_POSSUM_HEAVY: '#FF6347',
     GRENADE_PROJECTILE_COLOR: '#228B22',
+    PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER: 0.25, // 0 = no friendly fire, 1 = full damage
 
     WEAPON_SETTINGS: {
-        ROF_JITTER_PERCENTAGE: 0.10 // e.g., 0.10 means +/- up to 10% of the base ROF cooldown
-                                   // Set to 0 to disable jitter
+        ROF_JITTER_PERCENTAGE: 0.10 
     },
 
     PROJECTILES: {
@@ -155,24 +152,24 @@ const CONFIG = {
             DESPAWN_WORLD_BUFFER: 50
         },
         GRENADE: {
-            SPRITE_PATH: 'assets/images/projectiles/grenade.png', // <-- NEW
-            SPRITE_SCALE: 0.3, // <-- NEW (adjust as needed)
-            SIZE: 8, // This can now be the desired *visual* size if sprite is used, or fallback if no sprite
+            SPRITE_PATH: 'assets/images/projectiles/grenade.png', 
+            SPRITE_SCALE: 0.3, 
+            SIZE: 8, 
             MIN_FLIGHT_TIME: 0.05,
             ARC_PEAK_HEIGHT_MIN: 20,
             ARC_PEAK_HEIGHT_DISTANCE_FACTOR: 0.2,
             MAX_LIFETIME_BUFFER: 2.0,
             SHADOW: {
                 COLOR_RGBA: [0, 0, 0, 0.3],
-                Y_OFFSET_FACTOR: 0.5, // Relative to grenade's visual size/sprite height
+                Y_OFFSET_FACTOR: 0.5, 
                 ELLIPSE_Y_RADIUS_FACTOR: 0.5,
                 PEAK_HEIGHT_MULTIPLIER_SCALE: 1.5,
                 MAX_REDUCTION_SCALE: 0.8
             },
             FUSE_BLINK: {
                 THRESHOLD_SECONDS: 0.5,
-                COLOR: "rgba(255, 0, 0, 0.45)", // Color for the blink overlay
-                SIZE_ADDITION: 0 // How much larger the blink circle is than the grenade
+                COLOR: "rgba(255, 0, 0, 0.45)", 
+                SIZE_ADDITION: 0 
             }
         }
     },
@@ -214,19 +211,12 @@ const CONFIG = {
         POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.6, pitchVariation: 0.03 },
         POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.mp3', defaultVolume: 0.3, pitchVariation: 0.03 },
         GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.mp3', defaultVolume: 0.4, pitchVariation: 0.4 },
-        // PROMOTION_SFX: { path: 'assets/audio/sfx/promotion.wav', defaultVolume: 0.7 },
-        // --- NEW UI SOUNDS ---
         UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.2 },
         UI_BUTTON_HOVER: { path: 'assets/audio/sfx/ui_hover_gentle.mp3', defaultVolume: 0.3 },
-        // --- NEW AMBIENT MUSIC TRACKS ---
-        // Define the actual tracks here
         AMBIENT_FOREST_1: { path: 'assets/audio/ambience/tropical_forest_ambient_1.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_2: { path: 'assets/audio/ambience/tropical_forest_ambient_2.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_3: { path: 'assets/audio/ambience/tropical_forest_ambient_3.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_4: { path: 'assets/audio/ambience/tropical_forest_ambient_4.mp3', defaultVolume: 0.45 },
-        // Add more as needed
-
-        // --- NEW: List of keys for the tropical forest ambient tracks ---
         AMBIENT_MUSIC_TROPICAL_FOREST_KEYS: [
             'AMBIENT_FOREST_1',
             'AMBIENT_FOREST_2',
@@ -255,12 +245,9 @@ const CONFIG = {
     // --- Level Generation & Obstacles ---
     LEVEL_GENERATION: {
         WORLD_MARGIN: 20,
-        BORDER_WIDTH: 30, // Still used for side walls and fallback top/bottom border height
-        BORDER_COLOR: '#25221D', // Still used for side walls and fallback top/bottom border color
-        // NEW: Specify the TYPE of obstacle from OBSTACLE_DEFINITIONS to use for borders
-        BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long', // Set to your desired fence type
-        // If BORDER_OBSTACLE_TYPE is null, undefined, or the type is not found/has no sprite,
-        // it will fall back to using BORDER_WIDTH and BORDER_COLOR for top/bottom.
+        BORDER_WIDTH: 30, 
+        BORDER_COLOR: '#25221D', 
+        BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long', 
         PLAYER_SPAWN_ZONE: { 
             MIN_WIDTH: 150, 
             WIDTH_FACTOR: 0.20, 
@@ -283,7 +270,19 @@ const CONFIG = {
                 MIN_SCALE: 1.1,
                 MAX_SCALE: 1.5
             }
+        },
+        // --- NEW: EXTRACTION ZONE SETTINGS ---
+        EXTRACTION_ZONE_SETTINGS: {
+            SPRITE_PATH: null, //'assets/images/objects/extraction_zone_rope_heli.png', // Optional sprite
+            FALLBACK_COLOR: 'rgba(60, 120, 255, 0.35)', // Semi-transparent blue
+            WIDTH: 120,  // Fallback width if no sprite
+            HEIGHT: 120, // Fallback height if no sprite
+            NAME: "Extraction Zone",
+            PLACEMENT_MARGIN_FROM_EDGE: 30, // How far from world edge to try and place it
+            MIN_DISTANCE_FROM_PLAYER_SPAWN: 900,
+            MAX_PLACEMENT_ATTEMPTS: 20
         }
+        // ---
     },
     
     GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/',
@@ -304,7 +303,7 @@ const CONFIG = {
         'Fern1_1.png','Fern2_1.png'
     ],
     ROCK_SPRITES_16PX_PATH: 'assets/images/objects/rocks/grassy/16/',
-    ROCK_SPRITES_16PX_FILES: [], // Corrected from ['']
+    ROCK_SPRITES_16PX_FILES: [], 
     ROCK_SPRITES_32PX_PATH: 'assets/images/objects/rocks/grassy/32/',
     ROCK_SPRITES_32PX_FILES: ['Rock1_medium.png'],
     ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/64/',
@@ -331,13 +330,11 @@ const CONFIG = {
     FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png'],
 
     OBSTACLE_DEFINITIONS: [
-        { // Grass is a decoration, its scale is handled by LEVEL_GENERATION.DECORATIONS.GRASS_CLUTTER
+        { 
             type: 'decoration_grass', name: 'Grass Patch', destructible: false,
             blocksMovement: false, providesCover: false,
             spawnWeight: 0, isDecoration: true,
-            // width/height will be derived from sprite and DECORATIONS.GRASS_CLUTTER.MIN/MAX_SCALE
         },
-        // Short Barbed Straight Fence
         {
             type: 'fence_barbed_straight_short', name: 'Barbed Wire Fence Straight Short',
             color: '#8B4513', destructible: true, hp: 50, maxHp: 50,
@@ -346,7 +343,6 @@ const CONFIG = {
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.12), width: (w => w * 0.95), height: (h => h * 0.3)},
         },
-        // Long Barbed Straight Fence
         {
             type: 'fence_barbed_straight_long', name: 'Barbed Wire Fence Straight Long',
             color: '#8B4513', destructible: false, hp: 50, maxHp: 50,
@@ -360,16 +356,14 @@ const CONFIG = {
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.0, // Adjust if your 32px bush sprites need scaling
-            // collisionShape: { type: 'circle', offsetX: 16, offsetY: 16, radius: 10 }, // Will be relative to scaled size
+            spriteScale: 1.0, 
         },
         {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.0, // Adjust if your 64px bush sprites need scaling
-            // collisionShape: { type: 'circle', offsetX: 32, offsetY: 32, radius: 16 },
+            spriteScale: 1.0, 
         },
         
         {
@@ -377,7 +371,7 @@ const CONFIG = {
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             spawnWeight: 8, isDecoration: false,
-            spriteScale: 0.3, // Assuming Rock1_medium.png is the desired size
+            spriteScale: 0.3, 
             collisionShape: { type: 'ellipse', offsetX: (w => w*0.45), offsetY: (h => h*0.45), radiusX: (w => w*0.45), radiusY: (h => h*0.25) },
         },
         {
@@ -385,7 +379,7 @@ const CONFIG = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, isDecoration: false,
-            spriteScale: 0.7, // Assuming rock1_large.png/rock2_large.png are the desired size
+            spriteScale: 0.7, 
             collisionShape: { type: 'ellipse', offsetX: (w => w*0.46), offsetY: (h => h*0.47), radiusX: (w => w*0.43), radiusY: (h => h*0.27) },
         },
         {
@@ -393,42 +387,30 @@ const CONFIG = {
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
             spawnWeight: 6, isDecoration: false,
-            spriteScale: 0.4, // Example: Scale the medium palm tree sprite
+            spriteScale: 0.4, 
             collisionShape: { type: 'circle', offsetX: (w=>w*0.4), offsetY: (h=>h*1.22), radius: (w => w * 0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
-            spriteDestroyedScale: 0.75, // Scale for the stump sprite itself
-            // Example: Stump is smaller and doesn't block
-            // blocksMovementOnDestroy: false,
-            // providesCoverOnDestroy: false,
-            // collisionShapeDestroyed: { type: 'circle', offsetX: (w => w*0.5), offsetY: (h => h*0.5), radius: (w => w*0.2) }
+            spriteDestroyedScale: 0.75, 
         },
         {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.2, // Example: Scale the medium palm tree sprite
+            spriteScale: 1.2, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.35), offsetY: (h=>h*1.25), radiusX: (w=>w*0.2), radiusY: (h=>h*0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
-            spriteDestroyedScale: 0.75, // Scale for the stump sprite itself
-            // Example: Stump is smaller and doesn't block
-            // blocksMovementOnDestroy: false,
-            // providesCoverOnDestroy: false,
-            // collisionShapeDestroyed: { type: 'circle', offsetX: (w => w*0.5), offsetY: (h => h*0.5), radius: (w => w*0.2) }
+            spriteDestroyedScale: 0.75, 
         },
         {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 4, isDecoration: false,
-            spriteScale: 1.2, // Example: Scale the medium palm tree sprite
+            spriteScale: 1.2, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.37), offsetY: (h=>h*1.2), radiusX: (w=>w*0.2), radiusY: (h=>h*0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
-            spriteDestroyedScale: 0.75, // Scale for the stump sprite itself
-            // Example: Stump is smaller and doesn't block
-            // blocksMovementOnDestroy: false,
-            // providesCoverOnDestroy: false,
-            // collisionShapeDestroyed: { type: 'circle', offsetX: (w => w*0.5), offsetY: (h => h*0.5), radius: (w => w*0.2) }
+            spriteDestroyedScale: 0.75, 
         },
         {
             type: 'tree_palm_fallen', name: 'Fallen Palm Tree', color: '#005522',
@@ -450,7 +432,7 @@ const CONFIG = {
             providesCover: true,
             spawnWeight: 5,
             spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
-            spriteScale: 1.20, // Assuming palm_forest_1.png is 877x363 or desired size
+            spriteScale: 1.20, 
             spriteDestroyed: null,
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.041), offsetY: (h=>h*0.2), width: (w=>w*0.852), height: (h=>h*0.2) },
             isDecoration: false
@@ -462,9 +444,8 @@ const CONFIG = {
             spawnWeight: 3,
             explosionDamage: 50, explosionAoeRadius: 80,
             spriteNormal: 'assets/images/objects/barrels/barrel_red.png',
-            spriteScale: 0.08, // Assuming barrel_red.png is 30x30 or desired size
+            spriteScale: 0.08, 
             spriteDestroyed: 'assets/images/objects/barrels/barrel_red_destroyed.png',
-            // spriteDestroyedScale: 1.0, // If not set, will use original obj.width/height
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.05), offsetY: (h=>h*0.066), width: (w=>w*0.7), height: (h=>h*0.86) },
         },
         {
@@ -474,9 +455,8 @@ const CONFIG = {
             spawnWeight: 2,
             explosionDamage: 90, explosionAoeRadius: 120,
             spriteNormal: 'assets/images/objects/barrels/barrel_cluster.png',
-            spriteScale: 0.08, // Assuming barrel_cluster.png is 60x40 or desired size
+            spriteScale: 0.08, 
             spriteDestroyed: 'assets/images/objects/barrels/barrel_cluster_destroyed.png',
-            // spriteDestroyedScale: 1.0,
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.03), offsetY: (h=>h*0.05), width: (w=>w*0.7), height: (h=>h*0.7) },
         },
         {
@@ -488,7 +468,6 @@ const CONFIG = {
             spriteNormal: 'assets/images/objects/crates/crate_full.png',
             spriteScale: 0.15,
             spriteDestroyed: 'assets/images/objects/crates/crate_empty.png',
-            // spriteDestroyedScale: 1.0, // Will use original obj.width/height if not set
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.0625), offsetY: (h=>h*0.0625), width: (w=>w*0.9), height: (h=>h*0.84) },
             isPickup: true,
         },
@@ -498,9 +477,7 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             spawnWeight: 2,
             pickupType: 'health', pickupQuantity: 30,
-            spriteScale: 0.25, // Assuming health_pickup_crate.png is 32x32 or desired size
-            // spriteDestroyed: 'assets/images/objects/pickups/health/health_pickup_crate_empty.png', // Needs sprite
-            // spriteDestroyedScale: 1.0,
+            spriteScale: 0.25, 
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.0625), offsetY: (h=>h*0.0625), width: (w=>w*0.875), height: (h=>h*0.84) },
             isPickup: true,
         },
@@ -509,9 +486,9 @@ const CONFIG = {
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1,
-            spriteScale: 0.5, // Assuming possum_hut_1.png is 250x190 or desired size
+            spriteScale: 0.5, 
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
-            spriteDestroyedScale: 0.5, // Scale for the destroyed hut, relative to its own natural size
+            spriteDestroyedScale: 0.5, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.48), offsetY: (h=>h*0.45), radiusX: (w=>w*0.4), radiusY: (h=>h*0.315) },
             isDecoration: false,
         },
@@ -535,7 +512,7 @@ const CONFIG = {
 
         POSSUM_HUT_SPAWNING: {
             MAX_ACTIVE_SPAWNING_HUTS_BASE: 3,
-            MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 0.2,
+            MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 2,
             SPAWN_COOLDOWN_MIN_SECONDS: 30,
             SPAWN_COOLDOWN_MAX_SECONDS: 180,
             UNITS_PER_SPAWN_MIN: 2,
@@ -556,24 +533,23 @@ const CONFIG = {
     },
 
     HOSTAGE_SETTINGS: {
-        HP: 35, // Or use CONFIG.RACCOON_HP
-        SPEED: 110, // Or use CONFIG.RACCOON_SPEED
-        COLOR: '#ADD8E6', // Color when rescued (light blue)
-        NEUTRAL_COLOR: '#FFD700', // Color when not yet rescued (gold/yellow)
+        HP: 35, 
+        SPEED: 110, 
+        COLOR: '#ADD8E6', 
+        NEUTRAL_COLOR: '#FFD700', 
         RESCUE_RADIUS: 60,
-        FOLLOW_DISTANCE: 40,
-        FOLLOW_LERP_SPEED: 0.04, // Smoother following
-        // SPRITE_BASE_NAME: 'raccoon_hostage', // If you have specific sprites
-        POSSIBLE_RANKS_ON_RESCUE: [ // Define ranks and optionally starting XP
+        FOLLOW_DISTANCE: 100,
+        FOLLOW_LERP_SPEED: 0.04, 
+        POSSIBLE_RANKS_ON_RESCUE: [ 
             { rankName: "Recruit", xpNeeded: 0 },
-            { rankName: "Recruit", xpNeeded: 0 }, // Higher chance of recruit
+            { rankName: "Recruit", xpNeeded: 0 }, 
             { rankName: "Private", xpNeeded: 100 },
             { rankName: "Corporal", xpNeeded: 300 },
             { rankName: "Sergeant", xpNeeded: 600 },
             { rankName: "Elite", xpNeeded: 1000 }
         ],
-        MAX_HOSTAGES_PER_MISSION: 3, // Example: max hostages that can spawn in a rescue mission
-        MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1 // Example: win condition for a rescue mission
+        MAX_HOSTAGES_PER_MISSION: 3, 
+        MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1 
     },
 
     AMBIENT_EFFECTS: {
@@ -616,6 +592,8 @@ const CONFIG = {
         UNKNOWN_PHASE_TEXT: "Unknown Phase", UNKNOWN_MISSION_TEXT: "Unknown Mission",
         GAMEOVER_VICTORY_TITLE: "CAMPAIGN COMPLETE!", GAMEOVER_DEFEAT_TITLE: "GAME OVER",
         CAMPAIGN_COMPLETE_PHASE_NAME: "Campaign Finished", CAMPAIGN_COMPLETE_MISSION_NAME: "All Possums Defeated!",
-        ERROR_LOADING_MISSION_RETRY: "Error reloading mission for retry.", RACCOON_OUT_OF_GRENADES_LOG: "Raccoon {ID}: Out of grenades!"
+        ERROR_LOADING_MISSION_RETRY: "Error reloading mission for retry.", RACCOON_OUT_OF_GRENADES_LOG: "Raccoon {ID}: Out of grenades!",
+        OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION: "Hostages ready! Proceed to Extraction Zone!",
+        OBJECTIVE_RESCUE_HOSTAGES_AT_EVAC: "Hostages at EVAC: {COUNT}/{TOTAL}"
     }
 };
