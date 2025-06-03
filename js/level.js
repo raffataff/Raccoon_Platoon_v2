@@ -48,7 +48,7 @@ class Level {
                 };
             }
         }
-        if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || obstacle.type === 'border_wall' || obstacle.type === 'extraction_zone') { // Add extraction_zone here
+        if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || obstacle.type === 'border_wall' || obstacle.type === 'extraction_zone') { 
              return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
         }
         return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
@@ -57,7 +57,7 @@ class Level {
     _rectOverlap(rect1, rect2) { return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y); }
     isShapeOverlappingList(movingShape, existingObstacles) {
         for (const existing of existingObstacles) {
-            if (!existing.isDestroyed && existing.blocksMovement) { // Only check against movement-blocking obstacles
+            if (!existing.isDestroyed && existing.blocksMovement) { 
                 const existingCollisionShape = this._getObstacleCollisionShape(existing);
                 let collision = false;
                 if (movingShape.type === 'rectangle') {
@@ -82,7 +82,8 @@ class Level {
         for (const unit of existingUnits) {
             if (unit.isAlive()) {
                 const distSq = (x - unit.x) * (x - unit.x) + (y - unit.y) * (y - unit.y);
-                if (distSq < (unitSize / 2 + unit.size / 2) * (unitSize / 2 + unit.size / 2) + (this.hutSpawnConfig.MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN || 10)) {
+                const minSeparationDist = (unitSize / 2 + unit.size / 2) + (this.hutSpawnConfig.MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN || 5); 
+                if (distSq < minSeparationDist * minSeparationDist) {
                     return false;
                 }
             }
@@ -133,7 +134,7 @@ class Level {
                         }
                     }
                 });
-                const allUnits = this.game.getLivingPlayerControlledUnits().concat(this.game.enemyUnits || []); // Include all living units
+                const allUnits = this.game.getLivingPlayerControlledUnits().concat(this.game.enemyUnits || []); 
                 allUnits.forEach(unit => {
                     if (unit.isAlive()) {
                         const distToUnit = distance(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, unit.x, unit.y);
@@ -176,7 +177,7 @@ class Level {
                 };
 
                 for (const obs of this.obstacles) {
-                    if (obs.blocksMovement && !obs.isDestroyed) { // Only consider movement-blocking obstacles for navgrid
+                    if (obs.blocksMovement && !obs.isDestroyed) { 
                         const obsShape = this._getObstacleCollisionShape(obs);
                         if (!obsShape) continue;
                         let collision = false;
@@ -204,7 +205,7 @@ class Level {
         const obsShapeForBounds = this._getObstacleCollisionShape(obstacle);
         let minObsX, maxObsX, minObsY, maxObsY;
 
-        if (!obsShapeForBounds) { // Fallback if no specific collision shape (e.g., after destruction with no destroyed shape)
+        if (!obsShapeForBounds) { 
             minObsX = obstacle.x;
             maxObsX = obstacle.x + obstacle.width;
             minObsY = obstacle.y;
@@ -224,14 +225,14 @@ class Level {
             maxObsX = obsShapeForBounds.x + obsShapeForBounds.radiusX;
             minObsY = obsShapeForBounds.y - obsShapeForBounds.radiusY;
             maxObsY = obsShapeForBounds.y + obsShapeForBounds.radiusY;
-        } else { // Default to obstacle's visual bounds if collision shape type is unknown
+        } else { 
             minObsX = obstacle.x;
             maxObsX = obstacle.x + obstacle.width;
             minObsY = obstacle.y;
             maxObsY = obstacle.y + obstacle.height;
         }
 
-        const startGridX = Math.max(0, Math.floor(minObsX / this.gridCellSize) -1); // -1 and +1 to ensure we cover edges
+        const startGridX = Math.max(0, Math.floor(minObsX / this.gridCellSize) -1); 
         const endGridX = Math.min(this.gridWidth -1, Math.ceil(maxObsX / this.gridCellSize) +1);
         const startGridY = Math.max(0, Math.floor(minObsY / this.gridCellSize) -1);
         const endGridY = Math.min(this.gridHeight -1, Math.ceil(maxObsY / this.gridCellSize) +1);
@@ -243,7 +244,7 @@ class Level {
                 const cellRect = { x: x * this.gridCellSize, y: y * this.gridCellSize, width: this.gridCellSize, height: this.gridCellSize };
                 let stillBlockedByOther = false;
                 for (const otherObs of this.obstacles) {
-                    if (otherObs.blocksMovement && !otherObs.isDestroyed) { // Only check against active movement blockers
+                    if (otherObs.blocksMovement && !otherObs.isDestroyed) { 
                         const otherObsShape = this._getObstacleCollisionShape(otherObs);
                         if (!otherObsShape) continue;
                         let collisionWithOther = false;
@@ -292,7 +293,7 @@ class Level {
 
     generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}) {
         this.obstacles = [];
-        this.potentialSpawnerHuts = [];
+        this.potentialSpawnerHuts = []; // Clear and repopulate
         this.activeSpawningHuts = [];
         this.initialHostageCount = 0; 
 
@@ -551,47 +552,227 @@ class Level {
                 attempts++;
             } while (!placed && attempts < placementMaxAttempts);
         }
-
         
+        const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {}; 
+        const enemyDensityFactor = missionParams.enemyDensityFactor || 1.0; 
+        const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
+        const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5; 
+        const totalEnemiesToSpawn = Math.floor(baseNumEnemies * enemyDensityFactor) + Math.floor(Math.random() * (randomAddMax * enemyDensityFactor + 1));
+        let enemiesSpawnedCount = 0; 
+        const avgEnemiesPerGroup = enemySpawnCfg.AVG_ENEMIES_PER_GROUP_ATTEMPT || 2.0; 
+        const groupSpawnAttempts = Math.ceil(totalEnemiesToSpawn / Math.max(1, avgEnemiesPerGroup));
+        const heavySize = CONFIG.POSSUM_HEAVY_SIZE || 18; 
+        const gruntSize = CONFIG.POSSUM_GRUNT_SIZE || 14;
+        
+        const enemyGroups = []; 
+
+        for (let g = 0; g < groupSpawnAttempts && enemiesSpawnedCount < totalEnemiesToSpawn; g++) {
+            const smallGroupChance = enemySpawnCfg.SMALL_GROUP_CHANCE || 0.6; 
+            const smallGroupMin = enemySpawnCfg.SMALL_GROUP_SIZE_MIN || 1; 
+            const smallGroupMax = enemySpawnCfg.SMALL_GROUP_SIZE_MAX || 3;
+            let currentGroupSizeAttempt = Math.random() < smallGroupChance ? Math.floor(smallGroupMin + Math.random() * (smallGroupMax - smallGroupMin + 1)) : (smallGroupMax + Math.floor(Math.random() * 2));
+            currentGroupSizeAttempt = Math.min(currentGroupSizeAttempt, totalEnemiesToSpawn - enemiesSpawnedCount); 
+            if (currentGroupSizeAttempt <= 0) continue;
+
+            let groupLeaderX, groupLeaderY, isLeaderSpawnClear; 
+            let leaderPlacementAttempts = 0; 
+            const leaderMaxAttempts = enemySpawnCfg.LEADER_PLACEMENT_MAX_ATTEMPTS || 20;
+            const minSpawnDistFromPlayerZone = enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 50;
+            let enemySpawnMinX = playableMinX; 
+            
+            if (playerSpawnZone.x < worldWidth / 2) {
+                 enemySpawnMinX = playerSpawnZone.x + playerSpawnZone.width + minSpawnDistFromPlayerZone;
+            }
+            const enemySpawnableWidth = Math.max(0, playableMaxX - enemySpawnMinX); 
+            if (enemySpawnableWidth <= heavySize * 2 && playerSpawnZone.x < worldWidth / 2) { continue; } 
+            
+            do {
+                if (playerSpawnZone.x < worldWidth / 2 && enemySpawnableWidth > heavySize) { 
+                     groupLeaderX = enemySpawnMinX + Math.random() * (enemySpawnableWidth - heavySize);
+                } else { 
+                     groupLeaderX = playableMinX + Math.random() * (playableWidth - heavySize);
+                }
+                groupLeaderY = playableMinY + Math.random() * (playableHeight - heavySize);
+
+                groupLeaderX = Math.max(playableMinX + heavySize / 2, Math.min(groupLeaderX, playableMaxX - heavySize / 2));
+                groupLeaderY = Math.max(playableMinY + heavySize / 2, Math.min(groupLeaderY, playableMaxY - heavySize / 2));
+                const leaderFootprint = {x: groupLeaderX - heavySize/2, y: groupLeaderY - heavySize/2, width: heavySize, height: heavySize};
+                isLeaderSpawnClear = this.isSpawnPointClear(groupLeaderX, groupLeaderY, heavySize, this.obstacles, this.game.enemyUnits) && !this._rectOverlap(leaderFootprint, playerSpawnZone); 
+                leaderPlacementAttempts++;
+            } while (!isLeaderSpawnClear && leaderPlacementAttempts < leaderMaxAttempts);
+
+            if (isLeaderSpawnClear) {
+                const currentGroupMembers = [];
+                for (let m = 0; m < currentGroupSizeAttempt && enemiesSpawnedCount < totalEnemiesToSpawn; m++) {
+                    let memberX, memberY, isMemberSpawnClear; 
+                    let memberPlacementAttempts = 0; 
+                    const memberMaxAttempts = enemySpawnCfg.MEMBER_PLACEMENT_MAX_ATTEMPTS || 10;
+                    let currentEnemyUnitSize = gruntSize; 
+                    let isHeavy = false; 
+                    const heavyChance = missionParams.heavyChance || (enemySpawnCfg.DEFAULT_HEAVY_CHANCE || 0.20); 
+                    const heavyLeaderBonus = enemySpawnCfg.HEAVY_CHANCE_GROUP_LEADER_BONUS || 0.1;
+                    if ((m === 0 && currentGroupSizeAttempt > 0 && Math.random() < heavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0) ) || (currentGroupSizeAttempt === 1 && Math.random() < heavyChance)) { isHeavy = true; currentEnemyUnitSize = heavySize; }
+                    
+                    const groupSpreadBase = enemySpawnCfg.GROUP_SPREAD_BASE || 30; 
+                    const groupSpreadSizeMult = enemySpawnCfg.GROUP_SPREAD_SIZE_MULTIPLIER || 1.5; 
+                    const groupSpread = groupSpreadBase + currentEnemyUnitSize * groupSpreadSizeMult;
+                    
+                    do {
+                        memberX = (m === 0) ? groupLeaderX : groupLeaderX + (Math.random() * groupSpread - groupSpread / 2); 
+                        memberY = (m === 0) ? groupLeaderY : groupLeaderY + (Math.random() * groupSpread - groupSpread / 2);
+                        memberX = Math.max(playableMinX + currentEnemyUnitSize / 2, Math.min(memberX, playableMaxX - currentEnemyUnitSize / 2)); 
+                        memberY = Math.max(playableMinY + currentEnemyUnitSize / 2, Math.min(memberY, playableMaxY - currentEnemyUnitSize / 2));
+                        const memberFootprint = {x: memberX - currentEnemyUnitSize/2, y: memberY - currentEnemyUnitSize/2, width: currentEnemyUnitSize, height: currentEnemyUnitSize};
+                        isMemberSpawnClear = this.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.obstacles, this.game.enemyUnits.concat(currentGroupMembers)) && !this._rectOverlap(memberFootprint, playerSpawnZone); 
+                        memberPlacementAttempts++;
+                    } while(!isMemberSpawnClear && memberPlacementAttempts < memberMaxAttempts);
+
+                    if (isMemberSpawnClear) {
+                        const enemyUnit = isHeavy ? new PossumHeavy(memberX, memberY, this.game, `PHVY-${enemiesSpawnedCount + 1}`) : new PossumGrunt(memberX, memberY, this.game, `PSM-${enemiesSpawnedCount + 1}`);
+                        if (this.game && this.game.enemyUnits) this.game.enemyUnits.push(enemyUnit); 
+                        currentGroupMembers.push(enemyUnit);
+                        enemiesSpawnedCount++;
+                    }
+                }
+                if (currentGroupMembers.length > 0) {
+                    enemyGroups.push(currentGroupMembers); 
+                }
+            }
+        }
+        console.log(`[Level] Initial enemies placed: ${this.game.enemyUnits.length}`);
+
+
+        // --- HOSTAGE SPAWNING LOGIC ---
         if (missionParams.objectiveType === 'RESCUE_HOSTAGES') {
             const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
             const numHostagesToSpawn = missionParams.numHostagesToSpawn !== undefined ? missionParams.numHostagesToSpawn : (hostageConf.MAX_HOSTAGES_PER_MISSION !== undefined ? hostageConf.MAX_HOSTAGES_PER_MISSION : 1);
             this.initialHostageCount = numHostagesToSpawn;
+            let spawnedHostageCount = 0;
+            const hostageSize = CONFIG.RACCOON_SIZE || 12;
 
-            console.log(`[Level] Attempting to spawn ${numHostagesToSpawn} hostages for mission: ${missionParams.name}`);
+            if (hostageConf.SPAWN_AT_HUTS) {
+                console.log(`[Level] Attempting to spawn ${numHostagesToSpawn} hostages at Possum Huts.`);
+                const eligibleHuts = this.potentialSpawnerHuts.filter(hut => {
+                    if (hut.isDestroyed) return false;
+                    const hutCenterX = hut.x + hut.width / 2;
+                    const hutCenterY = hut.y + hut.height / 2;
+                    const distToPlayerSpawn = distance(hutCenterX, hutCenterY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2);
+                    return distToPlayerSpawn > (hostageConf.MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE || 0);
+                });
 
-            for (let i = 0; i < numHostagesToSpawn; i++) {
-                let hostageX, hostageY, attempts = 0;
-                const maxPlacementAttempts = 30; 
-                let placed = false;
-                const hostageSize = CONFIG.RACCOON_SIZE || 12; 
-
-                do {
-                    hostageX = playableMinX + Math.random() * (playableWidth - hostageSize);
-                    hostageY = playableMinY + Math.random() * (playableHeight * 0.6 - hostageSize); 
-                    const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
-                    let existingUnitsForClearance = this.game.enemyUnits.concat(this.game.hostageUnits || []);
-
-                    if (!this._rectOverlap(tempHostageShapeForPlayerZone, playerSpawnZone) && 
-                        distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2) > 150 && 
-                        this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, existingUnitsForClearance)) {
-
-                        const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${i}`);
-                        if(this.game.hostageUnits) this.game.hostageUnits.push(newHostage);
-                        else this.game.hostageUnits = [newHostage];
-                        placed = true;
-                        console.log(`[Level] Spawned hostage ${newHostage.id} at (${hostageX.toFixed(0)}, ${hostageY.toFixed(0)})`);
-                    }
-                    attempts++;
-                } while (!placed && attempts < maxPlacementAttempts);
-
-                if(!placed) {
-                    console.warn(`[Level] Could not find suitable placement for hostage ${i + 1} after ${maxPlacementAttempts} attempts.`);
+                for (let i = eligibleHuts.length - 1; i > 0; i--) { // Shuffle
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [eligibleHuts[i], eligibleHuts[j]] = [eligibleHuts[j], eligibleHuts[i]];
                 }
+                
+                const hutHostageCounts = new Map(); 
+
+                for (const hut of eligibleHuts) {
+                    if (spawnedHostageCount >= numHostagesToSpawn) break;
+                    
+                    let currentHutHostageCount = hutHostageCounts.get(hut.id || hut.name) || 0; // Use hut.id if available, else name as key
+                    if (currentHutHostageCount >= (hostageConf.MAX_HOSTAGES_PER_HUT || 1)) continue;
+
+                    let hostageX, hostageY, placed = false;
+                    const hutCenterX = hut.x + hut.width / 2;
+                    const hutCenterY = hut.y + hut.height / 2;
+                    
+                    const offsetX = typeof hostageConf.SPAWN_OFFSET_FROM_HUT_X === 'function' ? hostageConf.SPAWN_OFFSET_FROM_HUT_X(hut.width, hut.height) : (hostageConf.SPAWN_OFFSET_FROM_HUT_X || 0);
+                    const offsetY = typeof hostageConf.SPAWN_OFFSET_FROM_HUT_Y === 'function' ? hostageConf.SPAWN_OFFSET_FROM_HUT_Y(hut.width, hut.height) : (hostageConf.SPAWN_OFFSET_FROM_HUT_Y || hut.height / 2 + 20);
+
+                    const idealHostageX = hutCenterX + offsetX;
+                    const idealHostageY = hutCenterY + offsetY;
+
+                    for (let attempt = 0; attempt < (hostageConf.HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT || 15); attempt++) {
+                        hostageX = idealHostageX + (Math.random() - 0.5) * 20 * (attempt * 0.1); // Spread out attempts slightly more
+                        hostageY = idealHostageY + (Math.random() - 0.5) * 20 * (attempt * 0.1);
+
+                        hostageX = Math.max(playableMinX + hostageSize / 2, Math.min(hostageX, playableMaxX - hostageSize / 2));
+                        hostageY = Math.max(playableMinY + hostageSize / 2, Math.min(hostageY, playableMaxY - hostageSize / 2));
+                        
+                        if (this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
+                            const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
+                            this.game.hostageUnits.push(newHostage);
+                            placed = true;
+                            spawnedHostageCount++;
+                            hutHostageCounts.set(hut.id || hut.name, (currentHutHostageCount + 1));
+                            console.log(`[Level] Spawned hostage ${newHostage.id} at (${hostageX.toFixed(0)}, ${hostageY.toFixed(0)}) near Hut ${hut.name || hut.type}.`);
+                            
+                            // --- Spawn Initial Guards for this Hut ---
+                            this.spawnInitialHutGuards(hut, preloadedAssetImages, playerSpawnZone, playableMinX, playableMaxX, playableMinY, playableMaxY);
+                            // ---
+                            break;
+                        }
+                    }
+                    if (!placed) console.warn(`[Level] Could not place hostage near Hut ${hut.name || hut.type}.`);
+                }
+
+            } else if (hostageConf.SPAWN_WITH_ENEMY_GROUPS) {
+                console.log(`[Level] Attempting to spawn ${numHostagesToSpawn} hostages with enemy groups.`);
+                const spawnNearRadius = hostageConf.SPAWN_NEAR_CAPTORS_RADIUS || 40;
+                const minCaptorGroupSize = hostageConf.MIN_CAPTORS_GROUP_SIZE || 1;
+                const placementAttempts = hostageConf.HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP || 10;
+                
+                if (enemyGroups.length > 0) {
+                    const eligibleCaptorGroups = enemyGroups.filter(group => group.length >= minCaptorGroupSize);
+                    for (let i = eligibleCaptorGroups.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [eligibleCaptorGroups[i], eligibleCaptorGroups[j]] = [eligibleCaptorGroups[j], eligibleCaptorGroups[i]];
+                    }
+
+                    for (const group of eligibleCaptorGroups) {
+                        if (spawnedHostageCount >= numHostagesToSpawn) break;
+                        const groupLeader = group[0]; 
+                        let hostageX, hostageY, placed = false;
+
+                        for (let attempt = 0; attempt < placementAttempts; attempt++) {
+                            const angle = Math.random() * 2 * Math.PI;
+                            const radius = Math.random() * spawnNearRadius;
+                            hostageX = groupLeader.x + Math.cos(angle) * radius;
+                            hostageY = groupLeader.y + Math.sin(angle) * radius;
+                            hostageX = Math.max(playableMinX + hostageSize / 2, Math.min(hostageX, playableMaxX - hostageSize / 2));
+                            hostageY = Math.max(playableMinY + hostageSize / 2, Math.min(hostageY, playableMaxY - hostageSize / 2));
+                            
+                            if (!this._rectOverlap({ x: hostageX - hostageSize/2, y: hostageY - hostageSize/2, width: hostageSize, height: hostageSize }, playerSpawnZone) &&
+                                this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
+                                const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
+                                this.game.hostageUnits.push(newHostage);
+                                placed = true; spawnedHostageCount++;
+                                console.log(`[Level] Spawned hostage ${newHostage.id} at (${hostageX.toFixed(0)}, ${hostageY.toFixed(0)}) near enemy group.`);
+                                break; 
+                            }
+                        }
+                        if (!placed) console.warn(`[Level] Could not place hostage near group leader ${groupLeader.id}.`);
+                    }
+                }
+            } else { 
+                console.log(`[Level] Using fallback random hostage spawning for ${numHostagesToSpawn} hostages.`);
+                for (let i = spawnedHostageCount; i < numHostagesToSpawn; i++) { 
+                    let hostageX, hostageY, attempts = 0;
+                    const maxPlacementAttempts = 30; 
+                    let placed = false;
+                    do {
+                        hostageX = playableMinX + Math.random() * (playableWidth - hostageSize);
+                        hostageY = playableMinY + Math.random() * (playableHeight * 0.6 - hostageSize); 
+                        const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
+                        if (!this._rectOverlap(tempHostageShapeForPlayerZone, playerSpawnZone) && 
+                            distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2) > 150 && 
+                            this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
+                            const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${i}`);
+                            this.game.hostageUnits.push(newHostage);
+                            placed = true; spawnedHostageCount++;
+                        }
+                        attempts++;
+                    } while (!placed && attempts < maxPlacementAttempts);
+                    if(!placed) console.warn(`[Level] Fallback: Could not find suitable random placement for hostage ${i + 1}.`);
+                }
+            }
+             if (spawnedHostageCount < numHostagesToSpawn) {
+                console.warn(`[Level] ALERT: Only spawned ${spawnedHostageCount}/${numHostagesToSpawn} hostages in total.`);
             }
         }
 
-        // --- NEW: SPAWN EXTRACTION ZONE for RESCUE_HOSTAGES missions ---
+
         if (missionParams.objectiveType === 'RESCUE_HOSTAGES') {
             const ezConfig = genConfig.EXTRACTION_ZONE_SETTINGS || {};
             let ezX, ezY, ezWidth, ezHeight;
@@ -599,7 +780,7 @@ class Level {
 
             if (ezConfig.SPRITE_PATH && preloadedAssetImages[ezConfig.SPRITE_PATH]) {
                 ezImage = preloadedAssetImages[ezConfig.SPRITE_PATH];
-                ezWidth = ezImage.naturalWidth; // Assuming sprite scale is 1 or handled elsewhere if needed
+                ezWidth = ezImage.naturalWidth; 
                 ezHeight = ezImage.naturalHeight;
             } else {
                 ezWidth = ezConfig.WIDTH || 100;
@@ -608,18 +789,17 @@ class Level {
 
             let placedEZ = false;
             for (let attempt = 0; attempt < (ezConfig.MAX_PLACEMENT_ATTEMPTS || 20); attempt++) {
-                // Try to place near an edge, away from player spawn
                 const edgeChoice = Math.random();
-                if (edgeChoice < 0.25) { // Top edge
+                if (edgeChoice < 0.25) { 
                     ezX = playableMinX + Math.random() * (playableWidth - ezWidth);
                     ezY = playableMinY + (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
-                } else if (edgeChoice < 0.5) { // Left edge (but not too close to player spawn if player is left)
+                } else if (edgeChoice < 0.5) { 
                     ezX = playableMinX + (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
                     ezY = playableMinY + Math.random() * (playableHeight - ezHeight);
-                } else if (edgeChoice < 0.75) { // Right edge
+                } else if (edgeChoice < 0.75) { 
                     ezX = playableMaxX - ezWidth - (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
                     ezY = playableMinY + Math.random() * (playableHeight - ezHeight);
-                } else { // Bottom edge (less ideal if player spawns bottom, but a fallback)
+                } else { 
                     ezX = playableMinX + Math.random() * (playableWidth - ezWidth);
                     ezY = playableMaxY - ezHeight - (ezConfig.PLACEMENT_MARGIN_FROM_EDGE || 0);
                 }
@@ -631,7 +811,6 @@ class Level {
                 const distToPlayerSpawn = distance(ezX + ezWidth/2, ezY + ezHeight/2, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2);
 
                 if (!this._rectOverlap(ezRect, playerSpawnZone) && distToPlayerSpawn > (ezConfig.MIN_DISTANCE_FROM_PLAYER_SPAWN || 300)) {
-                    // Check if it overlaps significantly with existing *blocking* obstacles
                     let overlapsBlockingObstacle = false;
                     for (const obs of this.obstacles) {
                         if (obs.blocksMovement && !obs.isDestroyed && this._rectOverlap(ezRect, this._getObstacleCollisionShape(obs))) {
@@ -645,10 +824,10 @@ class Level {
                             type: 'extraction_zone',
                             name: ezConfig.NAME || "Extraction Zone",
                             color: ezConfig.FALLBACK_COLOR || 'rgba(0,0,255,0.3)',
-                            imageNormal: ezImage, // Store preloaded image
-                            spriteNormalPath: ezConfig.SPRITE_PATH, // Store path for reference
+                            imageNormal: ezImage, 
+                            spriteNormalPath: ezConfig.SPRITE_PATH, 
                             blocksMovement: false, providesCover: false, destructible: false,
-                            isDestroyed: false, isPickup: false, isDecoration: true, // Treat as decoration for rendering logic if no sprite
+                            isDestroyed: false, isPickup: false, isDecoration: true, 
                             hp: Infinity, maxHp: Infinity
                         });
                         placedEZ = true;
@@ -661,8 +840,7 @@ class Level {
                 console.warn("[Level] Could not place extraction zone. Rescue mission might be unfinishable if it relies on it.");
             }
         }
-        // --- END EXTRACTION ZONE ---
-
+        
 
         this.generateNavigationGrid(worldWidth, worldHeight);
 
@@ -694,60 +872,57 @@ class Level {
             }
         }
 
-        const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {}; const enemyDensityFactor = missionParams.enemyDensityFactor || 1.0; const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
-        const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5; const totalEnemiesToSpawn = Math.floor(baseNumEnemies * enemyDensityFactor) + Math.floor(Math.random() * (randomAddMax * enemyDensityFactor + 1));
-        let enemiesSpawnedCount = 0; const avgEnemiesPerGroup = enemySpawnCfg.AVG_ENEMIES_PER_GROUP_ATTEMPT || 2.0; const groupSpawnAttempts = Math.ceil(totalEnemiesToSpawn / Math.max(1, avgEnemiesPerGroup));
-        const heavySize = CONFIG.POSSUM_HEAVY_SIZE || 18; const gruntSize = CONFIG.POSSUM_GRUNT_SIZE || 14;
-        for (let g = 0; g < groupSpawnAttempts && enemiesSpawnedCount < totalEnemiesToSpawn; g++) {
-            const smallGroupChance = enemySpawnCfg.SMALL_GROUP_CHANCE || 0.6; const smallGroupMin = enemySpawnCfg.SMALL_GROUP_SIZE_MIN || 1; const smallGroupMax = enemySpawnCfg.SMALL_GROUP_SIZE_MAX || 3;
-            let currentGroupSizeAttempt = Math.random() < smallGroupChance ? Math.floor(smallGroupMin + Math.random() * (smallGroupMax - smallGroupMin + 1)) : (smallGroupMax + Math.floor(Math.random() * 2));
-            currentGroupSizeAttempt = Math.min(currentGroupSizeAttempt, totalEnemiesToSpawn - enemiesSpawnedCount); if (currentGroupSizeAttempt <= 0) continue;
-            let groupLeaderX, groupLeaderY, isLeaderSpawnClear; let leaderPlacementAttempts = 0; const leaderMaxAttempts = enemySpawnCfg.LEADER_PLACEMENT_MAX_ATTEMPTS || 20;
-            const minSpawnDistFromPlayerZone = enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 50;
-            let enemySpawnMinX = playableMinX; 
-            if (playerSpawnZone.x < worldWidth / 2) {
-                 enemySpawnMinX = playerSpawnZone.x + playerSpawnZone.width + minSpawnDistFromPlayerZone;
-            }
-            const enemySpawnableWidth = Math.max(0, playableMaxX - enemySpawnMinX); if (enemySpawnableWidth <= heavySize * 2 && playerSpawnZone.x < worldWidth / 2) { continue; } 
-            
-            do {
-                if (playerSpawnZone.x < worldWidth / 2 && enemySpawnableWidth > heavySize) { 
-                     groupLeaderX = enemySpawnMinX + Math.random() * (enemySpawnableWidth - heavySize);
-                } else { 
-                     groupLeaderX = playableMinX + Math.random() * (playableWidth - heavySize);
-                }
-                groupLeaderY = playableMinY + Math.random() * (playableHeight - heavySize);
-
-                groupLeaderX = Math.max(playableMinX + heavySize / 2, Math.min(groupLeaderX, playableMaxX - heavySize / 2));
-                groupLeaderY = Math.max(playableMinY + heavySize / 2, Math.min(groupLeaderY, playableMaxY - heavySize / 2));
-                const leaderFootprint = {x: groupLeaderX - heavySize/2, y: groupLeaderY - heavySize/2, width: heavySize, height: heavySize};
-                isLeaderSpawnClear = this.isSpawnPointClear(groupLeaderX, groupLeaderY, heavySize, this.obstacles, this.game.enemyUnits) && !this._rectOverlap(leaderFootprint, playerSpawnZone); leaderPlacementAttempts++;
-            } while (!isLeaderSpawnClear && leaderPlacementAttempts < leaderMaxAttempts);
-
-            if (isLeaderSpawnClear) {
-                for (let m = 0; m < currentGroupSizeAttempt && enemiesSpawnedCount < totalEnemiesToSpawn; m++) {
-                    let memberX, memberY, isMemberSpawnClear; let memberPlacementAttempts = 0; const memberMaxAttempts = enemySpawnCfg.MEMBER_PLACEMENT_MAX_ATTEMPTS || 10;
-                    let currentEnemyUnitSize = gruntSize; let isHeavy = false; const heavyChance = missionParams.heavyChance || (enemySpawnCfg.DEFAULT_HEAVY_CHANCE || 0.20); const heavyLeaderBonus = enemySpawnCfg.HEAVY_CHANCE_GROUP_LEADER_BONUS || 0.1;
-                    if ((m === 0 && currentGroupSizeAttempt > 0 && Math.random() < heavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0) ) || (currentGroupSizeAttempt === 1 && Math.random() < heavyChance)) { isHeavy = true; currentEnemyUnitSize = heavySize; }
-                    const groupSpreadBase = enemySpawnCfg.GROUP_SPREAD_BASE || 30; const groupSpreadSizeMult = enemySpawnCfg.GROUP_SPREAD_SIZE_MULTIPLIER || 1.5; const groupSpread = groupSpreadBase + currentEnemyUnitSize * groupSpreadSizeMult;
-                    do {
-                        memberX = (m === 0) ? groupLeaderX : groupLeaderX + (Math.random() * groupSpread - groupSpread / 2); memberY = (m === 0) ? groupLeaderY : groupLeaderY + (Math.random() * groupSpread - groupSpread / 2);
-                        memberX = Math.max(playableMinX + currentEnemyUnitSize / 2, Math.min(memberX, playableMaxX - currentEnemyUnitSize / 2)); memberY = Math.max(playableMinY + currentEnemyUnitSize / 2, Math.min(memberY, playableMaxY - currentEnemyUnitSize / 2));
-                        const memberFootprint = {x: memberX - currentEnemyUnitSize/2, y: memberY - currentEnemyUnitSize/2, width: currentEnemyUnitSize, height: currentEnemyUnitSize};
-                        isMemberSpawnClear = this.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.obstacles, this.game.enemyUnits) && !this._rectOverlap(memberFootprint, playerSpawnZone); memberPlacementAttempts++;
-                    } while(!isMemberSpawnClear && memberPlacementAttempts < memberMaxAttempts);
-                    if (isMemberSpawnClear) {
-                        const enemyUnit = isHeavy ? new PossumHeavy(memberX, memberY, this.game, `PHVY-${enemiesSpawnedCount + 1}`) : new PossumGrunt(memberX, memberY, this.game, `PSM-${enemiesSpawnedCount + 1}`);
-                        if (this.game && this.game.enemyUnits) this.game.enemyUnits.push(enemyUnit); enemiesSpawnedCount++;
-                    }
-                }
-            }
-        }
-
-        console.log("[Level] Initial enemies spawned:", this.game.enemyUnits.length);
         if (this.game) { this.game.missionObjective = { type: missionParams.objectiveType || 'EXTERMINATE', description: missionParams.name || (CONFIG.UI_TEXT_STRINGS.DEFAULT_OBJECTIVE_TEXT || 'Eliminate all Possums!'), };}
         return playerSpawnLocations;
     }
+
+    spawnInitialHutGuards(hut, preloadedAssetImages, playerSpawnZone, playableMinX, playableMaxX, playableMinY, playableMaxY) {
+        const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
+        const guardMin = hostageConf.INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT || 1;
+        const guardMax = hostageConf.INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT || 2;
+        const numGuards = Math.floor(guardMin + Math.random() * (guardMax - guardMin + 1));
+        const heavyChance = hostageConf.INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT || 0.1;
+        const spawnRadius = hostageConf.INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT || 50;
+        const placementAttempts = hostageConf.INITIAL_GUARD_PLACEMENT_ATTEMPTS || 10;
+
+        console.log(`[Level] Spawning ${numGuards} initial guards for hostage hut: ${hut.name || hut.type}`);
+
+        let guardsSpawned = 0;
+        for (let i = 0; i < numGuards; i++) {
+            let guardX, guardY, isClear;
+            const isHeavy = Math.random() < heavyChance;
+            const guardSize = isHeavy ? CONFIG.POSSUM_HEAVY_SIZE : CONFIG.POSSUM_GRUNT_SIZE;
+
+            for (let attempt = 0; attempt < placementAttempts; attempt++) {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = (hut.width / 2 + guardSize) + Math.random() * (spawnRadius - (hut.width / 2 + guardSize)); // Spawn outside hut bounds
+                guardX = (hut.x + hut.width / 2) + Math.cos(angle) * radius;
+                guardY = (hut.y + hut.height / 2) + Math.sin(angle) * radius;
+
+                guardX = Math.max(playableMinX + guardSize / 2, Math.min(guardX, playableMaxX - guardSize / 2));
+                guardY = Math.max(playableMinY + guardSize / 2, Math.min(guardY, playableMaxY - guardSize / 2));
+                
+                const guardFootprint = { x: guardX - guardSize / 2, y: guardY - guardSize / 2, width: guardSize, height: guardSize };
+
+                if (this.isSpawnPointClear(guardX, guardY, guardSize, this.obstacles, this.game.enemyUnits) &&
+                    !this._rectOverlap(guardFootprint, playerSpawnZone)) {
+                    
+                    const enemyUnit = isHeavy ?
+                        new PossumHeavy(guardX, guardY, this.game, `PHVY-HGRD-${guardsSpawned + 1}`) :
+                        new PossumGrunt(guardX, guardY, this.game, `PSM-HGRD-${guardsSpawned + 1}`);
+                    
+                    this.game.enemyUnits.push(enemyUnit);
+                    guardsSpawned++;
+                    console.log(`  Spawned initial ${isHeavy ? 'Heavy' : 'Grunt'} guard at (${guardX.toFixed(0)}, ${guardY.toFixed(0)}) for hut ${hut.name || hut.type}`);
+                    break; 
+                }
+            }
+            if (guardsSpawned === i) { // If a guard wasn't placed in this iteration
+                console.warn(`  Could not place initial guard ${i+1} for hut ${hut.name || hut.type}`);
+            }
+        }
+    }
+
 
     updateHutSpawning(deltaTime) {
         if (!this.game || !this.game.deployedSquadRoster || this.game.deployedSquadRoster.length === 0) {

@@ -25,7 +25,7 @@ const CONFIG = {
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 50,
-    RACCOON_SPEED: 150,
+    RACCOON_SPEED: 200,
     RACCOON_SIZE: 12,
     RACCOON_COLOR: '#808080',
     RACCOON_MG_DAMAGE: 7,
@@ -47,7 +47,7 @@ const CONFIG = {
     RACCOON_SPRITE_SCALE_FACTOR: 0.5,
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/', 
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
-    RACCOON_DEAD_SPRITE_SCALE: 0.06,
+    RACCOON_DEAD_SPRITE_SCALE: 0.07,
 
     // --- Units: Possum Grunt ---
     POSSUM_GRUNT_HP: 30,
@@ -110,11 +110,11 @@ const CONFIG = {
             CHASE_PREDICTION_TIME_FACTOR: 0.25, 
             CHASE_DESTINATION_REFRESH_INTERVAL: 1.0, 
             CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 4, 
-            ENGAGE_RANGE_BUFFER: 10, 
-            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3, 
+            ENGAGE_RANGE_BUFFER: 30, 
+            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 2, 
             STUCK_ENGAGE_NUDGE_FACTOR: 2.5, 
             STUCK_RECOVERY_COOLDOWN_SHORT: 0.75, 
-            DESPERATE_STUCK_MOVE_RADIUS_CELLS: 5, 
+            DESPERATE_STUCK_MOVE_RADIUS_CELLS: 10, 
         },
         POSSUM_HEAVY: {
             DETECTION_RANGE: 270,
@@ -175,7 +175,7 @@ const CONFIG = {
     },
 
     // --- Roster, Progression & Campaign ---
-    INITIAL_ROSTER_SIZE: 2,
+    INITIAL_ROSTER_SIZE: 3,
     NEW_RECRUITS_PER_MISSION_WIN: 1,
     MAX_SQUAD_SIZE_MVP: 4,
     MAX_TOTAL_ROSTER_SIZE: 10,
@@ -249,7 +249,7 @@ const CONFIG = {
         BORDER_COLOR: '#25221D', 
         BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long', 
         PLAYER_SPAWN_ZONE: { 
-            MIN_WIDTH: 150, 
+            MIN_WIDTH: 100, 
             WIDTH_FACTOR: 0.20, 
             MIN_HEIGHT: 100, 
             HEIGHT_FACTOR: 0.20, 
@@ -549,7 +549,24 @@ const CONFIG = {
             { rankName: "Elite", xpNeeded: 1000 }
         ],
         MAX_HOSTAGES_PER_MISSION: 3, 
-        MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1 
+        MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,
+        SPAWN_WITH_ENEMY_GROUPS: false, 
+        SPAWN_NEAR_CAPTORS_RADIUS: 40,  
+        MIN_CAPTORS_GROUP_SIZE: 1,      
+        HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 10,
+        SPAWN_AT_HUTS: true, 
+        MAX_HOSTAGES_PER_HUT: 1, 
+        SPAWN_OFFSET_FROM_HUT_X: 0,  
+        SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30), // A bit further below hut center
+        MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 250, // Increased distance
+        HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 15,
+        // --- NEW: Initial Guards for Hostage Huts ---
+        INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 2,
+        INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 3,
+        INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20, // 20% chance for one guard to be heavy
+        INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 60, // How far from hut center to place these guards
+        INITIAL_GUARD_PLACEMENT_ATTEMPTS: 10
+        // ---
     },
 
     AMBIENT_EFFECTS: {
