@@ -42,20 +42,17 @@ const RACCOON_NAMES = [
     "Maeve", "Seraphina", "Athena", "Calliope", "Diana", "Guinevere", "Isolde"
 ];
 
-// Function to get a random name, potentially trying to avoid active duplicates
-// This is a simple approach; for very large rosters, more complex management might be needed.
-function getRandomRaccoonName(existingNames = []) {
-    if (RACCOON_NAMES.length === 0) return "Recruit"; // Fallback
+function getRandomRaccoonName(existingNames = [], rng = Math) { // Accept RNG, default to Math.random
+    if (RACCOON_NAMES.length === 0) return "Recruit"; 
 
     let attempts = 0;
-    const maxAttempts = RACCOON_NAMES.length * 2; // Try a few times for uniqueness
+    const maxAttempts = RACCOON_NAMES.length * 2; 
     let name;
 
     do {
-        name = RACCOON_NAMES[Math.floor(Math.random() * RACCOON_NAMES.length)];
+        name = RACCOON_NAMES[Math.floor(rng.next() * RACCOON_NAMES.length)]; // Use rng.next()
         attempts++;
     } while (existingNames.includes(name) && attempts < maxAttempts && existingNames.length < RACCOON_NAMES.length);
-    // If all names are used or max attempts reached, it will just return a potentially duplicate name.
-
+    
     return name;
 }

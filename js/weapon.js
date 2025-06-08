@@ -1,5 +1,4 @@
-// js/weapon.js
-// complete
+
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
                 accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null) { 
@@ -89,30 +88,21 @@ class Projectile {
 
         let potentialTargets = [];
         if (this.shooterTeam === 'player' && this.game) {
-            // Player bullets ONLY target enemy units now.
-            potentialTargets = this.game.enemyUnits || [];
+            potentialTargets = this.game.enemyUnits || []; 
         } else if (this.shooterTeam === 'enemy' && this.game) {
-            // Enemy bullets target player-controlled units (Raccoons and rescued Hostages)
             potentialTargets = this.game.getLivingPlayerControlledUnits();
         }
 
 
         for (const targetUnit of potentialTargets) {
             if (targetUnit && targetUnit.isAlive()) {
-                // For player bullets, targetUnit will always be an enemy.
-                // For enemy bullets, targetUnit will be a player-controlled unit.
-                // No need for extra team checks here as potentialTargets is already filtered.
-
                 const distToTarget = distance(this.x, this.y, targetUnit.x, targetUnit.y);
                 if (distToTarget < targetUnit.size + this.size) { 
                     let actualDamage = this.damage;
-                    // Friendly fire multiplier is no longer needed here for player bullets,
-                    // as they won't target other player units.
-                    // If we re-introduce it, the logic would go here.
-
+                    
                     targetUnit.takeDamage(actualDamage, this.shooterUnit);
 
-                    if (this.shooterUnit && this.shooterUnit.team === 'player' && targetUnit.team === 'enemy' && typeof this.shooterUnit.addXp === 'function') {
+                    if (this.shooterUnit && this.shooterTeam === 'player' && targetUnit.team === 'enemy' && typeof this.shooterUnit.addXp === 'function') {
                         this.shooterUnit.addXp(CONFIG.XP_PER_HIT || 1);
                     }
                     this.isMarkedForDeletion = true;
@@ -144,11 +134,13 @@ class Projectile {
                     }
 
                     if (hitObstacle) {
-                        if (obs.destructible && (obs.type === 'explosive_barrel' || obs.type === 'explosive_barrel_cluster')) {
-                            this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
+                        if (obs.destructible) { 
+                            if (obs.type === 'explosive_barrel' || obs.type === 'explosive_barrel_cluster' || obs.type === 'possum_hut') {
+                                this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
+                            }
                         }
                         
-                        if (obs.blocksMovement || obs.providesCover) {
+                        if (obs.blocksMovement || obs.providesCover) { 
                             this.isMarkedForDeletion = true;
                             return;
                         }
@@ -261,12 +253,12 @@ class GrenadeProjectile {
             this.game.audioManager.play('GRENADE_EXPLODE');
         }
 
-        if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('explosion', this.x, this.y, this.aoeRadius);
+        if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('explosion', { x: this.x, y: this.y, radius: this.aoeRadius });
 
         const unitsToDamage = [];
         if (this.game && this.game.deployedSquadRoster) unitsToDamage.push(...this.game.deployedSquadRoster);
         if (this.game && this.game.enemyUnits) unitsToDamage.push(...this.game.enemyUnits);
-        if (this.game && this.game.hostageUnits) unitsToDamage.push(...this.game.hostageUnits); // Include all hostages (rescued or not) for grenade AOE
+        if (this.game && this.game.hostageUnits) unitsToDamage.push(...this.game.hostageUnits); 
 
 
         unitsToDamage.forEach(unit => {
@@ -274,8 +266,6 @@ class GrenadeProjectile {
                 const distToUnit = distance(this.x, this.y, unit.x, unit.y);
                 if (distToUnit <= this.aoeRadius + unit.size) {
                     let damageMultiplier = 1.0;
-                    // Optional: Reduced friendly fire from player grenades to other player units
-                    // This will affect Raccoons and rescued Hostages if shooter is player
                     if (this.shooterTeam === 'player' && unit.team === 'player' && unit !== this.shooterUnit) {
                         damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5; 
                     }

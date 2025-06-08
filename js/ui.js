@@ -1,5 +1,3 @@
-
-
 class UI {
     constructor(game) {
         this.game = game;
@@ -71,12 +69,18 @@ class UI {
 
         this._addSoundToButton(this.retryMissionButton, () => {
              if (this.game) {
-                if (this.game.loadMissionData(this.game.currentPhaseIndex, this.game.currentMissionIndex)) {
-                    this.showPreMissionScreen_RecruitSelect(
-                        this.game.campaignData[this.game.currentPhaseIndex],
-                        this.game.currentMissionParams,
-                        this.game.getAvailableRecruits()
-                    );
+                if (this.game.generateAndSetCurrentMissionParams(this.game.currentPhaseIndex, this.game.currentMissionIndex)) { // CORRECTED FUNCTION CALL
+                    const currentPhaseData = this.game.campaignStructure[this.game.currentPhaseIndex]; // Use campaignStructure
+                    if (currentPhaseData && this.game.currentMissionParams) {
+                        this.showPreMissionScreen_RecruitSelect(
+                            currentPhaseData,
+                            this.game.currentMissionParams, 
+                            this.game.getAvailableRecruits()
+                        );
+                    } else {
+                        console.error("UI: Failed to get phase data or mission params for retry pre-mission screen.");
+                        this.game.quitToMainMenu(); // Fallback if data is missing
+                    }
                 } else {
                     this.showGameOverScreen(this.uiText.ERROR_LOADING_MISSION_RETRY || "Error reloading mission for retry.");
                 }
@@ -318,16 +322,16 @@ class UI {
         this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'none';
 
-        if (!phaseData || !missionData) {
+        if (!phaseData || !missionData) { 
             if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = this.uiText.PREMISSION_ERROR_PHASE_TITLE || "Campaign Error";
             if(this.preMissionTitle) this.preMissionTitle.textContent = this.uiText.PREMISSION_ERROR_MISSION_TITLE || "Error Loading Mission";
             if(this.preMissionBriefing) this.preMissionBriefing.textContent = this.uiText.PREMISSION_ERROR_BRIEFING || "Could not load mission details.";
             this.preMissionScreen.style.display = 'flex'; this.setCursor('default');
             return;
         }
-        if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = phaseData.name;
-        if(this.preMissionTitle) this.preMissionTitle.textContent = missionData.name;
-        if(this.preMissionBriefing) this.preMissionBriefing.textContent = missionData.briefing;
+        if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
+        if(this.preMissionTitle) this.preMissionTitle.textContent = missionData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
+        if(this.preMissionBriefing) this.preMissionBriefing.textContent = missionData.briefing || "No briefing available.";
         if (this.game) this.game.tempSelectedForDeployment = [];
         this.refreshRecruitSelectionLists();
         this.preMissionScreen.style.display = 'flex'; this.setCursor('default');
@@ -337,21 +341,44 @@ class UI {
         if (!this.postMissionScreen || !debriefData) return;
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'none';
-        const { isVictory, phaseData, missionData, survivingRaccoons, fallenRaccoons, enemiesKilled, timeTaken, campaignComplete } = debriefData;
+        
+        const { isVictory, phaseData, missionData, survivingRaccoons, fallenRaccoons, enemiesKilled, timeTaken, campaignComplete, hostagesRecruitedCount } = debriefData;
 
         if(this.missionOutcomeText) this.missionOutcomeText.textContent = isVictory ? (this.uiText.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!") : (this.uiText.POST_MISSION_FAILED || "MISSION FAILED!");
+        
         const postMissionInfoEl = document.getElementById('postMissionInfo');
-        if(postMissionInfoEl && phaseData && missionData) postMissionInfoEl.textContent = `${phaseData.name || ""} - ${missionData.name || ""}`;
+        if(postMissionInfoEl && phaseData && missionData) {
+             postMissionInfoEl.textContent = `${phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT} - ${missionData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT}`;
+        }
+
         const statTimeTakenEl = document.getElementById('statTimeTaken');
         if (statTimeTakenEl) statTimeTakenEl.textContent = timeTaken + "s";
         const statEnemiesKilledEl = document.getElementById('statEnemiesKilled');
         if (statEnemiesKilledEl) statEnemiesKilledEl.textContent = enemiesKilled.toString();
 
+        const missionStatsContainer = document.getElementById('missionStats');
+        let hostageStatPara = document.getElementById('statHostagesRecruited');
+        if (missionStatsContainer && hostagesRecruitedCount > 0) {
+            if (!hostageStatPara) {
+                hostageStatPara = document.createElement('p');
+                hostageStatPara.id = 'statHostagesRecruited';
+                missionStatsContainer.appendChild(hostageStatPara);
+            }
+            hostageStatPara.textContent = `Hostages Recruited: ${hostagesRecruitedCount}`;
+            hostageStatPara.style.display = 'block';
+        } else if (hostageStatPara) {
+            hostageStatPara.style.display = 'none'; 
+        }
+
         const survivorListEl = document.getElementById('survivorList');
         if (survivorListEl) {
             survivorListEl.innerHTML = '';
             if (survivingRaccoons && survivingRaccoons.length > 0) {
-                survivingRaccoons.forEach(r => { const li = document.createElement('li'); li.textContent = `${r.name || r.id} - Rank: ${r.rank}, XP: ${r.xp}`; survivorListEl.appendChild(li); });
+                survivingRaccoons.forEach(r => { 
+                    const li = document.createElement('li'); 
+                    li.textContent = `${r.name || r.id} - Rank: ${r.rank}, XP: ${r.xp}${r.promotedThisMission ? ' (PROMOTED!)' : ''}`; 
+                    survivorListEl.appendChild(li); 
+                });
             } else {
                 const li = document.createElement('li');
                 li.textContent = isVictory ? (this.uiText.POST_MISSION_SURVIVORS_NONE_VICTORY || "Mission accomplished, but no Raccoons survived.") : (this.uiText.POST_MISSION_SURVIVORS_NONE_DEFEAT || "All deployed Raccoons KIA.");
@@ -362,37 +389,68 @@ class UI {
         if (fallenListEl) {
             fallenListEl.innerHTML = '';
             if (fallenRaccoons && fallenRaccoons.length > 0) {
-                fallenRaccoons.forEach(fallenBrief => { const fallenFull = this.game.fallenRaccoonsGlobal.find(frg => frg.id === fallenBrief.id) || fallenBrief; const li = document.createElement('li'); li.textContent = `${fallenFull.name || fallenBrief.id} - (Rank: ${fallenBrief.rank})`; fallenListEl.appendChild(li); });
-            } else { const li = document.createElement('li'); li.textContent = this.uiText.POST_MISSION_FALLEN_NONE || "No casualties this mission."; fallenListEl.appendChild(li); }
+                fallenRaccoons.forEach(fallenBrief => { 
+                    const fallenFull = this.game.fallenRaccoonsGlobal.find(frg => frg.id === fallenBrief.id) || fallenBrief; 
+                    const li = document.createElement('li'); 
+                    li.textContent = `${fallenFull.name || fallenBrief.id} - (Rank: ${fallenBrief.rank})`; 
+                    fallenListEl.appendChild(li); 
+                });
+            } else { 
+                const li = document.createElement('li'); 
+                li.textContent = this.uiText.POST_MISSION_FALLEN_NONE || "No casualties this mission."; 
+                fallenListEl.appendChild(li); 
+            }
         }
 
         const nextMissionBtn = document.getElementById('nextMissionButton');
         const retryMissionBtn = document.getElementById('retryMissionButton');
         const viewMemorialBtn = document.getElementById('viewMemorialButton');
-        if (viewMemorialBtn) viewMemorialBtn.style.display = (this.game && this.game.fallenRaccoonsGlobal && this.game.fallenRaccoonsGlobal.length > 0) ? 'inline-block' : 'none';
+        
+        if (viewMemorialBtn) {
+            viewMemorialBtn.style.display = (this.game && this.game.fallenRaccoonsGlobal && this.game.fallenRaccoonsGlobal.length > 0) ? 'inline-block' : 'none';
+        }
 
         if (campaignComplete && isVictory) {
-            if (nextMissionBtn) { nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign"; nextMissionBtn.style.display = 'inline-block'; nextMissionBtn.disabled = false; }
+            if (nextMissionBtn) { 
+                nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign"; 
+                nextMissionBtn.style.display = 'inline-block'; 
+                nextMissionBtn.disabled = false; 
+            }
             if (retryMissionBtn) retryMissionBtn.style.display = 'none';
         } else if (isVictory) {
             if (nextMissionBtn) {
-                 nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_NEXT_MISSION || "Next Mission";
-                 const currentPhase = this.game.campaignData[this.game.currentPhaseIndex];
-                 if (currentPhase && this.game.currentMissionIndex === currentPhase.missions.length - 1) {
-                     if (this.game.campaignData[this.game.currentPhaseIndex + 1]) {
-                         nextMissionBtn.textContent = (this.uiText.BUTTON_TEXT_START_PHASE_PREFIX || "Start ") + this.game.campaignData[this.game.currentPhaseIndex + 1].name;
-                     } else {
+                 const currentPhaseStructure = debriefData.phaseData; 
+                 const missionsInThisPhase = currentPhaseStructure.missionsInPhase;
+                 const isEndOfCurrentPhase = this.game.currentMissionIndex >= (missionsInThisPhase - 1);
+
+                 if (isEndOfCurrentPhase) { 
+                     const isEndOfCampaign = this.game.currentPhaseIndex + 1 >= this.game.totalCampaignPhases;
+                     if (!isEndOfCampaign) { 
+                         let nextPhaseName = `Phase ${this.game.currentPhaseIndex + 2}`; 
+                         if (this.game.campaignStructure[this.game.currentPhaseIndex + 1] && this.game.campaignStructure[this.game.currentPhaseIndex + 1].name) {
+                             nextPhaseName = this.game.campaignStructure[this.game.currentPhaseIndex + 1].name;
+                         }
+                         nextMissionBtn.textContent = (this.uiText.BUTTON_TEXT_START_PHASE_PREFIX || "Start ") + nextPhaseName;
+                     } else { 
                          nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats";
                      }
+                 } else {
+                     nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_NEXT_MISSION || "Next Mission";
                  }
-                 nextMissionBtn.style.display = 'inline-block'; nextMissionBtn.disabled = false;
+                 nextMissionBtn.style.display = 'inline-block'; 
+                 nextMissionBtn.disabled = false;
             }
             if (retryMissionBtn) retryMissionBtn.style.display = 'none';
-        } else {
+        } else { // Mission Failed
             if (nextMissionBtn) nextMissionBtn.style.display = 'none';
-            if (retryMissionBtn) { retryMissionBtn.textContent = this.uiText.BUTTON_TEXT_RETRY_MISSION || "Retry Mission"; retryMissionBtn.style.display = 'inline-block'; retryMissionBtn.disabled = !(this.game && this.game.getAvailableRecruits().length > 0); }
+            if (retryMissionBtn) { 
+                retryMissionBtn.textContent = this.uiText.BUTTON_TEXT_RETRY_MISSION || "Retry Mission"; 
+                retryMissionBtn.style.display = 'inline-block'; 
+                retryMissionBtn.disabled = !(this.game && this.game.getAvailableRecruits().length > 0); 
+            }
         }
-        this.postMissionScreen.style.display = 'flex'; this.setCursor('default');
+        this.postMissionScreen.style.display = 'flex'; 
+        this.setCursor('default');
     }
 
     showRecruitMemorialScreen() {
@@ -412,7 +470,7 @@ class UI {
                     <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_NAME || "Name:"}</span> <span class="field-value">${fallen.name || fallen.id}</span></div>
                     <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_RANK || "Rank Achieved:"}</span> <span class="field-value">${fallen.rank || 'Recruit'}</span></div>
                     <div><span class.field-label">${this.uiText.MEMORIAL_LABEL_MISSION || "Fell In:"}</span> <span class="field-value">${fallen.missionDied || (this.uiText.UNKNOWN_MISSION_TEXT || "Unknown Mission")}</span></div>
-                    <div><span class.field-label">${this.uiText.MEMORIAL_LABEL_PHASE || "During:"}</span> <span class="field-value">${fallen.phaseDied || (this.uiText.UNKNOWN_PHASE_TEXT || "Unknown Phase")}</span></div>`;
+                    <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_PHASE || "During:"}</span> <span class="field-value">${fallen.phaseDied || (this.uiText.UNKNOWN_PHASE_TEXT || "Unknown Phase")}</span></div>`;
                 entryDiv.appendChild(infoDiv); this.memorialEntriesContainer.appendChild(entryDiv);
             });
         } else {
@@ -467,14 +525,13 @@ class UI {
                 }
             } else if (params.objectiveType === "RESCUE_HOSTAGES") {
                 const rescuedAliveCount = this.game.hostageUnits ? this.game.hostageUnits.filter(h => h.isRescued && h.isAlive()).length : 0;
-                const minToWin = params.minHostagesToRescueForWin || (CONFIG.HOSTAGE_SETTINGS && CONFIG.HOSTAGE_SETTINGS.MIN_HOSTAGES_TO_RESCUE_FOR_WIN) || 1;
+                const minToWin = params.minHostagesToRescue !== undefined ? params.minHostagesToRescue : 1; // Use the generated param
                 
                 if (allInitialEnemiesDefeated && rescuedAliveCount >= minToWin) {
-                    // Check if hostages are at extraction
                     let hostagesAtEvac = 0;
                     const extractionZones = this.game.level.obstacles.filter(obs => obs.type === 'extraction_zone');
                     if (extractionZones.length > 0) {
-                        const firstZone = extractionZones[0]; // Assuming one zone for now
+                        const firstZone = extractionZones[0]; 
                         this.game.hostageUnits.forEach(h => {
                             if (h.isRescued && h.isAlive() &&
                                 h.x >= firstZone.x && h.x <= firstZone.x + firstZone.width &&
@@ -487,6 +544,15 @@ class UI {
                                    ` (${this.uiText.OBJECTIVE_RESCUE_HOSTAGES_AT_EVAC.replace('{COUNT}', hostagesAtEvac).replace('{TOTAL}', minToWin)})`;
                 } else {
                      objectiveStr = `Rescue: ${rescuedAliveCount}/${minToWin} (Min). Defeat Possums: ${this.game.initialEnemyCount - aliveEnemies}/${this.game.initialEnemyCount}`;
+                }
+            } else if (params.objectiveType === "DESTROY_TARGET") {
+                const totalTargets = params.numDestroyTargets !== undefined ? Math.round(params.numDestroyTargets) : 0; // Use generated param
+                const destroyedCount = this.game.level.missionTargetObstacles ? this.game.level.missionTargetObstacles.filter(t => t.isDestroyed).length : 0;
+                objectiveStr = `Destroy Targets: ${destroyedCount} / ${totalTargets}`;
+                if (allInitialEnemiesDefeated && destroyedCount >= totalTargets) {
+                    objectiveStr = `All Targets Destroyed! (Defeat remaining Possums)`;
+                } else if (destroyedCount >= totalTargets) {
+                     objectiveStr = `Targets Destroyed! Clear out remaining Possums! (${this.game.initialEnemyCount - aliveEnemies}/${this.game.initialEnemyCount})`;
                 }
             }
             
@@ -534,14 +600,21 @@ class UI {
 
             const isKIA = !raccoon.isAlive(); 
             let statusText = 'Active';
-            if (isKIA) statusText = 'KIA';
-            else if (raccoon.isHoldingPosition && raccoon.isHoldingFire) statusText = 'Hold Pos & Fire';
-            else if (raccoon.isHoldingPosition) statusText = 'Holding Position';
-            else if (raccoon.isHoldingFire) statusText = 'Holding Fire';
-            else if (raccoon.isAimingGrenade) statusText = 'Aiming Grnd';
-            else if (raccoon.isPlayerDirectFiring) statusText = 'Firing MG';
-            else if (raccoon.actionTimer > 0) statusText = 'Busy';
-            else if (raccoon.manualTarget) statusText = 'Targeting';
+            if (isKIA) {
+                statusText = 'KIA';
+            // MODIFIED: Removed Hold Pos & Fire, Holding Position, Holding Fire status lines for Raccoons
+            } else if (raccoon.isAimingGrenade) {
+                statusText = 'Aiming Grnd';
+            } else if (raccoon.isPlayerDirectFiring) {
+                statusText = 'Firing MG';
+            } else if (raccoon.actionTimer > 0) {
+                statusText = 'Busy';
+            } else if (raccoon.manualTarget) {
+                statusText = 'Targeting';
+            }
+            // Note: The original `raccoon.isHoldingPosition` and `raccoon.isHoldingFire` properties
+            // on the Raccoon object still exist but are no longer toggled by H/J keys
+            // and their status is no longer displayed here.
 
             const statusClass = isKIA ? 'status-kia' : '';
             const hpPercent = isKIA ? 0 : Math.max(0, (raccoon.hp / raccoon.maxHp)) * 100;

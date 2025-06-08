@@ -271,18 +271,16 @@ const CONFIG = {
                 MAX_SCALE: 1.5
             }
         },
-        // --- NEW: EXTRACTION ZONE SETTINGS ---
         EXTRACTION_ZONE_SETTINGS: {
-            SPRITE_PATH: null, //'assets/images/objects/extraction_zone_rope_heli.png', // Optional sprite
-            FALLBACK_COLOR: 'rgba(60, 120, 255, 0.35)', // Semi-transparent blue
-            WIDTH: 120,  // Fallback width if no sprite
-            HEIGHT: 120, // Fallback height if no sprite
+            SPRITE_PATH: null, // Set to null to use canvas drawing
+            FALLBACK_COLOR: 'rgba(60, 120, 255, 0.35)', 
+            WIDTH: 120,
+            HEIGHT: 120,
             NAME: "Extraction Zone",
-            PLACEMENT_MARGIN_FROM_EDGE: 30, // How far from world edge to try and place it
+            PLACEMENT_MARGIN_FROM_EDGE: 30,
             MIN_DISTANCE_FROM_PLAYER_SPAWN: 900,
             MAX_PLACEMENT_ATTEMPTS: 20
         }
-        // ---
     },
     
     GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/',
@@ -322,6 +320,10 @@ const CONFIG = {
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
     POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
     POSSUM_HUT_SPRITE_FILES: ['possum_hut_1.png'],
+    POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
+    POSSUM_RELAY_TOWER_SPRITE_FILES: ['possum_tower_1.png'],
+
+
     HEALTH_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/health/',
     HEALTH_PICKUP_SPRITE_FILES: ['health_pickup_crate.png'],
 
@@ -372,7 +374,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 8, isDecoration: false,
             spriteScale: 0.3, 
-            collisionShape: { type: 'ellipse', offsetX: (w => w*0.45), offsetY: (h => h*0.45), radiusX: (w => w*0.45), radiusY: (h => h*0.25) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w*0.45), offsetY: (h => h*0.42), radiusX: (w => w*0.45), radiusY: (h => h*0.25) },
         },
         {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
@@ -388,7 +390,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 6, isDecoration: false,
             spriteScale: 0.4, 
-            collisionShape: { type: 'circle', offsetX: (w=>w*0.4), offsetY: (h=>h*1.22), radius: (w => w * 0.15) },
+            collisionShape: { type: 'circle', offsetX: (w=>w*0.4), offsetY: (h=>h*1.2), radius: (w => w * 0.12) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
         },
@@ -434,14 +436,14 @@ const CONFIG = {
             spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
             spriteScale: 1.20, 
             spriteDestroyed: null,
-            collisionShape: { type: 'rectangle', offsetX: (w=>w*0.041), offsetY: (h=>h*0.2), width: (w=>w*0.852), height: (h=>h*0.2) },
+            collisionShape: { type: 'rectangle', offsetX: (w=>w*0.041), offsetY: (h=>h*0.175), width: (w=>w*0.852), height: (h=>h*0.2) },
             isDecoration: false
         },
         {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3,
+            spawnWeight: 2,
             explosionDamage: 50, explosionAoeRadius: 80,
             spriteNormal: 'assets/images/objects/barrels/barrel_red.png',
             spriteScale: 0.08, 
@@ -452,7 +454,7 @@ const CONFIG = {
             type: 'explosive_barrel_cluster', name: 'Cluster Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
+            spawnWeight: 1,
             explosionDamage: 90, explosionAoeRadius: 120,
             spriteNormal: 'assets/images/objects/barrels/barrel_cluster.png',
             spriteScale: 0.08, 
@@ -475,7 +477,7 @@ const CONFIG = {
             type: 'pickup_health', name: 'Health Crate', color: '#FF69B4',
             destructible: true, hp: 1, maxHp: 1,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 2,
+            spawnWeight: 1,
             pickupType: 'health', pickupQuantity: 30,
             spriteScale: 0.25, 
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.0625), offsetY: (h=>h*0.0625), width: (w=>w*0.875), height: (h=>h*0.84) },
@@ -485,13 +487,35 @@ const CONFIG = {
             type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1,
+            spawnWeight: 0.5,
             spriteScale: 0.5, 
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
             spriteDestroyedScale: 0.5, 
-            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.48), offsetY: (h=>h*0.45), radiusX: (w=>w*0.4), radiusY: (h=>h*0.315) },
+            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.48), offsetY: (h=>h*0.45), radiusX: (w=>w*0.35), radiusY: (h=>h*0.29) },
             isDecoration: false,
         },
+        // possum relay tower
+        {
+            type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',
+            destructible: true, hp: 150, maxHp: 150,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.4,
+            spriteScale: 0.9,
+            spriteNormal: 'assets/images/objects/possums/towers/possum_tower_1.png', 
+            spriteDestroyed: 'assets/images/objects/possums/towers/possum_relay_tower_destroyed.png',
+            spriteDestroyedScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.15), radiusX: (w=>w*0.44), radiusY: (h=>h*0.33) },
+            isDecoration: false,
+        },
+        {
+            type: 'extraction_zone', name: 'Extraction Zone', color: '#3C78FF',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: false, providesCover: false,
+            spriteNormal: null,
+            spawnWeight: 0, isDecoration: true,
+            spriteScale: 0.5, 
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8) },
+        }
         
     ],
 
@@ -511,23 +535,26 @@ const CONFIG = {
         HEAVY_CHANCE_GROUP_LEADER_BONUS: 0.1,
 
         POSSUM_HUT_SPAWNING: {
-            MAX_ACTIVE_SPAWNING_HUTS_BASE: 3,
-            MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 2,
-            SPAWN_COOLDOWN_MIN_SECONDS: 30,
-            SPAWN_COOLDOWN_MAX_SECONDS: 180,
-            UNITS_PER_SPAWN_MIN: 2,
-            UNITS_PER_SPAWN_MAX: 6,
+            MAX_ACTIVE_SPAWNING_HUTS_BASE: 1,
+            MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 1,
+            SPAWN_COOLDOWN_MIN_SECONDS: 30, // Cooldown for the *next full spawn event/burst*
+            SPAWN_COOLDOWN_MAX_SECONDS: 120,
+            UNITS_PER_SPAWN_MIN: 2, 
+            UNITS_PER_SPAWN_MAX: 4, // Slightly reduced max per burst for trickle effect
+            TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.4, 
+            TIME_BETWEEN_UNITS_IN_BURST_MAX: 0.9, 
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.25, 
-            INITIAL_SPAWN_DELAY_SECONDS_MIN: 5,
+            INITIAL_SPAWN_DELAY_SECONDS_MIN: 5, // Delay before the *first unit* of the *first burst*
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 10,
-            PLAYER_PROXIMITY_TRIGGER_RADIUS: 50,
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 250, // Increased trigger radius
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65, 
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3, 
             SPAWN_AREA_WIDTH: 40,
             SPAWN_PHASING_DURATION: 1.25,
-            DEBUG_DRAW_SPAWN_AREAS: false,
+            DEBUG_DRAW_SPAWN_AREAS: false, // Set true to see hut spawn zones
+            DEBUG_DRAW_HUT_STATUS_TEXT: false, // NEW: For drawing hut status
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
-            MAX_SPAWN_ATTEMPTS_PER_HUT_EVENT: 5,
+            MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5, // Attempts for one unit in a burst
             INITIAL_MOVE_OUT_DISTANCE: 25,
         }
     },
@@ -550,13 +577,13 @@ const CONFIG = {
         ],
         MAX_HOSTAGES_PER_MISSION: 3, 
         MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,
-        SPAWN_WITH_ENEMY_GROUPS: false, 
+        SPAWN_WITH_ENEMY_GROUPS: true, 
         SPAWN_NEAR_CAPTORS_RADIUS: 40,  
         MIN_CAPTORS_GROUP_SIZE: 1,      
         HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 10,
         SPAWN_AT_HUTS: true, 
         MAX_HOSTAGES_PER_HUT: 1, 
-        SPAWN_OFFSET_FROM_HUT_X: 0,  
+        SPAWN_OFFSET_FROM_HUT_X: -30,  
         SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30), // A bit further below hut center
         MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 250, // Increased distance
         HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 15,

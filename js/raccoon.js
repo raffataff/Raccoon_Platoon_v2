@@ -1,5 +1,3 @@
-// js/raccoon.js
-// complete
 class Raccoon extends Unit {
     constructor(x, y, game, id, faceImageUrl, name,
                 existingXP = 0, existingRank = null, existingKills = 0) {
@@ -11,7 +9,7 @@ class Raccoon extends Unit {
         this.isAimingGrenade = false;
         this.grenadeTargetUnit = null;
         this.grenadeMoveToTargetPos = null;
-        this.grenadeCooldownTimer = 0; // NEW: Specific cooldown for grenades
+        this.grenadeCooldownTimer = 0; 
 
         this.xp = existingXP;
         this.rank = existingRank || (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[0] ? CONFIG.RANK_THRESHOLDS[0].rankName : "Recruit");
@@ -66,7 +64,7 @@ class Raccoon extends Unit {
             const nextRankData = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1];
             if (this.xp >= nextRankData.xpNeeded) {
                 this.rank = nextRankData.rankName; promoted = true;
-                if (this.game && this.game.addVisualEffect) this.game.addVisualEffect('promotion', this.x, this.y, this.id);
+                if (this.game && this.game.addVisualEffect) this.game.addVisualEffect('promotion', { unitId: this.id });
                 this.applyRankBonuses(); currentRankData = nextRankData; currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
                 this.updateXpToNextRank();
             } else break;
@@ -77,23 +75,17 @@ class Raccoon extends Unit {
     update(deltaTime) {
         if (!this.isAlive()) return;
 
-        if (this.grenadeCooldownTimer > 0) { // MODIFIED: Decrement grenade cooldown
+        if (this.grenadeCooldownTimer > 0) { 
             this.grenadeCooldownTimer -= deltaTime;
             if (this.grenadeCooldownTimer < 0) this.grenadeCooldownTimer = 0;
         }
 
         if (this.isAimingGrenade) {
             this._handleAimingMovement(deltaTime);
-            // Since we're aiming a grenade, other actions in super.update() might be skipped or handled differently.
-            // We specifically call super.update *conditionally* or handle its parts.
-            // For now, let's assume aiming grenade means no other super.update() logic (like movement or combat) should run.
-            // If aiming *while* moving becomes a feature, this will need adjustment.
-            // The current Raccoon `_handleAimingMovement` updates facingAngle for aiming.
-            // No call to super.update() here to allow free aiming without typical unit update cycle overriding it.
             return;
         }
 
-        super.update(deltaTime); // Call general unit update (movement, other timers, etc.)
+        super.update(deltaTime); 
         this.checkForAndApplyPickups();
     }
 
@@ -123,14 +115,12 @@ class Raccoon extends Unit {
                 this.game.inputHandler.isShiftHoldFiring = false;
             }
         }
-        // MODIFIED: Added grenadeCooldownTimer check
         if (this.grenadeAmmo > 0 && this.actionTimer <= 0 && this.grenadeCooldownTimer <= 0) {
             this.isAimingGrenade = true; this.manualTarget = null; this.autoTarget = null;
             this.grenadeTargetUnit = targetUnit;
             this.grenadeMoveToTargetPos = null;
             if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         } else if (this.grenadeCooldownTimer > 0) {
-            // Optional: Log or notify player that grenade is on cooldown
             console.log(`[${this.id}] Grenade on cooldown for ${this.grenadeCooldownTimer.toFixed(1)}s`);
         } else if (this.grenadeAmmo <= 0) {
             const logMsgTemplate = (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.RACCOON_OUT_OF_GRENADES_LOG) || "Raccoon {ID}: Out of grenades!";
@@ -141,8 +131,8 @@ class Raccoon extends Unit {
     cancelGrenadeAim() {
         if (!this.isAimingGrenade) return;
         this.isAimingGrenade = false;
-        this.isMoving = false; // Stop any movement related to grenade aiming
-        this.currentPath = []; // Clear path if one was set for grenade aiming
+        this.isMoving = false; 
+        this.currentPath = []; 
         this.grenadeTargetUnit = null;
         this.grenadeMoveToTargetPos = null;
         if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
@@ -150,18 +140,16 @@ class Raccoon extends Unit {
     }
 
     confirmThrowGrenade(targetX, targetY) {
-        // MODIFIED: Check grenadeCooldownTimer as well
         if (!this.isAimingGrenade || this.grenadeAmmo <= 0 || this.actionTimer > 0 || this.grenadeCooldownTimer > 0) return false;
         this.grenadeAmmo--;
         this.isAimingGrenade = false;
         this.grenadeTargetUnit = null;
         this.grenadeMoveToTargetPos = null;
-        this.isMoving = false; // Ensure raccoon stops movement initiated for grenade aiming
+        this.isMoving = false; 
         this.currentPath = [];
 
-        // MODIFIED: Set grenadeCooldownTimer instead of actionTimer
         this.grenadeCooldownTimer = CONFIG.RACCOON_GRENADE_THROW_COOLDOWN || 1.0;
-        this.actionTimer = 0; // Ensure general action timer is cleared
+        this.actionTimer = 0; 
 
         this.facingAngle = Math.atan2(targetY - this.y, targetX - this.x);
         this.gunAimAngle = this.facingAngle;
@@ -172,7 +160,7 @@ class Raccoon extends Unit {
     }
 
     moveToGrenadeRange(enemyTarget) {
-        if (!this.isAimingGrenade || !enemyTarget || this.actionTimer > 0 || this.grenadeCooldownTimer > 0) return; // MODIFIED: Check grenadeCooldownTimer
+        if (!this.isAimingGrenade || !enemyTarget || this.actionTimer > 0 || this.grenadeCooldownTimer > 0) return;
 
         const preferredRangeFactor = CONFIG.RACCOON_GRENADE_PREFERRED_THROW_RANGE_FACTOR || 0.9;
         const preferredThrowRange = CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX * preferredRangeFactor;
@@ -221,7 +209,7 @@ class Raccoon extends Unit {
         }
         for (let i = this.game.level.obstacles.length - 1; i >= 0; i--) {
             const obs = this.game.level.obstacles[i];
-            if (obs && obs.isPickup && !obs.isDestroyed && obs.pickupType && obs.pickupQuantity !== undefined) { // Check quantity defined
+            if (obs && obs.isPickup && !obs.isDestroyed && obs.pickupType && obs.pickupQuantity !== undefined) { 
                 const raccoonLeft = this.x - this.size / 2;
                 const raccoonRight = this.x + this.size / 2;
                 const raccoonTop = this.y - this.size / 2;
@@ -249,7 +237,7 @@ class Raccoon extends Unit {
             if (this.game && this.game.ui) {
                 this.game.ui.updateSquadPanel();
             }
-        } else if (pickupObstacle.pickupType === 'health') { // --- NEW HEALTH PICKUP LOGIC ---
+        } else if (pickupObstacle.pickupType === 'health') { 
             if (this.hp < this.maxHp) {
                 this.hp += pickupObstacle.pickupQuantity;
                 if (this.hp > this.maxHp) {
@@ -257,7 +245,7 @@ class Raccoon extends Unit {
                 }
                 console.log(`[${this.id}] picked up health. HP: ${this.hp}/${this.maxHp}`);
                 if (this.game && this.game.ui) {
-                    this.game.ui.updateSquadPanel(); // Update UI to reflect new health
+                    this.game.ui.updateSquadPanel(); 
                 }
             }
         }

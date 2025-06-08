@@ -1,3 +1,4 @@
+// js/unit.js
 class Unit {
     constructor(x, y, game, team, hp, speed, size, color, id) {
         this.x = x; this.y = y; this.game = game; this.team = team;
@@ -182,7 +183,10 @@ class Unit {
                     if (typeof this.onStuck === 'function') this.onStuck('path_follow_stuck'); else { this.isMoving = false; this.currentPath = []; }
                     if(this.isMoving && this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
                          const newNextNode = this.currentPath[this.currentPathNodeIndex];
-                         this.pathingStuckCheckPosition = { distToNode: distance(this.x, this.y, newNextNode.x, newNextNode.y), selfX: this.x, selfY: this.y };
+                         this.pathingStuckCheckPosition = {
+                            distToNode: distance(this.x, this.y, newNextNode.x, newNextNode.y),
+                            selfX: this.x, selfY: this.y
+                        };
                     } else { this.pathingStuckCheckPosition = {distToNode: Infinity, selfX: this.x, selfY: this.y }; }
                 }
             } else if (!this.currentPath || this.currentPath.length === 0) { 
@@ -207,6 +211,7 @@ class Unit {
         
 
         if (this instanceof Raccoon && this.isAimingGrenade) {
+            // Aiming logic handles gunAimAngle
         } else if (this.isPlayerDirectFiring && this.playerDirectFireTargetPos && this.team === 'player') {
             if (distance(this.x, this.y, this.playerDirectFireTargetPos.x, this.playerDirectFireTargetPos.y) > 0.1) {
                 this.gunAimAngle = Math.atan2(this.playerDirectFireTargetPos.y - this.y, this.playerDirectFireTargetPos.x - this.x);
@@ -235,8 +240,6 @@ class Unit {
                 this._handleEnemyCombat(deltaTime, this.game.level.obstacles);
             }
         }
-
-
         
         if (!this.isAlive()) {
             this.currentVisualState = 'death';
@@ -244,7 +247,7 @@ class Unit {
             this.currentVisualState = 'walk';
             this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
         } else if ((this.manualTarget || this.autoTarget || this.isPlayerDirectFiring) && this.attackCooldown <= 0 && this.actionTimer <= 0 && !(this instanceof Raccoon && this.isAimingGrenade)) {
-            if (!this.isHoldingFire || this.isPlayerDirectFiring) { 
+            if (!(this.team === 'player' && this.isHoldingFire) || this.isPlayerDirectFiring) { 
                 this.currentVisualState = 'fire';
                 if (!(this instanceof Raccoon && this.isAimingGrenade)) {
                      this.facingAngle = this.gunAimAngle;
@@ -258,8 +261,9 @@ class Unit {
         
         if (this instanceof Raccoon) {
             if (this.isAimingGrenade) {
+                // Grenade aiming logic in Raccoon.js will set facingAngle
             } else if (this.isPlayerDirectFiring || (this.manualTarget && this.manualTarget.isAlive()) || (this.autoTarget && this.autoTarget.isAlive())) {
-                if (!this.isHoldingFire || this.isPlayerDirectFiring) {
+                if (!(this.team === 'player' && this.isHoldingFire) || this.isPlayerDirectFiring) {
                     this.facingAngle = this.gunAimAngle;
                 }
             }
@@ -316,7 +320,7 @@ class Unit {
                 if (distance(this.x, this.y, firstNodeWorld.x, firstNodeWorld.y) > 0.1) {
                     this.facingAngle = Math.atan2(firstNodeWorld.y - this.y, firstNodeWorld.x - this.x);
                 }
-                if (!this.manualTarget && !this.autoTarget && !this.isPlayerDirectFiring) {
+                if (!this.manualTarget && !this.autoTarget && !this.isPlayerDirectFiring) { 
                     this.gunAimAngle = this.facingAngle;
                 }
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Smoothed path len: ${this.currentPath.length}. isMoving=true. Initial facing set.`);
@@ -374,7 +378,7 @@ class Unit {
                     if (this.currentPathNodeIndex >= this.currentPath.length) {
                         this.isMoving = false; this.currentPath = [];
                         if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < this.size) {
-                            this.isPhasing = false;
+                            this.isPhasing = false; 
                         }
                     }
                 }
@@ -392,7 +396,7 @@ class Unit {
 
         if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
             this.isMoving = false; this.currentPath = []; this.currentPathNodeIndex = 0;
-            if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < this.size) {
+            if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < this.size) { 
                 this.x = this.worldTargetX; this.y = this.worldTargetY;
             }
             this.lastDeltaX = 0; this.lastDeltaY = 0;
@@ -421,8 +425,8 @@ class Unit {
         let desiredDeltaX = 0;
         let desiredDeltaY = 0;
 
-        if (distToNextNode > 1e-5) {
-            const moveRatio = Math.min(1, moveSpeed / distToNextNode);
+        if (distToNextNode > 1e-5) { 
+            const moveRatio = Math.min(1, moveSpeed / distToNextNode); 
             desiredDeltaX = dxToNode * moveRatio;
             desiredDeltaY = dyToNode * moveRatio;
         }
@@ -430,10 +434,10 @@ class Unit {
         let finalDeltaX = desiredDeltaX;
         let finalDeltaY = desiredDeltaY;
 
-        if (distToNextNode > 1e-5) {
+        if (distToNextNode > 1e-5) { 
             const potentialNewX_combined = this.x + desiredDeltaX;
             const potentialNewY_combined = this.y + desiredDeltaY;
-            const collisionCheckRadius = this.size / 2 + 0.5;
+            const collisionCheckRadius = this.size / 2 + 0.5; 
             const unitBodyShape_combined = { type: 'circle', x: potentialNewX_combined, y: potentialNewY_combined, radius: collisionCheckRadius };
 
             let isCollisionWithDesiredMove = false;
@@ -541,16 +545,14 @@ class Unit {
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
 
-        
         if (this.team === 'player' && this.isHoldingPosition) {
             this.isHoldingPosition = false;
             if (this.game && this.game.ui) this.game.ui.updateSquadPanel(); 
         }
         
-
         if (this.team === 'player') {
             this.autoTarget = null;
-        } else {
+        } else { 
             this.autoTarget = null;
         }
 
@@ -607,21 +609,27 @@ class Unit {
         if (navGrid[targetGridY][targetGridX] === 1) {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} setMoveTarget] Original target cell (${targetGridX},${targetGridY}) is blocked. Searching for alternative.`);
             let foundAlternative = false;
-            const directions = [ {x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}, {x:-1,y:-1},{x:1,y:-1},{x:-1,y:1},{x:1,y:1},
-                                 {x:0,y:-2},{x:0,y:2},{x:-2,y:0},{x:2,y:0},{x:-2,y:-2},{x:2,y:-2},{x:-2,y:2},{x:2,y:2}];
-            for (const dir of directions) {
-                const altGridX = targetGridX + dir.x;
-                const altGridY = targetGridY + dir.y;
-                if (altGridX >= 0 && altGridX < this.game.level.gridWidth &&
-                    altGridY >= 0 && altGridY < this.game.level.gridHeight &&
-                    navGrid[altGridY][altGridX] === 0) {
+            for (let r = 1; r <= 3 && !foundAlternative; r++) {
+                for (let dy = -r; dy <= r; dy++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue; 
 
-                    const altWorldCoords = this.game.level.gridToWorldCoords(altGridX, altGridY);
-                    finalWorldTargetX = altWorldCoords.x;
-                    finalWorldTargetY = altWorldCoords.y;
-                    foundAlternative = true;
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} setMoveTarget] Found alternative walkable target at grid (${altGridX},${altGridY}), world (${finalWorldTargetX.toFixed(0)},${finalWorldTargetY.toFixed(0)}).`);
-                    break;
+                        const altGridX = targetGridX + dx;
+                        const altGridY = targetGridY + dy;
+
+                        if (altGridX >= 0 && altGridX < this.game.level.gridWidth &&
+                            altGridY >= 0 && altGridY < this.game.level.gridHeight &&
+                            navGrid[altGridY][altGridX] === 0) {
+
+                            const altWorldCoords = this.game.level.gridToWorldCoords(altGridX, altGridY);
+                            finalWorldTargetX = altWorldCoords.x;
+                            finalWorldTargetY = altWorldCoords.y;
+                            foundAlternative = true;
+                            if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} setMoveTarget] Found alternative walkable target at grid (${altGridX},${altGridY}), world (${finalWorldTargetX.toFixed(0)},${finalWorldTargetY.toFixed(0)}).`);
+                            break;
+                        }
+                    }
+                    if (foundAlternative) break;
                 }
             }
             if (!foundAlternative) {
@@ -670,14 +678,14 @@ class Unit {
             fireAtX = targetToShoot.x;
             fireAtY = targetToShoot.y;
         } else {
-            const potentialTargets = this.game.getLivingPlayerControlledUnits(); // MODIFIED
+            const potentialTargets = this.game.getLivingPlayerControlledUnits(); 
             this.findAutoTarget(potentialTargets, obstacles);
             if (this.autoTarget) {
                 targetToShoot = this.autoTarget;
                 fireAtX = targetToShoot.x;
                 fireAtY = targetToShoot.y;
             }
-            else { return; }
+            else { return; } 
         }
         if (fireAtX === undefined || fireAtY === undefined) return;
 
@@ -693,8 +701,8 @@ class Unit {
                     if (this.isMoving && !this.canShootWhileMoving) {} else {
                         this._executeFire(fireAtX, fireAtY, this.gunAimAngle);
                     }
-                } else { if (targetToShoot === this.autoTarget) this.autoTarget = null; }
-            } else { if (targetToShoot === this.autoTarget) this.autoTarget = null; }
+                } else { if (targetToShoot === this.autoTarget) this.autoTarget = null; } 
+            } else { if (targetToShoot === this.autoTarget) this.autoTarget = null; } 
         }
     }
 
@@ -703,12 +711,6 @@ class Unit {
             return;
         }
         
-        if (this.isHoldingFire) {
-            this.autoTarget = null; 
-            return;
-        }
-        
-
         let targetToShoot = null;
         let fireAtX, fireAtY;
 
@@ -752,12 +754,6 @@ class Unit {
 
     findAutoTarget(potentialTargets, obstacles) {
         
-        if (this.team === 'player' && this.isHoldingFire) {
-            this.autoTarget = null;
-            return;
-        }
-        
-
         let closestTarget = null;
         let engagementRange = (this.weapon ? this.weapon.range : (this.detectionRange || 150));
         if (this.team === 'player' && this instanceof Raccoon && this.weapon) {
@@ -772,7 +768,7 @@ class Unit {
         }
         const activeObstacles = Array.isArray(obstacles) ? obstacles.filter(o => !o.isDestroyed && o.blocksMovement) : [];
         potentialTargets.forEach(target => {
-            if (target && target.isAlive() && target.team !== this.team && target.team !== 'neutral') { // Ensure not targeting neutral hostages
+            if (target && target.isAlive() && target.team !== this.team && target.team !== 'neutral') { 
                 const dx = target.x - this.x; const dy = target.y - this.y;
                 const dSq = dx*dx + dy*dy;
                 if (dSq <= minDistanceSq) {
@@ -790,17 +786,14 @@ class Unit {
 
     _executeFire(pointX, pointY, fireAngle = null) {
         if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) { return; }
-
         
         if (this.team === 'player' && this.isHoldingFire && !this.isPlayerDirectFiring) {
-            return;
+             return; 
         }
         
-
         if (this.isMoving && !this.canShootWhileMoving && !this.isPlayerDirectFiring) {
             return;
         }
-
 
         let baseAccuracy = this.isMoving ? this.weapon.accuracyMoving : this.weapon.accuracyStationary;
         if (this.team === 'player' && this.accuracyBonus) { baseAccuracy += this.accuracyBonus; }
@@ -823,7 +816,6 @@ class Unit {
                                  : 0;
         const jitter = Math.random() * baseCooldown * jitterPercentage;
         this.attackCooldown = baseCooldown + jitter;
-
 
         if (this.weapon.sfxFireKey && this.game && this.game.audioManager) {
             const sfxConfig = CONFIG.AUDIO_ASSETS[this.weapon.sfxFireKey];
@@ -854,11 +846,11 @@ class Unit {
             this.hp = 0; died = true;
             if (attackerUnit && attackerUnit.team === 'player' && typeof attackerUnit.addXp === 'function') {
                 let killXp = CONFIG.XP_PER_KILL || 10;
-                if (this instanceof PossumHeavy) killXp += (CONFIG.XP_FOR_HEAVY_KILL || 15);
+                if (this instanceof PossumHeavy) killXp += (CONFIG.XP_PER_HEAVY_KILL || 15);
                 attackerUnit.addXp(killXp);
                 if (typeof attackerUnit.incrementKillCount === 'function') attackerUnit.incrementKillCount();
             }
-            this.die(); // Calls the die method of the specific unit type (Raccoon, Possum, Hostage)
+            this.die(); 
         }
 
         if (!died && this.team === 'enemy' && attackerUnit && attackerUnit.team === 'player') {
@@ -869,7 +861,7 @@ class Unit {
             if (this.manualTarget !== attackerUnit) {
                 this.manualTarget = attackerUnit;
                 becameAware = true;
-            } else {
+            } else { 
                 becameAware = true;
             }
 
@@ -890,17 +882,17 @@ class Unit {
         if (!this.isAlive() || this.team !== 'enemy' || !this.game || !this.game.enemyUnits) return;
         this.game.enemyUnits.forEach(otherEnemy => {
             if (otherEnemy && otherEnemy.isAlive() && otherEnemy !== this &&
-                (otherEnemy.aiState === 'PATROLLING' || otherEnemy.aiState === 'GUARDING')) {
+                (otherEnemy.aiState === 'PATROLLING' || otherEnemy.aiState === 'GUARDING')) { 
                 const distToOtherEnemy = distance(this.x, this.y, otherEnemy.x, otherEnemy.y);
                 if (distToOtherEnemy <= (CONFIG.ENEMY_ALERT_PROPAGATION_RADIUS || 180)) {
                     otherEnemy.alertedByAlly = true;
                     if (sourceOfAlertUnit && sourceOfAlertUnit.isAlive()) {
                         otherEnemy.lastKnownPlayerPosition = { x: sourceOfAlertUnit.x, y: sourceOfAlertUnit.y };
-                        otherEnemy.manualTarget = sourceOfAlertUnit;
+                        otherEnemy.manualTarget = sourceOfAlertUnit; 
                         if (CONFIG.DEBUG_PATHING_UNIT_ID === otherEnemy.id) console.log(`[${otherEnemy.id} propagateAlert] Alerted by ${this.id}. Setting manualTarget to ${sourceOfAlertUnit.id}. Will transition in next AI tick.`);
                     } else {
                         otherEnemy.lastKnownPlayerPosition = { x: this.x, y: this.y };
-                        otherEnemy.aiState = 'SUSPICIOUS';
+                        otherEnemy.aiState = 'SUSPICIOUS'; 
                     }
                 }
             }
@@ -916,11 +908,10 @@ class Unit {
         if (this.game && this.game.selectedUnits.includes(this)) {
             this.game.selectedUnits = this.game.selectedUnits.filter(unit => unit !== this);
         }
-        if (this.team === 'player' && this.game && typeof this.game.recordRaccoonFallen === 'function' && !(this instanceof RaccoonHostage)) { // Don't record hostages in fallen Raccoon list
+        if (this.team === 'player' && this.game && typeof this.game.recordRaccoonFallen === 'function' && !(this instanceof RaccoonHostage)) { 
             this.game.recordRaccoonFallen(this);
         }
         if (wasSelected && this.game && this.game.ui) this.game.ui.updateSquadPanel();
-        // Note: For RaccoonHostage, its specific die() method will handle its removal from hostageUnits and UI updates for hostage objectives.
     }
 
     isAlive() { return this.hp > 0; }
@@ -1013,10 +1004,10 @@ class Unit {
                     }
                 }
 
-                if (walkableNeighbors >= 2) {
+                if (walkableNeighbors >= 2) { 
                     const worldCoords = this.game.level.gridToWorldCoords(desperateGridX, desperateGridY);
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _attemptDesperateMove] Found desperate spot (${desperateGridX},${desperateGridY}). Moving.`);
-                    this.currentPath = [];
+                    this.currentPath = []; 
                     this.setMoveTarget(worldCoords.x, worldCoords.y);
                     return true;
                 }
@@ -1042,31 +1033,24 @@ class Unit {
             this.currentVisualState = 'death';
         }
 
-        let spriteToDraw = null;
+        let spriteToDraw = null; 
         let spriteScale = this.spriteScaleFactor; 
-        let spriteWidth = 0;
-        let spriteHeight = 0;
+        let spriteWidth = 0; 
+        let spriteHeight = 0; 
         let drawOffsetX = -this.size / 2;
         let drawOffsetY = -this.size / 2;
 
         if (this.isAlive()) {
-            let actionFolder = 'idle'; 
-            if (this.currentVisualState === 'walk') {
-                actionFolder = 'walk';
-            } else if (this.currentVisualState === 'fire') {
-                actionFolder = 'fire';
-            }
-            
-            const spriteKey = `${this.spriteBaseName}_${actionFolder}_${this.currentVisualDirection}`;
+            let actionFolder = this.currentVisualState; 
+            let spriteKey = `${this.spriteBaseName}_${actionFolder}_${this.currentVisualDirection}`;
             spriteToDraw = this.game.preloadedImages[spriteKey];
-
+            if (!spriteToDraw && actionFolder !== 'idle') {
+                spriteKey = `${this.spriteBaseName}_idle_${this.currentVisualDirection}`;
+                spriteToDraw = this.game.preloadedImages[spriteKey];
+            }
             if (!spriteToDraw) { 
-                const fallbackSpriteKey = `${this.spriteBaseName}_idle_${this.currentVisualDirection}`; 
-                spriteToDraw = this.game.preloadedImages[fallbackSpriteKey];
-                if(!spriteToDraw) {
-                    const ultimateFallbackSpriteKey = `${this.spriteBaseName}_idle_s`; 
-                    spriteToDraw = this.game.preloadedImages[ultimateFallbackSpriteKey];
-                }
+                const ultimateFallbackSpriteKey = `${this.spriteBaseName}_idle_s`; 
+                spriteToDraw = this.game.preloadedImages[ultimateFallbackSpriteKey];
             }
             
             if (spriteToDraw) {
@@ -1096,7 +1080,7 @@ class Unit {
             if (!this.assignedDeadSpritePath && deadSpriteConfigPath && deadSpriteConfigFiles && deadSpriteConfigFiles.length > 0) {
                 const randomDeadFile = deadSpriteConfigFiles[Math.floor(Math.random() * deadSpriteConfigFiles.length)];
                 this.assignedDeadSpritePath = deadSpriteConfigPath + randomDeadFile;
-                this.deathRotationAngle = (Math.random() - 0.5) * 0.5; // Small random tilt for dead sprites
+                this.deathRotationAngle = (Math.random() - 0.5) * 0.5; 
             }
 
             if (this.assignedDeadSpritePath) {
@@ -1107,7 +1091,7 @@ class Unit {
                 spriteWidth = spriteToDraw.naturalWidth * spriteScale;
                 spriteHeight = spriteToDraw.naturalHeight * spriteScale;
                 drawOffsetX = -spriteWidth / 2;
-                drawOffsetY = -spriteHeight * 0.2; 
+                drawOffsetY = -spriteHeight * 0.8 + (this.size / 2); 
                 ctx.rotate(this.deathRotationAngle); 
             }
         }
@@ -1118,7 +1102,7 @@ class Unit {
             let originalAlpha = ctx.globalAlpha;
             if (!this.isAlive()) {
                 ctx.fillStyle = this.team === 'player' ? (kiaStyle && kiaStyle.PLAYER_FILL_COLOR || 'darkgrey') : (kiaStyle && kiaStyle.ENEMY_FILL_COLOR || '#555');
-                const baseOpacity = (kiaStyle && kiaStyle.OPACITY !== undefined) ? kiaStyle.OPACITY : 0.6;
+                const baseOpacity = (kiaStyle && kiaStyle.OPACITY !== undefined) ? kiaStyle.OPACITY : 1.0;
                 ctx.globalAlpha = this.isPhasing ? Math.min(originalAlpha, baseOpacity) : baseOpacity;
             } else {
                 ctx.fillStyle = this.color;
@@ -1149,14 +1133,15 @@ class Unit {
             ctx.stroke();
         }
 
-        ctx.restore();
+        ctx.restore(); // Restore from unit's local transform. Health bar drawn on main canvas context.
         
         if (this.isAlive() && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
             const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
+            const barX = this.x - barWidth / 2; // THIS LINE WAS MISSING
             const hpBarHeight = healthBarStyle.HEIGHT || 4;
-            const barX = this.x - barWidth / 2;
-            const barY = this.y - this.size - (healthBarStyle.Y_OFFSET_BASE || 0) - hpBarHeight - 5;
+            const spriteVisualHeight = spriteToDraw ? spriteHeight : this.size; 
+            const barY = this.y - (spriteVisualHeight / 2) - (healthBarStyle.Y_OFFSET_BASE || 0) - hpBarHeight - 0;
             const hpPercent = this.hp / this.maxHp;
 
             this.game.ctx.fillStyle = healthBarStyle.BG_COLOR || '#333333';

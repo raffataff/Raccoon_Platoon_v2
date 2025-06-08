@@ -1,3 +1,5 @@
+// js/input.js
+// complete
 class InputHandler {
     constructor(canvas, game) {
         this.canvas = canvas;
@@ -74,7 +76,8 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', 'j', 'k', ' ', 'escape']; // Added 'k'
+            // MODIFIED: Removed 'j' and 'k' from gameKeys
+            const gameKeys = ['f', 'g', 'h', ' ', 'escape']; 
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -117,57 +120,30 @@ class InputHandler {
                 this.updateMouseCursor();
             }
 
+            // MODIFIED: 'h' key now controls hostage hold/follow
             if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {
-                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
-                    this.game.selectedUnits.forEach(unit => {
-                        if (unit.team === 'player' && unit instanceof Raccoon && !(unit instanceof RaccoonHostage)) { // Only affect deployed Raccoons
-                            unit.isHoldingPosition = !unit.isHoldingPosition;
-                            if (unit.isHoldingPosition) { 
-                                unit.isMoving = false;
-                                unit.currentPath = [];
-                            }
-                        }
-                    });
-                    if (this.game.ui) this.game.ui.updateSquadPanel();
-                    console.log("Hold Position toggled for selected Raccoons.");
-                }
-            }
-            if ((event.key === 'j' || event.key === 'J') && !isInputFieldActive) {
-                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
-                    this.game.selectedUnits.forEach(unit => {
-                        if (unit.team === 'player' && unit instanceof Raccoon && !(unit instanceof RaccoonHostage)) { // Only affect deployed Raccoons
-                            unit.isHoldingFire = !unit.isHoldingFire;
-                        }
-                    });
-                    if (this.game.ui) this.game.ui.updateSquadPanel();
-                    console.log("Hold Fire toggled for selected Raccoons.");
-                }
-            }
-            // --- NEW: Hostage Hold/Follow Command (K) ---
-            if ((event.key === 'k' || event.key === 'K') && !isInputFieldActive) {
                 const rescuedHostages = this.game.hostageUnits.filter(h => h.isRescued && h.isAlive());
                 if (rescuedHostages.length > 0) {
-                    // Determine if any hostage is currently following (not holding position)
                     const anyHostageFollowing = rescuedHostages.some(h => !h.isHoldingPosition);
                     
-                    if (anyHostageFollowing) { // If any are following, make all hold
+                    if (anyHostageFollowing) { 
                         rescuedHostages.forEach(h => {
                             h.isHoldingPosition = true;
                             h.isMoving = false;
                             h.currentPath = [];
                         });
-                        console.log("All rescued hostages now Holding Position.");
-                    } else { // If all are holding, make all follow
+                    } else { 
                         rescuedHostages.forEach(h => {
                             h.isHoldingPosition = false;
-                            // They will attempt to re-acquire follow target and path on their next update
                         });
-                        console.log("All rescued hostages now set to Follow.");
                     }
-                    // No direct UI update for hostage status here, their behavior change is the feedback
+                    // Note: Hostage status isn't typically shown in squad panel,
+                    // so a direct ui.updateSquadPanel() call isn't strictly needed here
+                    // unless other UI elements reflect hostage state.
                 }
             }
-            // ---
+            // REMOVED: 'j' key logic (Hold Fire for Raccoons)
+            // REMOVED: 'k' key logic (Hold/Follow for Hostages - now handled by 'h')
         });
 
         document.addEventListener('keyup', (event) => {
