@@ -4,57 +4,117 @@ const CAMPAIGN_RULES = {
     CAMPAIGN_LENGTH_PHASES_RANGE: [3, 5], // Campaign will have 3 to 5 phases
 
     // --- Base Values and Scaling ---
-    // These parameters will be calculated at the start of each mission based on the current phase.
-    // Formula: finalValue = (initial + (perPhaseIncrement * currentPhaseIndex)) capped by max.
-    // Then: finalValue *= (1 + rng.nextFloat(-randomnessFactor, randomnessFactor))
-    // If roundToInt is true, the result is rounded.
     BASE_PARAMETERS: {
         worldSizeFactor:    { initial: 1.8,  perPhaseIncrement: 0.35, max: 5.0, randomnessFactor: 0.15 },
         enemyDensityFactor: { initial: 1.1, perPhaseIncrement: 0.25, max: 2.5, randomnessFactor: 0.2 },
         heavyChance:        { initial: 0.08, perPhaseIncrement: 0.09, max: 0.65, randomnessFactor: 0.05 },
-        // Future: sniperChance, grenadierChance etc. would go here
-        numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.4,  max: 4, roundToInt: true, randomnessFactor: 0 },
+        numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.4,  max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1,    perPhaseIncrement: 0.6,  max: 5, roundToInt: true, randomnessFactor: 0.1 },
-        minHostagesToRescue:{ initial: 1,    perPhaseIncrement: 0.3,  max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 }
+        minHostagesToRescue:{ initial: 1,    perPhaseIncrement: 0.3,  max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
+        // Future considerations for multi-objective missions:
+        // numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
+        // numSecondaryObjectivesRange: [0, 2], // e.g., 0 to 2 secondary objectives (EXTERMINATE often being one)
     },
 
     // --- Pools of Options ---
     BIOME_POOL: [
-        // `unlocksPhase`: Phase index (0-based) when this biome can start appearing.
-        // `weight`: Relative chance of this biome being selected once unlocked.
         { name: "FOREST",       weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
         { name: "JUNKYARD",     weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
         { name: "SWAMP",        weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY",  weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
-        // { name: "DESERT_SCRAP", weight: 2, unlocksPhase: 2, description: "a sun-baked desert filled with wreckage", themeAdjectives: ["Desert", "Sunken", "Dusty", "Barren", "Scorched"] },
-        // { name: "VOLCANIC_WASTE", weight: 1, unlocksPhase: 3, description: "an ash-choked volcanic wasteland", themeAdjectives: ["Volcanic", "Ashen", "Fiery", "Obsidian", "Burning"] },
     ],
 
     OBJECTIVE_POOL: [
-        { type: "EXTERMINATE",      weight: 5, unlocksPhase: 0, description: "eliminate all hostile Possums in the area" },
-        { type: "DESTROY_TARGET",   weight: 4, unlocksPhase: 0, description: "destroy key enemy {targetNamePlural}" },
-        { type: "RESCUE_HOSTAGES",  weight: 7, unlocksPhase: 0, description: "rescue {numHostages} captured comrade(s)" },
-        // { type: "ASSASSINATION",    weight: 2, unlocksPhase: 2, description: "eliminate a high-value Possum target, '{targetCallsign}'" },
-        // { type: "DEFEND_AREA",      weight: 2, unlocksPhase: 2, description: "hold the {defendLocationNoun} against enemy assault for {defendTimeMinutes} minutes"},
-        // { type: "CAPTURE_INTEL",    weight: 1, unlocksPhase: 1, description: "secure enemy intelligence from the {intelLocationNoun}"},
+        // --- MODIFIED OBJECTIVE STRUCTURE ---
+        // type: Unique identifier for the objective logic.
+        // weight: Relative chance of this objective being selected.
+        // unlocksPhase: Phase index (0-based) when this can appear.
+        // descriptionTemplateKey: Key in CONFIG.UI_TEXT_STRINGS for the base description (e.g., "Destroy {targetNamePlural}").
+        // completionCondition: String key for how Game.js checks completion.
+        // isPrimary: (boolean, optional, default true) Can this be a primary mission goal?
+        // canCoexistWith: (array of strings, optional) List of objective 'type's it can appear with. If null/undefined, assumes broad compatibility.
+        // maxInstancesPerMission: (number, optional, default 1) How many of *this type* can be in one mission.
+        // targetTypeKey: (string, optional) For "DESTROY_TARGET", links to CONFIG.OBSTACLE_DEFINITIONS type.
+        // isPhaseFinaleCandidate: (boolean, optional, default false) Can this objective be chosen for an end-of-phase mission?
+        // isBossObjective: (boolean, optional, default false) Does this objective involve a boss? (For future use)
+
+        { 
+            type: "EXTERMINATE",      
+            weight: 5, // High weight if it can also be a standalone primary
+            unlocksPhase: 0, 
+            descriptionTemplateKey: "OBJECTIVE_EXTERMINATE_TEXT", // e.g., "Eliminate Possums: {CURRENT}/{TOTAL}"
+            completionCondition: "ALL_ENEMIES_ELIMINATED",
+            isPrimary: true, // Can be a primary objective on its own
+            canCoexistWith: ["DESTROY_TARGET", "RESCUE_HOSTAGES"], // Can be secondary to these
+            maxInstancesPerMission: 1 
+        },
+        { 
+            type: "DESTROY_TARGET",   
+            weight: 4, 
+            unlocksPhase: 0, 
+            descriptionTemplateKey: "OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT", // e.g., "Destroy {targetNamePlural}: {CURRENT}/{TOTAL}"
+            completionCondition: "ALL_TARGET_TYPE_DESTROYED",
+            isPrimary: true,
+            canCoexistWith: ["EXTERMINATE", "RESCUE_HOSTAGES"],
+            // targetTypeKey is not here, it's defined in DESTROY_TARGET_TYPE_POOL. This entry is generic.
+            // maxInstancesPerMission for "DESTROY_TARGET" itself might be high (e.g., 3) to allow
+            // "Destroy Huts" AND "Destroy Towers" in one mission. The specific target types below
+            // will have their own maxInstances.
+            maxInstancesPerMission: 3, // Max distinct "destroy X" objectives in one mission
+            isPhaseFinaleCandidate: true
+        },
+        { 
+            type: "RESCUE_HOSTAGES",  
+            weight: 7, 
+            unlocksPhase: 0, 
+            descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
+            completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
+            isPrimary: true,
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET"],
+            maxInstancesPerMission: 1
+        },
+        // { 
+        //     type: "ASSASSINATION",    
+        //     weight: 2, 
+        //     unlocksPhase: 2, 
+        //     descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
+        //     completionCondition: "VIP_ELIMINATED",
+        //     isPrimary: true,
+        //     maxInstancesPerMission: 1,
+        //     isPhaseFinaleCandidate: true,
+        //     isBossObjective: true 
+        // },
     ],
 
+    // This pool now defines specific *types* of targets for the generic "DESTROY_TARGET" objective
     DESTROY_TARGET_TYPE_POOL: [
-        { type: "possum_hut",                weight: 4, unlocksPhase: 0, nameSingular: "Possum Hut", namePlural: "Possum Huts" },
-        { type: "possum_relay_tower",       weight: 3, unlocksPhase: 1, nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers" },
-    //    { type: "explosive_barrel_cluster",  weight: 3, unlocksPhase: 0, nameSingular: "Explosive Barrel Cluster", namePlural: "Explosive Barrel Clusters" },
-    //    { type: "makeshift_barricade_large", weight: 2, unlocksPhase: 1, nameSingular: "Large Makeshift Barricade", namePlural: "Large Makeshift Barricades" }, // Example new target
-        // { type: "comms_tower",               weight: 2, unlocksPhase: 1, nameSingular: "Comms Tower", namePlural: "Comms Towers" },
-        // { type: "fuel_depot",                weight: 1, unlocksPhase: 2, nameSingular: "Fuel Depot", namePlural: "Fuel Depots" },
-        // { type: "weapon_cache",              weight: 1, unlocksPhase: 2, nameSingular: "Weapon Cache", namePlural: "Weapon Caches" },
+        // targetTypeKey: Matches 'type' in CONFIG.OBSTACLE_DEFINITIONS.
+        // nameSingular/Plural: For UI text.
+        // weight: Chance of this specific target type being chosen for a "DESTROY_TARGET" objective.
+        // unlocksPhase: When this target type becomes available.
+        // maxInstancesPerMission: How many of THIS SPECIFIC target type (e.g., huts) can be part of one "DESTROY_TARGET" objective.
+        //                         e.g., "Destroy 3 Possum Huts". The '3' comes from BASE_PARAMETERS.numDestroyTargets.
+        //                         This maxInstancesPerMission here means you wouldn't have "Destroy Huts" and "Destroy More Huts"
+        //                         as two separate line items on the objective list for the same mission.
+        { 
+            targetTypeKey: "possum_hut",                
+            nameSingular: "Possum Hut", namePlural: "Possum Huts",
+            weight: 4, unlocksPhase: 0, 
+            maxInstancesPerMission: 2 // Typically, one "Destroy Possum Huts" objective per mission.
+        },
+        { 
+            targetTypeKey: "possum_relay_tower",       
+            nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
+            weight: 3, unlocksPhase: 1,
+            maxInstancesPerMission: 1
+        },
     ],
 
     // --- Phase Generation Text ---
     PHASE_GENERATION: {
-        MISSIONS_PER_PHASE_RANGE: [2, 4], // Min/Max missions per phase
-        NAME_PARTS: { // For Phase Names like "Operation Jungle Fury"
+        MISSIONS_PER_PHASE_RANGE: [2, 4], 
+        NAME_PARTS: { 
             PREFIXES: ["Operation", "Task Force", "Project", "Campaign", "Initiative", "Directive", "Protocol", "Vanguard", "Spearhead", "Crusade"],
-            // THEMES are now derived from the chosen Biome's `themeAdjectives`
             DESCRIPTORS: ["Fury", "Dawn", "Viper", "Thunder", "Silence", "Ghost", "Resolve", "Echo", "Retribution", "Genesis", "Last Stand", "Steel Rain", "Broken Fang", "Avalanche", "Quake"]
         },
         INTRODUCTION_TEMPLATES: [
@@ -89,10 +149,8 @@ const CAMPAIGN_RULES = {
 
     // --- Mission Name and Briefing Parts ---
     MISSION_NAME_PARTS: {
-        // Adjectives can be combined with biome-specific nouns or objective types for mission names
         ADJECTIVES: ["Alpha", "Bravo", "Charlie", "Delta", "Urgent", "Critical", "Swift", "Silent", "Iron", "Steel", "Final", "Dirty", "Bloody", "Hidden", "Forgotten", "Last"],
         NOUNS_GENERAL: ["Strike", "Patrol", "Offensive", "Incursion", "Recon", "Sweep", "Siege", "Breakthrough", "Gambit", "Raid", "Extraction", "Assault", "Stand", "Push", "Hunt"],
-        // Location nouns might be better suited for briefing text, but can sometimes fit mission names
         LOCATIONS_GENERAL: ["Point", "Ridge", "Valley", "Crossing", "Outpost", "Sector", "Zone", "Complex", "Perimeter", "Pass", "Junction", "Depot", "Bridgehead", "Quarry", "Gulch"]
     },
     MISSION_BRIEFING_TEMPLATES: [
@@ -109,16 +167,12 @@ const CAMPAIGN_RULES = {
             JUNKYARD: ["sprawling", "rusting", "treacherous", "cluttered", "metallic", "toxic", "labyrinthine", "forgotten"],
             SWAMP: ["murky", "fetid", "stagnant", "treacherous", "gator-infested", "mist-shrouded", "suffocating", "malarial"],
             URBAN_DECAY: ["ruined", "war-torn", "abandoned", "crumbling", "concrete", "ghost-ridden", "skeletal", "desolate"],
-            // DESERT_SCRAP: ["scorched", "barren", "sun-blasted", "shifting", "isolated", "canyon-carved", "dust-choked"],
-            // VOLCANIC_WASTE: ["ash-covered", "smoldering", "obsidian", "fiery", "unstable", "geothermal", "blasted"],
         },
-        LOCATION_NOUNS: { // Specific locations within a biome for briefing flavor
+        LOCATION_NOUNS: { 
             FOREST: ["clearing", "thicket", "outpost", "logging camp", "riverbend", "hidden grove", "ancient ruin", "waterfall base"],
             JUNKYARD: ["scrap pile", "main yard", "crusher zone", "storage sector", "derelict maze", "vehicle graveyard", "collapsed overpass", "chemical spill"],
             SWAMP: ["bog", "mire", "flooded village", "gator nest", "hidden islet", "mangrove cluster", "sunken shrine", "rickety boardwalk"],
             URBAN_DECAY: ["ruined square", "collapsed structure", "abandoned factory", "sewer entrance", "rooftop network", "bombed-out street", "subway station", "fortified checkpoint"],
-            // DESERT_SCRAP: ["dry riverbed", "abandoned mine", "wrecked convoy site", "sand dune field", "rocky outcrop", "forgotten oasis", "hermit's shack"],
-            // VOLCANIC_WASTE: ["lava tube entrance", "ash plain", "obsidian field", "geyser cluster", "magma fissure", "sulfur vent", "shattered peak"],
         },
         ENEMY_COMPOSITION_HINTS: [
             "mostly grunts with light support", "a mix of grunts and several heavy units", "heavies providing suppressing fire from fortified positions",
@@ -126,9 +180,5 @@ const CAMPAIGN_RULES = {
             "entrenched enemy positions with good cover", "multiple enemy squads coordinating their defense", "a strong defensive line, possibly with makeshift traps",
             "elite Possum units leading the charge", "a desperate last stand with whatever they can find"
         ],
-        // Placeholders for future objective types, to be filled by Game.js
-        // ASSASSINATION_TARGET_CALLSIGNS: ["Big Boss Possum", "General Waste", "Scrappy Jack", "Mama Mange", "One-Eye Willy", "The Trash King"],
-        // DEFEND_LOCATION_NOUNS: ["key bridge", "makeshift comms relay", "supply drop", "fallen comrade", "evac point", "field hospital"],
-        // INTEL_LOCATION_NOUNS: ["enemy command tent", "crashed recon drone", "captured informant's last known position", "abandoned research site", "smuggler's cache"]
     }
 };

@@ -343,9 +343,17 @@ class Unit {
         const originalX = this.x;
         const originalY = this.y;
 
-        if (this.team === 'player' && this.isHoldingPosition && !this.isPhasing) {
+        if (this.team === 'player' && this.isHoldingPosition && !(this instanceof RaccoonHostage) && !this.isPhasing) { // Adjusted for Raccoon only
             this.isMoving = false; 
             this.currentPath = []; 
+            this.lastDeltaX = 0;
+            this.lastDeltaY = 0;
+            return;
+        }
+        // For RaccoonHostage, isHoldingPosition is checked in its own update method.
+        if (this instanceof RaccoonHostage && this.isHoldingPosition && !this.isPhasing) {
+            this.isMoving = false;
+            this.currentPath = [];
             this.lastDeltaX = 0;
             this.lastDeltaY = 0;
             return;
@@ -434,9 +442,80 @@ class Unit {
         let finalDeltaX = desiredDeltaX;
         let finalDeltaY = desiredDeltaY;
 
+        // --- Unit Separation Logic ---
+        if (!this.isPhasing && this.isMoving && this.game) {
+            const SEPARATION_CHECK_RADIUS = this.size * 2.5; // How far to check for other units
+            const SEPARATION_FORCE_FACTOR = 0.3; // Strength of the push
+            const MIN_SEPARATION_DISTANCE_FACTOR = 0.95; // How much overlap before pushing (0.9 = push if centers are closer than 90% of combined radii)
+
+            let separationDX = 0;
+            let separationDY = 0;
+            let unitsInSeparationRange = 0;
+
+            let unitsToConsiderForSeparation = [];
+            if (this.team === 'player') {
+                // Player units (Raccoons and rescued Hostages) separate from each other
+                unitsToConsiderForSeparation = this.game.getLivingPlayerControlledUnits();
+            } else if (this.team === 'enemy') {
+                // Enemy units separate from other enemy units
+                unitsToConsiderForSeparation = this.game.enemyUnits || [];
+            }
+            // Unrescued hostages (team 'neutral') currently don't initiate separation pushes
+
+            for (const otherUnit of unitsToConsiderForSeparation) {
+                if (otherUnit === this || !otherUnit.isAlive() || otherUnit.isPhasing) continue;
+                if (this.team === 'player' && otherUnit.team !== 'player') continue; // Player units only separate from other player-team units
+                if (this.team === 'enemy' && otherUnit.team !== 'enemy') continue;   // Enemy units only separate from other enemy units
+                
+                const distSq = (this.x - otherUnit.x)**2 + (this.y - otherUnit.y)**2;
+                if (distSq === 0) continue; // Exactly on top, avoid division by zero if dist is calculated later
+                
+                const combinedRadii = (this.size / 2) + (otherUnit.size / 2);
+                const desiredSeparationDist = combinedRadii * MIN_SEPARATION_DISTANCE_FACTOR;
+
+                if (distSq < (SEPARATION_CHECK_RADIUS * SEPARATION_CHECK_RADIUS) && distSq < (desiredSeparationDist * desiredSeparationDist)) {
+                    const dist = Math.sqrt(distSq);
+                    const awayX = this.x - otherUnit.x;
+                    const awayY = this.y - otherUnit.y;
+                    
+                    // Weight push by how much they overlap (stronger push for more overlap)
+                    const overlap = desiredSeparationDist - dist;
+                    const pushStrength = (overlap / desiredSeparationDist); // Normalized overlap
+
+                    separationDX += (awayX / dist) * pushStrength;
+                    separationDY += (awayY / dist) * pushStrength;
+                    unitsInSeparationRange++;
+                }
+            }
+
+            if (unitsInSeparationRange > 0) {
+                const avgSeparationDX = separationDX / unitsInSeparationRange;
+                const avgSeparationDY = separationDY / unitsInSeparationRange;
+                const pushMagnitude = this.speed * SEPARATION_FORCE_FACTOR * deltaTime;
+
+                finalDeltaX += avgSeparationDX * pushMagnitude;
+                finalDeltaY += avgSeparationDY * pushMagnitude;
+
+                // Optional: Clamp total movement if separation force is too strong
+                const totalMovementMagnitude = Math.hypot(finalDeltaX, finalDeltaY);
+                const originalDesiredMagnitude = Math.hypot(desiredDeltaX, desiredDeltaY);
+                if (totalMovementMagnitude > originalDesiredMagnitude * 1.5 && originalDesiredMagnitude > 0.1) { 
+                    const scale = (originalDesiredMagnitude * 1.5) / totalMovementMagnitude;
+                    finalDeltaX *= scale;
+                    finalDeltaY *= scale;
+                } else if (totalMovementMagnitude > this.speed * deltaTime * 1.2) { // Max speed cap
+                     const scale = (this.speed * deltaTime * 1.2) / totalMovementMagnitude;
+                    finalDeltaX *= scale;
+                    finalDeltaY *= scale;
+                }
+            }
+        }
+        // --- End Unit Separation Logic ---
+
+
         if (distToNextNode > 1e-5) { 
-            const potentialNewX_combined = this.x + desiredDeltaX;
-            const potentialNewY_combined = this.y + desiredDeltaY;
+            const potentialNewX_combined = this.x + finalDeltaX; // Use finalDeltaX/Y which includes separation
+            const potentialNewY_combined = this.y + finalDeltaY;
             const collisionCheckRadius = this.size / 2 + 0.5; 
             const unitBodyShape_combined = { type: 'circle', x: potentialNewX_combined, y: potentialNewY_combined, radius: collisionCheckRadius };
 
@@ -451,10 +530,10 @@ class Unit {
             }
 
             if (isCollisionWithDesiredMove) {
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Desired move collides. Attempting slide.`);
+                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Final move (with separation) collides. Attempting slide.`);
                 let canMoveX = false;
-                if (Math.abs(desiredDeltaX) > 1e-5) {
-                    const unitBodyShape_X_Only = { type: 'circle', x: this.x + desiredDeltaX, y: this.y, radius: collisionCheckRadius };
+                if (Math.abs(finalDeltaX) > 1e-5) {
+                    const unitBodyShape_X_Only = { type: 'circle', x: this.x + finalDeltaX, y: this.y, radius: collisionCheckRadius };
                     let collisionX = false;
                     for (const obs of obstaclesForCollision) {
                         const obsCS = this.game.level._getObstacleCollisionShape(obs);
@@ -467,8 +546,8 @@ class Unit {
                 }
 
                 let canMoveY = false;
-                if (Math.abs(desiredDeltaY) > 1e-5) {
-                    const unitBodyShape_Y_Only = { type: 'circle', x: this.x, y: this.y + desiredDeltaY, radius: collisionCheckRadius };
+                if (Math.abs(finalDeltaY) > 1e-5) {
+                    const unitBodyShape_Y_Only = { type: 'circle', x: this.x, y: this.y + finalDeltaY, radius: collisionCheckRadius };
                     let collisionY = false;
                     for (const obs of obstaclesForCollision) {
                         const obsCS = this.game.level._getObstacleCollisionShape(obs);
@@ -485,16 +564,16 @@ class Unit {
                 } else if (!canMoveX && canMoveY) {
                     finalDeltaX = 0;
                 } else if (canMoveX && canMoveY) {
-                    const angleToNode = Math.atan2(dyToNode, dxToNode);
-                    const angleOfXMove = (desiredDeltaX >= 0) ? 0 : Math.PI;
-                    const angleOfYMove = (desiredDeltaY >= 0) ? Math.PI / 2 : -Math.PI / 2;
+                    const angleToNode = Math.atan2(dyToNode, dxToNode); // Use original desired direction for slide bias
+                    const angleOfXMove = (finalDeltaX >= 0) ? 0 : Math.PI;
+                    const angleOfYMove = (finalDeltaY >= 0) ? Math.PI / 2 : -Math.PI / 2;
                     let diffX = Math.abs(angleToNode - angleOfXMove); if (diffX > Math.PI) diffX = 2 * Math.PI - diffX;
                     let diffY = Math.abs(angleToNode - angleOfYMove); if (diffY > Math.PI) diffY = 2 * Math.PI - diffY;
 
-                    if (diffX < diffY - 1e-3 && Math.abs(desiredDeltaX) > 1e-5) finalDeltaY = 0;
-                    else if (diffY < diffX - 1e-3 && Math.abs(desiredDeltaY) > 1e-5) finalDeltaX = 0;
-                    else if (Math.abs(desiredDeltaX) > Math.abs(desiredDeltaY) + 1e-4 && Math.abs(desiredDeltaX) > 1e-5) finalDeltaY = 0;
-                    else if (Math.abs(desiredDeltaY) > 1e-5) finalDeltaX = 0;
+                    if (diffX < diffY - 1e-3 && Math.abs(finalDeltaX) > 1e-5) finalDeltaY = 0;
+                    else if (diffY < diffX - 1e-3 && Math.abs(finalDeltaY) > 1e-5) finalDeltaX = 0;
+                    else if (Math.abs(finalDeltaX) > Math.abs(finalDeltaY) + 1e-4 && Math.abs(finalDeltaX) > 1e-5) finalDeltaY = 0;
+                    else if (Math.abs(finalDeltaY) > 1e-5) finalDeltaX = 0;
                     else { finalDeltaX = 0; finalDeltaY = 0; }
                 } else {
                     finalDeltaX = 0; finalDeltaY = 0;
@@ -545,10 +624,11 @@ class Unit {
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
 
-        if (this.team === 'player' && this.isHoldingPosition) {
+        if (this.team === 'player' && this.isHoldingPosition && !(this instanceof RaccoonHostage)) { // Raccoon check
             this.isHoldingPosition = false;
             if (this.game && this.game.ui) this.game.ui.updateSquadPanel(); 
         }
+        // For RaccoonHostage, isHoldingPosition is managed by its own logic / input handler
         
         if (this.team === 'player') {
             this.autoTarget = null;
@@ -1102,7 +1182,7 @@ class Unit {
             let originalAlpha = ctx.globalAlpha;
             if (!this.isAlive()) {
                 ctx.fillStyle = this.team === 'player' ? (kiaStyle && kiaStyle.PLAYER_FILL_COLOR || 'darkgrey') : (kiaStyle && kiaStyle.ENEMY_FILL_COLOR || '#555');
-                const baseOpacity = (kiaStyle && kiaStyle.OPACITY !== undefined) ? kiaStyle.OPACITY : 1.0;
+                const baseOpacity = (kiaStyle && kiaStyle.OPACITY !== undefined) ? kiaStyle.OPACITY : 0.6;
                 ctx.globalAlpha = this.isPhasing ? Math.min(originalAlpha, baseOpacity) : baseOpacity;
             } else {
                 ctx.fillStyle = this.color;
@@ -1138,10 +1218,10 @@ class Unit {
         if (this.isAlive() && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
             const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
-            const barX = this.x - barWidth / 2; // THIS LINE WAS MISSING
+            const barX = this.x - barWidth / 2; 
             const hpBarHeight = healthBarStyle.HEIGHT || 4;
             const spriteVisualHeight = spriteToDraw ? spriteHeight : this.size; 
-            const barY = this.y - (spriteVisualHeight / 2) - (healthBarStyle.Y_OFFSET_BASE || 0) - hpBarHeight - 0;
+            const barY = this.y - (spriteVisualHeight / 2) - (healthBarStyle.Y_OFFSET_BASE || 0) - hpBarHeight - 5;
             const hpPercent = this.hp / this.maxHp;
 
             this.game.ctx.fillStyle = healthBarStyle.BG_COLOR || '#333333';

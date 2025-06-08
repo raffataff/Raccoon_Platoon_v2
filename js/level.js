@@ -123,12 +123,22 @@ class Level {
         if (obstacle.hp <= 0) {
             obstacle.hp = 0;
             obstacle.isDestroyed = true;
-            if (obstacle.type === 'possum_hut') {
+
+            const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
+
+            if (obstacleDef && obstacleDef.sfxOnDestroy && this.game && this.game.audioManager) {
+                this.game.audioManager.play(obstacleDef.sfxOnDestroy);
+            } 
+            else if (obstacle.type === 'possum_hut' && this.game && this.game.audioManager && !obstacleDef?.sfxOnDestroy) { 
+                this.game.audioManager.play('POSSUM_HUT_DESTROYED');
+            }
+            
+            if (obstacle.type === 'possum_hut') { 
                 this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== obstacle);
                 const potIndex = this.potentialSpawnerHuts.indexOf(obstacle);
                 if (potIndex > -1) this.potentialSpawnerHuts.splice(potIndex, 1);
             }
-            const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
+            
             if (obstacleDef) {
                 obstacle.blocksMovement = obstacleDef.blocksMovementOnDestroy !== undefined ? obstacleDef.blocksMovementOnDestroy : false;
                 obstacle.providesCover = obstacleDef.providesCoverOnDestroy !== undefined ? obstacleDef.providesCoverOnDestroy : false;
@@ -181,25 +191,57 @@ class Level {
         
         let totalWeight = 0; 
         definitions.forEach(def => {
-            if (def.type !== 'extraction_zone' && (!this.game.currentMissionParams || def.type !== this.game.currentMissionParams.destroyTargetType)) {
+            // Exclude mission target types currently active for this mission from random placement pool
+            let isCurrentMissionTargetType = false;
+            if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
+                isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                    obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
+                );
+            }
+
+            if (def.type !== 'extraction_zone' && !isCurrentMissionTargetType) {
                 totalWeight += (def.spawnWeight || 0);
             }
         });
 
         if (totalWeight === 0) {
-            const validDefs = definitions.filter(def => def.type !== 'extraction_zone' && (!this.game.currentMissionParams || def.type !== this.game.currentMissionParams.destroyTargetType));
+            const validDefs = definitions.filter(def => {
+                let isCurrentMissionTargetType = false;
+                if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
+                     isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                        obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
+                    );
+                }
+                return def.type !== 'extraction_zone' && !isCurrentMissionTargetType;
+            });
             if (validDefs.length > 0) return this.rng.pickFrom(validDefs);
             return null;
         }
         
         let randomNum = this.rng.next() * totalWeight;
         for (const def of definitions) {
-            if (def.type === 'extraction_zone' || (this.game.currentMissionParams && def.type === this.game.currentMissionParams.destroyTargetType)) continue;
+            let isCurrentMissionTargetType = false;
+            if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
+                 isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                    obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
+                );
+            }
+            if (def.type === 'extraction_zone' || isCurrentMissionTargetType) continue;
+
             randomNum -= (def.spawnWeight || 0); 
             if (randomNum <= 0) return def; 
         }
-        const lastValidDef = definitions.filter(def => def.type !== 'extraction_zone' && (!this.game.currentMissionParams || def.type !== this.game.currentMissionParams.destroyTargetType)).pop();
-        return lastValidDef || definitions.filter(def => def.type !== 'extraction_zone' && (!this.game.currentMissionParams || def.type !== this.game.currentMissionParams.destroyTargetType))[0] || null;
+
+        const lastValidDefs = definitions.filter(def => {
+            let isCurrentMissionTargetType = false;
+            if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
+                 isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                    obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
+                );
+            }
+            return def.type !== 'extraction_zone' && !isCurrentMissionTargetType;
+        });
+        return lastValidDefs.pop() || (lastValidDefs.length > 0 ? lastValidDefs[0] : null);
     }
 
     generateNavigationGrid(worldWidth, worldHeight) {
@@ -332,7 +374,7 @@ class Level {
         };
     }
 
-    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParams = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}, missionSeed) {
+    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParamsContainer = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}, missionSeed) {
         this.rng = new SeededRandom(missionSeed);
         this.obstacles = [];
         this.potentialSpawnerHuts = []; 
@@ -345,6 +387,10 @@ class Level {
             this.game.gameObjects = [];
             this.game.hostageUnits = []; 
         }
+
+        const missionObjectives = missionParamsContainer.objectives || [];
+        const baseParams = missionParamsContainer.baseParams || {};
+
 
         const genConfig = CONFIG.LEVEL_GENERATION || {};
         const worldMargin = genConfig.WORLD_MARGIN || 20;
@@ -412,8 +458,9 @@ class Level {
         this.obstacles.push({ x: 0, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Left', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
         this.obstacles.push({ x: worldWidth - sideBorderWidth, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Right', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
 
-        // --- REORDERED LOGIC: Place mission-critical "anchors" FIRST ---
-        if (missionParams.objectiveType === 'RESCUE_HOSTAGES') {
+        // --- Place mission-critical "anchors" based on objectives ---
+        const rescueObjectiveInstance = missionObjectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
+        if (rescueObjectiveInstance) {
             const ezConfig = genConfig.EXTRACTION_ZONE_SETTINGS || {};
             const ezObstacle = {
                 type: 'extraction_zone',
@@ -426,7 +473,6 @@ class Level {
                 isDestroyed: false, isPickup: false, isDecoration: true,
                 hp: Infinity, maxHp: Infinity
             };
-
             ezObstacle.width = ezObstacle.imageNormal ? ezObstacle.imageNormal.naturalWidth * ezObstacle.spriteScale : (ezConfig.WIDTH || 100);
             ezObstacle.height = ezObstacle.imageNormal ? ezObstacle.imageNormal.naturalHeight * ezObstacle.spriteScale : (ezConfig.HEIGHT || 100);
 
@@ -442,98 +488,77 @@ class Level {
                     placedEZ = true;
                 }
             }
-            if (!placedEZ) {
-                ezObstacle.x = playableMinX;
-                ezObstacle.y = playableMinY;
-                this.obstacles.push(ezObstacle);
+            if (!placedEZ) { /* Fallback placement for EZ if all attempts fail */ 
+                ezObstacle.x = playableMinX; ezObstacle.y = playableMinY; 
+                this.obstacles.push(ezObstacle); 
                 this.game.addVisualEffect('extraction_zone', { obstacle: ezObstacle });
-                console.error("[Level] Placed EZ (ULTRA FALLBACK) due to placement failures.");
             }
         }
         
-        const numDestroyTargetsToSpawnActual = Math.round(missionParams.numDestroyTargets || 0);
-        if (missionParams.objectiveType === 'DESTROY_TARGET' && missionParams.destroyTargetType && numDestroyTargetsToSpawnActual > 0) {
-            const targetTemplateOriginal = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === missionParams.destroyTargetType);
+        missionObjectives.forEach(objective => {
+            if (objective.type === 'DESTROY_TARGET' && objective.targetTypeKey && objective.totalToAchieve > 0) {
+                const targetTemplateOriginal = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === objective.targetTypeKey);
+                if (targetTemplateOriginal) {
+                    for (let i = 0; i < objective.totalToAchieve; i++) {
+                        let targetX, targetY, placedTarget = false;
+                        let actualTargetSpritePath = null;
+                        let targetImage = null;
+                        const template = JSON.parse(JSON.stringify(targetTemplateOriginal)); 
 
-            if (targetTemplateOriginal) {
-                for (let i = 0; i < numDestroyTargetsToSpawnActual; i++) {
-                    let targetX, targetY, placedTarget = false;
-                    
-                    let actualTargetSpritePath = null;
-                    let targetImage = null;
-                    const template = JSON.parse(JSON.stringify(targetTemplateOriginal)); 
+                        let targetFilesArray = [];
+                        let targetPathBase = '';
+                        let targetUseRandomSpriteFromList = false;
 
-                    let targetFilesArray = [];
-                    let targetPathBase = '';
-                    let targetUseRandomSpriteFromList = false;
+                        if (template.type === 'possum_hut') { targetFilesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || []; targetPathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || ''; targetUseRandomSpriteFromList = true; }
+                        else if (template.type === 'possum_relay_tower') { targetFilesArray = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || []; targetPathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || ''; targetUseRandomSpriteFromList = true; }
+                        else if (template.spriteNormal) { actualTargetSpritePath = template.spriteNormal; }
 
-                    if (template.type === 'possum_hut') {
-                        targetFilesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
-                        targetPathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
-                        targetUseRandomSpriteFromList = true;
-                    } else if (template.type === 'possum_relay_tower') {
-                        targetFilesArray = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
-                        targetPathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || '';
-                        targetUseRandomSpriteFromList = true;
-                    } else if (template.spriteNormal) { 
-                        actualTargetSpritePath = template.spriteNormal;
-                    }
-
-                    if (targetUseRandomSpriteFromList) {
-                        if (targetFilesArray.length > 0 && targetPathBase) {
+                        if (targetUseRandomSpriteFromList && targetFilesArray.length > 0 && targetPathBase) {
                             actualTargetSpritePath = targetPathBase + this.rng.pickFrom(targetFilesArray);
-                        } else {
-                            actualTargetSpritePath = null;
-                            console.warn(`[Level Gen Target] Target type ${template.type} configured for list-based sprite but filesArray/pathBase missing.`);
                         }
-                    }
-                    
-                    if (actualTargetSpritePath) {
-                        targetImage = preloadedAssetImages[actualTargetSpritePath];
-                    }
+                        if (actualTargetSpritePath) targetImage = preloadedAssetImages[actualTargetSpritePath];
 
-                    const targetWidth = targetImage ? targetImage.naturalWidth * (template.spriteScale || 1) : (template.width || 64);
-                    const targetHeight = targetImage ? targetImage.naturalHeight * (template.spriteScale || 1) : (template.height || 64);
+                        const targetWidth = targetImage ? targetImage.naturalWidth * (template.spriteScale || 1) : (template.width || 64);
+                        const targetHeight = targetImage ? targetImage.naturalHeight * (template.spriteScale || 1) : (template.height || 64);
 
-                    for (let attempt = 0; attempt < (genConfig.OBSTACLES.PLACEMENT_MAX_ATTEMPTS || 15); attempt++) {
-                        targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
-                        targetY = this.rng.nextFloat(playableMinY, playableMaxY - targetHeight);
-                        
-                        const tempTargetForShape = { ...template, x:targetX, y:targetY, width:targetWidth, height:targetHeight };
-                        const collisionShapeForCheck = this._getObstacleCollisionShape(tempTargetForShape);
+                        for (let attempt = 0; attempt < (genConfig.OBSTACLES.PLACEMENT_MAX_ATTEMPTS || 15); attempt++) {
+                            targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
+                            targetY = this.rng.nextFloat(playableMinY, playableMaxY - targetHeight);
+                            const tempTargetForShape = { ...template, x:targetX, y:targetY, width:targetWidth, height:targetHeight };
+                            const collisionShapeForCheck = this._getObstacleCollisionShape(tempTargetForShape);
 
-                        if (!this._rectOverlap(collisionShapeForCheck, playerSpawnZone) && !this._isPlacementInvalid(collisionShapeForCheck, template.isDecoration, this.obstacles)) {
-                            const missionTargetObs = {
-                                x: targetX, y: targetY, width: targetWidth, height: targetHeight,
-                                type: template.type, name: `${template.name || template.type} (Target ${i+1})`,
-                                color: template.color, destructible: template.destructible,
-                                hp: template.hp, maxHp: template.maxHp, isDestroyed: false,
-                                blocksMovement: template.blocksMovement, providesCover: template.providesCover,
-                                isDecoration: template.isDecoration,
-                                spriteNormalPath: actualTargetSpritePath, 
-                                imageNormal: targetImage, 
-                                spriteDestroyedPath: template.spriteDestroyed, 
-                                imageDestroyed: template.spriteDestroyed ? preloadedAssetImages[template.spriteDestroyed] : null,
-                                spriteScale: template.spriteScale || 1.0, spriteDestroyedScale: template.spriteDestroyedScale,
-                                collisionShape: template.collisionShape || null, isMissionTarget: true,
-                                isSpawner: template.type === 'possum_hut',
-                                spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0
-                            };
-                            this.obstacles.push(missionTargetObs);
-                            this.missionTargetObstacles.push(missionTargetObs);
-                            if (missionTargetObs.isSpawner) this.potentialSpawnerHuts.push(missionTargetObs);
-                            placedTarget = true;
-                            break;
+                            if (!this._rectOverlap(collisionShapeForCheck, playerSpawnZone) && !this._isPlacementInvalid(collisionShapeForCheck, template.isDecoration, this.obstacles)) {
+                                const missionTargetObs = {
+                                    x: targetX, y: targetY, width: targetWidth, height: targetHeight,
+                                    type: template.type, name: `${objective.targetNameSingular || template.name || template.type} (Objective)`,
+                                    color: template.color, destructible: template.destructible,
+                                    hp: template.hp, maxHp: template.maxHp, isDestroyed: false,
+                                    blocksMovement: template.blocksMovement, providesCover: template.providesCover,
+                                    isDecoration: template.isDecoration,
+                                    spriteNormalPath: actualTargetSpritePath, imageNormal: targetImage, 
+                                    spriteDestroyedPath: template.spriteDestroyed, imageDestroyed: template.spriteDestroyed ? preloadedAssetImages[template.spriteDestroyed] : null,
+                                    spriteScale: template.spriteScale || 1.0, spriteDestroyedScale: template.spriteDestroyedScale,
+                                    collisionShape: template.collisionShape || null, isMissionTarget: true, objectiveId: objective.id,
+                                    isSpawner: template.type === 'possum_hut',
+                                    spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0
+                                };
+                                this.obstacles.push(missionTargetObs);
+                                this.missionTargetObstacles.push(missionTargetObs);
+                                if (missionTargetObs.isSpawner) this.potentialSpawnerHuts.push(missionTargetObs);
+                                placedTarget = true;
+                                break;
+                            }
                         }
+                        if (!placedTarget) console.warn(`[Level Gen] Could not place mission target type ${objective.targetTypeKey}`);
                     }
-                    if (!placedTarget) console.warn(`[Level Gen] Could not place mission target ${i+1} of type ${missionParams.destroyTargetType}`);
-                }
-            } else { console.warn(`[Level Gen] No template found for destroyTargetType: ${missionParams.destroyTargetType}`); }
-        }
+                } else { console.warn(`[Level Gen] No template found for destroyTargetTypeKey: ${objective.targetTypeKey}`); }
+            }
+        });
+
 
         const obsGenCfg = genConfig.OBSTACLES || {}; 
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
-        const numInternalObstacles = Math.floor(baseNumObstacles * (missionParams.worldSizeFactor || 1.0)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
+        const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
         const placementMaxAttempts = obsGenCfg.PLACEMENT_MAX_ATTEMPTS || 15;
 
         for (let i = 0; i < numInternalObstacles; i++) {
@@ -652,7 +677,7 @@ class Level {
         }
 
         const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {}; 
-        const enemyDensityFactor = missionParams.enemyDensityFactor || 1.0; 
+        const enemyDensityFactor = baseParams.enemyDensityFactor || 1.0; 
         const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
         const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5; 
         const totalEnemiesToSpawn = Math.floor(baseNumEnemies * enemyDensityFactor) + this.rng.nextInt(0, Math.floor(randomAddMax * enemyDensityFactor));
@@ -693,7 +718,7 @@ class Level {
                     let memberX, memberY, isMemberSpawnClear; 
                     let memberPlacementAttempts = 0; const memberMaxAttempts = enemySpawnCfg.MEMBER_PLACEMENT_MAX_ATTEMPTS || 10;
                     let currentEnemyUnitSize = gruntSize; let isHeavy = false; 
-                    const heavyChance = missionParams.heavyChance || (enemySpawnCfg.DEFAULT_HEAVY_CHANCE || 0.20); 
+                    const heavyChance = baseParams.heavyChance || (enemySpawnCfg.DEFAULT_HEAVY_CHANCE || 0.20); 
                     const heavyLeaderBonus = enemySpawnCfg.HEAVY_CHANCE_GROUP_LEADER_BONUS || 0.1;
                     if ((m === 0 && currentGroupSizeAttempt > 0 && this.rng.chance(heavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0)) ) || (currentGroupSizeAttempt === 1 && this.rng.chance(heavyChance))) { isHeavy = true; currentEnemyUnitSize = heavySize; }
                     const groupSpreadBase = enemySpawnCfg.GROUP_SPREAD_BASE || 30; const groupSpreadSizeMult = enemySpawnCfg.GROUP_SPREAD_SIZE_MULTIPLIER || 1.5; const groupSpread = groupSpreadBase + currentEnemyUnitSize * groupSpreadSizeMult;
@@ -716,9 +741,9 @@ class Level {
             }
         }
 
-        if (missionParams.objectiveType === 'RESCUE_HOSTAGES') {
+        if (rescueObjectiveInstance) {
             const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
-            const numHostagesToSpawn = missionParams.numHostagesToSpawn !== undefined ? Math.round(missionParams.numHostagesToSpawn) : 1;
+            const numHostagesToSpawn = rescueObjectiveInstance.totalToAchieve; // This was set by _instantiateObjective
             this.initialHostageCount = numHostagesToSpawn;
             let spawnedHostageCount = 0;
             const hostageSize = CONFIG.RACCOON_SIZE || 12;
@@ -793,14 +818,15 @@ class Level {
                     } while (!placed && attempts < maxPlacementAttempts);
                 }
             }
+             // Update the specific rescue objective instance after spawning all hostages
+            if (rescueObjectiveInstance) {
+                rescueObjectiveInstance.totalToAchieve = spawnedHostageCount; // Actual number spawned
+            }
         }
         
-        if (this.game) { 
-            this.game.missionObjective = { 
-                type: missionParams.objectiveType || 'EXTERMINATE', 
-                description: missionParams.name || (CONFIG.UI_TEXT_STRINGS.DEFAULT_OBJECTIVE_TEXT || 'Eliminate all Possums!'), 
-            };
-        }
+        // Note: Game.js no longer has a single 'this.missionObjective'.
+        // The objectives are now an array in this.game.currentMissionParams.objectives.
+        // The UI will read from there.
         return playerSpawnLocations;
     }
 

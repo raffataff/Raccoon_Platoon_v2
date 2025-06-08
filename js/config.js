@@ -1,3 +1,4 @@
+// js/config.js
 const CONFIG = {
     // --- Core Game & World ---
     BASE_WORLD_WIDTH: 1280,
@@ -207,12 +208,12 @@ const CONFIG = {
         'face9.png', 'face10.png', 'face11.png'
     ],
     AUDIO_ASSETS: {
-        RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.2 },
-        POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.6, pitchVariation: 0.03 },
+        RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.3 },
+        POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.7, pitchVariation: 0.03 },
         POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.mp3', defaultVolume: 0.3, pitchVariation: 0.03 },
-        GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.mp3', defaultVolume: 0.4, pitchVariation: 0.4 },
-        UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.2 },
-        UI_BUTTON_HOVER: { path: 'assets/audio/sfx/ui_hover_gentle.mp3', defaultVolume: 0.3 },
+        GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode_2.mp3', defaultVolume: 0.4, pitchVariation: 0.4 },
+        UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.1 },
+        UI_BUTTON_HOVER: { path: 'assets/audio/sfx/ui_hover_gentle.mp3', defaultVolume: 0.3, pitchVariation: 0.1 },
         AMBIENT_FOREST_1: { path: 'assets/audio/ambience/tropical_forest_ambient_1.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_2: { path: 'assets/audio/ambience/tropical_forest_ambient_2.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_3: { path: 'assets/audio/ambience/tropical_forest_ambient_3.mp3', defaultVolume: 0.45 },
@@ -222,7 +223,11 @@ const CONFIG = {
             'AMBIENT_FOREST_2',
             'AMBIENT_FOREST_3',
             'AMBIENT_FOREST_4'
-        ]
+        ],
+        POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.5, pitchVariation: 0.1 }, // Example: unique sound
+        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.3, pitchVariation: 0.2 }, // Example: unique sound
+        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.3, pitchVariation: 0.15 }, // Example for cluster
+        // Add more SFX keys as needed, e.g., TREE_FALL_SOUND, FENCE_BREAK_SOUND
     },
 
     VISUAL_EFFECTS: {
@@ -343,7 +348,8 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, isDecoration: false,
             spriteScale: 0.5,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.12), width: (w => w * 0.95), height: (h => h * 0.3)},
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.3), width: (w => w * 0.95), height: (h => h * 0.1)},
+            // sfxOnDestroy: 'FENCE_BREAK_SOUND' // Example
         },
         {
             type: 'fence_barbed_straight_long', name: 'Barbed Wire Fence Straight Long',
@@ -352,6 +358,7 @@ const CONFIG = {
             spawnWeight: 0.1, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.9), height: (h => h * 0.04) },
+             // sfxOnDestroy: 'FENCE_BREAK_SOUND' // Example
         },
         {
             type: 'bush_medium', name: 'Medium Bush', color: '#228B22',
@@ -359,6 +366,7 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             spawnWeight: 5, isDecoration: false,
             spriteScale: 1.0, 
+            // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
@@ -366,6 +374,7 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             spawnWeight: 5, isDecoration: false,
             spriteScale: 1.0, 
+            // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         
         {
@@ -375,6 +384,7 @@ const CONFIG = {
             spawnWeight: 8, isDecoration: false,
             spriteScale: 0.3, 
             collisionShape: { type: 'ellipse', offsetX: (w => w*0.45), offsetY: (h => h*0.42), radiusX: (w => w*0.45), radiusY: (h => h*0.25) },
+            // sfxOnDestroy: 'ROCK_CRUMBLE_SOUND' // Example
         },
         {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
@@ -393,6 +403,7 @@ const CONFIG = {
             collisionShape: { type: 'circle', offsetX: (w=>w*0.4), offsetY: (h=>h*1.2), radius: (w => w * 0.12) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
+            // sfxOnDestroy: 'TREE_FALL_SOUND' // Example
         },
         {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
@@ -400,9 +411,10 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
             spriteScale: 1.2, 
-            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.35), offsetY: (h=>h*1.25), radiusX: (w=>w*0.2), radiusY: (h=>h*0.15) },
+            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.39), offsetY: (h=>h*1.25), radiusX: (w=>w*0.17), radiusY: (h=>h*0.13) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
+            // sfxOnDestroy: 'TREE_FALL_SOUND' // Example
         },
         {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
@@ -410,9 +422,10 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 4, isDecoration: false,
             spriteScale: 1.2, 
-            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.37), offsetY: (h=>h*1.2), radiusX: (w=>w*0.2), radiusY: (h=>h*0.15) },
+            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.2), radiusX: (w=>w*0.19), radiusY: (h=>h*0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
+            // sfxOnDestroy: 'TREE_FALL_SOUND' // Example
         },
         {
             type: 'tree_palm_fallen', name: 'Fallen Palm Tree', color: '#005522',
@@ -449,6 +462,7 @@ const CONFIG = {
             spriteScale: 0.08, 
             spriteDestroyed: 'assets/images/objects/barrels/barrel_red_destroyed.png',
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.05), offsetY: (h=>h*0.066), width: (w=>w*0.7), height: (h=>h*0.86) },
+            sfxOnDestroy: 'EXPLOSIVE_BARREL_DESTROYED' // SFX key from AUDIO_ASSETS
         },
         {
             type: 'explosive_barrel_cluster', name: 'Cluster Explosive Barrel', color: '#A00000',
@@ -460,6 +474,7 @@ const CONFIG = {
             spriteScale: 0.08, 
             spriteDestroyed: 'assets/images/objects/barrels/barrel_cluster_destroyed.png',
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.03), offsetY: (h=>h*0.05), width: (w=>w*0.7), height: (h=>h*0.7) },
+            sfxOnDestroy: 'EXPLOSIVE_BARREL_CLUSTER_DESTROYED' // Potentially a different, bigger sound
         },
         {
             type: 'pickup_grenade_crate', name: 'Grenade Crate', color: '#006400',
@@ -472,6 +487,7 @@ const CONFIG = {
             spriteDestroyed: 'assets/images/objects/crates/crate_empty.png',
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.0625), offsetY: (h=>h*0.0625), width: (w=>w*0.9), height: (h=>h*0.84) },
             isPickup: true,
+            // sfxOnDestroy: 'CRATE_OPEN_SOUND' // Example, if pickup crates make a sound when "destroyed" (picked up)
         },
         {
             type: 'pickup_health', name: 'Health Crate', color: '#FF69B4',
@@ -482,6 +498,7 @@ const CONFIG = {
             spriteScale: 0.25, 
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.0625), offsetY: (h=>h*0.0625), width: (w=>w*0.875), height: (h=>h*0.84) },
             isPickup: true,
+             // sfxOnDestroy: 'CRATE_OPEN_SOUND' // Example
         },
         {
             type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
@@ -493,8 +510,8 @@ const CONFIG = {
             spriteDestroyedScale: 0.5, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.48), offsetY: (h=>h*0.45), radiusX: (w=>w*0.35), radiusY: (h=>h*0.29) },
             isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED' // SFX key from AUDIO_ASSETS
         },
-        // possum relay tower
         {
             type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',
             destructible: true, hp: 150, maxHp: 150,
@@ -506,6 +523,7 @@ const CONFIG = {
             spriteDestroyedScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.15), radiusX: (w=>w*0.44), radiusY: (h=>h*0.33) },
             isDecoration: false,
+            sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED' // Example: You'd add this key to AUDIO_ASSETS
         },
         {
             type: 'extraction_zone', name: 'Extraction Zone', color: '#3C78FF',
@@ -537,24 +555,24 @@ const CONFIG = {
         POSSUM_HUT_SPAWNING: {
             MAX_ACTIVE_SPAWNING_HUTS_BASE: 1,
             MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 1,
-            SPAWN_COOLDOWN_MIN_SECONDS: 30, // Cooldown for the *next full spawn event/burst*
+            SPAWN_COOLDOWN_MIN_SECONDS: 30, 
             SPAWN_COOLDOWN_MAX_SECONDS: 120,
             UNITS_PER_SPAWN_MIN: 2, 
-            UNITS_PER_SPAWN_MAX: 4, // Slightly reduced max per burst for trickle effect
+            UNITS_PER_SPAWN_MAX: 4, 
             TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.4, 
             TIME_BETWEEN_UNITS_IN_BURST_MAX: 0.9, 
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.25, 
-            INITIAL_SPAWN_DELAY_SECONDS_MIN: 5, // Delay before the *first unit* of the *first burst*
+            INITIAL_SPAWN_DELAY_SECONDS_MIN: 5, 
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 10,
-            PLAYER_PROXIMITY_TRIGGER_RADIUS: 250, // Increased trigger radius
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 250, 
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65, 
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3, 
             SPAWN_AREA_WIDTH: 40,
             SPAWN_PHASING_DURATION: 1.25,
-            DEBUG_DRAW_SPAWN_AREAS: false, // Set true to see hut spawn zones
-            DEBUG_DRAW_HUT_STATUS_TEXT: false, // NEW: For drawing hut status
+            DEBUG_DRAW_SPAWN_AREAS: false, 
+            DEBUG_DRAW_HUT_STATUS_TEXT: false, 
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
-            MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5, // Attempts for one unit in a burst
+            MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5, 
             INITIAL_MOVE_OUT_DISTANCE: 25,
         }
     },
@@ -584,16 +602,14 @@ const CONFIG = {
         SPAWN_AT_HUTS: true, 
         MAX_HOSTAGES_PER_HUT: 1, 
         SPAWN_OFFSET_FROM_HUT_X: -30,  
-        SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30), // A bit further below hut center
-        MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 250, // Increased distance
+        SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30), 
+        MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 250, 
         HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 15,
-        // --- NEW: Initial Guards for Hostage Huts ---
         INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 2,
         INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 3,
-        INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20, // 20% chance for one guard to be heavy
-        INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 60, // How far from hut center to place these guards
+        INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20, 
+        INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 60, 
         INITIAL_GUARD_PLACEMENT_ATTEMPTS: 10
-        // ---
     },
 
     AMBIENT_EFFECTS: {
@@ -638,6 +654,15 @@ const CONFIG = {
         CAMPAIGN_COMPLETE_PHASE_NAME: "Campaign Finished", CAMPAIGN_COMPLETE_MISSION_NAME: "All Possums Defeated!",
         ERROR_LOADING_MISSION_RETRY: "Error reloading mission for retry.", RACCOON_OUT_OF_GRENADES_LOG: "Raccoon {ID}: Out of grenades!",
         OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION: "Hostages ready! Proceed to Extraction Zone!",
-        OBJECTIVE_RESCUE_HOSTAGES_AT_EVAC: "Hostages at EVAC: {COUNT}/{TOTAL}"
+        OBJECTIVE_RESCUE_HOSTAGES_AT_EVAC: "Hostages at EVAC: {COUNT}/{TOTAL}",
+
+         // --- NEW OBJECTIVE TEXT STRINGS ---
+        OBJECTIVE_EXTERMINATE_TEXT: "Eliminate Possums: {CURRENT}/{TOTAL}",
+        OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT: "Destroy {TARGET_NAME_PLURAL}: {CURRENT}/{TOTAL}", // Game.js will fill TARGET_NAME_PLURAL
+        OBJECTIVE_RESCUE_HOSTAGES_TEXT: "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_SPAWNED} (Evac: {CURRENT_EVACUATED}/{MIN_TO_EVAC})",
+        // Example for a specific destroy target type if you want very custom text per target:
+        // OBJECTIVE_DESTROY_HUTS_TEXT: "Demolish Possum Huts: {CURRENT}/{TOTAL}",
+        // OBJECTIVE_DESTROY_TOWERS_TEXT: "Sabotage Relay Towers: {CURRENT}/{TOTAL}",
+        // ---
     }
 };

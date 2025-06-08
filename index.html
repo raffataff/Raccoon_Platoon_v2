@@ -122,7 +122,10 @@
         <div id="canvas-container">
             <canvas id="gameCanvas"></canvas>
             <div id="hud-objective" class="ui-panel"> 
-                Objective: <span id="objectiveText"></span>
+                <!-- "Objective:" text can be a static header or part of CSS ::before -->
+                <div id="objectiveTextContainer"> 
+                    <!-- Objective list items will be populated here by UI.js -->
+                </div>
             </div>
         </div>
     </div>

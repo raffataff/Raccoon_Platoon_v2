@@ -1,3 +1,4 @@
+// js/ui.js
 class UI {
     constructor(game) {
         this.game = game;
@@ -20,7 +21,11 @@ class UI {
         this.viewMemorialButton = document.getElementById('viewMemorialButton');
         this.leftHudPanel = document.getElementById('left-hud-panel');
         this.squadPanel = document.getElementById('hud-squad');
-        this.objectiveText = document.getElementById('objectiveText');
+        // MODIFIED: Ensure this targets the new div container if you made the HTML change
+        this.objectiveTextContainer = document.getElementById('objectiveTextContainer'); // Changed from objectiveText
+        // If you kept objectiveText as the ID for the div, then the original this.objectiveText is fine.
+        // For clarity, I'll use objectiveTextContainer in the updateObjective function.
+
         this.missionOutcomeText = document.getElementById('missionOutcome');
         this.preMissionPhaseTitle = document.getElementById('preMissionPhaseTitle');
         this.preMissionTitle = document.getElementById('preMissionTitle');
@@ -69,8 +74,8 @@ class UI {
 
         this._addSoundToButton(this.retryMissionButton, () => {
              if (this.game) {
-                if (this.game.generateAndSetCurrentMissionParams(this.game.currentPhaseIndex, this.game.currentMissionIndex)) { // CORRECTED FUNCTION CALL
-                    const currentPhaseData = this.game.campaignStructure[this.game.currentPhaseIndex]; // Use campaignStructure
+                if (this.game.generateAndSetCurrentMissionParams(this.game.currentPhaseIndex, this.game.currentMissionIndex)) { 
+                    const currentPhaseData = this.game.campaignStructure[this.game.currentPhaseIndex]; 
                     if (currentPhaseData && this.game.currentMissionParams) {
                         this.showPreMissionScreen_RecruitSelect(
                             currentPhaseData,
@@ -79,7 +84,7 @@ class UI {
                         );
                     } else {
                         console.error("UI: Failed to get phase data or mission params for retry pre-mission screen.");
-                        this.game.quitToMainMenu(); // Fallback if data is missing
+                        this.game.quitToMainMenu(); 
                     }
                 } else {
                     this.showGameOverScreen(this.uiText.ERROR_LOADING_MISSION_RETRY || "Error reloading mission for retry.");
@@ -322,17 +327,98 @@ class UI {
         this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'none';
 
-        if (!phaseData || !missionData) { 
+        if (!phaseData || !missionData || !missionData.baseParams || !missionData.objectives) { 
             if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = this.uiText.PREMISSION_ERROR_PHASE_TITLE || "Campaign Error";
             if(this.preMissionTitle) this.preMissionTitle.textContent = this.uiText.PREMISSION_ERROR_MISSION_TITLE || "Error Loading Mission";
             if(this.preMissionBriefing) this.preMissionBriefing.textContent = this.uiText.PREMISSION_ERROR_BRIEFING || "Could not load mission details.";
+            
+            let objectivesListEl = document.getElementById('preMissionObjectivesList');
+            if (!objectivesListEl) { // Create if it doesn't exist
+                objectivesListEl = document.createElement('ul');
+                objectivesListEl.id = 'preMissionObjectivesList';
+                objectivesListEl.style.textAlign = 'left'; objectivesListEl.style.paddingLeft = '20px';
+                objectivesListEl.style.maxHeight = '120px'; objectivesListEl.style.overflowY = 'auto';
+                objectivesListEl.style.border = '1px solid #444'; objectivesListEl.style.marginBottom = '15px';
+                objectivesListEl.style.backgroundColor = 'rgba(0,0,0,0.1)';
+                const objectivesHeader = document.createElement('h4');
+                objectivesHeader.textContent = "Mission Objectives:";
+                objectivesHeader.style.marginTop = '15px'; objectivesHeader.style.marginBottom = '5px';
+                this.preMissionBriefing.parentNode.insertBefore(objectivesHeader, this.preMissionBriefing.nextSibling);
+                objectivesHeader.parentNode.insertBefore(objectivesListEl, objectivesHeader.nextSibling);
+            }
+            objectivesListEl.innerHTML = '<li>Error loading objectives.</li>';
+
             this.preMissionScreen.style.display = 'flex'; this.setCursor('default');
             return;
         }
         if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
-        if(this.preMissionTitle) this.preMissionTitle.textContent = missionData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
-        if(this.preMissionBriefing) this.preMissionBriefing.textContent = missionData.briefing || "No briefing available.";
-        if (this.game) this.game.tempSelectedForDeployment = [];
+        if(this.preMissionTitle) this.preMissionTitle.textContent = missionData.baseParams.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
+        if(this.preMissionBriefing) this.preMissionBriefing.textContent = missionData.baseParams.briefing || "No briefing available.";
+        
+        let objectivesListEl = document.getElementById('preMissionObjectivesList');
+        if (!objectivesListEl) { 
+            objectivesListEl = document.createElement('ul');
+            objectivesListEl.id = 'preMissionObjectivesList';
+            objectivesListEl.style.textAlign = 'left'; objectivesListEl.style.paddingLeft = '20px';
+            objectivesListEl.style.maxHeight = '120px'; objectivesListEl.style.overflowY = 'auto';
+            objectivesListEl.style.border = '1px solid #444'; objectivesListEl.style.marginBottom = '15px';
+            objectivesListEl.style.backgroundColor = 'rgba(0,0,0,0.1)';
+            const objectivesHeader = document.createElement('h4');
+            objectivesHeader.textContent = "Mission Objectives:";
+            objectivesHeader.style.marginTop = '15px'; objectivesHeader.style.marginBottom = '5px';
+            this.preMissionBriefing.parentNode.insertBefore(objectivesHeader, this.preMissionBriefing.nextSibling);
+            objectivesHeader.parentNode.insertBefore(objectivesListEl, objectivesHeader.nextSibling);
+        }
+        objectivesListEl.innerHTML = ''; 
+
+        if (missionData.objectives && missionData.objectives.length > 0) {
+            missionData.objectives.forEach(obj => {
+                const li = document.createElement('li');
+                let objectiveText = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
+                
+                const templateData = {
+                    CURRENT: obj.currentProgress, // Will be 0 here
+                    TOTAL: obj.totalToAchieve,    // Total count needed
+                    TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
+                    TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
+                    CURRENT_RESCUED: 0, 
+                    TOTAL_SPAWNED: obj.totalToAchieve, 
+                    CURRENT_EVACUATED: 0,
+                    MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
+                };
+                // For pre-mission, show the base description, not progress.
+                objectiveText = this.game._fillTextTemplate(objectiveText, templateData).split(':')[0].trim(); 
+                
+                if (obj.type === "DESTROY_TARGET" && obj.totalToAchieve > 0) {
+                     objectiveText += ` (${obj.totalToAchieve} ${obj.targetNamePlural || 'items'})`;
+                } else if (obj.type === "RESCUE_HOSTAGES") {
+                    objectiveText += ` (${obj.totalToAchieve} to find, min ${obj.minToAchieveForCompletion} to evac)`;
+                } else if (obj.type === "EXTERMINATE") {
+                    // No count needed for pre-mission exterminate if it's just "eliminate all"
+                }
+
+                li.textContent = `${obj.isPrimary ? '(Primary) ' : '(Secondary) '}${objectiveText}`;
+                objectivesListEl.appendChild(li);
+            });
+        } else {
+            objectivesListEl.innerHTML = '<li>No specific objectives defined. Standard patrol.</li>';
+        }
+        
+        if (this.game) {
+            this.game.tempSelectedForDeployment = []; 
+            if (this.game.lastDeployedSquadIds && this.game.lastDeployedSquadIds.length > 0) {
+                const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
+                this.game.lastDeployedSquadIds.forEach(id => {
+                    if (this.game.tempSelectedForDeployment.length < maxSquadSize) {
+                        const recruit = availableRecruits.find(r => r.id === id && r.isAlive());
+                        if (recruit) {
+                            this.game.tempSelectedForDeployment.push(recruit);
+                        }
+                    }
+                });
+            }
+        }
+        
         this.refreshRecruitSelectionLists();
         this.preMissionScreen.style.display = 'flex'; this.setCursor('default');
     }
@@ -342,12 +428,14 @@ class UI {
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'none';
         
-        const { isVictory, phaseData, missionData, survivingRaccoons, fallenRaccoons, enemiesKilled, timeTaken, campaignComplete, hostagesRecruitedCount } = debriefData;
+        const { isVictory, phaseData, missionData, objectives, 
+                survivingRaccoons, fallenRaccoons, enemiesKilled, 
+                timeTaken, campaignComplete, hostagesRecruitedCount } = debriefData;
 
         if(this.missionOutcomeText) this.missionOutcomeText.textContent = isVictory ? (this.uiText.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!") : (this.uiText.POST_MISSION_FAILED || "MISSION FAILED!");
         
         const postMissionInfoEl = document.getElementById('postMissionInfo');
-        if(postMissionInfoEl && phaseData && missionData) {
+        if(postMissionInfoEl && phaseData && missionData) { 
              postMissionInfoEl.textContent = `${phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT} - ${missionData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT}`;
         }
 
@@ -369,6 +457,59 @@ class UI {
         } else if (hostageStatPara) {
             hostageStatPara.style.display = 'none'; 
         }
+
+        let objectivesSummaryEl = document.getElementById('objectivesSummary');
+        if (!objectivesSummaryEl) {
+            objectivesSummaryEl = document.createElement('div');
+            objectivesSummaryEl.id = 'objectivesSummary';
+            objectivesSummaryEl.style.textAlign = 'left';
+            objectivesSummaryEl.style.marginTop = '15px';
+            objectivesSummaryEl.style.padding = '10px';
+            objectivesSummaryEl.style.border = '1px solid #444';
+            objectivesSummaryEl.style.backgroundColor = 'rgba(0,0,0,0.1)';
+            const objectivesSummaryHeader = document.createElement('h4');
+            objectivesSummaryHeader.textContent = "Objective Status:";
+            objectivesSummaryHeader.style.marginTop = '0';
+            objectivesSummaryHeader.style.marginBottom = '5px';
+            objectivesSummaryEl.appendChild(objectivesSummaryHeader);
+            const detailsContainer = document.querySelector('.post-mission-details'); 
+            if (detailsContainer) { 
+                detailsContainer.insertBefore(objectivesSummaryEl, detailsContainer.firstChild);
+            } else { 
+                this.postMissionScreen.insertBefore(objectivesSummaryEl, this.postMissionScreen.querySelector('.post-mission-buttons'));
+            }
+        }
+        objectivesSummaryEl.innerHTML = `<h4>Objective Status:</h4>`; 
+        const objectivesUl = document.createElement('ul');
+        objectivesUl.style.listStyle = 'none';
+        objectivesUl.style.paddingLeft = '10px';
+
+        if (objectives && objectives.length > 0) {
+            objectives.forEach(obj => {
+                const li = document.createElement('li');
+                let objectiveText = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
+                 const templateData = {
+                    CURRENT: obj.currentProgress,
+                    TOTAL: obj.totalToAchieve,
+                    TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
+                    TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
+                    CURRENT_RESCUED: obj.currentProgress,
+                    TOTAL_SPAWNED: obj.totalToAchieve,
+                    CURRENT_EVACUATED: obj.currentEvacuated || 0,
+                    MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
+                };
+                objectiveText = this.game._fillTextTemplate(objectiveText, templateData);
+                li.textContent = `${obj.isPrimary ? '(Primary) ' : '(Secondary) '}${objectiveText} - ${obj.isComplete ? 'COMPLETED' : 'FAILED'}`;
+                li.style.color = obj.isComplete ? 'lightgreen' : 'salmon';
+                objectivesUl.appendChild(li);
+            });
+        } else {
+            const li = document.createElement('li');
+            li.textContent = "No specific objectives tracked for this mission.";
+            objectivesUl.appendChild(li);
+        }
+        objectivesSummaryEl.appendChild(objectivesUl);
+
 
         const survivorListEl = document.getElementById('survivorList');
         if (survivorListEl) {
@@ -508,63 +649,55 @@ class UI {
     hideHUD() { if (this.leftHudPanel) this.leftHudPanel.style.display = 'none'; }
 
     updateObjective() { 
-        if (this.objectiveText && this.game && this.game.currentMissionParams) {
-            const params = this.game.currentMissionParams;
-            let objectiveStr = params.name || (this.uiText.DEFAULT_OBJECTIVE_TEXT || "Complete Objective");
-            const aliveEnemies = this.game.enemyUnits ? this.game.enemyUnits.filter(e => e.isAlive()).length : 0;
-            const allInitialEnemiesDefeated = (this.game.initialEnemyCount > 0 && aliveEnemies === 0 && this.game.enemyUnits.every(e => !e.isAlive())) || (this.game.initialEnemyCount === 0 && aliveEnemies === 0);
+        // Use this.objectiveTextContainer if you made the HTML change, or this.objectiveText if you kept the span ID
+        const objectiveDisplayElement = this.objectiveTextContainer || document.getElementById('objectiveText'); 
 
-            if (params.objectiveType === "EXTERMINATE") {
-                const totalEnemies = this.game.initialEnemyCount || (this.game.enemyUnits ? this.game.enemyUnits.length : 0);
-                if (totalEnemies > 0) { 
-                    objectiveStr = `Eliminate Possums: ${totalEnemies - aliveEnemies} / ${totalEnemies}`;
-                } else if (this.game.missionStartedAndPopulated && aliveEnemies === 0) {
-                     objectiveStr = `All Possums Eliminated!`; 
-                } else {
-                    objectiveStr = `Eliminate All Possums`;
-                }
-            } else if (params.objectiveType === "RESCUE_HOSTAGES") {
-                const rescuedAliveCount = this.game.hostageUnits ? this.game.hostageUnits.filter(h => h.isRescued && h.isAlive()).length : 0;
-                const minToWin = params.minHostagesToRescue !== undefined ? params.minHostagesToRescue : 1; // Use the generated param
-                
-                if (allInitialEnemiesDefeated && rescuedAliveCount >= minToWin) {
-                    let hostagesAtEvac = 0;
-                    const extractionZones = this.game.level.obstacles.filter(obs => obs.type === 'extraction_zone');
-                    if (extractionZones.length > 0) {
-                        const firstZone = extractionZones[0]; 
-                        this.game.hostageUnits.forEach(h => {
-                            if (h.isRescued && h.isAlive() &&
-                                h.x >= firstZone.x && h.x <= firstZone.x + firstZone.width &&
-                                h.y >= firstZone.y && h.y <= firstZone.y + firstZone.height) {
-                                hostagesAtEvac++;
-                            }
-                        });
-                    }
-                    objectiveStr = (this.uiText.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION || "Lead survivors to Extraction!") + 
-                                   ` (${this.uiText.OBJECTIVE_RESCUE_HOSTAGES_AT_EVAC.replace('{COUNT}', hostagesAtEvac).replace('{TOTAL}', minToWin)})`;
-                } else {
-                     objectiveStr = `Rescue: ${rescuedAliveCount}/${minToWin} (Min). Defeat Possums: ${this.game.initialEnemyCount - aliveEnemies}/${this.game.initialEnemyCount}`;
-                }
-            } else if (params.objectiveType === "DESTROY_TARGET") {
-                const totalTargets = params.numDestroyTargets !== undefined ? Math.round(params.numDestroyTargets) : 0; // Use generated param
-                const destroyedCount = this.game.level.missionTargetObstacles ? this.game.level.missionTargetObstacles.filter(t => t.isDestroyed).length : 0;
-                objectiveStr = `Destroy Targets: ${destroyedCount} / ${totalTargets}`;
-                if (allInitialEnemiesDefeated && destroyedCount >= totalTargets) {
-                    objectiveStr = `All Targets Destroyed! (Defeat remaining Possums)`;
-                } else if (destroyedCount >= totalTargets) {
-                     objectiveStr = `Targets Destroyed! Clear out remaining Possums! (${this.game.initialEnemyCount - aliveEnemies}/${this.game.initialEnemyCount})`;
-                }
-            }
-            
-            this.objectiveText.textContent = objectiveStr;
-        } else if (this.objectiveText) {
-            this.objectiveText.textContent = (this.uiText.UNKNOWN_OBJECTIVE_TEXT || "Unknown Objective");
+        if (!objectiveDisplayElement || !this.game || !this.game.currentMissionParams || !this.game.currentMissionParams.objectives) {
+            if (objectiveDisplayElement) objectiveDisplayElement.innerHTML = `<span>${this.uiText.UNKNOWN_OBJECTIVE_TEXT || "Unknown Objective"}</span>`;
+            return;
         }
+
+        objectiveDisplayElement.innerHTML = ''; // Clear previous objectives
+        const objectives = this.game.currentMissionParams.objectives;
+
+        if (objectives.length === 0) {
+            objectiveDisplayElement.innerHTML = `<span>${this.uiText.DEFAULT_OBJECTIVE_TEXT || "Complete the mission!"}</span>`;
+            return;
+        }
+        
+        objectives.forEach(obj => {
+            const p = document.createElement('p');
+            p.style.margin = '2px 0'; 
+            p.style.fontSize = '0.9em'; // Slightly smaller for multiple lines
+            let objectiveStr = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
+            
+            const templateData = {
+                CURRENT: obj.currentProgress,
+                TOTAL: obj.totalToAchieve,
+                TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
+                TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
+                CURRENT_RESCUED: obj.currentProgress, 
+                TOTAL_SPAWNED: obj.totalToAchieve,    
+                CURRENT_EVACUATED: obj.currentEvacuated || 0,
+                MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
+            };
+            objectiveStr = this.game._fillTextTemplate(objectiveStr, templateData);
+
+            if (obj.isComplete) {
+                p.innerHTML = `<span style="color: lightgreen; text-decoration: line-through;">${obj.isPrimary ? '(P) ' : '(S) '}${objectiveStr}</span>`;
+            } else {
+                p.innerHTML = `<span>${obj.isPrimary ? '(P) ' : '(S) '}${objectiveStr}</span>`;
+            }
+            objectiveDisplayElement.appendChild(p);
+        });
     }
     
     updateHostageStatus(hostage, wasRescuedAndIsAlive) {
-        if (this.game.currentMissionParams && this.game.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
-            this.updateObjective(); 
+        if (this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
+            const rescueObjective = this.game.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
+            if (rescueObjective) {
+                this.updateObjective(); 
+            }
         }
     }
 
@@ -602,7 +735,6 @@ class UI {
             let statusText = 'Active';
             if (isKIA) {
                 statusText = 'KIA';
-            // MODIFIED: Removed Hold Pos & Fire, Holding Position, Holding Fire status lines for Raccoons
             } else if (raccoon.isAimingGrenade) {
                 statusText = 'Aiming Grnd';
             } else if (raccoon.isPlayerDirectFiring) {
@@ -612,9 +744,6 @@ class UI {
             } else if (raccoon.manualTarget) {
                 statusText = 'Targeting';
             }
-            // Note: The original `raccoon.isHoldingPosition` and `raccoon.isHoldingFire` properties
-            // on the Raccoon object still exist but are no longer toggled by H/J keys
-            // and their status is no longer displayed here.
 
             const statusClass = isKIA ? 'status-kia' : '';
             const hpPercent = isKIA ? 0 : Math.max(0, (raccoon.hp / raccoon.maxHp)) * 100;

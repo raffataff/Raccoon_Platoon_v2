@@ -1,5 +1,3 @@
-// js/game.js
-// complete
 class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
@@ -14,6 +12,7 @@ class Game {
         this.fallenRaccoonsGlobal = [];
         this.fallenRaccoonsThisMission = [];
         this.tempSelectedForDeployment = [];
+        this.lastDeployedSquadIds = []; 
 
         this.gameObjects = [];
         this.enemyUnits = [];
@@ -52,7 +51,7 @@ class Game {
 
         this.currentPhaseIndex = 0;
         this.currentMissionIndex = 0;
-        this.currentMissionParams = null;
+        this.currentMissionParams = null; // This will now hold an array of objectives
         this.lastPlayedMusicKey = null;
 
         this.gameState = 'MAIN_MENU';
@@ -65,8 +64,8 @@ class Game {
 
         this.isGamePausedManually = false;
 
-        this.missionObjective = null; 
-        this.isObjectiveComplete = false;
+        // this.missionObjective = null; // Replaced by currentMissionParams.objectives
+        this.isObjectiveComplete = false; // This will likely become more complex or per-objective
         this.initialEnemyCount = 0;
         this.missionStartedAndPopulated = false;
         this.missionStartTime = 0;
@@ -419,6 +418,8 @@ class Game {
         }
 
         this.deployedSquadRoster = selectedRecruitsForDeployment;
+        this.lastDeployedSquadIds = this.deployedSquadRoster.map(r => r.id);
+
         this.deployedSquadRoster.forEach(r => {
             r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
             if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); 
@@ -431,19 +432,19 @@ class Game {
             r.isHoldingFire = false;   
         });
 
-        this.isObjectiveComplete = false;
+        this.isObjectiveComplete = false; // This might need to be an array or object for multiple objectives
         this.missionStartedAndPopulated = false;
         this.fallenRaccoonsThisMission = [];
         this.missionStartTime = performance.now();
         this.hostageUnits = []; 
 
-        const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.worldSizeFactor || 1);
-        const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.worldSizeFactor || 1);
+        const worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1000) * (this.currentMissionParams.baseParams.worldSizeFactor || 1);
+        const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.baseParams.worldSizeFactor || 1);
         CONFIG.WORLD_WIDTH = worldWidth; CONFIG.WORLD_HEIGHT = worldHeight;
         
         const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(
             worldWidth, worldHeight, 
-            this.currentMissionParams, 
+            this.currentMissionParams, // Pass the whole params object which includes the objectives array
             this.deployedSquadRoster.length, 
             this.preloadedImages,
             this.currentMissionSeed 
@@ -452,6 +453,15 @@ class Game {
         this.generatePrerenderedBackground(worldWidth, worldHeight, this.currentMissionSeed); 
 
         this.initialEnemyCount = this.enemyUnits.length; 
+         // Initialize progress for EXTERMINATE objective if it exists
+        if (this.currentMissionParams && this.currentMissionParams.objectives) {
+            const exterminateObj = this.currentMissionParams.objectives.find(obj => obj.type === "EXTERMINATE");
+            if (exterminateObj) {
+                exterminateObj.totalToAchieve = this.initialEnemyCount;
+                exterminateObj.currentProgress = 0; // Ensure it starts at 0
+            }
+        }
+
 
         this.deployedSquadRoster.forEach((raccoon, index) => {
             if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
@@ -649,6 +659,7 @@ class Game {
         this.hostageUnits = []; 
         this.gameObjects = [];
         this.visualEffects = [];
+        this.lastDeployedSquadIds = []; 
         if (this.ui) {
             this.ui.hideHUD();
             this.ui.hidePostMissionScreen();
@@ -669,6 +680,7 @@ class Game {
         this.tempSelectedForDeployment = [];
         this.hostageUnits = [];
         this.campaignStructure = [];
+        this.lastDeployedSquadIds = []; 
 
         this.campaignSeed = this.campaignRules.PLAYER_STARTING_SEED !== undefined ?
             this.campaignRules.PLAYER_STARTING_SEED : Date.now();
@@ -789,14 +801,19 @@ class Game {
         }
         const phaseBiome = currentPhaseInfo.biome;
 
-        this.currentMissionParams = {};
-        const params = this.currentMissionParams;
+        // Store base parameters separately, then the objectives array
+        this.currentMissionParams = {
+            baseParams: {},
+            objectives: [] 
+        }; 
+        const baseP = this.currentMissionParams.baseParams;
+        const objectivesArray = this.currentMissionParams.objectives;
+
         const baseParamsRules = this.campaignRules.BASE_PARAMETERS;
         const briefingParts = this.campaignRules.BRIEFING_PARTS;
 
+        // Calculate base parameters (world size, enemy density, etc.)
         for (const key in baseParamsRules) {
-            if (key === 'numHostagesToSpawn' || key === 'minHostagesToRescue') continue;
-
             const rule = baseParamsRules[key];
             let value = rule.initial + (rule.perPhaseIncrement * phaseIdx);
             if (rule.max !== undefined) value = Math.min(value, rule.max);
@@ -809,63 +826,48 @@ class Game {
             if (rule.roundToInt) value = Math.round(value);
             if (key.startsWith("num") || key.startsWith("min")) value = Math.max(0, value);
             
-            params[key] = value;
-        }
-        
-        const availableObjectives = this.campaignRules.OBJECTIVE_POOL.filter(obj => obj.unlocksPhase <= phaseIdx);
-        const selectedObjectiveEntry = this._weightedRandomSelect(availableObjectives, this.currentMissionSeedRNG) || this.campaignRules.OBJECTIVE_POOL[0];
-        params.objectiveType = selectedObjectiveEntry.type;
-
-        if (params.objectiveType === 'RESCUE_HOSTAGES') {
-            const hostageRule = baseParamsRules.numHostagesToSpawn;
-            let value = hostageRule.initial + (hostageRule.perPhaseIncrement * phaseIdx);
-            if (hostageRule.max !== undefined) value = Math.min(value, hostageRule.max);
-            let randomnessRange = value * hostageRule.randomnessFactor;
-            value += this.currentMissionSeedRNG.nextFloat(-randomnessRange, randomnessRange);
-            if (hostageRule.max !== undefined) value = Math.min(value, hostageRule.max);
-            if (hostageRule.roundToInt) value = Math.round(value);
-            
-            params.numHostagesToSpawn = Math.max(1, value); 
-
-            const minRescueRule = baseParamsRules.minHostagesToRescue;
-            let minRescueValue = minRescueRule.initial + (minRescueRule.perPhaseIncrement * phaseIdx);
-            if (minRescueRule.max !== undefined) minRescueValue = Math.min(minRescueValue, minRescueRule.max);
-            let minRandomnessRange = minRescueValue * (minRescueRule.randomnessFactor || 0);
-            minRescueValue += this.currentMissionSeedRNG.nextFloat(-minRandomnessRange, minRandomnessRange);
-            if (minRescueRule.roundToInt) minRescueValue = Math.round(minRescueValue);
-            
-            params.minHostagesToRescue = Math.min(minRescueValue, params.numHostagesToSpawn);
-            if (minRescueRule.relativeToSpawnedMaxFactor) {
-                 params.minHostagesToRescue = Math.min(params.minHostagesToRescue, Math.ceil(params.numHostagesToSpawn * minRescueRule.relativeToSpawnedMaxFactor));
-            }
-            params.minHostagesToRescue = Math.max(1, Math.round(params.minHostagesToRescue));
-        } else {
-            params.numHostagesToSpawn = 0;
-            params.minHostagesToRescue = 0;
+            baseP[key] = value;
         }
 
-        let targetNameSingular = "target";
-        let targetNamePlural = "targets";
-        if (params.objectiveType === 'DESTROY_TARGET') {
-            const availableTargets = this.campaignRules.DESTROY_TARGET_TYPE_POOL.filter(t => t.unlocksPhase <= phaseIdx);
-            if (availableTargets.length === 0) {
-                params.objectiveType = "EXTERMINATE"; 
-                params.destroyTargetType = null; 
-                params.numDestroyTargets = 0; 
-            } else {
-                const selectedTargetEntry = this._weightedRandomSelect(availableTargets, this.currentMissionSeedRNG);
-                 if (!selectedTargetEntry) { 
-                    params.objectiveType = "EXTERMINATE";
-                    params.destroyTargetType = null;
-                    params.numDestroyTargets = 0;
-                } else {
-                    params.destroyTargetType = selectedTargetEntry.type;
-                    targetNameSingular = selectedTargetEntry.nameSingular;
-                    targetNamePlural = selectedTargetEntry.namePlural;
+        // --- Objective Selection Logic ---
+        let primaryObjectiveSelected = false;
+        const objectivesInPool = [...this.campaignRules.OBJECTIVE_POOL]; // Clone for manipulation
+        this.currentMissionSeedRNG.shuffleArray(objectivesInPool); // Shuffle for variety
+
+        // Attempt to select one primary objective
+        for (const objDef of objectivesInPool) {
+            if ((objDef.isPrimary === undefined || objDef.isPrimary) && objDef.unlocksPhase <= phaseIdx) {
+                const newObjective = this._instantiateObjective(objDef, phaseIdx, true);
+                if (newObjective) {
+                    objectivesArray.push(newObjective);
+                    primaryObjectiveSelected = true;
+                    break; 
                 }
             }
         }
+        
+        // If no primary was suitable (highly unlikely with EXTERMINATE as an option), force EXTERMINATE as primary
+        if (!primaryObjectiveSelected) {
+            const exterminateDef = objectivesInPool.find(o => o.type === "EXTERMINATE") || this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
+            if (exterminateDef) {
+                const newObjective = this._instantiateObjective(exterminateDef, phaseIdx, true);
+                if (newObjective) objectivesArray.push(newObjective);
+            }
+        }
 
+        // Always add "EXTERMINATE" as a (potentially secondary) objective
+        const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
+        if (exterminateDef && !objectivesArray.find(o => o.type === "EXTERMINATE")) {
+            // If another primary exists, EXTERMINATE is secondary. Otherwise, it was already made primary.
+            const isExterminatePrimary = objectivesArray.length === 0;
+            const newExterminateObjective = this._instantiateObjective(exterminateDef, phaseIdx, isExterminatePrimary);
+            if (newExterminateObjective) objectivesArray.push(newExterminateObjective);
+        }
+        
+        // TODO: Add logic for selecting additional secondary objectives based on numSecondaryObjectivesRange and canCoexistWith
+        // For now, we'll just have the primary (or EXTERMINATE) and EXTERMINATE if it wasn't already primary.
+
+        // --- Mission Name and Briefing Generation ---
         const missionNameParts = this.campaignRules.MISSION_NAME_PARTS;
         const biomeEntryForName = this.campaignRules.BIOME_POOL.find(b => b.name === phaseBiome) || {themeAdjectives: ["General"]};
         const biomeThemeAdj = biomeEntryForName.themeAdjectives;
@@ -876,34 +878,105 @@ class Game {
         if (this.currentMissionSeedRNG.chance(0.3)) {
              mNamePart2 = this.currentMissionSeedRNG.pickFrom(missionNameParts.LOCATIONS_GENERAL);
         }
-        params.name = `${mNamePart1} ${mNamePart2} ${mNamePart3}`;
+        baseP.name = `${mNamePart1} ${mNamePart2} ${mNamePart3}`;
+
+        // Construct a combined objective description for the main briefing text
+        let combinedObjectiveDescription = "";
+        if (objectivesArray.length > 0) {
+            const primaryObj = objectivesArray.find(obj => obj.isPrimary);
+            if (primaryObj) {
+                combinedObjectiveDescription = this._getObjectiveDescriptionForBriefing(primaryObj, baseP) + ".";
+            }
+            objectivesArray.forEach(obj => {
+                if (!obj.isPrimary) {
+                    combinedObjectiveDescription += " Additionally, " + this._getObjectiveDescriptionForBriefing(obj, baseP).toLowerCase() + ".";
+                }
+            });
+        } else {
+            combinedObjectiveDescription = "secure the area"; // Fallback
+        }
+
 
         const briefingTemplate = this.currentMissionSeedRNG.pickFrom(this.campaignRules.MISSION_BRIEFING_TEMPLATES);
-        
-        const finalSelectedObjectiveEntry = this.campaignRules.OBJECTIVE_POOL.find(obj => obj.type === params.objectiveType) || 
-                                            this.campaignRules.OBJECTIVE_POOL[0];
-
-        const finalObjectiveDescription = this._fillTextTemplate(finalSelectedObjectiveEntry.description, {
-            targetNamePlural: targetNamePlural,
-            numHostages: Math.round(params.numHostagesToSpawn),
-        });
         const biomeAdjForBriefing = this.currentMissionSeedRNG.pickFrom(briefingParts.BIOME_ADJECTIVES[phaseBiome] || briefingParts.BIOME_ADJECTIVES["FOREST"] || ["unknown"]);
         const locationNounForBriefing = this.currentMissionSeedRNG.pickFrom(briefingParts.LOCATION_NOUNS[phaseBiome] || briefingParts.LOCATION_NOUNS["FOREST"] || ["the area"]);
 
-        params.briefing = this._fillTextTemplate(briefingTemplate, {
-            missionName: params.name,
+        baseP.briefing = this._fillTextTemplate(briefingTemplate, {
+            missionName: baseP.name,
             biomeAdjective: biomeAdjForBriefing,
             biomeNoun: currentPhaseInfo.biomeDescription,
             locationNoun: locationNounForBriefing,
             enemyAdjective: this.currentMissionSeedRNG.pickFrom(briefingParts.ENEMY_ADJECTIVES),
             enemyCompositionHint: this.currentMissionSeedRNG.pickFrom(briefingParts.ENEMY_COMPOSITION_HINTS),
-            objectiveDescription: finalObjectiveDescription,
+            objectiveDescription: combinedObjectiveDescription.trim(),
         });
-        params.biome = phaseBiome;
+        baseP.biome = phaseBiome;
 
         this.tempSelectedForDeployment = [];
         return true;
     }
+
+    _getObjectiveDescriptionForBriefing(objectiveInstance, baseParams) {
+        // Helper to generate a human-readable string for the main mission briefing
+        // This is different from the HUD text which includes progress.
+        let desc = `Objective type ${objectiveInstance.type} not fully described.`; // Fallback
+        const uiTextStrings = CONFIG.UI_TEXT_STRINGS;
+    
+        if (objectiveInstance.type === "EXTERMINATE") {
+            desc = uiTextStrings.OBJECTIVE_EXTERMINATE_TEXT?.split(':')[0] || "eliminate all hostiles";
+        } else if (objectiveInstance.type === "DESTROY_TARGET") {
+            const template = uiTextStrings.OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT?.split(':')[0] || "destroy {TARGET_NAME_PLURAL}";
+            desc = this._fillTextTemplate(template, {
+                TARGET_NAME_PLURAL: objectiveInstance.targetNamePlural || "targets"
+            });
+            if(objectiveInstance.totalToAchieve > 1) desc += ` (${objectiveInstance.totalToAchieve} total)`;
+        } else if (objectiveInstance.type === "RESCUE_HOSTAGES") {
+            const template = uiTextStrings.OBJECTIVE_RESCUE_HOSTAGES_TEXT?.split('(')[0].trim() || "rescue hostages";
+            desc = this._fillTextTemplate(template, {
+                TOTAL_SPAWNED: objectiveInstance.totalToAchieve, // totalToAchieve for rescue is numHostagesToSpawn
+                MIN_TO_EVAC: objectiveInstance.minToAchieveForCompletion // Assuming minToAchieveForCompletion is set
+            });
+        }
+        // Add more else if for other objective types
+        return desc;
+    }
+    
+
+    _instantiateObjective(objDef, phaseIdx, isPrimary) {
+        const baseP = this.currentMissionParams.baseParams; // Get base params calculated earlier
+        const newObj = {
+            type: objDef.type,
+            id: `${objDef.type.toLowerCase()}_${this.currentMissionSeedRNG.nextInt(100, 999)}`,
+            descriptionTemplateKey: objDef.descriptionTemplateKey,
+            completionCondition: objDef.completionCondition,
+            isPrimary: isPrimary,
+            isComplete: false,
+            currentProgress: 0,
+            totalToAchieve: 0, // Default, will be overridden by specific types
+            statusText: "" // Will be generated by UI
+        };
+
+        if (objDef.type === "DESTROY_TARGET") {
+            const availableTargetTypes = this.campaignRules.DESTROY_TARGET_TYPE_POOL.filter(t => t.unlocksPhase <= phaseIdx);
+            if (availableTargetTypes.length === 0) return null; // Cannot fulfill this objective type
+
+            const selectedTargetType = this._weightedRandomSelect(availableTargetTypes, this.currentMissionSeedRNG);
+            if (!selectedTargetType) return null;
+
+            newObj.targetTypeKey = selectedTargetType.targetTypeKey;
+            newObj.targetNameSingular = selectedTargetType.nameSingular;
+            newObj.targetNamePlural = selectedTargetType.namePlural;
+            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numDestroyTargets)); // Use calculated numDestroyTargets
+        } else if (objDef.type === "RESCUE_HOSTAGES") {
+            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numHostagesToSpawn)); // totalToAchieve for rescue is numHostagesToSpawn
+            newObj.minToAchieveForCompletion = Math.max(1, Math.round(baseP.minHostagesToRescue));
+        } else if (objDef.type === "EXTERMINATE") {
+            newObj.totalToAchieve = 0; // Will be set in confirmSquadAndStartMission after enemies are spawned
+        }
+        // Add more else if for other objective types (ASSASSINATION, etc.)
+        return newObj;
+    }
+
 
     recordRaccoonFallen(raccoon) {
         if (raccoon && raccoon.team === 'player') {
@@ -916,7 +989,7 @@ class Game {
                                   : CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
                 this.fallenRaccoonsGlobal.push({
                     id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl,
-                    missionDied: this.currentMissionParams ? this.currentMissionParams.name : (CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT),
+                    missionDied: this.currentMissionParams.baseParams ? this.currentMissionParams.baseParams.name : (CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT),
                     phaseDied: phaseName
                 });
             }
@@ -995,7 +1068,9 @@ class Game {
         }
 
         let newlyRecruitedFromMission = 0;
-        if (isVictory && this.currentMissionParams && this.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
+        // Check if a RESCUE_HOSTAGES objective exists and was part of the mission
+        const rescueObjective = this.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
+        if (isVictory && rescueObjective) {
             if (this.hostageUnits) {
                 this.hostageUnits.forEach(hostage => {
                     if (hostage.isAlive() && hostage.isRescued) {
@@ -1012,7 +1087,6 @@ class Game {
                             do {
                                 faceImageFile = rosterRng.pickFrom(availableFaceImages);
                                 chosenFaceUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
-                                // CORRECTED: Use existingFaceUrls.length instead of livingFaceUrls.length
                                 if (!existingFaceUrls.includes(chosenFaceUrl) || existingFaceUrls.length >= availableFaceImages.length) break;
                                 attempts++;
                             } while (attempts < maxFaceAttempts);
@@ -1044,7 +1118,8 @@ class Game {
         const debriefData = {
             isVictory: isVictory,
             phaseData: currentPhaseData,
-            missionData: this.currentMissionParams || { name: CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT },
+            missionData: this.currentMissionParams.baseParams || { name: CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT },
+            objectives: this.currentMissionParams.objectives, // Pass all objectives
             survivingRaccoons: this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [],
             fallenRaccoons: this.fallenRaccoonsThisMission,
             enemiesKilled: enemiesKilledThisMission,
@@ -1096,7 +1171,8 @@ class Game {
                 const finalDebriefData = {
                     isVictory: true, campaignComplete: true,
                     phaseData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_PHASE_NAME, introduction: "The final battle is won!" },
-                    missionData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_MISSION_NAME },
+                    missionData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_MISSION_NAME }, // This can be simplified
+                    objectives: [{type: "CAMPAIGN_WON", isComplete: true, descriptionTemplateKey:"OBJECTIVE_CAMPAIGN_WON_TEXT"}],
                     survivingRaccoons: this.masterRoster.filter(r => r.isAlive()),
                     fallenRaccoons: this.fallenRaccoonsGlobal, enemiesKilled: "N/A", timeTaken: "N/A"
                 };
@@ -1209,89 +1285,129 @@ class Game {
     }
 
     checkMissionStatus() {
-        if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated) {
+        if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated || !this.currentMissionParams || !this.currentMissionParams.objectives) {
             return;
         }
     
-        let objectiveMet = false;
-        const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()).length : 0;
-        const allInitialEnemiesDefeated = (this.initialEnemyCount > 0 && aliveEnemies === 0 && this.enemyUnits.every(e => !e.isAlive())) || (this.initialEnemyCount === 0 && aliveEnemies === 0);
+        let allPrimaryObjectivesComplete = true;
+        let anyPrimaryExists = false;
+        let exterminateObjectiveExists = false;
+        let exterminateObjectiveComplete = false;
     
-        if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'EXTERMINATE') {
-            if (allInitialEnemiesDefeated) {
-                objectiveMet = true;
+        this.currentMissionParams.objectives.forEach(obj => {
+            if (obj.isPrimary) {
+                anyPrimaryExists = true;
             }
-        } else if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'RESCUE_HOSTAGES') {
-            const minToRescue = this.currentMissionParams.minHostagesToRescue !== undefined 
-                ? this.currentMissionParams.minHostagesToRescue
-                : 1;
-    
-            const rescuedAndAliveHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
-            const rescuedAndAliveCount = rescuedAndAliveHostages.length;
-    
-            if (rescuedAndAliveCount >= minToRescue && allInitialEnemiesDefeated) {
-                const extractionZones = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
-                if (extractionZones.length > 0) {
-                    let hostagesInZoneCount = 0;
-                    let playerRaccoonInZone = false;
-    
-                    rescuedAndAliveHostages.forEach(hostage => {
-                        for (const zone of extractionZones) {
-                            if (hostage.x >= zone.x && hostage.x <= zone.x + zone.width &&
-                                hostage.y >= zone.y && hostage.y <= zone.y + zone.height) {
-                                hostagesInZoneCount++;
-                                break; 
-                            }
-                        }
-                    });
-    
-                    if (this.deployedSquadRoster) {
-                        for (const raccoon of this.deployedSquadRoster) {
-                            if (raccoon.isAlive()) {
-                                for (const zone of extractionZones) {
-                                    if (raccoon.x >= zone.x && raccoon.x <= zone.x + zone.width &&
-                                        raccoon.y >= zone.y && raccoon.y <= zone.y + zone.height) {
-                                        playerRaccoonInZone = true;
-                                        break;
-                                    }
+            if (obj.type === "EXTERMINATE") {
+                exterminateObjectiveExists = true;
+            }
+
+            // Update individual objective completion status (if not already complete)
+            if (!obj.isComplete) {
+                if (obj.type === 'EXTERMINATE') {
+                    obj.currentProgress = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
+                    if (obj.totalToAchieve === undefined) obj.totalToAchieve = this.initialEnemyCount; 
+
+                    if (obj.totalToAchieve > 0 && obj.currentProgress >= obj.totalToAchieve) { 
+                        obj.isComplete = true;
+                    } else if (obj.totalToAchieve === 0 && this.initialEnemyCount === 0 && (!this.enemyUnits || this.enemyUnits.every(e => !e.isAlive()))) { 
+                        obj.isComplete = true;
+                    }
+                } else if (obj.type === 'DESTROY_TARGET') {
+                    obj.currentProgress = this.level.missionTargetObstacles ? 
+                                          this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed).length : 0;
+                    if (obj.currentProgress >= obj.totalToAchieve) {
+                        obj.isComplete = true;
+                    }
+                } else if (obj.type === 'RESCUE_HOSTAGES') {
+                    const rescuedAndAliveHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
+                    obj.currentProgress = rescuedAndAliveHostages.length; 
+                    obj.minToAchieveForCompletion = obj.minToAchieveForCompletion || 1; 
+
+                    let hostagesAtEvacCount = 0;
+                    let playerRaccoonInZone = false; 
+                    const extractionZones = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
+
+                    if (extractionZones.length > 0) {
+                         rescuedAndAliveHostages.forEach(hostage => {
+                            for (const zone of extractionZones) {
+                                if (hostage.x >= zone.x && hostage.x <= zone.x + zone.width &&
+                                    hostage.y >= zone.y && hostage.y <= zone.y + zone.height) {
+                                    hostagesAtEvacCount++;
+                                    break; 
                                 }
                             }
-                            if (playerRaccoonInZone) break;
+                        });
+                        if (this.deployedSquadRoster) {
+                            for (const raccoon of this.deployedSquadRoster) {
+                                if (raccoon.isAlive()) {
+                                    for (const zone of extractionZones) {
+                                        if (raccoon.x >= zone.x && raccoon.x <= zone.x + zone.width &&
+                                            raccoon.y >= zone.y && raccoon.y <= zone.y + zone.height) {
+                                            playerRaccoonInZone = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                                if (playerRaccoonInZone) break;
+                            }
                         }
                     }
+                    obj.currentEvacuated = hostagesAtEvacCount; 
                     
-                    if (hostagesInZoneCount >= minToRescue && playerRaccoonInZone) {
-                        objectiveMet = true;
+                    // Determine if all enemies need to be cleared for THIS rescue objective
+                    // This condition is true IF (EXTERMINATE is a primary obj AND it's complete) OR (EXTERMINATE is NOT a primary obj AND all enemies are dead)
+                    let enemiesClearedForThisRescue = false;
+                    const primaryExterminateObjective = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE" && o.isPrimary);
+                    if (primaryExterminateObjective) {
+                        enemiesClearedForThisRescue = primaryExterminateObjective.isComplete;
+                    } else {
+                        enemiesClearedForThisRescue = this.enemyUnits.every(e => !e.isAlive());
+                    }
+
+                    if (obj.currentProgress >= obj.minToAchieveForCompletion && 
+                        hostagesAtEvacCount >= obj.minToAchieveForCompletion &&
+                        playerRaccoonInZone && 
+                        enemiesClearedForThisRescue) {
+                        obj.isComplete = true;
                     }
                 }
             }
-        } else if (this.currentMissionParams && this.currentMissionParams.objectiveType === 'DESTROY_TARGET') {
-            const numTargetsToSpawn = this.currentMissionParams.numDestroyTargets !== undefined ? Math.round(this.currentMissionParams.numDestroyTargets) : 0;
-
-            if (this.level.missionTargetObstacles && 
-                this.level.missionTargetObstacles.length >= numTargetsToSpawn && 
-                this.level.missionTargetObstacles.every(target => target.isDestroyed) && 
-                allInitialEnemiesDefeated) {
-                objectiveMet = true;
-            } else if (numTargetsToSpawn === 0 && allInitialEnemiesDefeated) {
-                objectiveMet = true;
+    
+            if (obj.isPrimary && !obj.isComplete) {
+                allPrimaryObjectivesComplete = false;
             }
-        } else { 
-            if (this.currentMissionParams && allInitialEnemiesDefeated) {
-                objectiveMet = true;
+            if (obj.type === "EXTERMINATE" && obj.isComplete) {
+                exterminateObjectiveComplete = true;
+            }
+        });
+    
+        // If there were no primary objectives explicitly defined (e.g., only EXTERMINATE was added by default as secondary),
+        // then mission success depends on ALL objectives being complete.
+        if (!anyPrimaryExists) {
+            allPrimaryObjectivesComplete = this.currentMissionParams.objectives.every(o => o.isComplete);
+        }
+
+        // Now, determine overall mission success
+        let overallMissionSuccess = false;
+        if (allPrimaryObjectivesComplete) {
+            if (exterminateObjectiveExists) { // If "EXTERMINATE" objective is part of the mission (primary or secondary)
+                overallMissionSuccess = exterminateObjectiveComplete; // It must be complete
+            } else {
+                overallMissionSuccess = true; // No exterminate objective, so primary completion is enough
             }
         }
 
         const livingPlayerRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()).length : 0;
         if (livingPlayerRaccoons === 0 && this.deployedSquadRoster.length > 0) {
             if (this.gameState === 'RUNNING') { 
-                this.initiateMissionEnd(false);
+                this.initiateMissionEnd(false); 
             }
             return; 
         }
     
-        if (objectiveMet && this.gameState === 'RUNNING') { 
-            this.initiateMissionEnd(true);
+        if (overallMissionSuccess && this.gameState === 'RUNNING') { 
+            this.initiateMissionEnd(true); 
         }
     }
 
@@ -1430,6 +1546,22 @@ class Game {
             this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34'; 
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
         }
+
+        if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid) {
+            const navGrid = this.level.navGrid;
+            const cellSize = this.level.gridCellSize;
+            this.ctx.save();
+            this.ctx.fillStyle = 'rgba(100, 0, 0, 0.3)'; 
+            for (let y = 0; y < navGrid.length; y++) {
+                for (let x = 0; x < navGrid[y].length; x++) {
+                    if (navGrid[y][x] === 1) { 
+                        this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+            this.ctx.restore();
+        }
+        
 
         let sortableObjects = [];
         if (this.deployedSquadRoster) {
