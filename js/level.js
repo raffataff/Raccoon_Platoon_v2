@@ -52,11 +52,14 @@ class Level {
                 };
             }
         }
+        // Fallback for obstacles without a defined collisionShape (e.g. borders, simple old obstacles)
+        // or if type is not recognized above.
         if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || 
             obstacle.type === 'border_wall' || 
             obstacle.type === 'extraction_zone') { 
              return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
         }
+        // Default to the obstacle's bounding box if no specific shape defined
         return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
     }
 
@@ -64,7 +67,7 @@ class Level {
     
     _isPlacementInvalid(newObstacleShape, newIsDecoration, existingObstacles) {
         for (const existing of existingObstacles) {
-            if (newIsDecoration && existing.isDecoration) {
+            if (newIsDecoration && existing.isDecoration) { // Allow decorations to overlap other decorations
                 continue;
             }
     
@@ -84,13 +87,22 @@ class Level {
                 if (existingShape.type === 'rectangle') collision = rectEllipseOverlap(existingShape, newObstacleShape);
                 else if (existingShape.type === 'circle') collision = circleEllipseOverlap(existingShape, newObstacleShape);
                 else if (existingShape.type === 'ellipse') {
+                    // Basic AABB check for ellipse-ellipse as a proxy for more complex check
                     const r1 = { x: newObstacleShape.x - newObstacleShape.radiusX, y: newObstacleShape.y - newObstacleShape.radiusY, width: newObstacleShape.radiusX * 2, height: newObstacleShape.radiusY * 2 };
                     const r2 = { x: existingShape.x - existingShape.radiusX, y: existingShape.y - existingShape.radiusY, width: existingShape.radiusX * 2, height: existingShape.radiusY * 2 };
-                    collision = rectOverlap(r1, r2);
+                    collision = rectOverlap(r1, r2); // If AABBs don't overlap, ellipses can't. This isn't perfect.
+                    // For more accuracy, a separating axis theorem for ellipses would be needed, which is complex.
+                    // Or, if AABBs do overlap, then a more precise ellipse-ellipse check (e.g. pointInEllipse checks on boundary points).
                 }
             }
             
             if (collision) {
+                // If it's a decoration trying to place on a non-decoration, allow if it's just a "providesCover" overlap
+                if (newIsDecoration && !existing.isDecoration && !existing.blocksMovement && existing.providesCover) {
+                    // This might be too permissive, but allows grass on edges of rocks etc.
+                    // For stricter placement, remove this 'continue'.
+                    continue; 
+                }
                 return true; 
             }
         }
@@ -99,13 +111,15 @@ class Level {
 
     isSpawnPointClear(x, y, unitSize, existingObstacles, existingUnits = []) {
         const unitShape = { type: 'circle', x: x, y: y, radius: unitSize / 2 };
-        if (this._isPlacementInvalid(unitShape, false, existingObstacles)) {
+        if (this._isPlacementInvalid(unitShape, false, existingObstacles)) { // Units are not decorations
             return false;
         }
 
+        // Check against other units
         for (const unit of existingUnits) {
             if (unit.isAlive()) {
                 const distSq = (x - unit.x) * (x - unit.x) + (y - unit.y) * (y - unit.y);
+                // Ensure units don't spawn overlapping
                 const minSeparationDist = (unitSize / 2 + unit.size / 2) + (this.hutSpawnConfig.MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN || 5); 
                 if (distSq < minSeparationDist * minSeparationDist) {
                     return false;
@@ -119,11 +133,42 @@ class Level {
         if (!obstacle || !obstacle.destructible || obstacle.isDestroyed || obstacle.hp === undefined) {
             return;
         }
+        const wasAlive = obstacle.hp > 0; // Check if it was alive before taking damage
+
         obstacle.hp -= amount;
+
+        // --- NEW: Hut spawns units when shot ---
+        if (wasAlive && obstacle.type === 'possum_hut' && obstacle.hp > 0 && !obstacle.isDestroyed) {
+            const isSpawner = this.potentialSpawnerHuts.includes(obstacle) || this.activeSpawningHuts.includes(obstacle);
+            // Trigger spawn if it's a mission target OR a spawner that isn't already about to spawn immediately
+            if (obstacle.isMissionTarget || isSpawner) {
+                if (!obstacle.damageSpawnCooldown || obstacle.damageSpawnCooldown <= 0) {
+                    // Set a short delay for the "alarm" spawn
+                    obstacle.delayedDamageSpawnTimer = (this.hutSpawnConfig.INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE || 0.5) + (Math.random() * 0.3 - 0.15); // ~0.35 to 0.65s
+                    obstacle.damageSpawnCooldown = (this.hutSpawnConfig.MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS || 5.0); // Prevent spamming damage spawns
+                    
+                    if(CONFIG.DEBUG_LOGGING) console.log(`[Level] Hut ${obstacle.name || obstacle.id} shot! Scheduling damage spawn in ${obstacle.delayedDamageSpawnTimer.toFixed(1)}s.`);
+
+                    // If it wasn't actively spawning, make it so, but with a short initial burst
+                    if (!this.activeSpawningHuts.includes(obstacle) && this.potentialSpawnerHuts.includes(obstacle)) {
+                        const maxAllowedActive = Math.floor(this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_BASE +
+                            (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
+                        if (this.activeSpawningHuts.length < maxAllowedActive) {
+                            obstacle.isActivelySpawning = true; // Mark it so it processes in updateHutSpawning
+                            // It will use its delayedDamageSpawnTimer first
+                            this.activeSpawningHuts.push(obstacle);
+                        }
+                    }
+                }
+            }
+        }
+        // --- END NEW ---
+
+
         if (obstacle.hp <= 0) {
             obstacle.hp = 0;
             obstacle.isDestroyed = true;
-
+            // ... (rest of existing destroy logic: sfx, remove from activeSpawners, update navGrid, explosion)
             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
 
             if (obstacleDef && obstacleDef.sfxOnDestroy && this.game && this.game.audioManager) {
@@ -185,13 +230,13 @@ class Level {
         }
     }
 
+
     _getRandomObstacleTemplate() {
         const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
         
         let totalWeight = 0; 
         definitions.forEach(def => {
-            // Exclude mission target types currently active for this mission from random placement pool
             let isCurrentMissionTargetType = false;
             if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
                 isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
@@ -250,32 +295,69 @@ class Level {
         this.gridHeight = Math.floor(worldHeight / this.gridCellSize);
         this.navGrid = [];
 
+        // --- MODIFIED: Define pathing clearance radius ---
+        const unitClearanceRadius = (CONFIG.RACCOON_SIZE / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
+        // --- END MODIFIED ---
+
         for (let y = 0; y < this.gridHeight; y++) {
             this.navGrid[y] = [];
             for (let x = 0; x < this.gridWidth; x++) {
-                this.navGrid[y][x] = 0;
+                this.navGrid[y][x] = 0; // Default to walkable
+                
+                // --- MODIFIED: Cell representation for collision check ---
+                // Check a representative point of the cell, e.g., its center
+                const cellCenterX = x * this.gridCellSize + this.gridCellSize / 2;
+                const cellCenterY = y * this.gridCellSize + this.gridCellSize / 2;
+                // Or, represent cell as a small rectangle for more accuracy if needed
                 const cellRect = {
                     x: x * this.gridCellSize,
                     y: y * this.gridCellSize,
                     width: this.gridCellSize,
                     height: this.gridCellSize
                 };
+                // --- END MODIFIED ---
 
                 for (const obs of this.obstacles) {
                     if (obs.blocksMovement && !obs.isDestroyed) { 
                         const obsShape = this._getObstacleCollisionShape(obs);
                         if (!obsShape) continue;
-                        let collision = false;
-                        if (obsShape.type === 'rectangle') {
-                            collision = rectOverlap(cellRect, obsShape);
-                        } else if (obsShape.type === 'circle') {
-                            collision = rectCircleOverlap(cellRect, obsShape);
-                        } else if (obsShape.type === 'ellipse') {
-                            collision = rectEllipseOverlap(cellRect, obsShape);
+
+                        // --- MODIFIED: Inflate obstacle shape for pathing ---
+                        let inflatedObsShape = {...obsShape}; // Clone original shape
+
+                        if (inflatedObsShape.type === 'rectangle') {
+                            inflatedObsShape.x -= unitClearanceRadius;
+                            inflatedObsShape.y -= unitClearanceRadius;
+                            inflatedObsShape.width += 2 * unitClearanceRadius;
+                            inflatedObsShape.height += 2 * unitClearanceRadius;
+                        } else if (inflatedObsShape.type === 'circle') {
+                            inflatedObsShape.radius = (inflatedObsShape.radius || 0) + unitClearanceRadius;
+                        } else if (inflatedObsShape.type === 'ellipse') {
+                            inflatedObsShape.radiusX = (inflatedObsShape.radiusX || 0) + unitClearanceRadius;
+                            inflatedObsShape.radiusY = (inflatedObsShape.radiusY || 0) + unitClearanceRadius;
                         }
+                        // --- END MODIFIED ---
+                        
+                        let collision = false;
+                        // Check if the cell's center point is inside the inflated obstacle shape
+                        if (inflatedObsShape.type === 'rectangle') {
+                            collision = pointInRectangle(cellCenterX, cellCenterY, inflatedObsShape);
+                        } else if (inflatedObsShape.type === 'circle') {
+                            collision = pointInCircle(cellCenterX, cellCenterY, inflatedObsShape);
+                        } else if (inflatedObsShape.type === 'ellipse') {
+                            collision = pointInEllipse(cellCenterX, cellCenterY, inflatedObsShape);
+                        }
+                        
+                        // More accurate (but more expensive) check: does cell rectangle overlap inflated obstacle?
+                        // if (inflatedObsShape.type === 'rectangle') {
+                        //     collision = rectOverlap(cellRect, inflatedObsShape);
+                        // } else if (inflatedObsShape.type === 'circle') {
+                        //     collision = rectCircleOverlap(cellRect, inflatedObsShape);
+                        // } // etc. for ellipse
+
                         if (collision) {
-                            this.navGrid[y][x] = 1;
-                            break;
+                            this.navGrid[y][x] = 1; // Mark as blocked
+                            break; 
                         }
                     }
                 }
@@ -283,66 +365,88 @@ class Level {
         }
     }
 
+
     updateNavigationGridForObstacle(obstacle, isDestroyedAndNowWalkable) {
         if (!this.navGrid || !obstacle) return;
+        
+        // --- MODIFIED: Define pathing clearance radius, same as in generateNavigationGrid ---
+        const unitClearanceRadius = (CONFIG.RACCOON_SIZE / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 12);
+        // --- END MODIFIED ---
 
         const obsShapeForBounds = this._getObstacleCollisionShape(obstacle);
         let minObsX, maxObsX, minObsY, maxObsY;
 
         if (!obsShapeForBounds) { 
-            minObsX = obstacle.x;
-            maxObsX = obstacle.x + obstacle.width;
-            minObsY = obstacle.y;
-            maxObsY = obstacle.y + obstacle.height;
+            minObsX = obstacle.x; maxObsX = obstacle.x + obstacle.width;
+            minObsY = obstacle.y; maxObsY = obstacle.y + obstacle.height;
         } else if (obsShapeForBounds.type === 'rectangle') {
-            minObsX = obsShapeForBounds.x;
-            maxObsX = obsShapeForBounds.x + obsShapeForBounds.width;
-            minObsY = obsShapeForBounds.y;
-            maxObsY = obsShapeForBounds.y + obsShapeForBounds.height;
+            minObsX = obsShapeForBounds.x; maxObsX = obsShapeForBounds.x + obsShapeForBounds.width;
+            minObsY = obsShapeForBounds.y; maxObsY = obsShapeForBounds.y + obsShapeForBounds.height;
         } else if (obsShapeForBounds.type === 'circle') {
-            minObsX = obsShapeForBounds.x - obsShapeForBounds.radius;
-            maxObsX = obsShapeForBounds.x + obsShapeForBounds.radius;
-            minObsY = obsShapeForBounds.y - obsShapeForBounds.radius;
-            maxObsY = obsShapeForBounds.y + obsShapeForBounds.radius;
+            minObsX = obsShapeForBounds.x - obsShapeForBounds.radius; maxObsX = obsShapeForBounds.x + obsShapeForBounds.radius;
+            minObsY = obsShapeForBounds.y - obsShapeForBounds.radius; maxY = obsShapeForBounds.y + obsShapeForBounds.radius;
         } else if (obsShapeForBounds.type === 'ellipse') {
-            minObsX = obsShapeForBounds.x - obsShapeForBounds.radiusX;
-            maxObsX = obsShapeForBounds.x + obsShapeForBounds.radiusX;
-            minObsY = obsShapeForBounds.y - obsShapeForBounds.radiusY;
-            maxObsY = obsShapeForBounds.y + obsShapeForBounds.radiusY;
+            minObsX = obsShapeForBounds.x - obsShapeForBounds.radiusX; maxObsX = obsShapeForBounds.x + obsShapeForBounds.radiusX;
+            minObsY = obsShapeForBounds.y - obsShapeForBounds.radiusY; maxObsY = obsShapeForBounds.y + obsShapeForBounds.radiusY;
         } else { 
-            minObsX = obstacle.x;
-            maxObsX = obstacle.x + obstacle.width;
-            minObsY = obstacle.y;
-            maxObsY = obstacle.y + obstacle.height;
+            minObsX = obstacle.x; maxObsX = obstacle.x + obstacle.width;
+            minObsY = obstacle.y; maxObsY = obstacle.y + obstacle.height;
         }
 
-        const startGridX = Math.max(0, Math.floor(minObsX / this.gridCellSize) -1); 
-        const endGridX = Math.min(this.gridWidth -1, Math.ceil(maxObsX / this.gridCellSize) +1);
-        const startGridY = Math.max(0, Math.floor(minObsY / this.gridCellSize) -1);
-        const endGridY = Math.min(this.gridHeight -1, Math.ceil(maxObsY / this.gridCellSize) +1);
+        // --- MODIFIED: Expand the bounding box for update by the clearance radius too ---
+        const updateMargin = Math.ceil(unitClearanceRadius / this.gridCellSize) + 1; // Number of cells to expand check by
+        const startGridX = Math.max(0, Math.floor(minObsX / this.gridCellSize) - updateMargin); 
+        const endGridX = Math.min(this.gridWidth -1, Math.ceil(maxObsX / this.gridCellSize) + updateMargin);
+        const startGridY = Math.max(0, Math.floor(minObsY / this.gridCellSize) - updateMargin);
+        const endGridY = Math.min(this.gridHeight -1, Math.ceil(maxObsY / this.gridCellSize) + updateMargin);
+        // --- END MODIFIED ---
+
 
         for (let y = startGridY; y <= endGridY; y++) {
             for (let x = startGridX; x <= endGridX; x++) {
                 if (y < 0 || y >= this.gridHeight || x < 0 || x >= this.gridWidth) continue;
 
-                const cellRect = { x: x * this.gridCellSize, y: y * this.gridCellSize, width: this.gridCellSize, height: this.gridCellSize };
-                let stillBlockedByOther = false;
+                const cellCenterX = x * this.gridCellSize + this.gridCellSize / 2;
+                const cellCenterY = y * this.gridCellSize + this.gridCellSize / 2;
+                
+                let cellIsBlocked = false;
                 for (const otherObs of this.obstacles) {
-                    if (otherObs.blocksMovement && !otherObs.isDestroyed) { 
+                    // Consider the obstacle being updated as "destroyed" if isDestroyedAndNowWalkable is true
+                    // and it no longer blocks movement
+                    const currentObsBlocks = (otherObs === obstacle)
+                        ? (isDestroyedAndNowWalkable ? (obstacle.blocksMovementOnDestroy !== undefined ? obstacle.blocksMovementOnDestroy : false) : otherObs.blocksMovement)
+                        : (otherObs.blocksMovement && !otherObs.isDestroyed);
+
+                    if (currentObsBlocks) { 
                         const otherObsShape = this._getObstacleCollisionShape(otherObs);
                         if (!otherObsShape) continue;
+
+                        // Inflate this 'otherObsShape' for checking against the cell center
+                        let inflatedOtherObsShape = {...otherObsShape};
+                        if (inflatedOtherObsShape.type === 'rectangle') {
+                            inflatedOtherObsShape.x -= unitClearanceRadius;
+                            inflatedOtherObsShape.y -= unitClearanceRadius;
+                            inflatedOtherObsShape.width += 2 * unitClearanceRadius;
+                            inflatedOtherObsShape.height += 2 * unitClearanceRadius;
+                        } else if (inflatedOtherObsShape.type === 'circle') {
+                            inflatedOtherObsShape.radius = (inflatedOtherObsShape.radius || 0) + unitClearanceRadius;
+                        } else if (inflatedOtherObsShape.type === 'ellipse') {
+                            inflatedOtherObsShape.radiusX = (inflatedOtherObsShape.radiusX || 0) + unitClearanceRadius;
+                            inflatedOtherObsShape.radiusY = (inflatedOtherObsShape.radiusY || 0) + unitClearanceRadius;
+                        }
+                        
                         let collisionWithOther = false;
-                        if (otherObsShape.type === 'rectangle') collisionWithOther = rectOverlap(cellRect, otherObsShape);
-                        else if (otherObsShape.type === 'circle') collisionWithOther = rectCircleOverlap(cellRect, otherObsShape);
-                        else if (otherObsShape.type === 'ellipse') collisionWithOther = rectEllipseOverlap(cellRect, otherObsShape);
+                        if (inflatedOtherObsShape.type === 'rectangle') collisionWithOther = pointInRectangle(cellCenterX, cellCenterY, inflatedOtherObsShape);
+                        else if (inflatedOtherObsShape.type === 'circle') collisionWithOther = pointInCircle(cellCenterX, cellCenterY, inflatedOtherObsShape);
+                        else if (inflatedOtherObsShape.type === 'ellipse') collisionWithOther = pointInEllipse(cellCenterX, cellCenterY, inflatedOtherObsShape);
 
                         if (collisionWithOther) {
-                            stillBlockedByOther = true;
-                            break;
+                            cellIsBlocked = true;
+                            break; 
                         }
                     }
                 }
-                this.navGrid[y][x] = stillBlockedByOther ? 1 : 0;
+                this.navGrid[y][x] = cellIsBlocked ? 1 : 0;
             }
         }
     }
@@ -375,6 +479,7 @@ class Level {
     }
 
     generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParamsContainer = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}, missionSeed) {
+        // ... (initial setup, border generation, EZ zone, mission target obstacles - unchanged) ...
         this.rng = new SeededRandom(missionSeed);
         this.obstacles = [];
         this.potentialSpawnerHuts = []; 
@@ -458,7 +563,6 @@ class Level {
         this.obstacles.push({ x: 0, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Left', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
         this.obstacles.push({ x: worldWidth - sideBorderWidth, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Right', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
 
-        // --- Place mission-critical "anchors" based on objectives ---
         const rescueObjectiveInstance = missionObjectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
         if (rescueObjectiveInstance) {
             const ezConfig = genConfig.EXTRACTION_ZONE_SETTINGS || {};
@@ -488,7 +592,7 @@ class Level {
                     placedEZ = true;
                 }
             }
-            if (!placedEZ) { /* Fallback placement for EZ if all attempts fail */ 
+            if (!placedEZ) { 
                 ezObstacle.x = playableMinX; ezObstacle.y = playableMinY; 
                 this.obstacles.push(ezObstacle); 
                 this.game.addVisualEffect('extraction_zone', { obstacle: ezObstacle });
@@ -540,7 +644,8 @@ class Level {
                                     spriteScale: template.spriteScale || 1.0, spriteDestroyedScale: template.spriteDestroyedScale,
                                     collisionShape: template.collisionShape || null, isMissionTarget: true, objectiveId: objective.id,
                                     isSpawner: template.type === 'possum_hut',
-                                    spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0
+                                    spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
+                                    delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0 // Initialize new timers
                                 };
                                 this.obstacles.push(missionTargetObs);
                                 this.missionTargetObstacles.push(missionTargetObs);
@@ -626,7 +731,8 @@ class Level {
                         imageDestroyed: actualDestroyedImageObject, 
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         collisionShape: template.collisionShape || null, isSpawner: template.type === 'possum_hut',
-                        spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0
+                        spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
+                        delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0 // Initialize new timers
                     };
                     this.obstacles.push(newObstacle);
                     if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.potentialSpawnerHuts.push(newObstacle);
@@ -743,14 +849,14 @@ class Level {
 
         if (rescueObjectiveInstance) {
             const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
-            const numHostagesToSpawn = rescueObjectiveInstance.totalToAchieve; // This was set by _instantiateObjective
+            const numHostagesToSpawn = rescueObjectiveInstance.totalToAchieve; 
             this.initialHostageCount = numHostagesToSpawn;
             let spawnedHostageCount = 0;
             const hostageSize = CONFIG.RACCOON_SIZE || 12;
 
             if (hostageConf.SPAWN_AT_HUTS && numHostagesToSpawn > spawnedHostageCount) {
                 const eligibleHuts = this.potentialSpawnerHuts.filter(hut => {
-                    if (hut.isDestroyed || hut.isMissionTarget) return false;
+                    if (hut.isDestroyed || hut.isMissionTarget) return false; // Don't spawn hostages at mission target huts
                     const hutCenterX = hut.x + hut.width / 2; const hutCenterY = hut.y + hut.height / 2;
                     const distToPlayerSpawn = distance(hutCenterX, hutCenterY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2);
                     return distToPlayerSpawn > (hostageConf.MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE || 0);
@@ -818,22 +924,20 @@ class Level {
                     } while (!placed && attempts < maxPlacementAttempts);
                 }
             }
-             // Update the specific rescue objective instance after spawning all hostages
             if (rescueObjectiveInstance) {
-                rescueObjectiveInstance.totalToAchieve = spawnedHostageCount; // Actual number spawned
+                rescueObjectiveInstance.totalToAchieve = spawnedHostageCount; 
             }
         }
         
-        // Note: Game.js no longer has a single 'this.missionObjective'.
-        // The objectives are now an array in this.game.currentMissionParams.objectives.
-        // The UI will read from there.
         return playerSpawnLocations;
     }
 
     spawnInitialHutGuards(hut, preloadedAssetImages, playerSpawnZone, playableMinX, playableMaxX, playableMinY, playableMaxY) {
         const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
-        const guardMin = hostageConf.INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT || 1;
-        const guardMax = hostageConf.INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT || 2;
+        // --- MODIFIED: Ensure at least 1 guard if a hostage is at a hut ---
+        const guardMin = Math.max(1, hostageConf.INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT || 1); // Enforce minimum of 1
+        const guardMax = Math.max(guardMin, hostageConf.INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT || 2); // Ensure max is at least min
+        // --- END MODIFIED ---
         const numGuards = this.rng.nextInt(guardMin, guardMax);
         const heavyChance = hostageConf.INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT || 0.1;
         const spawnRadius = hostageConf.INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT || 60;
@@ -859,11 +963,25 @@ class Level {
                         new PossumHeavy(guardX, guardY, this.game, `PHVY-HGRD-${this.game.enemyUnits.length + 1}`) :
                         new PossumGrunt(guardX, guardY, this.game, `PSM-HGRD-${this.game.enemyUnits.length + 1}`);
                     this.game.enemyUnits.push(enemyUnit);
+                    // --- NEW: Increment objective count for these guards ---
+                     if (this.game && typeof this.game.incrementObjectiveEnemyCount === 'function') {
+                        this.game.incrementObjectiveEnemyCount(1);
+                    }
+                    if (this.game && this.game.spatialGrid) { // Also add to spatial grid
+                        this.game.spatialGrid.addObject(enemyUnit);
+                    }
+                    // --- END NEW ---
                     guardsSpawned++;
                     placedGuard = true;
                     break; 
                 }
             }
+            if (!placedGuard && i < guardMin) { // If minimum guards not placed, log it
+                console.warn(`[Level] Failed to place minimum required guard ${i+1} for hut ${hut.name || hut.id} with hostage.`);
+            }
+        }
+         if (CONFIG.DEBUG_LOGGING && guardsSpawned < guardMin) {
+            console.log(`[Level] Hut ${hut.name || hut.id} spawned ${guardsSpawned}/${numGuards} initial guards (min required: ${guardMin}).`);
         }
     }
 
@@ -881,7 +999,7 @@ class Level {
                                    (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
 
             for (const hut of this.potentialSpawnerHuts) {
-                if (hut.isDestroyed || hut.isActivelySpawning) continue; 
+                if (hut.isDestroyed || hut.isActivelySpawning || hut.isMissionTarget) continue; // Don't auto-activate mission target huts via proximity
 
                 if (this.activeSpawningHuts.length < maxAllowedActive) {
                     let playerNearby = false;
@@ -917,7 +1035,32 @@ class Level {
                 continue;
             }
 
-            if (hut.unitsToSpawnThisBurst > 0) {
+            // --- NEW: Handle delayed spawn triggered by damage ---
+            if (hut.delayedDamageSpawnTimer && hut.delayedDamageSpawnTimer > 0) {
+                hut.delayedDamageSpawnTimer -= deltaTime;
+                if (hut.delayedDamageSpawnTimer <= 0) {
+                    hut.delayedDamageSpawnTimer = 0;
+                    const damageSpawnCount = this.hutSpawnConfig.UNITS_TO_SPAWN_ON_DAMAGE || this.rng.nextInt(1,2); // Configurable
+                    if(CONFIG.DEBUG_LOGGING) console.log(`[Level] Hut ${hut.name || hut.id} damage spawn: ${damageSpawnCount} units.`);
+                    for (let k = 0; k < damageSpawnCount; k++) {
+                        this.attemptSingleSpawnFromHut(hut);
+                    }
+                    // Optionally, make the hut enter its normal cooldown or a shorter one
+                     hut.spawnCooldownTimer = this.rng.nextFloat(
+                            (this.hutSpawnConfig.SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE || 10),
+                            (this.hutSpawnConfig.SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE || 20)
+                        );
+                    hut.unitsToSpawnThisBurst = 0; // Clear any normal burst
+                }
+            }
+            if(hut.damageSpawnCooldown && hut.damageSpawnCooldown > 0){
+                hut.damageSpawnCooldown -= deltaTime;
+                 if(hut.damageSpawnCooldown <0) hut.damageSpawnCooldown = 0;
+            }
+            // --- END NEW ---
+
+
+            if (hut.unitsToSpawnThisBurst > 0 && hut.delayedDamageSpawnTimer <= 0) { // Only spawn if not waiting for damage spawn
                 hut.timeUntilNextUnitInBurst -= deltaTime;
                 if (hut.timeUntilNextUnitInBurst <= 0) {
                     if (this.attemptSingleSpawnFromHut(hut)) {
@@ -930,16 +1073,17 @@ class Level {
                             (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MIN || 0.2),
                             (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MAX || 0.5)
                         );
-                    } else {
+                    } else { // Burst finished
                         hut.spawnCooldownTimer = this.rng.nextFloat(
                             (this.hutSpawnConfig.SPAWN_COOLDOWN_MIN_SECONDS || 15),
                             (this.hutSpawnConfig.SPAWN_COOLDOWN_MAX_SECONDS || 30)
                         );
                     }
                 }
-            } else { 
+            } else if (hut.delayedDamageSpawnTimer <= 0) { // Normal cooldown (not a burst, not waiting for damage spawn)
                 hut.spawnCooldownTimer -= deltaTime;
                 if (hut.spawnCooldownTimer <= 0) {
+                    // Start a new burst
                     const numToSpawnBaseMin = this.hutSpawnConfig.UNITS_PER_SPAWN_MIN || 1;
                     const numToSpawnBaseMax = this.hutSpawnConfig.UNITS_PER_SPAWN_MAX || 2;
                     const phaseIncrement = this.hutSpawnConfig.UNITS_PER_SPAWN_PHASE_INCREMENT || 0;
@@ -948,7 +1092,7 @@ class Level {
                     hut.unitsToSpawnThisBurst = this.rng.nextInt(currentMinUnits, currentMaxUnits);
                     hut.timeUntilNextUnitInBurst = this.rng.nextFloat(
                         (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MIN || 0.2),
-                        (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MAX || 0.2)
+                        (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MAX || 0.2) 
                     ); 
                 }
             }
@@ -995,14 +1139,25 @@ class Level {
             initialTargetX = Math.max(gruntSize / 2, Math.min(initialTargetX, (CONFIG.WORLD_WIDTH || 0) - gruntSize / 2));
             initialTargetY = Math.max(gruntSize / 2, Math.min(initialTargetY, (CONFIG.WORLD_HEIGHT || 0) - gruntSize / 2));
             newGrunt.setMoveTarget(initialTargetX, initialTargetY);
+            
             this.game.enemyUnits.push(newGrunt);
+            // --- NEW: Notify game to update objective counts ---
+            if (this.game && typeof this.game.incrementObjectiveEnemyCount === 'function') {
+                this.game.incrementObjectiveEnemyCount(1);
+            }
+            if (this.game && this.game.spatialGrid) { // Also add to spatial grid
+                this.game.spatialGrid.addObject(newGrunt);
+            }
+            // --- END NEW ---
             return true;
         } else {
+            if (CONFIG.DEBUG_LOGGING) console.warn(`[Level] Failed to find clear spawn point for hut ${hut.name || hut.id}`);
             return false;
         }
     }
 
     renderHutSpawnAreas(ctx) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.hutSpawnConfig.DEBUG_DRAW_SPAWN_AREAS) return;
         ctx.save();
         const originalAlpha = ctx.globalAlpha;

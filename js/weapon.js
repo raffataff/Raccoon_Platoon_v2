@@ -1,4 +1,3 @@
-
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
                 accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null) { 
@@ -40,16 +39,27 @@ const WEAPONS = {
 
 class Projectile {
     constructor(startX, startY, targetX, targetY, damage, speed, color, game, shooterUnit, effectiveAccuracy) {
+        // --- POOLING NOTE: This constructor is primarily for pool creation. ---
+        // --- Actual initialization happens in reset() for pooled objects. ---
+        this.game = game; // Game instance needed early by SpatialGrid
+        this._spatialGridCells = new Set();
+        this._pooled = false; // Will be set by ObjectPool if created by it
+        this.isActiveInPool = false; // Will be set by ObjectPool
+
+        this.reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy);
+    }
+
+    reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy) {
         this.x = startX;
         this.y = startY;
         this.damage = damage;
         this.speed = speed;
         this.color = color;
-        this.size = CONFIG.PROJECTILE_SIZE || 2; 
-        this.game = game;
+        // this.game = game; // Already set in constructor if pooled, or passed if not
         this.shooterUnit = shooterUnit;
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
         this.effectiveAccuracy = effectiveAccuracy;
+        this.size = CONFIG.PROJECTILE_SIZE || 2;
 
         const bulletConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET) ? CONFIG.PROJECTILES.BULLET : {};
 
@@ -74,6 +84,13 @@ class Projectile {
 
         this.isMarkedForDeletion = false;
         this.lifetime = bulletConfig.LIFETIME || 1.5;
+        
+        // Ensure spatial grid cells are cleared if it's being reused
+        if (this._spatialGridCells) this._spatialGridCells.clear();
+        else this._spatialGridCells = new Set();
+
+        this.isActiveInPool = true; // Mark as active when reset
+        return this; // Return instance for chaining or direct use
     }
 
     update(deltaTime) {
@@ -86,68 +103,53 @@ class Projectile {
             return;
         }
 
-        let potentialTargets = [];
-        if (this.shooterTeam === 'player' && this.game) {
-            potentialTargets = this.game.enemyUnits || []; 
-        } else if (this.shooterTeam === 'enemy' && this.game) {
-            potentialTargets = this.game.getLivingPlayerControlledUnits();
+        let potentialHitObjects = [];
+        if (this.game.spatialGrid) {
+            const queryRange = Math.max(this.size, CONFIG.POSSUM_HEAVY_SIZE || 18, CONFIG.RACCOON_SIZE || 12) + 5; 
+            potentialHitObjects = this.game.spatialGrid.queryRange(this.x, this.y, queryRange);
+        } else { 
+            if (this.shooterTeam === 'player') potentialHitObjects.push(...(this.game.enemyUnits || []));
+            else if (this.shooterTeam === 'enemy') potentialHitObjects.push(...(this.game.getLivingPlayerControlledUnits() || []));
+            potentialHitObjects.push(...(this.game.level.obstacles || []));
         }
 
+        for (const obj of potentialHitObjects) {
+            if (this.isMarkedForDeletion) break; 
 
-        for (const targetUnit of potentialTargets) {
-            if (targetUnit && targetUnit.isAlive()) {
-                const distToTarget = distance(this.x, this.y, targetUnit.x, targetUnit.y);
-                if (distToTarget < targetUnit.size + this.size) { 
+            if (obj instanceof Unit && obj.isAlive() && obj.team !== this.shooterTeam && obj.team !== 'neutral') {
+                const distToTarget = distance(this.x, this.y, obj.x, obj.y);
+                if (distToTarget < obj.size + this.size) {
                     let actualDamage = this.damage;
-                    
-                    targetUnit.takeDamage(actualDamage, this.shooterUnit);
-
-                    if (this.shooterUnit && this.shooterTeam === 'player' && targetUnit.team === 'enemy' && typeof this.shooterUnit.addXp === 'function') {
+                    obj.takeDamage(actualDamage, this.shooterUnit);
+                    if (this.shooterUnit && this.shooterTeam === 'player' && obj.team === 'enemy' && typeof this.shooterUnit.addXp === 'function') {
                         this.shooterUnit.addXp(CONFIG.XP_PER_HIT || 1);
                     }
                     this.isMarkedForDeletion = true;
                     return;
                 }
-            }
-        }
+            } else if (this.game.level.obstacles.includes(obj) && !obj.isDestroyed) {
+                const obsCollisionShape = this.game.level._getObstacleCollisionShape(obj);
+                if (!obsCollisionShape) continue;
 
-        if (this.game && this.game.level && this.game.level.obstacles) {
-            for (const obs of this.game.level.obstacles) {
-                if (!obs.isDestroyed) { 
-                    const obsCollisionShape = this.game.level._getObstacleCollisionShape(obs);
-                    if (!obsCollisionShape) continue; 
-
-                    let hitObstacle = false;
-
-                    if (obsCollisionShape.type === 'rectangle') {
-                        if (pointInRectangle(this.x, this.y, obsCollisionShape)) {
-                            hitObstacle = true;
-                        }
-                    } else if (obsCollisionShape.type === 'circle') {
-                        if (pointInCircle(this.x, this.y, obsCollisionShape)) {
-                            hitObstacle = true;
-                        }
-                    } else if (obsCollisionShape.type === 'ellipse') { 
-                        if (pointInEllipse(this.x, this.y, obsCollisionShape)) {
-                            hitObstacle = true;
+                let hitObstacle = false;
+                if (obsCollisionShape.type === 'rectangle' && pointInRectangle(this.x, this.y, obsCollisionShape)) hitObstacle = true;
+                else if (obsCollisionShape.type === 'circle' && pointInCircle(this.x, this.y, obsCollisionShape)) hitObstacle = true;
+                else if (obsCollisionShape.type === 'ellipse' && pointInEllipse(this.x, this.y, obsCollisionShape)) hitObstacle = true;
+                
+                if (hitObstacle) {
+                    if (obj.destructible) {
+                        if (obj.type === 'explosive_barrel' || obj.type === 'explosive_barrel_cluster' || obj.type === 'possum_hut') {
+                            this.game.level.damageObstacle(obj, this.damage, this.shooterUnit);
                         }
                     }
-
-                    if (hitObstacle) {
-                        if (obs.destructible) { 
-                            if (obs.type === 'explosive_barrel' || obs.type === 'explosive_barrel_cluster' || obs.type === 'possum_hut') {
-                                this.game.level.damageObstacle(obs, this.damage, this.shooterUnit);
-                            }
-                        }
-                        
-                        if (obs.blocksMovement || obs.providesCover) { 
-                            this.isMarkedForDeletion = true;
-                            return;
-                        }
+                    if (obj.blocksMovement || obj.providesCover) {
+                        this.isMarkedForDeletion = true;
+                        return;
                     }
                 }
             }
         }
+
         if (this.isMarkedForDeletion) return;
 
         const worldBuffer = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET && CONFIG.PROJECTILES.BULLET.DESPAWN_WORLD_BUFFER !== undefined)
@@ -168,13 +170,23 @@ class Projectile {
 
 class GrenadeProjectile {
     constructor(startX, startY, targetX, targetY, game, shooterUnit) {
+        // --- POOLING NOTE: This constructor is primarily for pool creation. ---
+        this.game = game; // Game instance needed early
+        this._spatialGridCells = new Set();
+        this._pooled = false;
+        this.isActiveInPool = false;
+        
+        this.reset(startX, startY, targetX, targetY, shooterUnit);
+    }
+
+    reset(startX, startY, targetX, targetY, shooterUnit) {
         this.startX = startX;
         this.startY = startY;
         this.x = startX;
         this.y = startY;
         this.targetX = targetX;
         this.targetY = targetY;
-        this.game = game;
+        // this.game = game; // Already set
         this.shooterUnit = shooterUnit;
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
 
@@ -209,6 +221,12 @@ class GrenadeProjectile {
         this.isMarkedForDeletion = false;
         this.exploded = false;
         this.maxLifetime = this.fuseTimer + this.flightTimeTotal + (grenadeVisualConfig.MAX_LIFETIME_BUFFER || 2.0);
+
+        if (this._spatialGridCells) this._spatialGridCells.clear();
+        else this._spatialGridCells = new Set();
+
+        this.isActiveInPool = true;
+        return this;
     }
 
     update(deltaTime) {
@@ -255,33 +273,32 @@ class GrenadeProjectile {
 
         if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('explosion', { x: this.x, y: this.y, radius: this.aoeRadius });
 
-        const unitsToDamage = [];
-        if (this.game && this.game.deployedSquadRoster) unitsToDamage.push(...this.game.deployedSquadRoster);
-        if (this.game && this.game.enemyUnits) unitsToDamage.push(...this.game.enemyUnits);
-        if (this.game && this.game.hostageUnits) unitsToDamage.push(...this.game.hostageUnits); 
-
-
-        unitsToDamage.forEach(unit => {
-            if (unit && unit.isAlive()) {
-                const distToUnit = distance(this.x, this.y, unit.x, unit.y);
-                if (distToUnit <= this.aoeRadius + unit.size) {
+        let objectsInAOE = [];
+        if (this.game.spatialGrid) {
+            objectsInAOE = this.game.spatialGrid.queryRange(this.x, this.y, this.aoeRadius + Math.max(CONFIG.POSSUM_HEAVY_SIZE || 18, CONFIG.RACCOON_SIZE || 12));
+        } else { 
+            if (this.game && this.game.deployedSquadRoster) objectsInAOE.push(...this.game.deployedSquadRoster);
+            if (this.game && this.game.enemyUnits) objectsInAOE.push(...this.game.enemyUnits);
+            if (this.game && this.game.hostageUnits) objectsInAOE.push(...this.game.hostageUnits);
+            if (this.game && this.game.level && this.game.level.obstacles) objectsInAOE.push(...this.game.level.obstacles);
+        }
+        
+        objectsInAOE.forEach(obj => {
+            if (obj instanceof Unit && obj.isAlive()) {
+                const distToUnit = distance(this.x, this.y, obj.x, obj.y);
+                if (distToUnit <= this.aoeRadius + obj.size) {
                     let damageMultiplier = 1.0;
-                    if (this.shooterTeam === 'player' && unit.team === 'player' && unit !== this.shooterUnit) {
+                    if (this.shooterTeam === 'player' && obj.team === 'player' && obj !== this.shooterUnit) {
                         damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5; 
                     }
-                    unit.takeDamage(this.damage * damageMultiplier, this.shooterUnit);
+                    obj.takeDamage(this.damage * damageMultiplier, this.shooterUnit);
                 }
-            }
-        });
-
-        if(this.game && this.game.level && this.game.level.obstacles) this.game.level.obstacles.forEach(obstacle => {
-            if (obstacle.destructible && !obstacle.isDestroyed && obstacle.hp > 0) {
-                const obsCenterX = obstacle.x + obstacle.width / 2;
-                const obsCenterY = obstacle.y + obstacle.height / 2;
-                const effectiveRadius = this.aoeRadius + Math.max(obstacle.width, obstacle.height) / 4; 
-
+            } else if (this.game.level.obstacles.includes(obj) && obj.destructible && !obj.isDestroyed && obj.hp > 0) {
+                const obsCenterX = obj.x + obj.width / 2;
+                const obsCenterY = obj.y + obj.height / 2;
+                const effectiveRadius = this.aoeRadius + Math.max(obj.width, obj.height) / 4; 
                 if (distance(this.x, this.y, obsCenterX, obsCenterY) <= effectiveRadius) {
-                     this.game.level.damageObstacle(obstacle, this.damage, this.shooterUnit);
+                     this.game.level.damageObstacle(obj, this.damage, this.shooterUnit);
                 }
             }
         });

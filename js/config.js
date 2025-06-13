@@ -19,18 +19,18 @@ const CONFIG = {
     INPUT_TAP_THRESHOLD_MS: 30,
 
     // --- Pathfinding ---
-    GRID_CELL_SIZE: 6, // Reduced for finer grid, ensure performance
+    GRID_CELL_SIZE: 8, // Reduced for finer grid, ensure performance
     DEBUG_PATHING_UNIT_ID: null, 
     DEBUG_DRAW_NAV_GRID_BLOCKED: true, 
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, 
 
     // --- Units: Raccoon (Player) ---
-    RACCOON_HP: 50,
+    RACCOON_HP: 30,
     RACCOON_SPEED: 200,
     RACCOON_SIZE: 12,
     RACCOON_COLOR: '#808080',
     RACCOON_MG_DAMAGE: 7,
-    RACCOON_MG_ROF: 5,
+    RACCOON_MG_ROF: 7,
     RACCOON_MG_RANGE: 500,
     RACCOON_MG_PROJECTILE_SPEED: 500,
     RACCOON_MG_ACCURACY_STATIONARY: 0.90,
@@ -51,12 +51,12 @@ const CONFIG = {
     RACCOON_DEAD_SPRITE_SCALE: 0.07,
 
     // --- Units: Possum Grunt ---
-    POSSUM_GRUNT_HP: 30,
+    POSSUM_GRUNT_HP: 21,
     POSSUM_GRUNT_SPEED: 100,
     POSSUM_GRUNT_SIZE: 14,
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_RIFLE_DAMAGE: 8,
-    POSSUM_RIFLE_ROF: 3,
+    POSSUM_RIFLE_ROF: 5,
     POSSUM_RIFLE_RANGE: 350,
     POSSUM_RIFLE_PROJECTILE_SPEED: 400,
     POSSUM_RIFLE_ACCURACY_STATIONARY: 0.75,
@@ -68,12 +68,12 @@ const CONFIG = {
     POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.5, 
 
     // --- Units: Possum Heavy ---
-    POSSUM_HEAVY_HP: 70,
+    POSSUM_HEAVY_HP: 35,
     POSSUM_HEAVY_SPEED: 80,
     POSSUM_HEAVY_SIZE: 18,
     POSSUM_HEAVY_COLOR: '#6A4A3A',
     POSSUM_HEAVY_WEAPON_DAMAGE: 18,
-    POSSUM_HEAVY_WEAPON_ROF: 1.2,
+    POSSUM_HEAVY_WEAPON_ROF: 1,
     POSSUM_HEAVY_WEAPON_RANGE: 440,
     POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED: 350,
     POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY: 0.85,
@@ -87,16 +87,17 @@ const CONFIG = {
     // --- Units: General & AI ---
     UNIT_VISUALS: {
         STUCK_FRAMES_THRESHOLD: 2,
-        UNIT_PHASING_DURATION: 0.75, 
+        UNIT_PHASING_DURATION: 2.75, 
         UNIT_PHASING_OPACITY: 0.5,   
         DRAW_GUN_AIM_INDICATOR: false,
         FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 1 },
-        KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 0.6 },
+        KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 1 },
         GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 }
     },
-    UNIT_STUCK_FRAMES_THRESHOLD: 45,
-    STUCK_FRAMES_THRESHOLD_PATHING: 30, 
-    REPATH_STUCK_COOLDOWN: 0.75,
+    UNIT_PATHING_RADIUS_BUFFER: 12, // Buffer around unit for pathfinding checks
+    UNIT_STUCK_FRAMES_THRESHOLD: 2,
+    STUCK_FRAMES_THRESHOLD_PATHING: 2, 
+    REPATH_STUCK_COOLDOWN: 0.3,
     ENEMY_ALERT_PROPAGATION_RADIUS: 200,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95, 
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10, 
@@ -140,15 +141,15 @@ const CONFIG = {
     PROJECTILE_COLOR_POSSUM: '#FFA500',
     PROJECTILE_COLOR_POSSUM_HEAVY: '#FF6347',
     GRENADE_PROJECTILE_COLOR: '#228B22',
-    PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER: 0.25, // 0 = no friendly fire, 1 = full damage
+    PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER: 0, // 0 = no friendly fire, 1 = full damage
 
     WEAPON_SETTINGS: {
-        ROF_JITTER_PERCENTAGE: 0.10 
+        ROF_JITTER_PERCENTAGE: 0.20 
     },
 
     PROJECTILES: {
         BULLET: {
-            LIFETIME: 1.5,
+            LIFETIME: 1.0,
             MAX_SPREAD_ANGLE_RADIANS: Math.PI / 6,
             DESPAWN_WORLD_BUFFER: 50
         },
@@ -159,7 +160,7 @@ const CONFIG = {
             MIN_FLIGHT_TIME: 0.05,
             ARC_PEAK_HEIGHT_MIN: 20,
             ARC_PEAK_HEIGHT_DISTANCE_FACTOR: 0.2,
-            MAX_LIFETIME_BUFFER: 2.0,
+            MAX_LIFETIME_BUFFER: 1.5,
             SHADOW: {
                 COLOR_RGBA: [0, 0, 0, 0.3],
                 Y_OFFSET_FACTOR: 0.5, 
@@ -177,9 +178,9 @@ const CONFIG = {
 
     // --- Roster, Progression & Campaign ---
     INITIAL_ROSTER_SIZE: 3,
-    NEW_RECRUITS_PER_MISSION_WIN: 1,
+    NEW_RECRUITS_PER_MISSION_WIN: 3,
     MAX_SQUAD_SIZE_MVP: 4,
-    MAX_TOTAL_ROSTER_SIZE: 10,
+    MAX_TOTAL_ROSTER_SIZE: 20,
     INITIAL_FORMATION_SPACING: 1.7,
     XP_PER_MISSION_SURVIVED: 35,
     XP_PER_HIT: 1,
@@ -194,10 +195,10 @@ const CONFIG = {
         { rankName: "Ghost", xpNeeded: 2000, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.3 } }
     ],
     MAX_RANK_NAME: "Ghost",
-    GRENADE_BONUS_CORPORAL: 2,
-    GRENADE_BONUS_SERGEANT: 3,
-    GRENADE_BONUS_ELITE: 4,
-    GRENADE_BONUS_GHOST: 5,
+    GRENADE_BONUS_CORPORAL: 1,
+    GRENADE_BONUS_SERGEANT: 2,
+    GRENADE_BONUS_ELITE: 3,
+    GRENADE_BONUS_GHOST: 4,
 
     // --- Visuals & UI ---
     DEFAULT_WORLD_BACKGROUND_COLOR: '#417021',
@@ -224,9 +225,9 @@ const CONFIG = {
             'AMBIENT_FOREST_3',
             'AMBIENT_FOREST_4'
         ],
-        POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.5, pitchVariation: 0.1 }, // Example: unique sound
-        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.3, pitchVariation: 0.2 }, // Example: unique sound
-        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.3, pitchVariation: 0.15 }, // Example for cluster
+        POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.4, pitchVariation: 0.1 }, // Example: unique sound
+        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.1, pitchVariation: 0.2 }, // Example: unique sound
+        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.1, pitchVariation: 0.15 }, // Example for cluster
         // Add more SFX keys as needed, e.g., TREE_FALL_SOUND, FENCE_BREAK_SOUND
     },
 
@@ -250,7 +251,7 @@ const CONFIG = {
     // --- Level Generation & Obstacles ---
     LEVEL_GENERATION: {
         WORLD_MARGIN: 20,
-        BORDER_WIDTH: 30, 
+        BORDER_WIDTH: 20, 
         BORDER_COLOR: '#25221D', 
         BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long', 
         PLAYER_SPAWN_ZONE: { 
@@ -263,7 +264,7 @@ const CONFIG = {
         OBSTACLES: { 
             BASE_COUNT: 50, 
             WORLD_SIZE_FALLBACK_FACTOR: 1.0, 
-            RANDOM_ADDITION_MAX: 8, 
+            RANDOM_ADDITION_MAX: 20, 
             PLACEMENT_MAX_ATTEMPTS: 15 
         },
         PLAYER_SPAWN_PLACEMENT: { 
@@ -279,8 +280,8 @@ const CONFIG = {
         EXTRACTION_ZONE_SETTINGS: {
             SPRITE_PATH: null, // Set to null to use canvas drawing
             FALLBACK_COLOR: 'rgba(60, 120, 255, 0.35)', 
-            WIDTH: 120,
-            HEIGHT: 120,
+            WIDTH: 160,
+            HEIGHT: 160,
             NAME: "Extraction Zone",
             PLACEMENT_MARGIN_FROM_EDGE: 30,
             MIN_DISTANCE_FROM_PLAYER_SPAWN: 900,
@@ -294,17 +295,11 @@ const CONFIG = {
         'grass6.png','grass7.png','grass8.png','grass9.png','grass10.png',
         
     ],
-    BUSH_SPRITES_32PX_PATH: 'assets/images/objects/bushes/32/',
-    BUSH_SPRITES_32PX_FILES: [
-        'Autumn_bush2.png','Bush_orange_flowers2.png','Bush_pink_flowers2.png','Bush_red_flowers2.png',
-        'Bush_simple1_1.png','Bush_simple1_2.png','Bush_simple2_1.png','Bush_simple2_2.png',
-        'Fern1_2.png','Fern2_2.png'
-    ],
-    BUSH_SPRITES_64PX_PATH: 'assets/images/objects/bushes/64/',
-    BUSH_SPRITES_64PX_FILES: [
-        'Autumn_bush1.png','Bush_orange_flowers1.png','Bush_pink_flowers1.png','Bush_red_flowers1.png',
-        'Fern1_1.png','Fern2_1.png'
-    ],
+    BUSH_SPRITES_32PX_PATH: 'assets/images/objects/biomes/tropical/grass2/',
+    BUSH_SPRITES_32PX_FILES: ['grass7.png'],
+       
+    BUSH_SPRITES_64PX_PATH: 'assets/images/objects/biomes/tropical/grass2/',
+    BUSH_SPRITES_64PX_FILES: ['grass7.png'],
     ROCK_SPRITES_16PX_PATH: 'assets/images/objects/rocks/grassy/16/',
     ROCK_SPRITES_16PX_FILES: [], 
     ROCK_SPRITES_32PX_PATH: 'assets/images/objects/rocks/grassy/32/',
@@ -364,16 +359,16 @@ const CONFIG = {
             type: 'bush_medium', name: 'Medium Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.0, 
+            spawnWeight: 1, isDecoration: false,
+            spriteScale: 0.1, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.0, 
+            spawnWeight: 1, isDecoration: false,
+            spriteScale: 0.1, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         
@@ -516,7 +511,7 @@ const CONFIG = {
             type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.4,
+            spawnWeight: 0.01,
             spriteScale: 0.9,
             spriteNormal: 'assets/images/objects/possums/towers/possum_tower_1.png', 
             spriteDestroyed: 'assets/images/objects/possums/towers/possum_relay_tower_destroyed.png',
@@ -542,8 +537,8 @@ const CONFIG = {
         RANDOM_ADDITION_FACTOR_MAX: 5,
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
         SMALL_GROUP_CHANCE: 0.6,
-        SMALL_GROUP_SIZE_MIN: 1,
-        SMALL_GROUP_SIZE_MAX: 4,
+        SMALL_GROUP_SIZE_MIN: 2,
+        SMALL_GROUP_SIZE_MAX: 5,
         MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 250,
         LEADER_PLACEMENT_MAX_ATTEMPTS: 20,
         MEMBER_PLACEMENT_MAX_ATTEMPTS: 10,
@@ -558,22 +553,27 @@ const CONFIG = {
             SPAWN_COOLDOWN_MIN_SECONDS: 30, 
             SPAWN_COOLDOWN_MAX_SECONDS: 120,
             UNITS_PER_SPAWN_MIN: 2, 
-            UNITS_PER_SPAWN_MAX: 4, 
-            TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.4, 
+            UNITS_PER_SPAWN_MAX: 6, 
+            TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.1, 
             TIME_BETWEEN_UNITS_IN_BURST_MAX: 0.9, 
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.25, 
-            INITIAL_SPAWN_DELAY_SECONDS_MIN: 5, 
-            INITIAL_SPAWN_DELAY_SECONDS_MAX: 10,
-            PLAYER_PROXIMITY_TRIGGER_RADIUS: 250, 
+            INITIAL_SPAWN_DELAY_SECONDS_MIN: 0, 
+            INITIAL_SPAWN_DELAY_SECONDS_MAX: 2,
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 450, 
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65, 
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3, 
             SPAWN_AREA_WIDTH: 40,
-            SPAWN_PHASING_DURATION: 1.25,
+            SPAWN_PHASING_DURATION: 0.25,
             DEBUG_DRAW_SPAWN_AREAS: false, 
             DEBUG_DRAW_HUT_STATUS_TEXT: false, 
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
             MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5, 
             INITIAL_MOVE_OUT_DISTANCE: 25,
+            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.7, // Max delay for spawn after hut is shot
+            MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.50,     // Min time before another shot can trigger a spawn
+            UNITS_TO_SPAWN_ON_DAMAGE: 2,                 // How many units spawn when hut is shot
+            SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 10, // Cooldown for regular spawning after a damage-spawn
+            SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 20,
         }
     },
 

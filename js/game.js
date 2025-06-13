@@ -22,6 +22,14 @@ class Game {
         this.preloadedImages = {};
         this.audioManager = new AudioManager();
 
+        this.spatialGrid = null; 
+        this.SPATIAL_GRID_CELL_SIZE = CONFIG.GRID_CELL_SIZE * 4; 
+                                                                 
+        // --- NEW: Object Pools ---
+        this.projectilePool = new ObjectPool(Projectile, 50, this); // Initial size 50 for bullets
+        this.grenadeProjectilePool = new ObjectPool(GrenadeProjectile, 10, this); // Initial size 10 for grenades
+        // --- END NEW ---
+
         this.isDragging = false;
         this.draggedFarEnough = false;
         this.dragStartX = 0; this.dragStartY = 0;
@@ -51,7 +59,7 @@ class Game {
 
         this.currentPhaseIndex = 0;
         this.currentMissionIndex = 0;
-        this.currentMissionParams = null; // This will now hold an array of objectives
+        this.currentMissionParams = null; 
         this.lastPlayedMusicKey = null;
 
         this.gameState = 'MAIN_MENU';
@@ -64,8 +72,7 @@ class Game {
 
         this.isGamePausedManually = false;
 
-        // this.missionObjective = null; // Replaced by currentMissionParams.objectives
-        this.isObjectiveComplete = false; // This will likely become more complex or per-objective
+        this.isObjectiveComplete = false; 
         this.initialEnemyCount = 0;
         this.missionStartedAndPopulated = false;
         this.missionStartTime = 0;
@@ -88,7 +95,22 @@ class Game {
         })();
     }
 
+    // --- NEW: Methods to get projectiles from pools ---
+    getProjectileFromPool(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy) {
+        const projectile = this.projectilePool.acquire();
+        projectile.reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy);
+        return projectile;
+    }
+
+    getGrenadeProjectileFromPool(startX, startY, targetX, targetY, shooterUnit) {
+        const grenade = this.grenadeProjectilePool.acquire();
+        grenade.reset(startX, startY, targetX, targetY, shooterUnit);
+        return grenade;
+    }
+    // --- END NEW ---
+
     _weightedRandomSelect(items, rngInstance) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!items || items.length === 0) return null;
         const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1), 0);
         if (totalWeight <= 0) { 
@@ -106,6 +128,7 @@ class Game {
     }
 
     _fillTextTemplate(templateString, data) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!templateString) return "";
         return templateString.replace(/{(\w+)}/g, (match, key) => {
             return data.hasOwnProperty(key) ? data[key] : match;
@@ -113,12 +136,14 @@ class Game {
     }
 
     getLivingPlayerControlledUnits() {
+        /* ... (Unchanged from previous complete version) ... */
         const livingRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [];
         const livingRescuedHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
         return [...livingRaccoons, ...livingRescuedHostages];
     }
 
     setNextBirdSpawnTimer(rngInstance = null) {
+        /* ... (Unchanged from previous complete version) ... */
         const rng = rngInstance || (this.level && this.level.rng) || this.currentMissionSeedRNG || Math;
         if (this.birdSpawnConfig) {
             this.nextBirdSpawnTime = rng.nextFloat(
@@ -131,6 +156,7 @@ class Game {
     }
 
     async preloadMiscAssets() {
+        /* ... (Unchanged from previous complete version) ... */
         const imagePromises = [];
         if (this.birdSpawnConfig && this.birdSpawnConfig.TILE_SHEET_PATH) {
             const path = this.birdSpawnConfig.TILE_SHEET_PATH;
@@ -171,6 +197,7 @@ class Game {
     }
 
     async preloadUnitAssets() {
+        /* ... (Unchanged from previous complete version) ... */
         const imagePromises = [];
         const unitTypesToPreload = [
             {
@@ -264,6 +291,7 @@ class Game {
     }
 
     async preloadLevelAssets() {
+        /* ... (Unchanged from previous complete version) ... */
         const obstacleDefs = CONFIG.OBSTACLE_DEFINITIONS || [];
         const imagePromises = [];
         obstacleDefs.forEach(def => {
@@ -310,6 +338,7 @@ class Game {
     }
 
     async preloadAudioAssets() {
+        /* ... (Unchanged from previous complete version) ... */
         if (CONFIG.AUDIO_ASSETS && this.audioManager) {
             for (const key in CONFIG.AUDIO_ASSETS) {
                 const asset = CONFIG.AUDIO_ASSETS[key];
@@ -326,6 +355,7 @@ class Game {
     }
 
     generatePrerenderedBackground(worldWidth, worldHeight, seedForBackground) {
+        /* ... (Unchanged from previous complete version) ... */
         this.prerenderedBackgroundCanvas.width = worldWidth;
         this.prerenderedBackgroundCanvas.height = worldHeight;
         const ctx = this.prerenderedBackgroundCtx;
@@ -360,6 +390,7 @@ class Game {
     }
 
     start() {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.masterRoster || this.masterRoster.length === 0) {
             this.initializeNewCampaign();
             if (!this.masterRoster || this.masterRoster.length === 0) {
@@ -384,6 +415,7 @@ class Game {
     }
 
     async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
+        /* ... (Unchanged, but note that spatialGrid initialization is already there) ... */
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
@@ -432,7 +464,7 @@ class Game {
             r.isHoldingFire = false;   
         });
 
-        this.isObjectiveComplete = false; // This might need to be an array or object for multiple objectives
+        this.isObjectiveComplete = false; 
         this.missionStartedAndPopulated = false;
         this.fallenRaccoonsThisMission = [];
         this.missionStartTime = performance.now();
@@ -442,9 +474,15 @@ class Game {
         const worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 800) * (this.currentMissionParams.baseParams.worldSizeFactor || 1);
         CONFIG.WORLD_WIDTH = worldWidth; CONFIG.WORLD_HEIGHT = worldHeight;
         
+        if (this.spatialGrid) {
+            this.spatialGrid.clear(); 
+        }
+        this.spatialGrid = new SpatialGrid(worldWidth, worldHeight, this.SPATIAL_GRID_CELL_SIZE, this); 
+
+
         const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(
             worldWidth, worldHeight, 
-            this.currentMissionParams, // Pass the whole params object which includes the objectives array
+            this.currentMissionParams, 
             this.deployedSquadRoster.length, 
             this.preloadedImages,
             this.currentMissionSeed 
@@ -452,16 +490,24 @@ class Game {
         
         this.generatePrerenderedBackground(worldWidth, worldHeight, this.currentMissionSeed); 
 
-        this.initialEnemyCount = this.enemyUnits.length; 
-         // Initialize progress for EXTERMINATE objective if it exists
+         this.initialEnemyCount = this.enemyUnits.length; 
         if (this.currentMissionParams && this.currentMissionParams.objectives) {
             const exterminateObj = this.currentMissionParams.objectives.find(obj => obj.type === "EXTERMINATE");
             if (exterminateObj) {
+                // Set the initial total based on enemies present at mission start
                 exterminateObj.totalToAchieve = this.initialEnemyCount;
-                exterminateObj.currentProgress = 0; // Ensure it starts at 0
+                exterminateObj.currentProgress = 0; 
             }
         }
 
+        this.level.obstacles.forEach(obs => {
+            if (obs.blocksMovement || obs.providesCover || obs.isPickup || obs.type === 'extraction_zone') { 
+                this.spatialGrid.addObject(obs);
+            }
+        });
+        this.deployedSquadRoster.forEach(unit => this.spatialGrid.addObject(unit));
+        this.enemyUnits.forEach(unit => this.spatialGrid.addObject(unit)); // Enemies spawned by Level are added here
+        this.hostageUnits.forEach(unit => this.spatialGrid.addObject(unit)); // Hostages spawned by Level
 
         this.deployedSquadRoster.forEach((raccoon, index) => {
             if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
@@ -507,7 +553,25 @@ class Game {
         this.missionPendingOutcomeIsVictory = false;
     }
 
+    incrementObjectiveEnemyCount(count = 1) {
+        if (this.currentMissionParams && this.currentMissionParams.objectives) {
+            const exterminateObj = this.currentMissionParams.objectives.find(obj => obj.type === "EXTERMINATE");
+            if (exterminateObj) {
+                if (exterminateObj.totalToAchieve === undefined) { // Should have been set at mission start
+                    exterminateObj.totalToAchieve = 0;
+                }
+                exterminateObj.totalToAchieve += count;
+                // No need to update this.initialEnemyCount here, as that's for the start state.
+                // The objective UI will reflect the new totalToAchieve.
+                if (this.ui && this.gameState === 'RUNNING') {
+                    this.ui.updateObjective();
+                }
+            }
+        }
+    }
+
     handleLMBFireActionStart(worldX, worldY) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive() && typeof unit._executeFire === 'function') {
@@ -520,6 +584,7 @@ class Game {
     }
 
     updateLMBFireActionTarget(worldX, worldY) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive() && unit.isPlayerDirectFiring) {
@@ -529,6 +594,7 @@ class Game {
     }
 
     handleLMBFireActionEnd() {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon) {
@@ -539,6 +605,7 @@ class Game {
     }
 
     handleSetManualTargetCommand(enemyUnit) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits || this.selectedUnits.length === 0 || !enemyUnit || !enemyUnit.isAlive()) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive()) {
@@ -552,6 +619,7 @@ class Game {
     }
 
     handleGrenadeThrowConfirm(worldX, worldY) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) return;
 
         const aimingRaccoons = this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
@@ -583,6 +651,7 @@ class Game {
     }
 
     handleRightClickCommand(worldX, worldY) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isLMBHoldFiringActionActive) { this.handleLMBFireActionEnd(); this.inputHandler.isLMBHoldFiringActionActive = false; }
 
@@ -603,6 +672,7 @@ class Game {
     }
 
     togglePause() {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'RUNNING') {
             this.previousGameState = this.gameState;
             this.gameState = 'PAUSED';
@@ -622,6 +692,7 @@ class Game {
     }
 
     restartCurrentMission() {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.currentMissionParams && this.getAvailableRecruits().length > 0) {
             if (this.inputHandler.isLMBHoldFiringActionActive) {
                 this.handleLMBFireActionEnd();
@@ -645,6 +716,7 @@ class Game {
     }
 
     quitToMainMenu() {
+        /* ... (Unchanged from previous complete version) ... */
         this.audioManager.stopAllLoopingSounds();
         this.lastPlayedMusicKey = null;
         this.gameState = 'MAIN_MENU';
@@ -669,6 +741,7 @@ class Game {
     }
 
     initializeNewCampaign() {
+        /* ... (Unchanged from previous complete version) ... */
         this.audioManager.stopAllLoopingSounds();
         this.lastPlayedMusicKey = null;
         this.masterRoster = [];
@@ -717,6 +790,7 @@ class Game {
     }
 
     _generatePhaseStructure(phaseIdx) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.campaignStructure[phaseIdx]) return; 
 
         const phaseSeed = this.campaignSeed + (phaseIdx * 1000); 
@@ -761,10 +835,12 @@ class Game {
     }
 
     getAvailableRecruits() {
+        /* ... (Unchanged from previous complete version) ... */
         return this.masterRoster.filter(r => r.isAlive());
     }
 
     resizeCanvas() {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.canvasContainer) this.canvasContainer = document.getElementById('canvas-container');
         if (!this.canvasContainer) return;
         const containerWidth = this.canvasContainer.offsetWidth; const containerHeight = this.canvasContainer.offsetHeight;
@@ -774,6 +850,7 @@ class Game {
     }
 
     clampCamera() {
+        /* ... (Unchanged from previous complete version) ... */
         const worldWidth = CONFIG.WORLD_WIDTH || 0; 
         const worldHeight = CONFIG.WORLD_HEIGHT || 0;
         const canvasWidth = this.canvas.width || 0;
@@ -787,6 +864,7 @@ class Game {
     }
     
     generateAndSetCurrentMissionParams(phaseIdx, missionIdx) {
+        /* ... (Unchanged from previous complete version) ... */
         const missionSpecificSeedValue = this.campaignSeed + (phaseIdx * 1000) + (missionIdx * 10);
         this.currentMissionSeedRNG = new SeededRandom(missionSpecificSeedValue);
         this.currentMissionSeed = missionSpecificSeedValue;
@@ -801,7 +879,6 @@ class Game {
         }
         const phaseBiome = currentPhaseInfo.biome;
 
-        // Store base parameters separately, then the objectives array
         this.currentMissionParams = {
             baseParams: {},
             objectives: [] 
@@ -812,7 +889,6 @@ class Game {
         const baseParamsRules = this.campaignRules.BASE_PARAMETERS;
         const briefingParts = this.campaignRules.BRIEFING_PARTS;
 
-        // Calculate base parameters (world size, enemy density, etc.)
         for (const key in baseParamsRules) {
             const rule = baseParamsRules[key];
             let value = rule.initial + (rule.perPhaseIncrement * phaseIdx);
@@ -828,15 +904,13 @@ class Game {
             
             baseP[key] = value;
         }
-
-        // --- Objective Selection Logic ---
+        
         let primaryObjectiveSelected = false;
-        const objectivesInPool = [...this.campaignRules.OBJECTIVE_POOL]; // Clone for manipulation
-        this.currentMissionSeedRNG.shuffleArray(objectivesInPool); // Shuffle for variety
+        const objectivesInPool = [...this.campaignRules.OBJECTIVE_POOL]; 
+        this.currentMissionSeedRNG.shuffleArray(objectivesInPool); 
 
-        // Attempt to select one primary objective
         for (const objDef of objectivesInPool) {
-            if ((objDef.isPrimary === undefined || objDef.isPrimary) && objDef.unlocksPhase <= phaseIdx) {
+            if ((objDef.isPrimary === undefined || objDef.isPrimary) && objDef.unlocksPhase <= phaseIdx && objDef.type !== "EXTERMINATE") { // Don't pick EXTERMINATE as initial primary here
                 const newObjective = this._instantiateObjective(objDef, phaseIdx, true);
                 if (newObjective) {
                     objectivesArray.push(newObjective);
@@ -846,28 +920,25 @@ class Game {
             }
         }
         
-        // If no primary was suitable (highly unlikely with EXTERMINATE as an option), force EXTERMINATE as primary
-        if (!primaryObjectiveSelected) {
-            const exterminateDef = objectivesInPool.find(o => o.type === "EXTERMINATE") || this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
-            if (exterminateDef) {
-                const newObjective = this._instantiateObjective(exterminateDef, phaseIdx, true);
-                if (newObjective) objectivesArray.push(newObjective);
+        const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
+        if (exterminateDef) {
+            const isExterminateNowPrimary = !primaryObjectiveSelected; // If no other primary was found, EXTERMINATE becomes it
+            const newExterminateObjective = this._instantiateObjective(exterminateDef, phaseIdx, isExterminateNowPrimary);
+            if (newExterminateObjective) {
+                 objectivesArray.push(newExterminateObjective);
+                 if(isExterminateNowPrimary) primaryObjectiveSelected = true; // Mark that a primary is now set
             }
         }
 
-        // Always add "EXTERMINATE" as a (potentially secondary) objective
-        const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
-        if (exterminateDef && !objectivesArray.find(o => o.type === "EXTERMINATE")) {
-            // If another primary exists, EXTERMINATE is secondary. Otherwise, it was already made primary.
-            const isExterminatePrimary = objectivesArray.length === 0;
-            const newExterminateObjective = this._instantiateObjective(exterminateDef, phaseIdx, isExterminatePrimary);
-            if (newExterminateObjective) objectivesArray.push(newExterminateObjective);
+        // If still no primary (should not happen if EXTERMINATE is in pool), log error or default.
+        if (!primaryObjectiveSelected && objectivesArray.length === 0 && exterminateDef) {
+             console.warn("No primary objective selected, and EXTERMINATE somehow wasn't added. Forcing EXTERMINATE as primary.");
+             const forcedExterminate = this._instantiateObjective(exterminateDef, phaseIdx, true);
+             if (forcedExterminate) objectivesArray.push(forcedExterminate);
         }
         
         // TODO: Add logic for selecting additional secondary objectives based on numSecondaryObjectivesRange and canCoexistWith
-        // For now, we'll just have the primary (or EXTERMINATE) and EXTERMINATE if it wasn't already primary.
-
-        // --- Mission Name and Briefing Generation ---
+        
         const missionNameParts = this.campaignRules.MISSION_NAME_PARTS;
         const biomeEntryForName = this.campaignRules.BIOME_POOL.find(b => b.name === phaseBiome) || {themeAdjectives: ["General"]};
         const biomeThemeAdj = biomeEntryForName.themeAdjectives;
@@ -880,7 +951,6 @@ class Game {
         }
         baseP.name = `${mNamePart1} ${mNamePart2} ${mNamePart3}`;
 
-        // Construct a combined objective description for the main briefing text
         let combinedObjectiveDescription = "";
         if (objectivesArray.length > 0) {
             const primaryObj = objectivesArray.find(obj => obj.isPrimary);
@@ -888,14 +958,14 @@ class Game {
                 combinedObjectiveDescription = this._getObjectiveDescriptionForBriefing(primaryObj, baseP) + ".";
             }
             objectivesArray.forEach(obj => {
-                if (!obj.isPrimary) {
+                if (!obj.isPrimary) { // Only add secondary objectives here if they weren't the primary
+                    if(primaryObj && obj.type === primaryObj.type) return; // Avoid repeating if EXTERMINATE was primary and is also listed as secondary
                     combinedObjectiveDescription += " Additionally, " + this._getObjectiveDescriptionForBriefing(obj, baseP).toLowerCase() + ".";
                 }
             });
         } else {
-            combinedObjectiveDescription = "secure the area"; // Fallback
+            combinedObjectiveDescription = "secure the area"; 
         }
-
 
         const briefingTemplate = this.currentMissionSeedRNG.pickFrom(this.campaignRules.MISSION_BRIEFING_TEMPLATES);
         const biomeAdjForBriefing = this.currentMissionSeedRNG.pickFrom(briefingParts.BIOME_ADJECTIVES[phaseBiome] || briefingParts.BIOME_ADJECTIVES["FOREST"] || ["unknown"]);
@@ -912,38 +982,42 @@ class Game {
         });
         baseP.biome = phaseBiome;
 
-        this.tempSelectedForDeployment = [];
+        this.tempSelectedForDeployment = []; 
         return true;
     }
 
     _getObjectiveDescriptionForBriefing(objectiveInstance, baseParams) {
-        // Helper to generate a human-readable string for the main mission briefing
-        // This is different from the HUD text which includes progress.
-        let desc = `Objective type ${objectiveInstance.type} not fully described.`; // Fallback
+        /* ... (Unchanged from previous complete version) ... */
+        let desc = `Objective type ${objectiveInstance.type} not fully described.`; 
         const uiTextStrings = CONFIG.UI_TEXT_STRINGS;
+        const templateKey = objectiveInstance.descriptionTemplateKey;
     
-        if (objectiveInstance.type === "EXTERMINATE") {
-            desc = uiTextStrings.OBJECTIVE_EXTERMINATE_TEXT?.split(':')[0] || "eliminate all hostiles";
-        } else if (objectiveInstance.type === "DESTROY_TARGET") {
-            const template = uiTextStrings.OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT?.split(':')[0] || "destroy {TARGET_NAME_PLURAL}";
-            desc = this._fillTextTemplate(template, {
-                TARGET_NAME_PLURAL: objectiveInstance.targetNamePlural || "targets"
-            });
-            if(objectiveInstance.totalToAchieve > 1) desc += ` (${objectiveInstance.totalToAchieve} total)`;
-        } else if (objectiveInstance.type === "RESCUE_HOSTAGES") {
-            const template = uiTextStrings.OBJECTIVE_RESCUE_HOSTAGES_TEXT?.split('(')[0].trim() || "rescue hostages";
-            desc = this._fillTextTemplate(template, {
-                TOTAL_SPAWNED: objectiveInstance.totalToAchieve, // totalToAchieve for rescue is numHostagesToSpawn
-                MIN_TO_EVAC: objectiveInstance.minToAchieveForCompletion // Assuming minToAchieveForCompletion is set
-            });
+        if (templateKey && uiTextStrings[templateKey]) {
+            desc = uiTextStrings[templateKey].split(':')[0].trim(); // Get the part before colon
+            
+            const templateData = {
+                TARGET_NAME_PLURAL: objectiveInstance.targetNamePlural || "targets",
+                TARGET_NAME_SINGULAR: objectiveInstance.targetNameSingular || "target",
+                TOTAL_SPAWNED: objectiveInstance.totalToAchieve, // For rescue, totalToAchieve is numHostagesToSpawn
+                MIN_TO_EVAC: objectiveInstance.minToAchieveForCompletion 
+            };
+            desc = this._fillTextTemplate(desc, templateData);
+
+            if (objectiveInstance.type === "DESTROY_TARGET" && objectiveInstance.totalToAchieve > 0) {
+                 desc += ` (${objectiveInstance.totalToAchieve})`;
+            } else if (objectiveInstance.type === "RESCUE_HOSTAGES") {
+                desc += ` (${objectiveInstance.totalToAchieve} to find, min ${objectiveInstance.minToAchieveForCompletion} to evac)`;
+            }
+        } else if (objectiveInstance.type === "EXTERMINATE") {
+            desc = "eliminate all Possums";
         }
-        // Add more else if for other objective types
         return desc;
     }
     
 
     _instantiateObjective(objDef, phaseIdx, isPrimary) {
-        const baseP = this.currentMissionParams.baseParams; // Get base params calculated earlier
+        /* ... (Unchanged from previous complete version) ... */
+        const baseP = this.currentMissionParams.baseParams; 
         const newObj = {
             type: objDef.type,
             id: `${objDef.type.toLowerCase()}_${this.currentMissionSeedRNG.nextInt(100, 999)}`,
@@ -952,13 +1026,13 @@ class Game {
             isPrimary: isPrimary,
             isComplete: false,
             currentProgress: 0,
-            totalToAchieve: 0, // Default, will be overridden by specific types
-            statusText: "" // Will be generated by UI
+            totalToAchieve: 0, 
+            statusText: "" 
         };
 
         if (objDef.type === "DESTROY_TARGET") {
             const availableTargetTypes = this.campaignRules.DESTROY_TARGET_TYPE_POOL.filter(t => t.unlocksPhase <= phaseIdx);
-            if (availableTargetTypes.length === 0) return null; // Cannot fulfill this objective type
+            if (availableTargetTypes.length === 0) return null; 
 
             const selectedTargetType = this._weightedRandomSelect(availableTargetTypes, this.currentMissionSeedRNG);
             if (!selectedTargetType) return null;
@@ -966,19 +1040,20 @@ class Game {
             newObj.targetTypeKey = selectedTargetType.targetTypeKey;
             newObj.targetNameSingular = selectedTargetType.nameSingular;
             newObj.targetNamePlural = selectedTargetType.namePlural;
-            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numDestroyTargets)); // Use calculated numDestroyTargets
+            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numDestroyTargets)); 
         } else if (objDef.type === "RESCUE_HOSTAGES") {
-            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numHostagesToSpawn)); // totalToAchieve for rescue is numHostagesToSpawn
+            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numHostagesToSpawn)); 
             newObj.minToAchieveForCompletion = Math.max(1, Math.round(baseP.minHostagesToRescue));
+            newObj.currentEvacuated = 0; // Initialize for UI
         } else if (objDef.type === "EXTERMINATE") {
-            newObj.totalToAchieve = 0; // Will be set in confirmSquadAndStartMission after enemies are spawned
+            newObj.totalToAchieve = 0; 
         }
-        // Add more else if for other objective types (ASSASSINATION, etc.)
         return newObj;
     }
 
 
     recordRaccoonFallen(raccoon) {
+        /* ... (Unchanged from previous complete version) ... */
         if (raccoon && raccoon.team === 'player') {
             if (!this.fallenRaccoonsThisMission.find(r => r.id === raccoon.id)) {
                 this.fallenRaccoonsThisMission.push({ id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl });
@@ -998,6 +1073,7 @@ class Game {
     }
 
     addNewRecruitToMasterRoster() {
+        /* ... (Unchanged from previous complete version) ... */
         const currentLivingNames = this.masterRoster.filter(r => r.isAlive()).map(r => r.name);
         let faceImageFile = 'default_face.png';
         const rosterRng = this.campaignSeedRNG || new SeededRandom(Date.now()); 
@@ -1020,6 +1096,7 @@ class Game {
     }
 
     initiateMissionEnd(isVictory) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT' || this.gameState === 'POST_MISSION_DEBRIEF') {
             return;
         }
@@ -1040,6 +1117,7 @@ class Game {
     }
 
     actuallyEndMission(isVictory) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.inputHandler.isLMBHoldFiringActionActive) {
             this.handleLMBFireActionEnd();
             this.inputHandler.isLMBHoldFiringActionActive = false;
@@ -1068,7 +1146,6 @@ class Game {
         }
 
         let newlyRecruitedFromMission = 0;
-        // Check if a RESCUE_HOSTAGES objective exists and was part of the mission
         const rescueObjective = this.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
         if (isVictory && rescueObjective) {
             if (this.hostageUnits) {
@@ -1119,7 +1196,7 @@ class Game {
             isVictory: isVictory,
             phaseData: currentPhaseData,
             missionData: this.currentMissionParams.baseParams || { name: CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT },
-            objectives: this.currentMissionParams.objectives, // Pass all objectives
+            objectives: this.currentMissionParams.objectives, 
             survivingRaccoons: this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [],
             fallenRaccoons: this.fallenRaccoonsThisMission,
             enemiesKilled: enemiesKilledThisMission,
@@ -1138,6 +1215,7 @@ class Game {
     }
 
     proceedToNextLogicalStep() {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
             if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_ALREADY_COMPLETE, true); return;
         }
@@ -1171,8 +1249,8 @@ class Game {
                 const finalDebriefData = {
                     isVictory: true, campaignComplete: true,
                     phaseData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_PHASE_NAME, introduction: "The final battle is won!" },
-                    missionData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_MISSION_NAME }, // This can be simplified
-                    objectives: [{type: "CAMPAIGN_WON", isComplete: true, descriptionTemplateKey:"OBJECTIVE_CAMPAIGN_WON_TEXT"}],
+                    missionData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_MISSION_NAME }, 
+                    objectives: [{type: "CAMPAIGN_WON", isComplete: true, descriptionTemplateKey:"OBJECTIVE_CAMPAIGN_WON_TEXT", isPrimary: true}],
                     survivingRaccoons: this.masterRoster.filter(r => r.isAlive()),
                     fallenRaccoons: this.fallenRaccoonsGlobal, enemiesKilled: "N/A", timeTaken: "N/A"
                 };
@@ -1204,6 +1282,7 @@ class Game {
     }
 
     toggleFormation() {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
         this.currentFormationIndex = (this.currentFormationIndex + 1) % this.FORMATION_TYPES.length;
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
@@ -1211,10 +1290,12 @@ class Game {
     }
 
     setFormationSpacing(multiplier) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'RUNNING') this.formationSpacingMultiplier = parseFloat(multiplier);
     }
 
     selectUnitsInCtrlDragRectangle() {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.draggedFarEnough || this.gameState !== 'RUNNING') return;
         const worldDragStartX = this.dragStartX + this.cameraX;
         const worldDragStartY = this.dragStartY + this.cameraY;
@@ -1246,6 +1327,7 @@ class Game {
     }
 
     deselectAllUnits() {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.selectedUnits.length === 0) return;
         let aimingCancelled = false;
         if(this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit instanceof Raccoon && unit.isAimingGrenade) { unit.cancelGrenadeAim(); aimingCancelled = true; } });
@@ -1255,6 +1337,7 @@ class Game {
     }
 
     selectAllPlayerUnits() {
+        /* ... (Unchanged from previous complete version) ... */
         const allAliveUnits = this.deployedSquadRoster ? this.deployedSquadRoster.filter(unit => unit.isAlive()) : [];
         const currentSelectionIds = this.selectedUnits.map(u => u.id).sort().join(',');
         const allAliveUnitsIds = allAliveUnits.map(u => u.id).sort().join(',');
@@ -1267,11 +1350,15 @@ class Game {
         }
     }
 
-    addProjectile(projectile) {
+    addProjectile(projectile) { // This method now just adds to gameObjects and spatialGrid
         this.gameObjects.push(projectile);
+        if (this.spatialGrid && projectile) {
+            this.spatialGrid.addObject(projectile);
+        }
     }
 
     addVisualEffect(type, data) {
+        /* ... (Unchanged from previous complete version) ... */
         if (type === 'explosion' && data && data.x !== undefined && data.y !== undefined && data.radius !== undefined) {
             this.visualEffects.push(new ExplosionEffect(data.x, data.y, data.radius, this));
         } else if (type === 'promotion' && data && data.unitId) {
@@ -1289,37 +1376,30 @@ class Game {
             return;
         }
     
-        let allPrimaryObjectivesComplete = true;
-        let anyPrimaryExists = false;
-        let exterminateObjectiveExists = false;
-        let exterminateObjectiveComplete = false;
+        let allMandatoryObjectivesComplete = true; 
+        let hasMandatoryObjectives = false;       
     
         this.currentMissionParams.objectives.forEach(obj => {
-            if (obj.isPrimary) {
-                anyPrimaryExists = true;
-            }
-            if (obj.type === "EXTERMINATE") {
-                exterminateObjectiveExists = true;
-            }
-
-            // Update individual objective completion status (if not already complete)
             if (!obj.isComplete) {
                 if (obj.type === 'EXTERMINATE') {
                     obj.currentProgress = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
-                    if (obj.totalToAchieve === undefined) obj.totalToAchieve = this.initialEnemyCount; 
-
+                    // totalToAchieve is now dynamic and updated by incrementObjectiveEnemyCount
                     if (obj.totalToAchieve > 0 && obj.currentProgress >= obj.totalToAchieve) { 
                         obj.isComplete = true;
-                    } else if (obj.totalToAchieve === 0 && this.initialEnemyCount === 0 && (!this.enemyUnits || this.enemyUnits.every(e => !e.isAlive()))) { 
+                    } else if (obj.totalToAchieve === 0 && (!this.enemyUnits || this.enemyUnits.every(e => !e.isAlive()))) { 
+                        // This case handles scenarios where total might be 0 if no initial enemies
+                        // AND no hut ever spawns anything (or all spawned are killed).
                         obj.isComplete = true;
                     }
                 } else if (obj.type === 'DESTROY_TARGET') {
+                    // ... (DESTROY_TARGET logic unchanged)
                     obj.currentProgress = this.level.missionTargetObstacles ? 
-                                          this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed).length : 0;
+                                          this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed && t.objectiveId === obj.id).length : 0;
                     if (obj.currentProgress >= obj.totalToAchieve) {
                         obj.isComplete = true;
                     }
                 } else if (obj.type === 'RESCUE_HOSTAGES') {
+                    // ... (RESCUE_HOSTAGES logic unchanged)
                     const rescuedAndAliveHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
                     obj.currentProgress = rescuedAndAliveHostages.length; 
                     obj.minToAchieveForCompletion = obj.minToAchieveForCompletion || 1; 
@@ -1355,13 +1435,11 @@ class Game {
                     }
                     obj.currentEvacuated = hostagesAtEvacCount; 
                     
-                    // Determine if all enemies need to be cleared for THIS rescue objective
-                    // This condition is true IF (EXTERMINATE is a primary obj AND it's complete) OR (EXTERMINATE is NOT a primary obj AND all enemies are dead)
                     let enemiesClearedForThisRescue = false;
                     const primaryExterminateObjective = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE" && o.isPrimary);
                     if (primaryExterminateObjective) {
                         enemiesClearedForThisRescue = primaryExterminateObjective.isComplete;
-                    } else {
+                    } else { 
                         enemiesClearedForThisRescue = this.enemyUnits.every(e => !e.isAlive());
                     }
 
@@ -1372,30 +1450,25 @@ class Game {
                         obj.isComplete = true;
                     }
                 }
-            }
+            } 
     
-            if (obj.isPrimary && !obj.isComplete) {
-                allPrimaryObjectivesComplete = false;
+            let isThisObjectiveMandatory = obj.isPrimary;
+            if (obj.type === "EXTERMINATE") { 
+                isThisObjectiveMandatory = true;
             }
-            if (obj.type === "EXTERMINATE" && obj.isComplete) {
-                exterminateObjectiveComplete = true;
-            }
-        });
-    
-        // If there were no primary objectives explicitly defined (e.g., only EXTERMINATE was added by default as secondary),
-        // then mission success depends on ALL objectives being complete.
-        if (!anyPrimaryExists) {
-            allPrimaryObjectivesComplete = this.currentMissionParams.objectives.every(o => o.isComplete);
-        }
 
-        // Now, determine overall mission success
-        let overallMissionSuccess = false;
-        if (allPrimaryObjectivesComplete) {
-            if (exterminateObjectiveExists) { // If "EXTERMINATE" objective is part of the mission (primary or secondary)
-                overallMissionSuccess = exterminateObjectiveComplete; // It must be complete
-            } else {
-                overallMissionSuccess = true; // No exterminate objective, so primary completion is enough
+            if (isThisObjectiveMandatory) {
+                hasMandatoryObjectives = true;
+                if (!obj.isComplete) {
+                    allMandatoryObjectivesComplete = false;
+                }
             }
+        }); 
+    
+        if (!hasMandatoryObjectives && this.currentMissionParams.objectives.length > 0) {
+            allMandatoryObjectivesComplete = this.currentMissionParams.objectives.every(obj => obj.isComplete);
+        } else if (this.currentMissionParams.objectives.length === 0) {
+            allMandatoryObjectivesComplete = true; 
         }
 
         const livingPlayerRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()).length : 0;
@@ -1406,12 +1479,13 @@ class Game {
             return; 
         }
     
-        if (overallMissionSuccess && this.gameState === 'RUNNING') { 
+        if (allMandatoryObjectivesComplete && this.gameState === 'RUNNING') { 
             this.initiateMissionEnd(true); 
         }
     }
 
     spawnFlyingBirdFlock() {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.birdSpawnConfig || !this.preloadedImages[this.birdSpawnConfig.TILE_SHEET_PATH] || !(this.level && this.level.rng)) return; 
 
         const rng = this.level.rng; 
@@ -1446,7 +1520,6 @@ class Game {
 
         if (this.missionEndDelayTimer > 0) {
             this.missionEndDelayTimer -= deltaTime;
-
             if (this.missionEndDelayTimer <= 0) {
                 this.missionEndDelayTimer = -1;
                 this.actuallyEndMission(this.missionPendingOutcomeIsVictory);
@@ -1491,18 +1564,49 @@ class Game {
 
         allUnitsInGame.forEach(unit => {
             if (unit && typeof unit.update === 'function') {
+                const oldGridCells = unit._spatialGridCells ? new Set(unit._spatialGridCells) : null;
                 unit.update(deltaTime);
+                if (this.spatialGrid && (unit.isMoving || unit.isMarkedForDeletion || !unit.isAlive() || !oldGridCells || !unit._spatialGridCells || ![...oldGridCells].every(cell => unit._spatialGridCells.has(cell)))) {
+                     if (!unit.isAlive() || unit.isMarkedForDeletion) {
+                        this.spatialGrid.removeObject(unit);
+                    } else {
+                        this.spatialGrid.updateObject(unit);
+                    }
+                }
             }
         });
 
+        // --- MODIFIED: Handle projectile pooling when filtering gameObjects ---
         this.gameObjects = this.gameObjects.filter(obj => {
             if(obj) {
-                if (obj instanceof Projectile || obj instanceof FlyingBird || this.gameState === 'RUNNING') { 
+                if (obj instanceof Projectile || obj instanceof GrenadeProjectile || obj instanceof FlyingBird || this.gameState === 'RUNNING') { 
                     obj.update(deltaTime);
+                    if (this.spatialGrid && (obj instanceof Projectile || obj instanceof GrenadeProjectile)) {
+                        if (obj.isMarkedForDeletion) {
+                            this.spatialGrid.removeObject(obj);
+                            // Release back to pool
+                            if (obj instanceof Projectile) {
+                                this.projectilePool.release(obj);
+                            } else if (obj instanceof GrenadeProjectile) {
+                                this.grenadeProjectilePool.release(obj);
+                            }
+                        } else {
+                            this.spatialGrid.updateObject(obj);
+                        }
+                    } else if (obj.isMarkedForDeletion && (obj instanceof Projectile || obj instanceof GrenadeProjectile)) {
+                        // Fallback release if spatialGrid somehow missed it, or for non-grid items
+                         if (obj instanceof Projectile) {
+                            this.projectilePool.release(obj);
+                        } else if (obj instanceof GrenadeProjectile) {
+                            this.grenadeProjectilePool.release(obj);
+                        }
+                    }
                 }
             }
             return obj && !obj.isMarkedForDeletion;
         });
+        // --- END MODIFIED ---
+
 
         this.visualEffects = this.visualEffects.filter(effect => {
             if(effect) effect.update(deltaTime);
@@ -1525,6 +1629,7 @@ class Game {
     }
 
     render() {
+        /* ... (Unchanged from previous version) ... */
         if (!this.ctx) { 
             return;
         }
@@ -1551,7 +1656,7 @@ class Game {
             const navGrid = this.level.navGrid;
             const cellSize = this.level.gridCellSize;
             this.ctx.save();
-            this.ctx.fillStyle = 'rgba(100, 0, 0, 0.3)'; 
+            this.ctx.fillStyle = 'rgba(100, 0, 0, 0.1)'; 
             for (let y = 0; y < navGrid.length; y++) {
                 for (let x = 0; x < navGrid[y].length; x++) {
                     if (navGrid[y][x] === 1) { 
@@ -1750,6 +1855,10 @@ class Game {
             this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight); this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
         }
 
+        if (CONFIG.DEBUG_DRAW_SPATIAL_GRID && this.spatialGrid) { 
+            this.spatialGrid.renderDebug(this.ctx, this.cameraX, this.cameraY);
+        }
+
         this.ctx.restore(); 
 
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
@@ -1767,6 +1876,7 @@ class Game {
     }
 
     gameLoop(timestamp) {
+        /* ... (Unchanged from previous complete version) ... */
         const now = performance.now();
         if (!this.lastTime) {
             this.lastTime = now;
@@ -1795,16 +1905,19 @@ class Game {
         try {
             this.render(); 
         } catch (e) {
+            console.error("ERROR IN Game.render():", e); // Added error logging for render
             this.gameState = 'ERROR_STATE';
         }
 
         if (this.gameState !== 'ERROR_STATE') { 
             requestAnimationFrame(this.gameLoop);
         } else {
+            console.error("Game in ERROR_STATE. Halting game loop.");
         }
     }
 
     calculateFormationPoints(centerX, centerY, units, formationType = 'HORIZONTAL') {
+        /* ... (Unchanged from previous complete version) ... */
         const points = []; const aliveUnits = units ? units.filter(u => u.isAlive()) : []; const numUnits = aliveUnits.length;
         if (numUnits === 0) return points; if (numUnits === 1) { points.push({ x: centerX, y: centerY }); return points; }
         const spacing = (CONFIG.RACCOON_SIZE * 2) * this.formationSpacingMultiplier;
@@ -1820,6 +1933,7 @@ class Game {
 
 
 class PromotionEffect {
+    /* ... (Unchanged from previous complete version) ... */
     constructor(x, y, gameInstance) {
         this.game = gameInstance; this.x = x; this.y = y;
         this.effectConfig = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.PROMOTION) ? CONFIG.VISUAL_EFFECTS.PROMOTION : {};
@@ -1833,6 +1947,7 @@ class PromotionEffect {
 }
 
 class ExplosionEffect {
+    /* ... (Unchanged from previous complete version) ... */
     constructor(x, y, radius, gameInstance) {
         this.game = gameInstance; this.x = x; this.y = y; this.maxRadius = radius; this.currentRadius = 0;
         this.effectConfig = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.EXPLOSION) ? CONFIG.VISUAL_EFFECTS.EXPLOSION : {};
@@ -1851,6 +1966,7 @@ class ExplosionEffect {
 }
 
 class ExtractionZoneEffect {
+    /* ... (Unchanged from previous complete version) ... */
     constructor(obstacle, gameInstance) {
         this.game = gameInstance;
         this.obstacleId = obstacle.id; // Store ID, not reference

@@ -153,8 +153,16 @@ class Raccoon extends Unit {
 
         this.facingAngle = Math.atan2(targetY - this.y, targetX - this.x);
         this.gunAimAngle = this.facingAngle;
-        const grenade = new GrenadeProjectile(this.x, this.y, targetX, targetY, this.game, this);
-        this.game.addProjectile(grenade);
+
+        // --- MODIFIED: Use game's pool to get grenade projectile ---
+        const grenade = this.game.getGrenadeProjectileFromPool(
+            this.x, this.y, 
+            targetX, targetY, 
+            this // shooterUnit
+        );
+        this.game.addProjectile(grenade); // Add to gameObjects and spatialGrid
+        // --- END MODIFIED ---
+        
         if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         return true;
     }
