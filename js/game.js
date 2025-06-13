@@ -25,10 +25,13 @@ class Game {
         this.spatialGrid = null; 
         this.SPATIAL_GRID_CELL_SIZE = CONFIG.GRID_CELL_SIZE * 4; 
                                                                  
-        // --- NEW: Object Pools ---
         this.projectilePool = new ObjectPool(Projectile, 50, this); // Initial size 50 for bullets
         this.grenadeProjectilePool = new ObjectPool(GrenadeProjectile, 10, this); // Initial size 10 for grenades
-        // --- END NEW ---
+
+        this.fps = 0;
+        this.frameCount = 0;
+        this.lastFpsUpdateTime = 0;
+        this.fpsUpdateInterval = 1000; // milliseconds (update once per second)
 
         this.isDragging = false;
         this.draggedFarEnough = false;
@@ -91,6 +94,8 @@ class Game {
             if (this.ui) {
                 this.ui.showMainMenuScreen();
             }
+            // Initialize lastFpsUpdateTime here, before the first gameLoop call
+            this.lastFpsUpdateTime = performance.now(); 
             requestAnimationFrame(this.gameLoop); 
         })();
     }
@@ -287,6 +292,28 @@ class Game {
                 }
             });
         }
+
+        const hostageBasePath = 'assets/images/units/raccoon/hostage/';
+        const unrescuedHostageSprites = [
+            'hostage_kneeling_s.png',
+            'hostage_kneeling_sw.png',
+            'hostage_kneeling_se.png'
+        ];
+        // Add rescued kneeling sprites if they are different and you want to preload them
+        // const rescuedHostageKneelingSprites = [ /* 'hostage_rescued_kneeling_s.png', ... */ ];
+
+        unrescuedHostageSprites.forEach(fileName => {
+            const fullPath = hostageBasePath + fileName;
+            if (!this.preloadedImages[fullPath]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
+                    img.onerror = () => { console.warn(`[Preload WARN - Hostage] '${fullPath}'`); this.preloadedImages[fullPath] = null; resolve(); };
+                    img.src = fullPath;
+                }));
+            }
+        });
+
         await Promise.all(imagePromises);
     }
 
@@ -439,7 +466,7 @@ class Game {
         const musicSelectionRNG = this.currentMissionSeedRNG || this.campaignSeedRNG || new SeededRandom(Date.now());
 
         this.audioManager.stopAllLoopingSounds();
-        const musicKeys = CONFIG.AUDIO_ASSETS.AMBIENT_MUSIC_TROPICAL_FOREST_KEYS;
+        const musicKeys = CONFIG.AUDIO_ASSETS.AMBIENT_MUSIC_TROPICAL_TROPICAL_KEYS;
         if (musicKeys && musicKeys.length > 0) {
             const randomMusicKey = musicSelectionRNG.pickFrom(musicKeys); 
             if (this.audioManager.sounds[randomMusicKey] && this.audioManager.sounds[randomMusicKey].loaded) {
@@ -968,8 +995,8 @@ class Game {
         }
 
         const briefingTemplate = this.currentMissionSeedRNG.pickFrom(this.campaignRules.MISSION_BRIEFING_TEMPLATES);
-        const biomeAdjForBriefing = this.currentMissionSeedRNG.pickFrom(briefingParts.BIOME_ADJECTIVES[phaseBiome] || briefingParts.BIOME_ADJECTIVES["FOREST"] || ["unknown"]);
-        const locationNounForBriefing = this.currentMissionSeedRNG.pickFrom(briefingParts.LOCATION_NOUNS[phaseBiome] || briefingParts.LOCATION_NOUNS["FOREST"] || ["the area"]);
+        const biomeAdjForBriefing = this.currentMissionSeedRNG.pickFrom(briefingParts.BIOME_ADJECTIVES[phaseBiome] || briefingParts.BIOME_ADJECTIVES["TROPICAL"] || ["unknown"]);
+        const locationNounForBriefing = this.currentMissionSeedRNG.pickFrom(briefingParts.LOCATION_NOUNS[phaseBiome] || briefingParts.LOCATION_NOUNS["TROPICAL"] || ["the area"]);
 
         baseP.briefing = this._fillTextTemplate(briefingTemplate, {
             missionName: baseP.name,
@@ -1814,16 +1841,7 @@ class Game {
         this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function') { effect.render(this.ctx); } });
         
-        if(this.selectedUnits) {
-            this.selectedUnits.forEach(unit => {
-                if (unit && unit.isAlive()) {
-                    this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)'; this.ctx.lineWidth = 2; this.ctx.beginPath();
-                    const selectRadiusX = unit.size + 13; const selectRadiusY = unit.size + 13; 
-                    this.ctx.ellipse(unit.x, unit.y + unit.size * 0.2, selectRadiusX, selectRadiusY, 0, 0, Math.PI * 2); 
-                    this.ctx.stroke();
-                }
-            });
-        }
+        
         if(this.selectedUnits) {
             this.selectedUnits.forEach(unit => {
                 if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) {
@@ -1861,6 +1879,13 @@ class Game {
 
         this.ctx.restore(); 
 
+        if (this.gameState === 'RUNNING' || this.gameState === 'PAUSED' || this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') {
+            this.ctx.font = "16px 'Consolas', 'Lucida Console', monospace";
+            this.ctx.fillStyle = "rgba(255, 255, 0, 0.9)"; // Yellow, slightly transparent
+            this.ctx.textAlign = "left";
+            this.ctx.fillText(`FPS: ${this.fps}`, 10, 20); // Positioned at top-left
+        }
+
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
             this.ctx.save(); this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
             this.ctx.font = "bold 48px 'Impact', 'Arial Black', sans-serif"; this.ctx.textAlign = "center"; this.ctx.textBaseline = "middle";
@@ -1887,6 +1912,13 @@ class Game {
         deltaTime = Math.min(deltaTime, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
         if (deltaTime <= 0) { 
             deltaTime = 1 / 60; 
+        }
+
+        this.frameCount++;
+        if (now - this.lastFpsUpdateTime > this.fpsUpdateInterval) {
+            this.fps = Math.round(this.frameCount / (this.fpsUpdateInterval / 1000));
+            this.frameCount = 0;
+            this.lastFpsUpdateTime = now;
         }
         
         if (this.gameState === 'RUNNING' ||

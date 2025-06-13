@@ -13,10 +13,9 @@ html, body {
     background-color: transparent; /* Keep a fallback color */
     color: #D8D8C8;
     font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
-    font-size: 14px;
+    font-size: 15px;
 
-    /* --- APPLY FULL SCREEN BACKGROUND HERE (Updated Path/Ext) --- */
-    background-image: url('assets/images/ui/main_menu_bg.jpg'); /* If style.css is ROOT */
+    background-image: ''; /* If style.css is ROOT */
     /* background-image: url('../assets/images/ui/main_menu_bg.jpg'); /* If style.css is in css/ */
     background-size: cover;       /* Fill the entire screen */
     background-position: center center; /* Center the image */
@@ -83,8 +82,7 @@ canvas#gameCanvas {
 }
 
 /* --- Main Menu Screen --- */
-#mainMenuScreen {
-    /* Reset background properties here */
+#mainMenuScreen, #pauseMenuScreen {
     background-image: none;
 
     /* Keep original panel styling */
@@ -166,63 +164,48 @@ canvas#gameCanvas {
     padding: 12px;
     border-radius: 2px;
     box-shadow: 2px 2px 0px #12110F, 4px 4px 8px rgba(0,0,0,0.7);
-    text-align: center;
+    text-align: start;
     text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
+    min-width: 230px; /* Default width, can be overridden */
 }
-#pauseMenuScreen {
-    /* Inherits from .ui-panel: position: absolute; background, border, etc. */
-    width: 350px; /* Or whatever width you prefer */
-    min-height: 250px; /* Give it some minimum height */
-    padding: 25px;
-    text-align: center;
-    z-index: 200; /* Ensure it's on top */
 
-    /* --- ADD THESE FOR CENTERING --- */
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    /* --- END CENTERING --- */
-
-    display: flex; /* Already in your inline style, good for internal alignment */
-    flex-direction: column; /* Added for better structure if needed */
-    justify-content: center; /* Added for vertical centering of content */
-    align-items: center; /* Added for horizontal centering of content */
-}
 #pauseMenuScreen h2 {
     color: #D09040; /* Example title color */
     margin-top: 0;
     margin-bottom: 25px;
+    font-size: 35px;
 }
 
 /* You are reusing .main-menu-buttons, which is fine. */
 /* If you want specific styling for pause menu buttons: */
 #pauseMenuScreen .main-menu-buttons button {
     padding: 10px 15px; /* Slightly smaller perhaps */
-    font-size: 1em;
+    font-size: 1.2em;
 }
+
 #preMissionScreen {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 750px;
-    min-height: 580px;
-    max-height: 90vh;
+    width: 1080px;
+    min-height: 90vh;
+    max-height: 95vh;
     z-index: 100;
     padding: 20px;
     display: flex;
     flex-direction: column;
 }
 
-#preMissionScreen h2, #preMissionScreen h3 {
+#preMissionScreen h2 {
     color: #D09040;
     text-transform: uppercase;
     letter-spacing: 1.5px;
     padding-bottom: 10px;
     margin-bottom: 5px;
-    font-size: 1.4em;
+    font-size: 1.8em;
 }
 #preMissionScreen h3 {
-    font-size: 1.1em;
+    font-size: 1.8em;
     color: #B0A090;
     margin-bottom: 15px;
     border-bottom: 2px groove #4F4A3F;
@@ -235,7 +218,7 @@ canvas#gameCanvas {
 
 #preMissionBriefing {
     text-align: left;
-    max-height: 80px;
+    max-height: 180px;
     overflow-y: auto;
     white-space: pre-wrap;
     margin-bottom: 20px;
@@ -243,7 +226,7 @@ canvas#gameCanvas {
     background-color: rgba(0,0,0,0.15);
     border: 1px solid #403B30;
     border-radius: 3px;
-    font-size: 0.9em;
+    font-size: 1.1em;
 }
 
 .roster-columns-container {
@@ -317,8 +300,8 @@ canvas#gameCanvas {
 
 
 .recruit-card-face {
-    width: 96px;
-    height: 96px;
+    width: 124px;
+    height: 124px;
     background-size: cover;
     background-position: center;
     border-radius: 3px;
@@ -330,7 +313,7 @@ canvas#gameCanvas {
 .recruit-card-info {
     display: flex;
     flex-direction: column;
-    font-size: 0.9em;
+    font-size: 1.2em;
     flex-grow: 1;
 }
 
@@ -344,10 +327,10 @@ canvas#gameCanvas {
     color: #E8E4D8;
 }
 .recruit-card-info .rank {
-    color: #C8B8A8;
+    color: #c9ae57;
 }
 .recruit-card-info .xp, .recruit-card-info .hp {
-    color: #B0A8A0;
+    color: #a6c29a;
     font-size: 0.9em;
 }
 
@@ -418,7 +401,7 @@ canvas#gameCanvas {
     display: flex;
     flex-direction: column;
     position: relative;
-    min-height: 150px;
+    min-height: 220px;
 
     background-size: contain;
     background-position: center center;

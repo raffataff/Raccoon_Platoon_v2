@@ -275,7 +275,9 @@ class GrenadeProjectile {
 
         let objectsInAOE = [];
         if (this.game.spatialGrid) {
-            objectsInAOE = this.game.spatialGrid.queryRange(this.x, this.y, this.aoeRadius + Math.max(CONFIG.POSSUM_HEAVY_SIZE || 18, CONFIG.RACCOON_SIZE || 12));
+            // Query slightly larger than AOE to catch edges of larger collision shapes
+            const queryRadius = this.aoeRadius + Math.max(CONFIG.POSSUM_HEAVY_SIZE || 18, CONFIG.RACCOON_SIZE || 12, 32); // 32 as a guess for max obstacle collision shape extent
+            objectsInAOE = this.game.spatialGrid.queryRange(this.x, this.y, queryRadius);
         } else { 
             if (this.game && this.game.deployedSquadRoster) objectsInAOE.push(...this.game.deployedSquadRoster);
             if (this.game && this.game.enemyUnits) objectsInAOE.push(...this.game.enemyUnits);
@@ -286,7 +288,7 @@ class GrenadeProjectile {
         objectsInAOE.forEach(obj => {
             if (obj instanceof Unit && obj.isAlive()) {
                 const distToUnit = distance(this.x, this.y, obj.x, obj.y);
-                if (distToUnit <= this.aoeRadius + obj.size) {
+                if (distToUnit <= this.aoeRadius + obj.size) { // Unit size as buffer for AOE
                     let damageMultiplier = 1.0;
                     if (this.shooterTeam === 'player' && obj.team === 'player' && obj !== this.shooterUnit) {
                         damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5; 
@@ -294,12 +296,34 @@ class GrenadeProjectile {
                     obj.takeDamage(this.damage * damageMultiplier, this.shooterUnit);
                 }
             } else if (this.game.level.obstacles.includes(obj) && obj.destructible && !obj.isDestroyed && obj.hp > 0) {
-                const obsCenterX = obj.x + obj.width / 2;
-                const obsCenterY = obj.y + obj.height / 2;
-                const effectiveRadius = this.aoeRadius + Math.max(obj.width, obj.height) / 4; 
-                if (distance(this.x, this.y, obsCenterX, obsCenterY) <= effectiveRadius) {
+                // --- MODIFIED: Use collisionShape for AOE damage on obstacles ---
+                const obsCollisionShape = this.game.level._getObstacleCollisionShape(obj);
+                if (!obsCollisionShape) return;
+
+                let shapeCenterX, shapeCenterY, shapeEffectiveSize;
+
+                if (obsCollisionShape.type === 'rectangle') {
+                    shapeCenterX = obsCollisionShape.x + obsCollisionShape.width / 2;
+                    shapeCenterY = obsCollisionShape.y + obsCollisionShape.height / 2;
+                    shapeEffectiveSize = Math.max(obsCollisionShape.width, obsCollisionShape.height) / 2; // Use half of max dimension
+                } else if (obsCollisionShape.type === 'circle') {
+                    shapeCenterX = obsCollisionShape.x;
+                    shapeCenterY = obsCollisionShape.y;
+                    shapeEffectiveSize = obsCollisionShape.radius;
+                } else if (obsCollisionShape.type === 'ellipse') {
+                    shapeCenterX = obsCollisionShape.x;
+                    shapeCenterY = obsCollisionShape.y;
+                    shapeEffectiveSize = Math.max(obsCollisionShape.radiusX, obsCollisionShape.radiusY); // Use max radius
+                } else { // Fallback if somehow no proper shape
+                    shapeCenterX = obj.x + obj.width / 2;
+                    shapeCenterY = obj.y + obj.height / 2;
+                    shapeEffectiveSize = Math.max(obj.width, obj.height) / 4; // Original fallback
+                }
+
+                if (distance(this.x, this.y, shapeCenterX, shapeCenterY) <= this.aoeRadius + shapeEffectiveSize) {
                      this.game.level.damageObstacle(obj, this.damage, this.shooterUnit);
                 }
+                // --- END MODIFIED ---
             }
         });
     }

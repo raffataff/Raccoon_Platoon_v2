@@ -602,17 +602,28 @@ class Level {
         missionObjectives.forEach(objective => {
             if (objective.type === 'DESTROY_TARGET' && objective.targetTypeKey && objective.totalToAchieve > 0) {
                 const targetTemplateOriginal = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === objective.targetTypeKey);
+                
                 if (targetTemplateOriginal) {
                     for (let i = 0; i < objective.totalToAchieve; i++) {
                         let targetX, targetY, placedTarget = false;
                         let actualTargetSpritePath = null;
                         let targetImage = null;
-                        const template = JSON.parse(JSON.stringify(targetTemplateOriginal)); 
+                        
+                        // --- MODIFIED: Use the original template directly, or a proper deep clone that handles functions if needed ---
+                        // For collisionShape, we'll reference the original definition to keep functions intact.
+                        // Other properties can be copied if they need to be instance-specific.
+                        const template = targetTemplateOriginal; // Use the direct reference for now
+                        // If you needed to modify properties on the 'template' for this instance later,
+                        // you'd need a more sophisticated deep clone. For just reading, direct reference is fine.
+                        // const template = deepCloneWithFunctions(targetTemplateOriginal); // Example if needed
+                        // --- END MODIFIED ---
+
 
                         let targetFilesArray = [];
                         let targetPathBase = '';
                         let targetUseRandomSpriteFromList = false;
 
+                        // This assumes template.type, template.spriteNormal, etc. are accessible
                         if (template.type === 'possum_hut') { targetFilesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || []; targetPathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || ''; targetUseRandomSpriteFromList = true; }
                         else if (template.type === 'possum_relay_tower') { targetFilesArray = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || []; targetPathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || ''; targetUseRandomSpriteFromList = true; }
                         else if (template.spriteNormal) { actualTargetSpritePath = template.spriteNormal; }
@@ -628,10 +639,16 @@ class Level {
                         for (let attempt = 0; attempt < (genConfig.OBSTACLES.PLACEMENT_MAX_ATTEMPTS || 15); attempt++) {
                             targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
                             targetY = this.rng.nextFloat(playableMinY, playableMaxY - targetHeight);
-                            const tempTargetForShape = { ...template, x:targetX, y:targetY, width:targetWidth, height:targetHeight };
-                            const collisionShapeForCheck = this._getObstacleCollisionShape(tempTargetForShape);
+                            
+                            // Create a temporary object for collision shape calculation, passing its actual dimensions
+                            const tempTargetForShapeCheck = { 
+                                x:targetX, y:targetY, 
+                                width:targetWidth, height:targetHeight, 
+                                collisionShape: template.collisionShape // Use the original collisionShape definition
+                            };
+                            const collisionShapeForPlacementCheck = this._getObstacleCollisionShape(tempTargetForShapeCheck);
 
-                            if (!this._rectOverlap(collisionShapeForCheck, playerSpawnZone) && !this._isPlacementInvalid(collisionShapeForCheck, template.isDecoration, this.obstacles)) {
+                            if (!this._rectOverlap(collisionShapeForPlacementCheck, playerSpawnZone) && !this._isPlacementInvalid(collisionShapeForPlacementCheck, template.isDecoration, this.obstacles)) {
                                 const missionTargetObs = {
                                     x: targetX, y: targetY, width: targetWidth, height: targetHeight,
                                     type: template.type, name: `${objective.targetNameSingular || template.name || template.type} (Objective)`,
@@ -642,10 +659,13 @@ class Level {
                                     spriteNormalPath: actualTargetSpritePath, imageNormal: targetImage, 
                                     spriteDestroyedPath: template.spriteDestroyed, imageDestroyed: template.spriteDestroyed ? preloadedAssetImages[template.spriteDestroyed] : null,
                                     spriteScale: template.spriteScale || 1.0, spriteDestroyedScale: template.spriteDestroyedScale,
-                                    collisionShape: template.collisionShape || null, isMissionTarget: true, objectiveId: objective.id,
+                                    // --- IMPORTANT: Assign the original collisionShape definition object ---
+                                    collisionShape: template.collisionShape, 
+                                    // ---
+                                    isMissionTarget: true, objectiveId: objective.id,
                                     isSpawner: template.type === 'possum_hut',
                                     spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
-                                    delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0 // Initialize new timers
+                                    delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0 
                                 };
                                 this.obstacles.push(missionTargetObs);
                                 this.missionTargetObstacles.push(missionTargetObs);

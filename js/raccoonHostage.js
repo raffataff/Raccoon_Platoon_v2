@@ -11,20 +11,19 @@ class RaccoonHostage extends Raccoon {
 
         super(x, y, game, id, tempFace, tempName, 0, "Recruit", 0);
 
-        this.team = 'neutral'; // Initial team
+        this.team = 'neutral'; 
         this.originalColor = hostageConfig.NEUTRAL_COLOR || '#FFD700';
         this.color = this.originalColor;
 
         this.isRescued = false;
         this.followTarget = null;
-        this.hasWeapon = false; // Hostages don't use weapons
+        this.hasWeapon = false; 
         this.weapon = null;
 
         this.RESCUE_RADIUS = hostageConfig.RESCUE_RADIUS || 60;
         this.FOLLOW_DISTANCE = hostageConfig.FOLLOW_DISTANCE || (this.size * 3.0);
         this.FOLLOW_STOP_DISTANCE_THRESHOLD = this.FOLLOW_DISTANCE * 0.7;
         this.REPATH_TARGET_MOVE_THRESHOLD = this.size * 7.5; 
-        this.lastFollowTargetPosition = { x: 0, y: 0 };
         this.minTimeBetweenRepath = 0.25; 
         this.lastRepathTime = 0;          
 
@@ -33,15 +32,50 @@ class RaccoonHostage extends Raccoon {
         this.assignedRankOnRescue = randomRankEntry.rankName;
         this.assignedXpOnRescue = randomRankEntry.xpNeeded !== undefined ? randomRankEntry.xpNeeded : 0;
 
-        this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 1.0;
-        this.canShootWhileMoving = false; // Not applicable as they don't shoot
+        this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5; // Use raccoon scale
+        this.canShootWhileMoving = false; 
         this.aiState = 'IDLE_HOSTAGE';
-        this.isPlayerDirectFiring = false; // Not applicable
+        this.isPlayerDirectFiring = false; 
+        this.isHoldingPosition = false; 
 
-        // --- NEW: Hostage Specific State ---
-        this.isHoldingPosition = false; // For the 'K' key command
-        // ---
+        // --- NEW: Hostage Sprite Logic ---
+        this.hostageSpritePath = 'assets/images/units/raccoon/hostage/';
+        this.unrescuedKneelingSprite = null;
+        this.unrescuedKneelingSpriteDirection = 's'; // Default if random pick fails
+
+        if (!this.isRescued) {
+            const kneelingSprites = ['hostage_kneeling_s.png', 'hostage_kneeling_sw.png', 'hostage_kneeling_se.png'];
+            const randomSpriteFile = kneelingSprites[Math.floor(Math.random() * kneelingSprites.length)];
+            this.unrescuedKneelingSprite = this.game.preloadedImages[this.hostageSpritePath + randomSpriteFile];
+            
+            if (randomSpriteFile.includes('_sw')) {
+                this.unrescuedKneelingSpriteDirection = 'sw';
+            } else if (randomSpriteFile.includes('_se')) {
+                this.unrescuedKneelingSpriteDirection = 'se';
+            } else {
+                this.unrescuedKneelingSpriteDirection = 's';
+            }
+            this.facingAngle = this.getAngleFromDirection(this.unrescuedKneelingSpriteDirection); // Set initial facing angle
+            this.currentVisualState = 'idle_hostage_kneeling'; // Special state
+        }
+        // --- END NEW ---
     }
+
+    // --- NEW: Helper to get angle from direction string ---
+    getAngleFromDirection(dirStr) {
+        switch (dirStr) {
+            case 's': return Math.PI / 2;
+            case 'sw': return 3 * Math.PI / 4;
+            case 'se': return Math.PI / 4;
+            case 'n': return -Math.PI / 2;
+            case 'nw': return -3 * Math.PI / 4;
+            case 'ne': return -Math.PI / 4;
+            case 'w': return Math.PI;
+            case 'e': return 0;
+            default: return Math.PI / 2;
+        }
+    }
+    // --- END NEW ---
 
     update(deltaTime) {
         if (!this.isAlive()) {
@@ -49,18 +83,15 @@ class RaccoonHostage extends Raccoon {
             return;
         }
 
-        this._updateVelocity(deltaTime); // Inherited
-        if (this.isPhasing) { // Inherited
+        this._updateVelocity(deltaTime); 
+        if (this.isPhasing) { 
             this.phasingTimer -= deltaTime;
             if (this.phasingTimer <= 0) this.isPhasing = false;
         }
         
-        // Hostages don't have attack/action/grenade cooldowns in the same way
-        // but we can keep these for consistency with base class if needed for other timers.
         if (this.attackCooldown > 0) this.attackCooldown -= deltaTime;
         if (this.actionTimer > 0) this.actionTimer -= deltaTime;
         if (this.grenadeCooldownTimer > 0) this.grenadeCooldownTimer -= deltaTime;
-
 
         const currentTime = this.game.lastTime / 1000; 
 
@@ -75,26 +106,24 @@ class RaccoonHostage extends Raccoon {
                 this.isMoving = false;
                 this.currentPath = [];
             }
-            this.currentVisualState = 'idle';
-            if (this.facingAngle === undefined) this.facingAngle = Math.PI / 2; 
-            this.updateVisualDirection(this.facingAngle);
+            // For unrescued, visual state and direction are fixed by constructor
+            this.currentVisualState = 'idle_hostage_kneeling';
+            this.updateVisualDirection(this.facingAngle); // Keep facingAngle consistent with chosen sprite
 
         } else { // Is rescued
-            // --- NEW: Check for holding position ---
-            if (this.isHoldingPosition) {
-                if (this.isMoving) {
-                    this.isMoving = false;
-                    this.currentPath = [];
-                }
-                this.currentVisualState = 'idle'; // Remain idle if holding
-            } else { // Not holding position, try to follow
-                if (this.followTarget && this.followTarget.isAlive()) {
+            // Once rescued, revert to standard Raccoon behavior for visual state and facing
+            // The parent Unit.update() and Raccoon.update() will handle this.
+            // We call super.update() here to invoke Raccoon's update logic, which in turn calls Unit's.
+            super.update(deltaTime); // This will set currentVisualState (walk/idle/fire) based on Raccoon logic
+
+            // Hostage-specific following logic (if not holding position)
+            if (!this.isHoldingPosition) {
+                 if (this.followTarget && this.followTarget.isAlive()) {
                     const distToFollowTarget = distance(this.x, this.y, this.followTarget.x, this.followTarget.y);
                     
                     let desiredFollowX = this.followTarget.x;
                     let desiredFollowY = this.followTarget.y;
                     if (distToFollowTarget > 1e-5) {
-                        // Aim to be slightly behind the follow target
                         let behindAngle = this.followTarget.facingAngle + Math.PI; 
                         desiredFollowX = this.followTarget.x + Math.cos(behindAngle) * (this.FOLLOW_DISTANCE * 0.8);
                         desiredFollowY = this.followTarget.y + Math.sin(behindAngle) * (this.FOLLOW_DISTANCE * 0.8);
@@ -102,7 +131,7 @@ class RaccoonHostage extends Raccoon {
 
                     const distToDesiredFollowPoint = distance(this.x, this.y, desiredFollowX, desiredFollowY);
 
-                    if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5) { // If too far from ideal follow spot
+                    if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5) { 
                         const targetMovedSignificantly = distance(this.followTarget.x, this.followTarget.y, this.lastFollowTargetPosition.x, this.lastFollowTargetPosition.y) > this.REPATH_TARGET_MOVE_THRESHOLD;
                         const currentPathTargetOutdated = this.isMoving && this.currentPath.length > 0 && distance(this.worldTargetX, this.worldTargetY, desiredFollowX, desiredFollowY) > this.REPATH_TARGET_MOVE_THRESHOLD;
                         const canRepathNow = (currentTime - this.lastRepathTime) > this.minTimeBetweenRepath;
@@ -115,10 +144,10 @@ class RaccoonHostage extends Raccoon {
                             }
                         }
                     } else if (distToDesiredFollowPoint < this.FOLLOW_STOP_DISTANCE_THRESHOLD && this.isMoving) {
-                        this.isMoving = false; // Stop if close enough
+                        this.isMoving = false; 
                         this.currentPath = [];
                     }
-                } else { // No valid follow target, try to find one
+                } else { 
                     let closestPlayer = null;
                     let minDistSq = Infinity;
                     if (this.game.deployedSquadRoster) {
@@ -133,33 +162,18 @@ class RaccoonHostage extends Raccoon {
                         }
                     }
                     this.followTarget = closestPlayer;
-                    if (!this.followTarget && this.isMoving) { // If still no target, stop.
+                    if (!this.followTarget && this.isMoving) { 
                         this.isMoving = false;
                         this.currentPath = [];
                     }
                 }
-            } // End of not holding position
-
-            // Visual state update for rescued hostages
-            if (this.isMoving) {
-                this._handleMovement(deltaTime); 
-                this.currentVisualState = 'walk';
-                if (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6) {
-                    this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
+            } else { // Is holding position
+                if (this.isMoving) {
+                    this.isMoving = false;
+                    this.currentPath = [];
                 }
-            } else { // Not moving (either holding or close enough to follow target)
-                this.currentVisualState = 'idle';
-                if (!this.isHoldingPosition && this.followTarget && this.followTarget.isAlive()) {
-                    // If following and stopped, face the follow target
-                    const angleToFollowTarget = Math.atan2(this.followTarget.y - this.y, this.followTarget.x - this.x);
-                    if (distance(this.x, this.y, this.followTarget.x, this.followTarget.y) > 1) { // Avoid rapid spinning if too close
-                        this.facingAngle = angleToFollowTarget;
-                    }
-                }
-                // If holding position, facingAngle remains as it was.
+                // Visual state for holding will be handled by super.update if it results in idle
             }
-            this.updateVisualDirection(this.facingAngle);
-            this.gunAimAngle = this.facingAngle; // Hostages don't aim guns, but align this for consistency
         }
     }
 
@@ -167,26 +181,28 @@ class RaccoonHostage extends Raccoon {
         if (this.isRescued) return;
 
         this.isRescued = true;
-        this.team = 'player'; // Now part of the player's "team" for targeting purposes
+        this.team = 'player'; 
         this.followTarget = rescuer;
         if (rescuer) { 
             this.lastFollowTargetPosition = { x: rescuer.x, y: rescuer.y };
         }
-        this.aiState = 'FOLLOWING_PLAYER'; // More descriptive AI state
-        this.color = CONFIG.RACCOON_COLOR; // Change color to player team color
-        this.isHoldingPosition = false; // Ensure not holding position on rescue
+        this.aiState = 'FOLLOWING_PLAYER'; 
+        this.color = CONFIG.RACCOON_COLOR; 
+        this.isHoldingPosition = false; 
+        this.spriteBaseName = 'raccoon'; // Switch to use standard Raccoon sprites
+        this.currentVisualState = 'idle'; // Reset visual state, will be updated by Raccoon/Unit logic
 
         console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);
 
         if (this.game.ui && typeof this.game.ui.updateHostageStatus === 'function') {
             this.game.ui.updateHostageStatus(this, true);
         }
-        this.currentPath = []; // Clear any previous path
+        this.currentPath = []; 
         this.isMoving = false;
-        this.lastRepathTime = 0; // Allow immediate pathing on rescue
+        this.lastRepathTime = 0; 
     }
 
-    // Override setMoveTarget to ensure hostages only move if rescued and not holding
+    // ... (setMoveTarget, addXp, incrementKillCount, etc. from RaccoonHostage remain unchanged)
     setMoveTarget(worldX, worldY) {
         if (!this.isAlive() || !this.isRescued || this.isHoldingPosition) {
             this.isMoving = false;
@@ -194,31 +210,29 @@ class RaccoonHostage extends Raccoon {
             return false;
         }
         // Call the original Unit.setMoveTarget logic
-        return Unit.prototype.setMoveTarget.call(this, worldX, worldY);
+        return Unit.prototype.setMoveTarget.call(this, worldX, worldY, this.isPhasing); // Pass phasing status
     }
 
-    // Hostages don't use these Raccoon-specific abilities
     addXp() {}
     incrementKillCount() {}
     checkPromotion() {}
-    applyRankBonuses() {} // Base HP is fine
+    applyRankBonuses() {} 
     startGrenadeAim() {}
     cancelGrenadeAim() {}
     confirmThrowGrenade() { return false; }
     moveToGrenadeRange() {}
-    checkForAndApplyPickups() {} // Hostages don't pick things up
-    _executeFire() {} // Hostages don't fire
-    _handlePlayerCombat() {} // Not applicable
-    _handleEnemyCombat() {} // Not applicable
+    checkForAndApplyPickups() {} 
+    _executeFire() {} 
+    _handlePlayerCombat() {} 
+    _handleEnemyCombat() {} 
 
     die() {
+        // ... (die logic unchanged)
         const wasRescuedBeforeDeath = this.isRescued;
-        // Call Unit's die method first to handle common death logic
         Unit.prototype.die.call(this); 
         
         console.log(`Hostage ${this.id} (${this.name || ''}) has fallen. Was rescued: ${wasRescuedBeforeDeath}`);
         
-        // Specific cleanup for hostages
         if (this.game.hostageUnits) {
             const index = this.game.hostageUnits.indexOf(this);
             if (index > -1) {
@@ -227,33 +241,44 @@ class RaccoonHostage extends Raccoon {
         }
         
         if (this.game.ui && typeof this.game.ui.updateHostageStatus === 'function') {
-            this.game.ui.updateHostageStatus(this, false); // Notify UI they are no longer alive & rescued
+            this.game.ui.updateHostageStatus(this, false); 
         }
-        // Mission failure check due to hostage death will be handled in Game.checkMissionStatus
     }
 
     render(ctx) {
-        super.render(ctx); // Use Raccoon's render method
-
-        if (!this.isRescued && this.isAlive()) {
+        // --- MODIFIED RENDER for Hostage Specific Sprites ---
+        if (!this.isRescued && this.isAlive() && this.unrescuedKneelingSprite) {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            const sprite = this.unrescuedKneelingSprite;
+            const scale = this.spriteScaleFactor; // Use Raccoon scale
+            const sWidth = sprite.naturalWidth * scale;
+            const sHeight = sprite.naturalHeight * scale;
+            ctx.drawImage(sprite, -sWidth / 2, -sHeight / 2, sWidth, sHeight);
+            
+            // Rescue prompt
             let playerNear = false;
             if (this.game.deployedSquadRoster) { 
                 for (const playerUnit of this.game.deployedSquadRoster) {
                     if (playerUnit.isAlive() && distance(this.x, this.y, playerUnit.x, playerUnit.y) < this.RESCUE_RADIUS * 1.5) {
-                        playerNear = true;
-                        break;
+                        playerNear = true; break;
                     }
                 }
             }
-            // Visual cue that they can be rescued
             if (playerNear) {
-                ctx.fillStyle = "yellow";
-                ctx.font = "bold 20px Arial";
+                ctx.fillStyle = "yellow"; ctx.font = "bold 20px Arial";
                 ctx.textAlign = "center";
-                ctx.fillText("!", this.x, this.y - this.size - 10); // Exclamation mark above head
-                ctx.textAlign = "left"; // Reset alignment
+                ctx.fillText("!", 0, -this.size - 10 - sHeight/2 + this.size/2); // Adjust y based on sprite
+                ctx.textAlign = "left"; 
             }
+            ctx.restore();
+        } else {
+            // If rescued, or if kneeling sprite isn't available, use parent Raccoon's render.
+            // The parent Raccoon's render will use this.currentVisualState and this.currentVisualDirection
+            // which are set by Raccoon/Unit.update() logic when rescued.
+            super.render(ctx); 
         }
+        // --- END MODIFIED ---
     }
 }
 

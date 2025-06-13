@@ -3,8 +3,8 @@ const CONFIG = {
     // --- Core Game & World ---
     BASE_WORLD_WIDTH: 1280,
     BASE_WORLD_HEIGHT: 720,
-    MIN_CANVAS_WIDTH: 800,
-    MIN_CANVAS_HEIGHT: 600,
+    MIN_CANVAS_WIDTH: 1280,
+    MIN_CANVAS_HEIGHT: 720,
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
 
@@ -149,7 +149,7 @@ const CONFIG = {
 
     PROJECTILES: {
         BULLET: {
-            LIFETIME: 1.0,
+            LIFETIME: 1.5,
             MAX_SPREAD_ANGLE_RADIANS: Math.PI / 6,
             DESPAWN_WORLD_BUFFER: 50
         },
@@ -177,7 +177,7 @@ const CONFIG = {
     },
 
     // --- Roster, Progression & Campaign ---
-    INITIAL_ROSTER_SIZE: 3,
+    INITIAL_ROSTER_SIZE: 5,
     NEW_RECRUITS_PER_MISSION_WIN: 3,
     MAX_SQUAD_SIZE_MVP: 4,
     MAX_TOTAL_ROSTER_SIZE: 20,
@@ -226,8 +226,8 @@ const CONFIG = {
             'AMBIENT_FOREST_4'
         ],
         POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.4, pitchVariation: 0.1 }, // Example: unique sound
-        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.1, pitchVariation: 0.2 }, // Example: unique sound
-        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.1, pitchVariation: 0.15 }, // Example for cluster
+        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.05, pitchVariation: 0.2 }, // Example: unique sound
+        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.05, pitchVariation: 0.15 }, // Example for cluster
         // Add more SFX keys as needed, e.g., TREE_FALL_SOUND, FENCE_BREAK_SOUND
     },
 
@@ -341,7 +341,7 @@ const CONFIG = {
             type: 'fence_barbed_straight_short', name: 'Barbed Wire Fence Straight Short',
             color: '#8B4513', destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.3), width: (w => w * 0.95), height: (h => h * 0.1)},
             // sfxOnDestroy: 'FENCE_BREAK_SOUND' // Example
@@ -350,7 +350,7 @@ const CONFIG = {
             type: 'fence_barbed_straight_long', name: 'Barbed Wire Fence Straight Long',
             color: '#8B4513', destructible: false, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.1, isDecoration: false,
+            spawnWeight: 0.8, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.9), height: (h => h * 0.04) },
              // sfxOnDestroy: 'FENCE_BREAK_SOUND' // Example
@@ -360,7 +360,7 @@ const CONFIG = {
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
             spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.1, 
+            spriteScale: 0.2, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         {
@@ -368,7 +368,7 @@ const CONFIG = {
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
             spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.1, 
+            spriteScale: 0.2, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         
@@ -393,7 +393,7 @@ const CONFIG = {
             type: 'tree_palm_single', name: 'Palm Tree Single', color: '#005522',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 6, isDecoration: false,
+            spawnWeight: 5, isDecoration: false,
             spriteScale: 0.4, 
             collisionShape: { type: 'circle', offsetX: (w=>w*0.4), offsetY: (h=>h*1.2), radius: (w => w * 0.12) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
@@ -404,7 +404,7 @@ const CONFIG = {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
+            spawnWeight: 4, isDecoration: false,
             spriteScale: 1.2, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.39), offsetY: (h=>h*1.25), radiusX: (w=>w*0.17), radiusY: (h=>h*0.13) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
@@ -415,7 +415,7 @@ const CONFIG = {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 1.2, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.2), radiusX: (w=>w*0.19), radiusY: (h=>h*0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
@@ -440,7 +440,7 @@ const CONFIG = {
             maxHp: Infinity,
             blocksMovement: true,
             providesCover: true,
-            spawnWeight: 5,
+            spawnWeight: 2,
             spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
             spriteScale: 1.20, 
             spriteDestroyed: null,
@@ -499,7 +499,7 @@ const CONFIG = {
             type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5,
+            spawnWeight: 0.2,
             spriteScale: 0.5, 
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
             spriteDestroyedScale: 0.5, 
@@ -559,7 +559,7 @@ const CONFIG = {
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.25, 
             INITIAL_SPAWN_DELAY_SECONDS_MIN: 0, 
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 2,
-            PLAYER_PROXIMITY_TRIGGER_RADIUS: 450, 
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 400, 
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65, 
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3, 
             SPAWN_AREA_WIDTH: 40,
@@ -569,8 +569,8 @@ const CONFIG = {
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
             MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5, 
             INITIAL_MOVE_OUT_DISTANCE: 25,
-            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.7, // Max delay for spawn after hut is shot
-            MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.50,     // Min time before another shot can trigger a spawn
+            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.1, // Max delay for spawn after hut is shot
+            MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 2.0,     // Min time before another shot can trigger a spawn
             UNITS_TO_SPAWN_ON_DAMAGE: 2,                 // How many units spawn when hut is shot
             SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 10, // Cooldown for regular spawning after a damage-spawn
             SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 20,
@@ -583,7 +583,7 @@ const CONFIG = {
         COLOR: '#ADD8E6', 
         NEUTRAL_COLOR: '#FFD700', 
         RESCUE_RADIUS: 60,
-        FOLLOW_DISTANCE: 100,
+        FOLLOW_DISTANCE: 80,
         FOLLOW_LERP_SPEED: 0.04, 
         POSSIBLE_RANKS_ON_RESCUE: [ 
             { rankName: "Recruit", xpNeeded: 0 },
@@ -603,7 +603,7 @@ const CONFIG = {
         MAX_HOSTAGES_PER_HUT: 1, 
         SPAWN_OFFSET_FROM_HUT_X: -30,  
         SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30), 
-        MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 250, 
+        MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 500, 
         HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 15,
         INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 2,
         INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 3,

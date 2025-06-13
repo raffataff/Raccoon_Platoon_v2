@@ -1,5 +1,3 @@
-// js/input.js
-// complete
 class InputHandler {
     constructor(canvas, game) {
         this.canvas = canvas;
@@ -76,8 +74,7 @@ class InputHandler {
                 return;
             }
 
-            // MODIFIED: Removed 'j' and 'k' from gameKeys
-            const gameKeys = ['f', 'g', 'h', ' ', 'escape']; 
+            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u']; // Added 'u'
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -119,8 +116,6 @@ class InputHandler {
                 if (this.game.ui) this.game.ui.updateSquadPanel();
                 this.updateMouseCursor();
             }
-
-            // MODIFIED: 'h' key now controls hostage hold/follow
             if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {
                 const rescuedHostages = this.game.hostageUnits.filter(h => h.isRescued && h.isAlive());
                 if (rescuedHostages.length > 0) {
@@ -137,13 +132,23 @@ class InputHandler {
                             h.isHoldingPosition = false;
                         });
                     }
-                    // Note: Hostage status isn't typically shown in squad panel,
-                    // so a direct ui.updateSquadPanel() call isn't strictly needed here
-                    // unless other UI elements reflect hostage state.
                 }
             }
-            // REMOVED: 'j' key logic (Hold Fire for Raccoons)
-            // REMOVED: 'k' key logic (Hold/Follow for Hostages - now handled by 'h')
+            // --- NEW: 'U' key for Unstuckify ---
+            if ((event.key === 'u' || event.key === 'U') && !isInputFieldActive) {
+                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                    console.log("'U' key pressed. Forcing phase out for selected units.");
+                    this.game.selectedUnits.forEach(unit => {
+                        // Apply to Raccoons and rescued Hostages (player-controlled)
+                        if ((unit instanceof Raccoon || (unit instanceof RaccoonHostage && unit.isRescued)) && unit.isAlive()) {
+                            if (typeof unit.forcePhaseOut === 'function') {
+                                unit.forcePhaseOut(1.0); // Phase for 1 second
+                            }
+                        }
+                    });
+                }
+            }
+            // --- END NEW ---
         });
 
         document.addEventListener('keyup', (event) => {

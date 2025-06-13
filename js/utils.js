@@ -255,13 +255,24 @@ function heuristic(nodeA, nodeB) { /* ... (Unchanged from previous complete vers
     return D * (dX + dY) + (D2 - 2 * D) * Math.min(dX, dY);
 }
 
-function findPath(startPos, endPos, grid) { /* ... (Unchanged from previous complete version) ... */
+function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUnitPhasing
     const openList = new MinHeap(); 
     const closedList = new Set();     
 
     const startNode = new PathNode(startPos.x, startPos.y, 0, heuristic(startPos, endPos));
-    openList.insert(startNode);
     
+    // --- MODIFIED: Check start node based on phasing ---
+    if (grid[startNode.y] === undefined || grid[startNode.y][startNode.x] === undefined) { // Out of bounds check
+        // console.warn(`findPath: Start node (${startNode.x},${startNode.y}) is out of grid bounds.`);
+        return null; 
+    }
+    if (grid[startNode.y][startNode.x] === 1 && !isUnitPhasing) {
+        // console.warn(`findPath: Start node (${startNode.x},${startNode.y}) is blocked and unit is not phasing.`);
+        return null; // Start node is blocked and not phasing
+    }
+    // --- END MODIFIED ---
+
+    openList.insert(startNode);
     const openListGCosts = new Map();
     openListGCosts.set(`${startNode.x},${startNode.y}`, startNode.g);
 
@@ -295,21 +306,29 @@ function findPath(startPos, endPos, grid) { /* ... (Unchanged from previous comp
             if (neighborX < 0 || neighborX >= grid[0].length || neighborY < 0 || neighborY >= grid.length) {
                 continue;
             }
-            if (grid[neighborY][neighborX] === 1) {
-                continue;
+            // --- MODIFIED: Check if walkable based on phasing ---
+            if (grid[neighborY][neighborX] === 1 && !isUnitPhasing) {
+                continue; // Blocked and not phasing
             }
+            // --- END MODIFIED ---
             if (closedList.has(neighborKey)) {
                 continue;
             }
+            
+            // --- MODIFIED: Corner cutting check based on phasing ---
             if (direction.x !== 0 && direction.y !== 0) { 
                 const cardinalCell1X = currentNode.x + direction.x;
                 const cardinalCell1Y = currentNode.y;
                 const cardinalCell2X = currentNode.x;
                 const cardinalCell2Y = currentNode.y + direction.y;
-                if (grid[cardinalCell1Y][cardinalCell1X] === 1 && grid[cardinalCell2Y][cardinalCell2X] === 1) {
+                // If not phasing, standard corner cutting check
+                if (!isUnitPhasing && grid[cardinalCell1Y][cardinalCell1X] === 1 && grid[cardinalCell2Y][cardinalCell2X] === 1) {
                     continue; 
                 }
+                // If phasing, allow corner cutting (effectively)
             }
+            // --- END MODIFIED ---
+
 
             const gCost = currentNode.g + direction.cost;
             if (!openListGCosts.has(neighborKey) || gCost < openListGCosts.get(neighborKey)) {

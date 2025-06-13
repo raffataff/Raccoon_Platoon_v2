@@ -18,7 +18,7 @@ const CAMPAIGN_RULES = {
 
     // --- Pools of Options ---
     BIOME_POOL: [
-        { name: "FOREST",       weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
+        { name: "TROPICAL",       weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
         { name: "JUNKYARD",     weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
         { name: "SWAMP",        weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY",  weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
@@ -60,7 +60,7 @@ const CAMPAIGN_RULES = {
             // maxInstancesPerMission for "DESTROY_TARGET" itself might be high (e.g., 3) to allow
             // "Destroy Huts" AND "Destroy Towers" in one mission. The specific target types below
             // will have their own maxInstances.
-            maxInstancesPerMission: 3, // Max distinct "destroy X" objectives in one mission
+            maxInstancesPerMission: 5, // Max distinct "destroy X" objectives in one mission
             isPhaseFinaleCandidate: true
         },
         { 
@@ -100,13 +100,13 @@ const CAMPAIGN_RULES = {
             targetTypeKey: "possum_hut",                
             nameSingular: "Possum Hut", namePlural: "Possum Huts",
             weight: 4, unlocksPhase: 0, 
-            maxInstancesPerMission: 2 // Typically, one "Destroy Possum Huts" objective per mission.
+            maxInstancesPerMission: 4 // Typically, one "Destroy Possum Huts" objective per mission.
         },
         { 
             targetTypeKey: "possum_relay_tower",       
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
-            weight: 3, unlocksPhase: 1,
-            maxInstancesPerMission: 1
+            weight: 1, unlocksPhase: 1,
+            maxInstancesPerMission: 2
         },
     ],
 
@@ -118,6 +118,10 @@ const CAMPAIGN_RULES = {
             DESCRIPTORS: ["Fury", "Dawn", "Viper", "Thunder", "Silence", "Ghost", "Resolve", "Echo", "Retribution", "Genesis", "Last Stand", "Steel Rain", "Broken Fang", "Avalanche", "Quake"]
         },
         INTRODUCTION_TEMPLATES: [
+            "Phase {phaseNum} begins, Platoon. '{phaseName}' is our next objective. The Possums have entrenched themselves in {biomeDescription}. Your mission: {phaseObjectiveSummary}.",
+            "Attention, Platoon! Phase {phaseNum} is upon us. '{phaseName}' is the name of the game. The enemy has fortified positions in {biomeDescription}. Your task: {phaseObjectiveSummary}.",
+            "Platoon, we are entering Phase {phaseNum}. The operation is codenamed '{phaseName}'. Possum forces are heavily entrenched in {biomeDescription}. Your orders: {phaseObjectiveSummary}.",
+            "Platoon, brace yourselves! Phase {phaseNum} is here. The operation, '{phaseName}', will take us into {biomeDescription}. Your objective: {phaseObjectiveSummary}. Prepare for heavy resistance.",
             "Intel reports a significant Possum buildup in the {biomeDescription}. Your objective for Phase {phaseNum}, '{phaseName}', is to {phaseObjectiveSummary}. High command expects results, Platoon.",
             "Phase {phaseNum}, '{phaseName}', commences. We've tracked the enemy to {biomeDescription}. Your primary goal: {phaseObjectiveSummary}. Show them no mercy.",
             "The fight continues into Phase {phaseNum}: '{phaseName}'. Possum forces are entrenched in {biomeDescription}. We need you to {phaseObjectiveSummary}. Failure is not an option.",
@@ -125,6 +129,9 @@ const CAMPAIGN_RULES = {
             "New orders for Phase {phaseNum}, '{phaseName}'. Satellite imagery confirms heavy Possum activity in {biomeDescription}. Your mission: {phaseObjectiveSummary}. Good luck out there, you'll need it."
         ],
         CONCLUSION_TEMPLATES: [
+            "Phase {phaseNum}, '{phaseName}', is a success. {biomeDescription} has been {outcomeVerb}. {casualtyReport}. Prepare for the next phase.",
+            "Mission accomplished, Platoon. Phase {phaseNum}, '{phaseName}', is complete. {biomeDescription} is now {outcomeAdjective}. {casualtyReport}.",
+            "Phase {phaseNum} concluded. '{phaseName}' has achieved its objectives. {biomeDescription} is {outcomeVerb}. {casualtyReport}.",
             "Excellent work on Phase {phaseNum}, '{phaseName}'. {biomeDescription} is temporarily pacified. Stand by for further orders. {casualtyReport}.",
             "Phase {phaseNum}, '{phaseName}', is complete. {casualtyReport}. The theatre of operations in {biomeDescription} is now {outcomeAdjective}. Re-arm and resupply.",
             "With Phase {phaseNum}, '{phaseName}', concluded, Possum influence in {biomeDescription} has been {outcomeVerb}. Prepare for the next front. {casualtyReport}.",
@@ -132,6 +139,8 @@ const CAMPAIGN_RULES = {
             "Target objectives for Phase {phaseNum}, '{phaseName}', achieved. {biomeDescription} is {outcomeVerb}. Medals for some, memorial for others. {casualtyReport}."
         ],
         OBJECTIVE_SUMMARIES_POOL: [
+            "eliminate all Possum forces in the area", "destroy key Possum infrastructure and supply lines",
+            "rescue all captured Raccoon assets and hostages", "assassinate the Possum leader in the sector",
             "disrupt their supply lines and logistics networks", "eliminate key enemy leadership and command structures in the region",
             "secure the area and establish a forward operating base", "rescue captured assets and gather critical intelligence",
             "destroy critical enemy infrastructure and sow widespread chaos", "conduct a major offensive operation to break their lines",
@@ -139,6 +148,8 @@ const CAMPAIGN_RULES = {
             "recover vital lost equipment before it falls into Possum paws"
         ],
         CASUALTY_REPORTS_POOL: [
+            "Casualties were light, we can rebuild.", "Minimal losses, the Possums are reeling.",
+            "We took some hits, but the mission was a success.", "Losses were acceptable, we achieved our objectives.",
             "Casualties were minimal, outstanding work!", "We took some hits, but losses were acceptable given the circumstances.",
             "Losses were heavy, a grim reminder of the stakes.", "Significant casualties reported, but the mission was a success.",
             "The price was high, but the Possums paid dearer. Many brave Raccoons fell today."
@@ -163,13 +174,13 @@ const CAMPAIGN_RULES = {
     BRIEFING_PARTS: {
         ENEMY_ADJECTIVES: ["light", "moderate", "heavy", "significant", "entrenched", "scattered", "unconfirmed", "dug-in", "roaming", "well-equipped", "elite", "veteran", "desperate", "fanatical"],
         BIOME_ADJECTIVES: {
-            FOREST: ["dense", "ancient", "sun-dappled", "misty", "overgrown", "impenetrable", "shadowy", "primeval"],
+            TROPICAL: ["dense", "ancient", "sun-dappled", "misty", "overgrown", "impenetrable", "shadowy", "primeval"],
             JUNKYARD: ["sprawling", "rusting", "treacherous", "cluttered", "metallic", "toxic", "labyrinthine", "forgotten"],
             SWAMP: ["murky", "fetid", "stagnant", "treacherous", "gator-infested", "mist-shrouded", "suffocating", "malarial"],
             URBAN_DECAY: ["ruined", "war-torn", "abandoned", "crumbling", "concrete", "ghost-ridden", "skeletal", "desolate"],
         },
         LOCATION_NOUNS: { 
-            FOREST: ["clearing", "thicket", "outpost", "logging camp", "riverbend", "hidden grove", "ancient ruin", "waterfall base"],
+            TROPICAL: ["clearing", "thicket", "outpost", "logging camp", "riverbend", "hidden grove", "ancient ruin", "waterfall base"],
             JUNKYARD: ["scrap pile", "main yard", "crusher zone", "storage sector", "derelict maze", "vehicle graveyard", "collapsed overpass", "chemical spill"],
             SWAMP: ["bog", "mire", "flooded village", "gator nest", "hidden islet", "mangrove cluster", "sunken shrine", "rickety boardwalk"],
             URBAN_DECAY: ["ruined square", "collapsed structure", "abandoned factory", "sewer entrance", "rooftop network", "bombed-out street", "subway station", "fortified checkpoint"],
