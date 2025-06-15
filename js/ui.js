@@ -5,13 +5,12 @@ class UI {
         this.uiText = CONFIG.UI_TEXT_STRINGS || {};
         this.uiSettings = CONFIG.UI_SETTINGS || {};
 
-        // Main Menu Elements
+        // ... (all other UI element initializations and event listeners from your existing UI.js)
         this.mainMenuScreen = document.getElementById('mainMenuScreen');
         this.newCampaignButton = document.getElementById('newCampaignButton');
         this.mainMenuMemorialButton = document.getElementById('mainMenuMemorialButton');
         this.optionsButton = document.getElementById('optionsButton');
 
-        // Other Screens & Panels
         this.preMissionScreen = document.getElementById('preMissionScreen');
         this.postMissionScreen = document.getElementById('postMissionScreen');
         this.gameOverScreen = document.getElementById('gameOverScreen');
@@ -21,10 +20,7 @@ class UI {
         this.viewMemorialButton = document.getElementById('viewMemorialButton');
         this.leftHudPanel = document.getElementById('left-hud-panel');
         this.squadPanel = document.getElementById('hud-squad');
-        // MODIFIED: Ensure this targets the new div container if you made the HTML change
-        this.objectiveTextContainer = document.getElementById('objectiveTextContainer'); // Changed from objectiveText
-        // If you kept objectiveText as the ID for the div, then the original this.objectiveText is fine.
-        // For clarity, I'll use objectiveTextContainer in the updateObjective function.
+        this.objectiveTextContainer = document.getElementById('objectiveTextContainer'); 
 
         this.missionOutcomeText = document.getElementById('missionOutcome');
         this.preMissionPhaseTitle = document.getElementById('preMissionPhaseTitle');
@@ -45,9 +41,9 @@ class UI {
         this.startMissionButton = document.getElementById('startMissionButton');
         this.retryMissionButton = document.getElementById('retryMissionButton');
         this.nextMissionButton = document.getElementById('nextMissionButton');
-
-
-        // --- Event Listeners ---
+        
+        // Assume _addSoundToButton and _applyHoverSoundsToAllButtons are defined as before
+        // ... Call _addSoundToButton for all relevant buttons ...
         this._addSoundToButton(this.newCampaignButton, () => {
             if (this.game) {
                 this.hideMainMenuScreen();
@@ -206,8 +202,8 @@ class UI {
             }
         });
     }
-
-
+    
+    // ... (showMainMenuScreen, hideMainMenuScreen, etc. - all other UI methods from your existing UI.js)
     showMainMenuScreen() {
         if (!this.mainMenuScreen) return;
         this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
@@ -333,7 +329,7 @@ class UI {
             if(this.preMissionBriefing) this.preMissionBriefing.textContent = this.uiText.PREMISSION_ERROR_BRIEFING || "Could not load mission details.";
             
             let objectivesListEl = document.getElementById('preMissionObjectivesList');
-            if (!objectivesListEl) { // Create if it doesn't exist
+            if (!objectivesListEl) { 
                 objectivesListEl = document.createElement('ul');
                 objectivesListEl.id = 'preMissionObjectivesList';
                 objectivesListEl.style.textAlign = 'left'; objectivesListEl.style.paddingLeft = '20px';
@@ -377,25 +373,30 @@ class UI {
                 let objectiveText = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
                 
                 const templateData = {
-                    CURRENT: obj.currentProgress, // Will be 0 here
-                    TOTAL: obj.totalToAchieve,    // Total count needed
+                    CURRENT: obj.currentProgress, 
+                    TOTAL: obj.totalToAchieve,    
                     TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
                     TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
+                    TARGET_CALLSIGN: obj.targetDetails ? obj.targetDetails.callsign : "VIP", // For Assassination
+                    TARGET_NAME: obj.targetDetails ? obj.targetDetails.name : "VIP", // For Assassination
                     CURRENT_RESCUED: 0, 
                     TOTAL_SPAWNED: obj.totalToAchieve, 
                     CURRENT_EVACUATED: 0,
                     MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
                 };
-                // For pre-mission, show the base description, not progress.
                 objectiveText = this.game._fillTextTemplate(objectiveText, templateData).split(':')[0].trim(); 
                 
                 if (obj.type === "DESTROY_TARGET" && obj.totalToAchieve > 0) {
                      objectiveText += ` (${obj.totalToAchieve} ${obj.targetNamePlural || 'items'})`;
                 } else if (obj.type === "RESCUE_HOSTAGES") {
                     objectiveText += ` (${obj.totalToAchieve} to find, min ${obj.minToAchieveForCompletion} to evac)`;
-                } else if (obj.type === "EXTERMINATE") {
-                    // No count needed for pre-mission exterminate if it's just "eliminate all"
+                } else if (obj.type === "ASSASSINATION" && obj.targetDetails) {
+                     objectiveText = (this.uiText.OBJECTIVE_ASSASSINATE_TEXT || "Eliminate VIP: {TARGET_CALLSIGN}")
+                        .replace("{TARGET_CALLSIGN}", obj.targetDetails.callsign || "VIP")
+                        .replace("{TARGET_NAME}", obj.targetDetails.name || "Target");
+                     objectiveText = objectiveText.split(':')[0].trim() + ": " + (obj.targetDetails.callsign || obj.targetDetails.name);
                 }
+
 
                 li.textContent = `${obj.isPrimary ? '(Primary) ' : '(Secondary) '}${objectiveText}`;
                 objectivesListEl.appendChild(li);
@@ -424,6 +425,7 @@ class UI {
     }
 
     showPostMissionScreen_Debrief(debriefData) {
+        // ... (unchanged)
         if (!this.postMissionScreen || !debriefData) return;
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'none';
@@ -493,8 +495,10 @@ class UI {
                     TOTAL: obj.totalToAchieve,
                     TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
                     TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
-                    CURRENT_RESCUED: obj.currentProgress,
-                    TOTAL_SPAWNED: obj.totalToAchieve,
+                    TARGET_CALLSIGN: obj.targetDetails ? obj.targetDetails.callsign : "VIP",
+                    TARGET_NAME: obj.targetDetails ? obj.targetDetails.name : "VIP",
+                    CURRENT_RESCUED: obj.currentProgress, 
+                    TOTAL_SPAWNED: obj.totalToAchieve,    
                     CURRENT_EVACUATED: obj.currentEvacuated || 0,
                     MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
                 };
@@ -595,6 +599,7 @@ class UI {
     }
 
     showRecruitMemorialScreen() {
+        // ... (unchanged)
         if (!this.recruitMemorialScreen || !this.game || !this.memorialEntriesContainer) return;
         this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
@@ -621,6 +626,7 @@ class UI {
     }
 
     showPauseMenuScreen() {
+        // ... (unchanged)
         if (!this.pauseMenuScreen) return;
         this.pauseMenuScreen.style.display = 'flex';
         this.setCursor('default');
@@ -630,12 +636,14 @@ class UI {
     }
 
     hidePauseMenuScreen() {
+        // ... (unchanged)
         if (this.pauseMenuScreen) {
             this.pauseMenuScreen.style.display = 'none';
         }
     }
 
     showHUD() {
+        // ... (unchanged)
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'flex';
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game && this.game.formationSpacingMultiplier !== undefined) {
@@ -649,7 +657,6 @@ class UI {
     hideHUD() { if (this.leftHudPanel) this.leftHudPanel.style.display = 'none'; }
 
     updateObjective() { 
-        // Use this.objectiveTextContainer if you made the HTML change, or this.objectiveText if you kept the span ID
         const objectiveDisplayElement = this.objectiveTextContainer || document.getElementById('objectiveText'); 
 
         if (!objectiveDisplayElement || !this.game || !this.game.currentMissionParams || !this.game.currentMissionParams.objectives) {
@@ -657,7 +664,7 @@ class UI {
             return;
         }
 
-        objectiveDisplayElement.innerHTML = ''; // Clear previous objectives
+        objectiveDisplayElement.innerHTML = ''; 
         const objectives = this.game.currentMissionParams.objectives;
 
         if (objectives.length === 0) {
@@ -668,20 +675,51 @@ class UI {
         objectives.forEach(obj => {
             const p = document.createElement('p');
             p.style.margin = '2px 0'; 
-            p.style.fontSize = '0.9em'; // Slightly smaller for multiple lines
-            let objectiveStr = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
+            p.style.fontSize = '0.9em'; 
+            let objectiveStr;
             
             const templateData = {
                 CURRENT: obj.currentProgress,
                 TOTAL: obj.totalToAchieve,
                 TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
                 TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
+                TARGET_CALLSIGN: obj.targetDetails ? obj.targetDetails.callsign : "VIP", // For Assassination
+                TARGET_NAME: obj.targetDetails ? obj.targetDetails.name : "VIP",       // For Assassination
                 CURRENT_RESCUED: obj.currentProgress, 
                 TOTAL_SPAWNED: obj.totalToAchieve,    
                 CURRENT_EVACUATED: obj.currentEvacuated || 0,
                 MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
             };
+            
+            objectiveStr = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
             objectiveStr = this.game._fillTextTemplate(objectiveStr, templateData);
+
+            // Specific formatting for assassination if needed AFTER filling template
+            if (obj.type === "ASSASSINATION" && obj.targetDetails) {
+                const targetName = obj.targetDetails.name || "VIP";
+                const targetCallsign = obj.targetDetails.callsign || obj.targetDetails.name || "TARGET";
+                
+                let objectiveText = (this.uiText[obj.descriptionTemplateKey] || "Eliminate: {TARGET_CALLSIGN}")
+                    .replace("{TARGET_CALLSIGN}", targetCallsign)
+                    .replace("{TARGET_NAME}", targetName); // In case your template uses {TARGET_NAME}
+
+                if (obj.isComplete) {
+                    objectiveText += " - ELIMINATED";
+                } else {
+                    const targetUnit = this.game.enemyUnits.find(e => e.id === obj.targetUnitId);
+                    if (targetUnit && targetUnit.isAlive()) {
+                        objectiveText += ` (HP: ${Math.round(targetUnit.hp)}/${targetUnit.maxHp})`; // Show Boss HP
+                    } else if (obj.targetUnitId && (!targetUnit || !targetUnit.isAlive())) {
+                        // This case means the objective is not yet complete, but the targetUnit is gone/dead.
+                        // This should lead to obj.isComplete being true soon via checkMissionStatus.
+                        // For the UI, we can just show the name until it updates to ELIMINATED.
+                    } else if (!obj.targetUnitId) {
+                        objectiveText += " - (AWAITING TARGET)"; // If boss hasn't spawned/linked yet
+                    }
+                }
+                objectiveStr = objectiveText; // This was missing; assign to objectiveStr
+            }
+
 
             if (obj.isComplete) {
                 p.innerHTML = `<span style="color: lightgreen; text-decoration: line-through;">${obj.isPrimary ? '(P) ' : '(S) '}${objectiveStr}</span>`;
@@ -693,6 +731,7 @@ class UI {
     }
     
     updateHostageStatus(hostage, wasRescuedAndIsAlive) {
+        // ... (unchanged)
         if (this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
             const rescueObjective = this.game.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
             if (rescueObjective) {
@@ -703,12 +742,14 @@ class UI {
 
 
     updateFormationButton(formationType) {
+        // ... (unchanged)
         if (this.toggleFormationButton && formationType) {
             this.toggleFormationButton.textContent = `Formation: ${formationType.charAt(0).toUpperCase() + formationType.slice(1).toLowerCase()}`;
         }
     }
 
     updateSquadPanel() {
+        // ... (unchanged)
         if (!this.game || !this.squadPanel || !this.game.deployedSquadRoster) {
              if (this.squadPanel) this.squadPanel.innerHTML = `<p>${this.uiText.HUD_NO_SQUAD_DEPLOYED || "No squad deployed."}</p>`;
              return;
@@ -771,6 +812,7 @@ class UI {
     }
 
     setCursor(styleName) {
+        // ... (unchanged)
         if (this.game && this.game.canvas) {
             this.game.canvas.classList.remove(
                 'cursor-default', 'cursor-attack', 'cursor-cell',

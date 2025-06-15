@@ -60,6 +60,9 @@ class Unit {
         } else if (this instanceof PossumGrunt) {
             this.spriteBaseName = 'possum_grunt';
             this.spriteScaleFactor = CONFIG.POSSUM_GRUNT_SPRITE_SCALE_FACTOR || 1.0;
+        } else if (this instanceof PossumBoss1) {
+            this.spriteBaseName = 'possum_boss_1';
+            this.spriteScaleFactor = CONFIG.POSSUM_BOSS1_SPRITE_SCALE_FACTOR || 1.0;
         }
         
         this.updateVisualDirection(this.facingAngle); 
@@ -830,6 +833,10 @@ class Unit {
                 deadSpriteConfigPath = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH;
                 deadSpriteConfigFiles = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES;
                 spriteScale = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_SCALE !== undefined ? CONFIG.POSSUM_HEAVY_DEAD_SPRITE_SCALE : this.spriteScaleFactor;
+            } else if (this instanceof PossumBoss1) {
+                deadSpriteConfigPath = CONFIG.POSSUM_BOS_1_DEAD_SPRITE_PATH;
+                deadSpriteConfigFiles = CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_FILES;
+                spriteScale = CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_SCALE !== undefined ? CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_SCALE : this.spriteScaleFactor;
             }
 
             if (!this.assignedDeadSpritePath && deadSpriteConfigPath && deadSpriteConfigFiles && deadSpriteConfigFiles.length > 0) {

@@ -25,7 +25,23 @@ const CONFIG = {
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, 
 
     // --- Units: Raccoon (Player) ---
-    RACCOON_HP: 30,
+    RACCOON_HP: 40,
+    RACCOON_DETECTION_RANGE: 400,
+    RACCOON_MAX_CHASE_DISTANCE_FROM_POST_FACTOR: 1.5, // Can chase a bit further
+    RACCOON_GUARD_POST_POSITION_TOLERANCE: 10,
+    RACCOON_SUSPICIOUS_STATE_SCAN_DURATION: 1.0,
+    RACCOON_CHASE_PREDICTION_TIME_FACTOR: 0.10, // Less prediction, more direct lobbing
+    RACCOON_CHASE_DESTINATION_REFRESH_INTERVAL: 1.0,
+    RACCOON_CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 3,
+    RACCOON_MIN_ENGAGEMENT_DISTANCE: 150, // Try to keep this far for grenade lobs
+    RACCOON_PREFERRED_ENGAGEMENT_DISTANCE_MAX: 400, // Max preferred range
+    RACCOON_ENGAGE_RANGE_BUFFER: 20, // Buffer for deciding to move vs shoot
+    // MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3, // Using Unit's default for now
+    // STUCK_ENGAGE_NUDGE_FACTOR: 2.0, 
+    // STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
+    // DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
+    GRENADE_THROW_COOLDOWN_BASE: 4.0,
+    GRENADE_THROW_COOLDOWN_RANDOM_ADD: 2.5,
     RACCOON_SPEED: 200,
     RACCOON_SIZE: 12,
     RACCOON_COLOR: '#808080',
@@ -38,7 +54,7 @@ const CONFIG = {
     RACCOON_AUTO_TARGET_RANGE_FACTOR: 0.6,
     RACCOON_STARTING_GRENADES: 0,
     RACCOON_GRENADE_DAMAGE: 50,
-    RACCOON_GRENADE_AOE_RADIUS: 45,
+    RACCOON_GRENADE_AOE_RADIUS: 65,
     RACCOON_GRENADE_FUSE_TIME: 2.5,
     RACCOON_GRENADE_THROW_RANGE_MAX: 270,
     RACCOON_GRENADE_THROW_COOLDOWN: 1.0,
@@ -52,7 +68,7 @@ const CONFIG = {
 
     // --- Units: Possum Grunt ---
     POSSUM_GRUNT_HP: 21,
-    POSSUM_GRUNT_SPEED: 100,
+    POSSUM_GRUNT_SPEED: 120,
     POSSUM_GRUNT_SIZE: 14,
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_RIFLE_DAMAGE: 8,
@@ -68,8 +84,8 @@ const CONFIG = {
     POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.5, 
 
     // --- Units: Possum Heavy ---
-    POSSUM_HEAVY_HP: 35,
-    POSSUM_HEAVY_SPEED: 80,
+    POSSUM_HEAVY_HP: 40,
+    POSSUM_HEAVY_SPEED: 100,
     POSSUM_HEAVY_SIZE: 18,
     POSSUM_HEAVY_COLOR: '#6A4A3A',
     POSSUM_HEAVY_WEAPON_DAMAGE: 18,
@@ -83,6 +99,27 @@ const CONFIG = {
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'], 
     POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.55, 
+
+    // --- Units: Possum Boss 1 ---
+    POSSUM_BOSS_1_HP: 250, // Increased HP
+    POSSUM_BOSS_1_SPEED: 900, // Slightly slower
+    POSSUM_BOSS_1_SIZE: 20,  // Larger
+    POSSUM_BOSS_1_COLOR: '#703510', // Darker brown/red
+    POSSUM_BOSS_1_WEAPON_DAMAGE: 55, // Grenade damage
+    POSSUM_BOSS_1_WEAPON_ROF: 0.25, // Corresponds to cooldown (1/0.25 = 4s) - used for GRENADE_THROW_COOLDOWN_BASE
+    POSSUM_BOSS_1_WEAPON_RANGE: 450, 
+    POSSUM_BOSS_1_WEAPON_PROJECTILE_SPEED: 200, // Slower for grenades
+    // Accuracy for grenades is more about the AI's targeting than projectile spread
+    POSSUM_BOSS_1_WEAPON_ACCURACY_STATIONARY: 1.0, 
+    POSSUM_BOSS_1_WEAPON_ACCURACY_MOVING: 1.0,
+    POSSUM_BOSS_1_GRENADE_AOE_RADIUS: 80, // Larger AOE for boss grenades
+    POSSUM_BOSS_1_SPRITE_PATH: 'assets/images/units/possum_boss_1/',
+    POSSUM_BOSS_1_SPRITE_SCALE_FACTOR: 0.3,
+    POSSUM_BOSS_1_DEAD_SPRITE_PATH: 'assets/images/units/possum_boss_1/dead/',
+    POSSUM_BOSS_1_DEAD_SPRITE_FILES: ['possum_boss1_dead1.png', 'possum_boss1_dead2.png'],
+    POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.2,
+    PROJECTILE_COLOR_POSSUM_BOSS_1: '#FF4500', // Example: Orange-red for boss grenades
+    XP_FOR_BOSS_KILL: 250, // XP reward for defeating the boss
     
     // --- Units: General & AI ---
     UNIT_VISUALS: {
@@ -111,7 +148,7 @@ const CONFIG = {
             PATROL_WAIT_RANDOM_ADD: 2.0,
             CHASE_PREDICTION_TIME_FACTOR: 0.25, 
             CHASE_DESTINATION_REFRESH_INTERVAL: 1.0, 
-            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 4, 
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 8, 
             ENGAGE_RANGE_BUFFER: 30, 
             MAX_CONSECUTIVE_STUCK_ATTEMPTS: 2, 
             STUCK_ENGAGE_NUDGE_FACTOR: 2.5, 
@@ -132,7 +169,25 @@ const CONFIG = {
             STUCK_ENGAGE_NUDGE_FACTOR: 2.0, 
             STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
             DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
-        }
+        },
+        POSSUM_BOSS_1: {
+            DETECTION_RANGE: 400,
+            MAX_CHASE_DISTANCE_FROM_POST_FACTOR: 1.5, // Can chase a bit further
+            GUARD_POST_POSITION_TOLERANCE: 7,
+            SUSPICIOUS_STATE_SCAN_DURATION: 1.0,
+            CHASE_PREDICTION_TIME_FACTOR: 0.10, // Less prediction, more direct lobbing
+            CHASE_DESTINATION_REFRESH_INTERVAL: 1.0,
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 3,
+            MIN_ENGAGEMENT_DISTANCE: 150, // Try to keep this far for grenade lobs
+            PREFERRED_ENGAGEMENT_DISTANCE_MAX: 400, // Max preferred range
+            ENGAGE_RANGE_BUFFER: 20, // Buffer for deciding to move vs shoot
+            // MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3, // Using Unit's default for now
+            // STUCK_ENGAGE_NUDGE_FACTOR: 2.0, 
+            // STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
+            // DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
+            GRENADE_THROW_COOLDOWN_BASE: 0.5,
+            GRENADE_THROW_COOLDOWN_RANDOM_ADD: 1.5,
+        },
     },
 
     // --- Projectiles & Weapons ---
@@ -149,7 +204,7 @@ const CONFIG = {
 
     PROJECTILES: {
         BULLET: {
-            LIFETIME: 1.5,
+            LIFETIME: 1.2,
             MAX_SPREAD_ANGLE_RADIANS: Math.PI / 6,
             DESPAWN_WORLD_BUFFER: 50
         },
@@ -180,8 +235,8 @@ const CONFIG = {
     INITIAL_ROSTER_SIZE: 5,
     NEW_RECRUITS_PER_MISSION_WIN: 3,
     MAX_SQUAD_SIZE_MVP: 4,
-    MAX_TOTAL_ROSTER_SIZE: 20,
-    INITIAL_FORMATION_SPACING: 1.7,
+    MAX_TOTAL_ROSTER_SIZE: 1000,
+    INITIAL_FORMATION_SPACING: 1.9,
     XP_PER_MISSION_SURVIVED: 35,
     XP_PER_HIT: 1,
     XP_PER_KILL: 10,
@@ -209,12 +264,16 @@ const CONFIG = {
         'face9.png', 'face10.png', 'face11.png'
     ],
     AUDIO_ASSETS: {
+        // Weapons & Combat SFX
         RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.3 },
         POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.7, pitchVariation: 0.03 },
         POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.mp3', defaultVolume: 0.3, pitchVariation: 0.03 },
-        GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode_2.mp3', defaultVolume: 0.4, pitchVariation: 0.4 },
+        POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launch.mp3', defaultVolume: 0.6, pitchVariation: 0.1 },
+        GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.mp3', defaultVolume: 0.3, pitchVariation: 0.4 },
+        // Unit SFX
         UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.1 },
         UI_BUTTON_HOVER: { path: 'assets/audio/sfx/ui_hover_gentle.mp3', defaultVolume: 0.3, pitchVariation: 0.1 },
+        // Ambient sounds
         AMBIENT_FOREST_1: { path: 'assets/audio/ambience/tropical_forest_ambient_1.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_2: { path: 'assets/audio/ambience/tropical_forest_ambient_2.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_3: { path: 'assets/audio/ambience/tropical_forest_ambient_3.mp3', defaultVolume: 0.45 },
@@ -225,6 +284,7 @@ const CONFIG = {
             'AMBIENT_FOREST_3',
             'AMBIENT_FOREST_4'
         ],
+        // Destruction SFX
         POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.4, pitchVariation: 0.1 }, // Example: unique sound
         EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.05, pitchVariation: 0.2 }, // Example: unique sound
         EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.05, pitchVariation: 0.15 }, // Example for cluster
@@ -250,14 +310,14 @@ const CONFIG = {
 
     // --- Level Generation & Obstacles ---
     LEVEL_GENERATION: {
-        WORLD_MARGIN: 20,
-        BORDER_WIDTH: 20, 
+        WORLD_MARGIN: 5,
+        BORDER_WIDTH: 5, 
         BORDER_COLOR: '#25221D', 
         BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long', 
         PLAYER_SPAWN_ZONE: { 
-            MIN_WIDTH: 100, 
+            MIN_WIDTH: 80, 
             WIDTH_FACTOR: 0.20, 
-            MIN_HEIGHT: 100, 
+            MIN_HEIGHT: 80, 
             HEIGHT_FACTOR: 0.20, 
             INTERNAL_PADDING_FACTOR: 1.5 
         },
@@ -539,7 +599,7 @@ const CONFIG = {
         SMALL_GROUP_CHANCE: 0.6,
         SMALL_GROUP_SIZE_MIN: 2,
         SMALL_GROUP_SIZE_MAX: 5,
-        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 250,
+        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 450,
         LEADER_PLACEMENT_MAX_ATTEMPTS: 20,
         MEMBER_PLACEMENT_MAX_ATTEMPTS: 10,
         GROUP_SPREAD_BASE: 30,

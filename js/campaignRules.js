@@ -1,24 +1,23 @@
 // js/campaignRules.js
 const CAMPAIGN_RULES = {
     PLAYER_STARTING_SEED: Date.now(),
-    CAMPAIGN_LENGTH_PHASES_RANGE: [3, 5], // Campaign will have 3 to 5 phases
+    CAMPAIGN_LENGTH_PHASES_RANGE: [3, 50], // Campaign will have 3 to 100 phases
 
     // --- Base Values and Scaling ---
     BASE_PARAMETERS: {
-        worldSizeFactor:    { initial: 1.8,  perPhaseIncrement: 0.35, max: 5.0, randomnessFactor: 0.15 },
-        enemyDensityFactor: { initial: 1.1, perPhaseIncrement: 0.25, max: 2.5, randomnessFactor: 0.2 },
-        heavyChance:        { initial: 0.08, perPhaseIncrement: 0.09, max: 0.65, randomnessFactor: 0.05 },
+        worldSizeFactor:    { initial: 1.8,  perPhaseIncrement: 0.35, max: 5.0, randomnessFactor: 0.01 },
+        enemyDensityFactor: { initial: 1.1,  perPhaseGrowthFactor: 0.2, max: 5.0, randomnessFactor: 0.2 }, // 20% growth per phase
+        heavyChance:        { initial: 0.2,  perPhaseGrowthFactor: 0.2, max: 0.65, randomnessFactor: 0.05 },
         numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.4,  max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1,    perPhaseIncrement: 0.6,  max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue:{ initial: 1,    perPhaseIncrement: 0.3,  max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
-        // Future considerations for multi-objective missions:
-        // numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
-        // numSecondaryObjectivesRange: [0, 2], // e.g., 0 to 2 secondary objectives (EXTERMINATE often being one)
+        numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
+        numSecondaryObjectivesRange: [0, 4], // e.g., 0 to 2 secondary objectives (EXTERMINATE often being one)
     },
 
     // --- Pools of Options ---
     BIOME_POOL: [
-        { name: "TROPICAL",       weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
+        { name: "TROPICAL",     weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
         { name: "JUNKYARD",     weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
         { name: "SWAMP",        weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY",  weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
@@ -45,17 +44,17 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_EXTERMINATE_TEXT", // e.g., "Eliminate Possums: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_ENEMIES_ELIMINATED",
             isPrimary: true, // Can be a primary objective on its own
-            canCoexistWith: ["DESTROY_TARGET", "RESCUE_HOSTAGES"], // Can be secondary to these
+            canCoexistWith: ["DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION"], // Can be secondary to these
             maxInstancesPerMission: 1 
         },
         { 
             type: "DESTROY_TARGET",   
             weight: 4, 
-            unlocksPhase: 0, 
+            unlocksPhase: 1, 
             descriptionTemplateKey: "OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT", // e.g., "Destroy {targetNamePlural}: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_TARGET_TYPE_DESTROYED",
             isPrimary: true,
-            canCoexistWith: ["EXTERMINATE", "RESCUE_HOSTAGES"],
+            canCoexistWith: ["RESCUE_HOSTAGES", "ASSASSINATION", "EXTERMINATE"], // Can be secondary to these
             // targetTypeKey is not here, it's defined in DESTROY_TARGET_TYPE_POOL. This entry is generic.
             // maxInstancesPerMission for "DESTROY_TARGET" itself might be high (e.g., 3) to allow
             // "Destroy Huts" AND "Destroy Towers" in one mission. The specific target types below
@@ -65,25 +64,27 @@ const CAMPAIGN_RULES = {
         },
         { 
             type: "RESCUE_HOSTAGES",  
-            weight: 7, 
+            weight: 3, 
             unlocksPhase: 0, 
             descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
             completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
             isPrimary: true,
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET"],
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION"],
             maxInstancesPerMission: 1
         },
-        // { 
-        //     type: "ASSASSINATION",    
-        //     weight: 2, 
-        //     unlocksPhase: 2, 
-        //     descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
-        //     completionCondition: "VIP_ELIMINATED",
-        //     isPrimary: true,
-        //     maxInstancesPerMission: 1,
-        //     isPhaseFinaleCandidate: true,
-        //     isBossObjective: true 
-        // },
+        { 
+            type: "ASSASSINATION",    
+            weight: 2, // Keep this relatively low if it's mainly for phase finales
+            unlocksPhase: 1, // Or 0 if you want non-boss assassinations earlier
+            descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
+            completionCondition: "VIP_ELIMINATED",
+            isPrimary: true,
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES"], // Can it co-exist with other objectives? Maybe just EXTERMINATE as a secondary.
+            maxInstancesPerMission: 1,
+            isPhaseFinaleCandidate: true, // GOOD!
+            // isBossObjective: true // This can be inferred if the chosen target from ASSASSINATION_TARGET_POOL has isBoss: true
+            // No need for targetTypeKey here, as that's for DESTROY_TARGET
+        }
     ],
 
     // This pool now defines specific *types* of targets for the generic "DESTROY_TARGET" objective
@@ -99,20 +100,56 @@ const CAMPAIGN_RULES = {
         { 
             targetTypeKey: "possum_hut",                
             nameSingular: "Possum Hut", namePlural: "Possum Huts",
-            weight: 4, unlocksPhase: 0, 
+            weight: 3, unlocksPhase: 1, 
             maxInstancesPerMission: 4 // Typically, one "Destroy Possum Huts" objective per mission.
         },
         { 
             targetTypeKey: "possum_relay_tower",       
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
-            weight: 1, unlocksPhase: 1,
+            weight: 1, unlocksPhase: 2,
             maxInstancesPerMission: 2
         },
     ],
 
+    // --- Assasination Targets ---
+    ASSASSINATION_TARGET_POOL: [
+        // Each entry is a potential assassination target.
+        // name: The name of the target.
+        // callsign: The callsign used in mission briefings.
+        // description: A brief description of the target.
+        // weight: Relative chance of this target being chosen.
+        // unlocksPhase: The phase when this target becomes available.
+        // isBoss: (boolean, optional, default false) Is this a boss-level target?
+        { 
+            assassinationTypeKey: "possum_boss_1",
+            name: "General Whiskers", callsign: "Whiskers", 
+            description: "A cunning strategist known for his brutal tactics.", 
+            weight: 3, unlocksPhase: 1, isBoss: true 
+        },
+        { 
+            assassinationTypeKey: "possum_boss_1",
+            name: "Commander Claws", callsign: "Claws", 
+            description: "A ruthless commander with a reputation for cruelty.", 
+            weight: 2, unlocksPhase: 2, isBoss: true 
+        },
+        { 
+            assassinationTypeKey: "possum_boss_1",
+            name: "Lieutenant Paws", callsign: "Paws", 
+            description: "A skilled tactician with a knack for ambushes.", 
+            weight: 4, unlocksPhase: 3, isBoss: true
+        },
+        { 
+            assassinationTypeKey: "possum_boss_1",
+            name: "Captain Fuzzy", callsign: "Fuzzy", 
+            description: "An experienced fighter with a history of leading successful raids.", 
+            weight: 5, unlocksPhase: 4, isBoss: true
+        },
+    
+    ],
+
     // --- Phase Generation Text ---
     PHASE_GENERATION: {
-        MISSIONS_PER_PHASE_RANGE: [2, 4], 
+        MISSIONS_PER_PHASE_RANGE: [3, 6], 
         NAME_PARTS: { 
             PREFIXES: ["Operation", "Task Force", "Project", "Campaign", "Initiative", "Directive", "Protocol", "Vanguard", "Spearhead", "Crusade"],
             DESCRIPTORS: ["Fury", "Dawn", "Viper", "Thunder", "Silence", "Ghost", "Resolve", "Echo", "Retribution", "Genesis", "Last Stand", "Steel Rain", "Broken Fang", "Avalanche", "Quake"]
