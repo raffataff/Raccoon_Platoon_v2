@@ -2,12 +2,10 @@ class Game {
     constructor(canvasId) {
         this.canvas = document.getElementById(canvasId);
         this.canvasContainer = document.getElementById('canvas-container');
-        // Ensure canvas context is fetched correctly
         if (this.canvas) {
             this.ctx = this.canvas.getContext('2d');
         } else {
             console.error("Fatal: Canvas element not found with ID:", canvasId);
-            // Potentially throw an error or handle this state to prevent further execution
             return; 
         }
 
@@ -41,7 +39,7 @@ class Game {
         this.dragCurrentX = 0; this.dragCurrentY = 0;
         this.DRAG_THRESHOLD = CONFIG.INPUT_DRAG_THRESHOLD || 5;
 
-        this.FORMATION_TYPES = ['HORIZONTAL', 'VERTICAL'];
+        this.FORMATION_TYPES = ['HORIZONTAL', 'VERTICAL', 'SQUARE', 'DIAMOND'];
         this.currentFormationIndex = 0;
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
         this.formationSpacingMultiplier = CONFIG.INITIAL_FORMATION_SPACING || 3.5;
@@ -913,7 +911,7 @@ class Game {
         this.cameraY = Math.max(0, Math.min(this.cameraY, maxY));
     }
     
-    _instantiateObjective(objDef, phaseIdx, isPrimary, forceSpecificTargetKey = null) { // CORRECTED SIGNATURE
+    _instantiateObjective(objDef, phaseIdx, isPrimary, forceSpecificTargetKey = null) {
         const baseP = this.currentMissionParams.baseParams; 
         const newObj = {
             type: objDef.type,
@@ -1170,6 +1168,25 @@ class Game {
             }
         }
         
+        // --- NEW: Force-add EXTERMINATE if it wasn't selected ---
+        const exterminateObjectiveExists = objectivesArray.some(obj => obj.type === "EXTERMINATE");
+        if (!exterminateObjectiveExists) {
+            console.log("[Game Gen] 'Exterminate' not selected. Forcing as a secondary objective.");
+            const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
+            if (exterminateDef) {
+                // Instantiate it as a secondary objective
+                const fallbackExterminate = this._instantiateObjective(exterminateDef, phaseIdx, false);
+                if (fallbackExterminate) {
+                    objectivesArray.push(fallbackExterminate);
+                } else {
+                    console.error("[Game Gen] CRITICAL: Fallback EXTERMINATE instantiation failed!");
+                }
+            } else {
+                console.error("[Game Gen] CRITICAL: Could not find EXTERMINATE definition for fallback!");
+            }
+        }
+        // --- END NEW ---
+
         // Ensure EXTERMINATE is present if no other objective is and it wasn't added
         if (objectivesArray.length === 0) {
             console.warn("[Game Gen] No objectives selected at all. Adding default EXTERMINATE.");
@@ -1581,26 +1598,22 @@ class Game {
             return;
         }
     
-        let allObjectivesNowComplete = true; // Assume true initially
+        // --- MODIFIED: Reverted to check ALL objectives, not just primary ones ---
+        let allObjectivesNowComplete = true; 
     
         if (this.currentMissionParams.objectives.length === 0) {
-            // No specific objectives, perhaps default to exterminate if any enemies, or just win if none.
-            // For now, if no objectives are defined, consider it a win (e.g., a test map).
-            // You might want to ensure at least one objective is always generated.
-            allObjectivesNowComplete = this.enemyUnits.every(e => !e.isAlive()); // Win if no objectives AND no enemies
+            allObjectivesNowComplete = this.enemyUnits.every(e => !e.isAlive());
         } else {
             this.currentMissionParams.objectives.forEach(obj => {
-                // Update individual objective completion status (if not already complete)
-                if (!obj.isComplete) {
-                    if (obj.type === 'EXTERMINATE') {
-                        obj.currentProgress = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
-                        if (obj.totalToAchieve === undefined) obj.totalToAchieve = this.initialEnemyCount; 
-                        if (obj.totalToAchieve > 0 && obj.currentProgress >= obj.totalToAchieve) { 
-                            obj.isComplete = true;
-                        } else if (obj.totalToAchieve === 0 && (!this.enemyUnits || this.enemyUnits.every(e => !e.isAlive()))) { 
-                            obj.isComplete = true;
-                        }
-                    } else if (obj.type === 'DESTROY_TARGET') {
+                // Keep the dynamic re-evaluation for the Exterminate objective
+                if (obj.type === 'EXTERMINATE') {
+                    obj.currentProgress = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
+                    if (obj.totalToAchieve === undefined) obj.totalToAchieve = this.initialEnemyCount;
+                    
+                    obj.isComplete = (obj.currentProgress >= obj.totalToAchieve);
+
+                } else if (!obj.isComplete) { // Other objectives can still be set-and-forget
+                    if (obj.type === 'DESTROY_TARGET') {
                         obj.currentProgress = this.level.missionTargetObstacles ? 
                                               this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed && t.objectiveId === obj.id).length : 0;
                         if (obj.currentProgress >= obj.totalToAchieve) {
@@ -1640,10 +1653,12 @@ class Game {
                         }
                         obj.currentEvacuated = hostagesAtEvacCount; 
                         let enemiesClearedForThisRescue = false;
-                        const primaryExterminateObjective = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE" && o.isPrimary);
-                        if (primaryExterminateObjective) {
-                            enemiesClearedForThisRescue = primaryExterminateObjective.isComplete;
+                        // For rescue, enemy clearance can be a primary OR a secondary exterminate objective.
+                        const exterminateObjective = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE");
+                        if (exterminateObjective) {
+                            enemiesClearedForThisRescue = exterminateObjective.isComplete;
                         } else { 
+                            // If no exterminate objective exists for some reason, default to checking all enemies
                             enemiesClearedForThisRescue = this.enemyUnits.every(e => !e.isAlive());
                         }
                         if (obj.currentProgress >= obj.minToAchieveForCompletion && 
@@ -1661,14 +1676,14 @@ class Game {
                             }
                         }
                     }
-                } // end if !obj.isComplete (for individual update)
+                }
     
-                // Check if this objective, regardless of primary/secondary, is complete for overall mission status
+                // --- MODIFIED: Check ALL objectives, not just primary ones ---
                 if (!obj.isComplete) {
                     allObjectivesNowComplete = false; 
                 }
             }); 
-        } // end else (objectives.length > 0)
+        }
     
         const livingPlayerRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()).length : 0;
         if (livingPlayerRaccoons === 0 && this.deployedSquadRoster.length > 0) {
@@ -1678,6 +1693,7 @@ class Game {
             return; 
         }
     
+        // --- MODIFIED: Victory is based on all objectives being complete again ---
         if (allObjectivesNowComplete && this.gameState === 'RUNNING') { 
             this.initiateMissionEnd(true); 
         }
@@ -2117,16 +2133,90 @@ class Game {
     }
 
     calculateFormationPoints(centerX, centerY, units, formationType = 'HORIZONTAL') {
-        const points = []; const aliveUnits = units ? units.filter(u => u.isAlive()) : []; const numUnits = aliveUnits.length;
-        if (numUnits === 0) return points; if (numUnits === 1) { points.push({ x: centerX, y: centerY }); return points; }
+        const points = [];
+        const aliveUnits = units ? units.filter(u => u.isAlive()) : [];
+        const numUnits = aliveUnits.length;
+        if (numUnits === 0) return points;
+        if (numUnits === 1) {
+            points.push({ x: centerX, y: centerY });
+            return points;
+        }
+
         const spacing = (CONFIG.RACCOON_SIZE * 2) * this.formationSpacingMultiplier;
-        if (formationType === 'HORIZONTAL') {
-            const totalWidth = (numUnits - 1) * spacing; let startX = centerX - totalWidth / 2;
-            for (let i = 0; i < numUnits; i++) points.push({ x: startX + i * spacing, y: centerY });
-        } else { // VERTICAL
-            const totalHeight = (numUnits - 1) * spacing; let startY = centerY - totalHeight / 2;
-            for (let i = 0; i < numUnits; i++) points.push({ x: centerX, y: startY + i * spacing });
-        } return points;
+
+        switch (formationType) {
+            case 'VERTICAL': {
+                const totalHeight = (numUnits - 1) * spacing;
+                let startY = centerY - totalHeight / 2;
+                for (let i = 0; i < numUnits; i++) {
+                    points.push({ x: centerX, y: startY + i * spacing });
+                }
+                break;
+            }
+
+            case 'SQUARE': {
+                const cols = 2;
+                const numRows = Math.ceil(numUnits / cols);
+                const totalHeight = (numRows - 1) * spacing;
+                const startY = centerY - totalHeight / 2;
+
+                for (let i = 0; i < numUnits; i++) {
+                    const row = Math.floor(i / cols);
+                    const col = i % cols;
+                    
+                    const isLastRow = (row === numRows - 1);
+                    const unitsInThisRow = (isLastRow && numUnits % cols !== 0) ? numUnits % cols : cols;
+                    
+                    const totalWidth = (unitsInThisRow - 1) * spacing;
+                    const startX = centerX - totalWidth / 2;
+
+                    points.push({ x: startX + col * spacing, y: startY + row * spacing });
+                }
+                break;
+            }
+
+            case 'DIAMOND': {
+                let rowsConfig;
+                switch (numUnits) {
+                    case 2: rowsConfig = [1, 1]; break;
+                    case 3: rowsConfig = [1, 2]; break;
+                    case 4: rowsConfig = [1, 2, 1]; break;
+                    case 5: rowsConfig = [1, 2, 2]; break;
+                    case 6: rowsConfig = [1, 2, 2, 1]; break;
+                    case 7: rowsConfig = [1, 2, 2, 2]; break;
+                    case 8: rowsConfig = [1, 2, 3, 2]; break; // Adjusted for a more diamond-like feel
+                    default: rowsConfig = [numUnits]; break; // Fallback to a line
+                }
+
+                const totalHeight = (rowsConfig.length - 1) * spacing;
+                const startY = centerY - totalHeight / 2;
+                
+                let unitIndex = 0;
+                for (let row = 0; row < rowsConfig.length; row++) {
+                    const unitsInRow = rowsConfig[row];
+                    const totalWidth = (unitsInRow - 1) * spacing;
+                    const startX = centerX - totalWidth / 2;
+                    for (let col = 0; col < unitsInRow; col++) {
+                        if (unitIndex < numUnits) {
+                            points.push({ x: startX + col * spacing, y: startY + row * spacing });
+                            unitIndex++;
+                        }
+                    }
+                }
+                break;
+            }
+
+            case 'HORIZONTAL':
+            default: {
+                const totalWidth = (numUnits - 1) * spacing;
+                let startX = centerX - totalWidth / 2;
+                for (let i = 0; i < numUnits; i++) {
+                    points.push({ x: startX + i * spacing, y: centerY });
+                }
+                break;
+            }
+        }
+        return points;
     }
 }
 

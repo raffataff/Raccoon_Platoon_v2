@@ -74,7 +74,7 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u']; // Added 'u'
+            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u', '1', '2', '3', '4']; // Added number keys
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -134,18 +134,44 @@ class InputHandler {
                     }
                 }
             }
-            // --- NEW: 'U' key for Unstuckify ---
             if ((event.key === 'u' || event.key === 'U') && !isInputFieldActive) {
                 if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
                     console.log("'U' key pressed. Forcing phase out for selected units.");
                     this.game.selectedUnits.forEach(unit => {
-                        // Apply to Raccoons and rescued Hostages (player-controlled)
                         if ((unit instanceof Raccoon || (unit instanceof RaccoonHostage && unit.isRescued)) && unit.isAlive()) {
                             if (typeof unit.forcePhaseOut === 'function') {
                                 unit.forcePhaseOut(1.0); // Phase for 1 second
                             }
                         }
                     });
+                }
+            }
+            
+            // --- NEW: Handle squad member selection via number keys ---
+            const keyNumber = parseInt(event.key, 10);
+            if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) { // Support up to 9 units
+                // Check if the game and deployed squad exist
+                if (this.game.deployedSquadRoster && this.game.deployedSquadRoster.length >= keyNumber) {
+                    const targetUnit = this.game.deployedSquadRoster[keyNumber - 1];
+                    
+                    // Check if the target unit is valid and alive
+                    if (targetUnit && targetUnit.isAlive()) {
+                        // Cancel any pending actions on the currently selected units
+                        if (this.game.selectedUnits) {
+                            this.game.selectedUnits.forEach(unit => {
+                                if (unit instanceof Raccoon && unit.isAimingGrenade) {
+                                    unit.cancelGrenadeAim();
+                                }
+                            });
+                        }
+                        
+                        // Replace the current selection with the new unit
+                        this.game.selectedUnits = [targetUnit];
+                        
+                        // Update UI to reflect the new selection
+                        this.game.ui.updateSquadPanel();
+                        this.updateMouseCursor();
+                    }
                 }
             }
             // --- END NEW ---

@@ -986,10 +986,8 @@ class Level {
 
     spawnInitialHutGuards(hut, preloadedAssetImages, playerSpawnZone, playableMinX, playableMaxX, playableMinY, playableMaxY) {
         const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
-        // --- MODIFIED: Ensure at least 1 guard if a hostage is at a hut ---
-        const guardMin = Math.max(1, hostageConf.INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT || 1); // Enforce minimum of 1
-        const guardMax = Math.max(guardMin, hostageConf.INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT || 2); // Ensure max is at least min
-        // --- END MODIFIED ---
+        const guardMin = Math.max(1, hostageConf.INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT || 1); 
+        const guardMax = Math.max(guardMin, hostageConf.INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT || 2); 
         const numGuards = this.rng.nextInt(guardMin, guardMax);
         const heavyChance = hostageConf.INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT || 0.1;
         const spawnRadius = hostageConf.INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT || 60;
