@@ -11,6 +11,9 @@ class Raccoon extends Unit {
         this.grenadeMoveToTargetPos = null;
         this.grenadeCooldownTimer = 0; 
 
+        this.isNewlyRescued = false;
+        this.promotedThisMission = false;
+
         this.xp = existingXP;
         this.rank = existingRank || (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[0] ? CONFIG.RANK_THRESHOLDS[0].rankName : "Recruit");
         this.killCount = existingKills;
@@ -52,6 +55,7 @@ class Raccoon extends Unit {
         this.checkPromotion();
     }
     incrementKillCount() { this.killCount = (this.killCount || 0) + 1; }
+    
     checkPromotion() {
         if (!CONFIG.RANK_THRESHOLDS || CONFIG.RANK_THRESHOLDS.length === 0) return;
         let currentRankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
@@ -63,7 +67,11 @@ class Raccoon extends Unit {
         while (currentRankIndex < CONFIG.RANK_THRESHOLDS.length - 1) {
             const nextRankData = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1];
             if (this.xp >= nextRankData.xpNeeded) {
-                this.rank = nextRankData.rankName; promoted = true;
+                this.rank = nextRankData.rankName; 
+                promoted = true;
+                // --- NEW ---
+                this.promotedThisMission = true; 
+                // --- END NEW ---
                 if (this.game && this.game.addVisualEffect) this.game.addVisualEffect('promotion', { unitId: this.id });
                 this.applyRankBonuses(); currentRankData = nextRankData; currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
                 this.updateXpToNextRank();
@@ -71,6 +79,7 @@ class Raccoon extends Unit {
         }
         if (promoted && this.game && this.game.ui) this.game.ui.updateSquadPanel();
     }
+
 
     update(deltaTime) {
         if (!this.isAlive()) return;

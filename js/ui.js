@@ -5,7 +5,6 @@ class UI {
         this.uiText = CONFIG.UI_TEXT_STRINGS || {};
         this.uiSettings = CONFIG.UI_SETTINGS || {};
 
-        // ... (all other UI element initializations and event listeners from your existing UI.js)
         this.mainMenuScreen = document.getElementById('mainMenuScreen');
         this.newCampaignButton = document.getElementById('newCampaignButton');
         this.mainMenuMemorialButton = document.getElementById('mainMenuMemorialButton');
@@ -23,11 +22,14 @@ class UI {
         this.objectiveTextContainer = document.getElementById('objectiveTextContainer'); 
 
         this.missionOutcomeText = document.getElementById('missionOutcome');
+        
         this.preMissionPhaseTitle = document.getElementById('preMissionPhaseTitle');
         this.preMissionTitle = document.getElementById('preMissionTitle');
         this.preMissionBriefing = document.getElementById('preMissionBriefing');
-        this.availableRecruitsList = document.getElementById('availableRecruitsList');
+        this.preMissionObjectivesList = document.getElementById('preMissionObjectivesList');
+        this.availableRecruitsGrid = document.getElementById('availableRecruitsGrid');
         this.deployedSquadList = document.getElementById('deployedSquadList');
+
         this.gameOverTitle = document.getElementById('gameOverTitle');
         this.gameOverMessage = document.getElementById('gameOverMessage');
         this.restartCampaignButton = document.getElementById('restartCampaignButton');
@@ -41,9 +43,10 @@ class UI {
         this.startMissionButton = document.getElementById('startMissionButton');
         this.retryMissionButton = document.getElementById('retryMissionButton');
         this.nextMissionButton = document.getElementById('nextMissionButton');
+
+        this.videoLoadingScreen = document.getElementById('videoLoadingScreen');
+        this.loadingVideoPlayer = document.getElementById('loadingVideoPlayer');
         
-        // Assume _addSoundToButton and _applyHoverSoundsToAllButtons are defined as before
-        // ... Call _addSoundToButton for all relevant buttons ...
         this._addSoundToButton(this.newCampaignButton, () => {
             if (this.game) {
                 this.hideMainMenuScreen();
@@ -51,7 +54,6 @@ class UI {
                 this.game.start();
             }
         });
-
         this._addSoundToButton(this.mainMenuMemorialButton, () => this.showRecruitMemorialScreen());
 
         this._addSoundToButton(this.startMissionButton, () => {
@@ -87,7 +89,6 @@ class UI {
                 }
             }
         });
-
         this._addSoundToButton(this.nextMissionButton, () => {
             if (this.game) {
                 if (this.nextMissionButton.textContent === (this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign") ||
@@ -99,7 +100,6 @@ class UI {
                 }
             }
         });
-
         this._addSoundToButton(this.resumeGameButton, () => {
             if (this.game) this.game.togglePause();
         });
@@ -115,13 +115,20 @@ class UI {
                 this.game.quitToMainMenu();
             }
         });
-
         this._addSoundToButton(this.restartCampaignButton, () => {
              if (this.game) { this.game.initializeNewCampaign(); this.game.start(); }
         });
-
         this._addSoundToButton(this.toggleFormationButton, () => {
             if (this.game && typeof this.game.toggleFormation === 'function') this.game.toggleFormation();
+        });
+        this._addSoundToButton(this.viewMemorialButton, () => this.showRecruitMemorialScreen());
+        this._addSoundToButton(this.backFromMemorialButton, () => {
+            this.hideRecruitMemorialScreen();
+            if (this.game && this.game.gameState === 'POST_MISSION_DEBRIEF' && this.postMissionScreen) {
+                 this.postMissionScreen.style.display = 'flex';
+            } else if (this.game && this.game.gameState === 'MAIN_MENU' && this.mainMenuScreen) {
+                 this.mainMenuScreen.style.display = 'flex';
+            }
         });
 
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game) {
@@ -134,8 +141,6 @@ class UI {
                 if(this.spacingValueDisplay) this.spacingValueDisplay.textContent = newMultiplier.toFixed(1);
             });
         }
-
-
         if (this.squadPanel) {
             this.squadPanel.addEventListener('click', (event) => {
                 if (!this.game || this.game.gameState !== 'RUNNING') return;
@@ -156,17 +161,7 @@ class UI {
                 }
             });
         }
-
-        this._addSoundToButton(this.viewMemorialButton, () => this.showRecruitMemorialScreen());
-
-        this._addSoundToButton(this.backFromMemorialButton, () => {
-            this.hideRecruitMemorialScreen();
-            if (this.game && this.game.gameState === 'POST_MISSION_DEBRIEF' && this.postMissionScreen) {
-                 this.postMissionScreen.style.display = 'flex';
-            } else if (this.game && this.game.gameState === 'MAIN_MENU' && this.mainMenuScreen) {
-                 this.mainMenuScreen.style.display = 'flex';
-            }
-        });
+        
         this._applyHoverSoundsToAllButtons();
     }
 
@@ -202,6 +197,36 @@ class UI {
             }
         });
     }
+
+    showVideoLoadingScreen(videoPath) {
+        if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return;
+
+        this.loadingVideoPlayer.src = videoPath;
+        this.loadingVideoPlayer.load();
+        this.loadingVideoPlayer.play().catch(error => {
+            console.warn("Video autoplay was prevented. User interaction might be required.", error);
+            // Fallback to a static loading screen if video fails
+        });
+
+        this.videoLoadingScreen.style.display = 'flex';
+        // A tiny delay to allow the display property to apply before changing opacity
+        setTimeout(() => {
+            this.videoLoadingScreen.classList.add('visible');
+        }, 10);
+    }
+
+    hideVideoLoadingScreen() {
+        if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return;
+
+        this.videoLoadingScreen.classList.remove('visible');
+
+        // After the fade-out transition ends, hide the element and pause the video
+        setTimeout(() => {
+            this.videoLoadingScreen.style.display = 'none';
+            this.loadingVideoPlayer.pause();
+            this.loadingVideoPlayer.src = ''; // Clear source to free up memory
+        }, 500); // This duration should match the CSS transition duration
+    }
     
     // ... (showMainMenuScreen, hideMainMenuScreen, etc. - all other UI methods from your existing UI.js)
     showMainMenuScreen() {
@@ -230,6 +255,99 @@ class UI {
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideRecruitMemorialScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
         this.gameOverScreen.style.display = 'flex'; this.setCursor('default');
+    }
+
+    _createRecruitGridCard(recruit) {
+        const card = document.createElement('li');
+        card.className = 'recruit-grid-card';
+        card.dataset.raccoonId = recruit.id;
+
+        if (recruit.isNewlyRescued) {
+            card.classList.add('new-recruit');
+        }
+
+        // --- NEW: Add Rank Icon ---
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
+            const rankIconDiv = document.createElement('div');
+            rankIconDiv.className = 'rank-icon';
+            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
+            card.appendChild(rankIconDiv);
+        }
+        // --- END NEW ---
+
+        const faceDiv = document.createElement('div');
+        faceDiv.className = 'recruit-card-face';
+        if (recruit.faceImageUrl) {
+            faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
+        } else {
+            faceDiv.style.backgroundColor = this.uiSettings.RECRUIT_CARD?.DEFAULT_FACE_BG_COLOR || '#555';
+        }
+        
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'recruit-card-name';
+        nameDiv.textContent = recruit.name || recruit.id;
+        
+        card.appendChild(faceDiv);
+        card.appendChild(nameDiv);
+
+        card.addEventListener('click', () => {
+            if (this.game && this.game.audioManager) this.game.audioManager.play('UI_BUTTON_CLICK');
+            if (!this.game) return;
+
+            const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
+            if (this.game.tempSelectedForDeployment.length < maxSquadSize) {
+                this.game.tempSelectedForDeployment.push(recruit);
+                this.refreshRecruitSelectionLists();
+            } else {
+                alert((this.uiText.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()));
+            }
+        });
+        return card;
+    }
+
+    _createDeployedCard(recruit) {
+        const card = document.createElement('li');
+        card.className = 'deployed-squad-card'; 
+        card.dataset.raccoonId = recruit.id;
+        
+        // --- NEW: Add Rank Icon ---
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
+            const rankIconDiv = document.createElement('div');
+            rankIconDiv.className = 'rank-icon';
+            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
+            card.appendChild(rankIconDiv);
+        }
+        // --- END NEW ---
+        
+        const faceDiv = document.createElement('div');
+        faceDiv.className = 'recruit-card-face';
+        if (recruit.faceImageUrl) {
+            faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
+        }
+        
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'recruit-card-info';
+        // --- MODIFIED: Changed HP to XP ---
+        infoDiv.innerHTML = `
+            <div class="name">${recruit.name || recruit.id}</div>
+            <div class="rank">Rank: ${recruit.rank || 'Recruit'}</div>
+            <div class="xp">XP: ${recruit.xp}</div>`;
+        // --- END MODIFIED ---
+        
+        card.appendChild(faceDiv);
+        card.appendChild(infoDiv);
+
+        card.addEventListener('click', () => {
+            if (this.game && this.game.audioManager) this.game.audioManager.play('UI_BUTTON_CLICK');
+            if (!this.game) return;
+            this.game.tempSelectedForDeployment = this.game.tempSelectedForDeployment.filter(r => r.id !== recruit.id);
+            this.refreshRecruitSelectionLists();
+        });
+        return card;
     }
 
     _createRecruitSelectionCard(recruit, isSelectedForDeploymentContext) {
@@ -285,124 +403,94 @@ class UI {
     }
 
     refreshRecruitSelectionLists() {
-        if (!this.availableRecruitsList || !this.deployedSquadList || !this.game) return;
+        if (!this.availableRecruitsGrid || !this.deployedSquadList || !this.game) return;
+        
         const allMasterRosterRecruits = this.game.getAvailableRecruits();
         const tempSelectedIds = this.game.tempSelectedForDeployment.map(r => r.id);
-        this.availableRecruitsList.innerHTML = ''; this.deployedSquadList.innerHTML = '';
+
+        this.availableRecruitsGrid.innerHTML = '';
+        this.deployedSquadList.innerHTML = '';
 
         allMasterRosterRecruits.forEach(recruit => {
             if (!tempSelectedIds.includes(recruit.id)) {
-                this.availableRecruitsList.appendChild(this._createRecruitSelectionCard(recruit, false));
+                this.availableRecruitsGrid.appendChild(this._createRecruitGridCard(recruit));
             }
         });
+
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
-        const currentCount = this.game.tempSelectedForDeployment ? this.game.tempSelectedForDeployment.length : 0;
-        const titleElement = document.getElementById('deployedSquadTitle');
-        if (titleElement) {
-            const countSpan = document.getElementById('deployedCountDisplay');
-            const maxSpan = document.getElementById('maxSquadSizeDisplay');
-            if(countSpan) countSpan.textContent = currentCount.toString();
-            if(maxSpan) maxSpan.textContent = maxSquadSize.toString();
-        }
-        if (this.game.tempSelectedForDeployment && this.game.tempSelectedForDeployment.length > 0) {
+        const currentCount = this.game.tempSelectedForDeployment.length;
+
+        const countSpan = document.getElementById('deployedCountDisplay');
+        const maxSpan = document.getElementById('maxSquadSizeDisplay');
+        if (countSpan) countSpan.textContent = currentCount.toString();
+        if (maxSpan) maxSpan.textContent = maxSquadSize.toString();
+
+        if (currentCount > 0) {
             this.game.tempSelectedForDeployment.forEach(recruit => {
-                this.deployedSquadList.appendChild(this._createRecruitSelectionCard(recruit, true));
+                this.deployedSquadList.appendChild(this._createDeployedCard(recruit));
             });
         } else {
-            const p = document.createElement('p');
+            const p = document.createElement('li');
+            p.className = 'empty-slot-placeholder';
             p.textContent = this.uiText.DEPLOY_LIST_EMPTY_PLACEHOLDER || "Click recruits on the left to deploy.";
-            p.style.textAlign = "center"; p.style.padding = "10px"; p.style.color = "#888";
             this.deployedSquadList.appendChild(p);
         }
-        const startBtn = document.getElementById('startMissionButton');
-        if(startBtn) startBtn.disabled = !(currentCount > 0);
-    }
 
+        if (this.startMissionButton) this.startMissionButton.disabled = !(currentCount > 0);
+    }
+    
     showPreMissionScreen_RecruitSelect(phaseData, missionData, availableRecruits) {
-        if (!this.preMissionScreen || !this.availableRecruitsList || !this.deployedSquadList) return;
+        if (!this.preMissionScreen) return;
         this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
-        if(this.leftHudPanel) this.leftHudPanel.style.display = 'none';
+        if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
 
         if (!phaseData || !missionData || !missionData.baseParams || !missionData.objectives) { 
             if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = this.uiText.PREMISSION_ERROR_PHASE_TITLE || "Campaign Error";
             if(this.preMissionTitle) this.preMissionTitle.textContent = this.uiText.PREMISSION_ERROR_MISSION_TITLE || "Error Loading Mission";
             if(this.preMissionBriefing) this.preMissionBriefing.textContent = this.uiText.PREMISSION_ERROR_BRIEFING || "Could not load mission details.";
-            
-            let objectivesListEl = document.getElementById('preMissionObjectivesList');
-            if (!objectivesListEl) { 
-                objectivesListEl = document.createElement('ul');
-                objectivesListEl.id = 'preMissionObjectivesList';
-                objectivesListEl.style.textAlign = 'left'; objectivesListEl.style.paddingLeft = '20px';
-                objectivesListEl.style.maxHeight = '120px'; objectivesListEl.style.overflowY = 'auto';
-                objectivesListEl.style.border = '1px solid #444'; objectivesListEl.style.marginBottom = '15px';
-                objectivesListEl.style.backgroundColor = 'rgba(0,0,0,0.1)';
-                const objectivesHeader = document.createElement('h4');
-                objectivesHeader.textContent = "Mission Objectives:";
-                objectivesHeader.style.marginTop = '15px'; objectivesHeader.style.marginBottom = '5px';
-                this.preMissionBriefing.parentNode.insertBefore(objectivesHeader, this.preMissionBriefing.nextSibling);
-                objectivesHeader.parentNode.insertBefore(objectivesListEl, objectivesHeader.nextSibling);
-            }
-            objectivesListEl.innerHTML = '<li>Error loading objectives.</li>';
-
-            this.preMissionScreen.style.display = 'flex'; this.setCursor('default');
+            if(this.preMissionObjectivesList) this.preMissionObjectivesList.innerHTML = '<li>Error loading objectives.</li>';
+            this.preMissionScreen.style.display = 'flex';
+            this.setCursor('default');
             return;
         }
+
         if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
         if(this.preMissionTitle) this.preMissionTitle.textContent = missionData.baseParams.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
         if(this.preMissionBriefing) this.preMissionBriefing.textContent = missionData.baseParams.briefing || "No briefing available.";
         
-        let objectivesListEl = document.getElementById('preMissionObjectivesList');
-        if (!objectivesListEl) { 
-            objectivesListEl = document.createElement('ul');
-            objectivesListEl.id = 'preMissionObjectivesList';
-            objectivesListEl.style.textAlign = 'left'; objectivesListEl.style.paddingLeft = '20px';
-            objectivesListEl.style.maxHeight = '120px'; objectivesListEl.style.overflowY = 'auto';
-            objectivesListEl.style.border = '1px solid #444'; objectivesListEl.style.marginBottom = '15px';
-            objectivesListEl.style.backgroundColor = 'rgba(0,0,0,0.1)';
-            const objectivesHeader = document.createElement('h4');
-            objectivesHeader.textContent = "Mission Objectives:";
-            objectivesHeader.style.marginTop = '15px'; objectivesHeader.style.marginBottom = '5px';
-            this.preMissionBriefing.parentNode.insertBefore(objectivesHeader, this.preMissionBriefing.nextSibling);
-            objectivesHeader.parentNode.insertBefore(objectivesListEl, objectivesHeader.nextSibling);
-        }
-        objectivesListEl.innerHTML = ''; 
-
-        if (missionData.objectives && missionData.objectives.length > 0) {
-            missionData.objectives.forEach(obj => {
-                const li = document.createElement('li');
-                let objectiveText = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
-                
-                const templateData = {
-                    CURRENT: obj.currentProgress, 
-                    TOTAL: obj.totalToAchieve,    
-                    TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
-                    TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
-                    TARGET_CALLSIGN: obj.targetDetails ? obj.targetDetails.callsign : "VIP", // For Assassination
-                    TARGET_NAME: obj.targetDetails ? obj.targetDetails.name : "VIP", // For Assassination
-                    CURRENT_RESCUED: 0, 
-                    TOTAL_SPAWNED: obj.totalToAchieve, 
-                    CURRENT_EVACUATED: 0,
-                    MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
-                };
-                objectiveText = this.game._fillTextTemplate(objectiveText, templateData).split(':')[0].trim(); 
-                
-                if (obj.type === "DESTROY_TARGET" && obj.totalToAchieve > 0) {
-                     objectiveText += ` (${obj.totalToAchieve} ${obj.targetNamePlural || 'items'})`;
-                } else if (obj.type === "RESCUE_HOSTAGES") {
-                    objectiveText += ` (${obj.totalToAchieve} to find, min ${obj.minToAchieveForCompletion} to evac)`;
-                } else if (obj.type === "ASSASSINATION" && obj.targetDetails) {
-                     objectiveText = (this.uiText.OBJECTIVE_ASSASSINATE_TEXT || "Eliminate VIP: {TARGET_CALLSIGN}")
-                        .replace("{TARGET_CALLSIGN}", obj.targetDetails.callsign || "VIP")
-                        .replace("{TARGET_NAME}", obj.targetDetails.name || "Target");
-                     objectiveText = objectiveText.split(':')[0].trim() + ": " + (obj.targetDetails.callsign || obj.targetDetails.name);
-                }
-
-
-                li.textContent = `${obj.isPrimary ? '(Primary) ' : '(Secondary) '}${objectiveText}`;
-                objectivesListEl.appendChild(li);
-            });
-        } else {
-            objectivesListEl.innerHTML = '<li>No specific objectives defined. Standard patrol.</li>';
+        if (this.preMissionObjectivesList) {
+            this.preMissionObjectivesList.innerHTML = '';
+            if (missionData.objectives && missionData.objectives.length > 0) {
+                missionData.objectives.forEach(obj => {
+                    const li = document.createElement('li');
+                    li.className = obj.isPrimary ? 'primary-objective' : 'secondary-objective';
+                    let objectiveText = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
+                    
+                    const templateData = {
+                        CURRENT: obj.currentProgress, TOTAL: obj.totalToAchieve,    
+                        TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
+                        TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
+                        TARGET_CALLSIGN: obj.targetDetails ? obj.targetDetails.callsign : "VIP",
+                        TARGET_NAME: obj.targetDetails ? obj.targetDetails.name : "VIP",
+                        CURRENT_RESCUED: 0, TOTAL_SPAWNED: obj.totalToAchieve, 
+                        CURRENT_EVACUATED: 0, MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
+                    };
+                    objectiveText = this.game._fillTextTemplate(objectiveText, templateData);
+                    
+                    if (obj.type === "RESCUE_HOSTAGES") {
+                        objectiveText = `Rescue Hostages (${obj.totalToAchieve} to find, min ${obj.minToAchieveForCompletion} to evac)`;
+                    } else if (obj.type === "DESTROY_TARGET" || obj.type === "EXTERMINATE") {
+                         objectiveText = objectiveText.split(':')[0].trim();
+                    } else if (obj.type === "ASSASSINATION" && obj.targetDetails) {
+                         objectiveText = "Assassinate HVT: " + (obj.targetDetails.callsign || "VIP");
+                    }
+                    
+                    li.textContent = `(${obj.isPrimary ? 'Primary' : 'Secondary'}) ${objectiveText}`;
+                    this.preMissionObjectivesList.appendChild(li);
+                });
+            } else {
+                this.preMissionObjectivesList.innerHTML = '<li>No specific objectives defined.</li>';
+            }
         }
         
         if (this.game) {
@@ -421,132 +509,95 @@ class UI {
         }
         
         this.refreshRecruitSelectionLists();
-        this.preMissionScreen.style.display = 'flex'; this.setCursor('default');
+        this.preMissionScreen.style.display = 'flex'; 
+        this.setCursor('default');
     }
 
     showPostMissionScreen_Debrief(debriefData) {
-        // ... (unchanged)
         if (!this.postMissionScreen || !debriefData) return;
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'none';
         
         const { isVictory, phaseData, missionData, objectives, 
                 survivingRaccoons, fallenRaccoons, enemiesKilled, 
-                timeTaken, campaignComplete, hostagesRecruitedCount } = debriefData;
-
+                timeTaken, campaignComplete, newlyRecruitedRaccoons } = debriefData;
+    
         if(this.missionOutcomeText) this.missionOutcomeText.textContent = isVictory ? (this.uiText.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!") : (this.uiText.POST_MISSION_FAILED || "MISSION FAILED!");
         
         const postMissionInfoEl = document.getElementById('postMissionInfo');
+        // --- MODIFIED: Removed incorrect .baseParams access ---
         if(postMissionInfoEl && phaseData && missionData) { 
              postMissionInfoEl.textContent = `${phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT} - ${missionData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT}`;
         }
-
+        // --- END MODIFIED ---
+    
+        const objectiveListEl = document.getElementById('objectiveStatusList');
         const statTimeTakenEl = document.getElementById('statTimeTaken');
-        if (statTimeTakenEl) statTimeTakenEl.textContent = timeTaken + "s";
         const statEnemiesKilledEl = document.getElementById('statEnemiesKilled');
-        if (statEnemiesKilledEl) statEnemiesKilledEl.textContent = enemiesKilled.toString();
-
-        const missionStatsContainer = document.getElementById('missionStats');
-        let hostageStatPara = document.getElementById('statHostagesRecruited');
-        if (missionStatsContainer && hostagesRecruitedCount > 0) {
-            if (!hostageStatPara) {
-                hostageStatPara = document.createElement('p');
-                hostageStatPara.id = 'statHostagesRecruited';
-                missionStatsContainer.appendChild(hostageStatPara);
-            }
-            hostageStatPara.textContent = `Hostages Recruited: ${hostagesRecruitedCount}`;
-            hostageStatPara.style.display = 'block';
-        } else if (hostageStatPara) {
-            hostageStatPara.style.display = 'none'; 
-        }
-
-        let objectivesSummaryEl = document.getElementById('objectivesSummary');
-        if (!objectivesSummaryEl) {
-            objectivesSummaryEl = document.createElement('div');
-            objectivesSummaryEl.id = 'objectivesSummary';
-            objectivesSummaryEl.style.textAlign = 'left';
-            objectivesSummaryEl.style.marginTop = '15px';
-            objectivesSummaryEl.style.padding = '10px';
-            objectivesSummaryEl.style.border = '1px solid #444';
-            objectivesSummaryEl.style.backgroundColor = 'rgba(0,0,0,0.1)';
-            const objectivesSummaryHeader = document.createElement('h4');
-            objectivesSummaryHeader.textContent = "Objective Status:";
-            objectivesSummaryHeader.style.marginTop = '0';
-            objectivesSummaryHeader.style.marginBottom = '5px';
-            objectivesSummaryEl.appendChild(objectivesSummaryHeader);
-            const detailsContainer = document.querySelector('.post-mission-details'); 
-            if (detailsContainer) { 
-                detailsContainer.insertBefore(objectivesSummaryEl, detailsContainer.firstChild);
-            } else { 
-                this.postMissionScreen.insertBefore(objectivesSummaryEl, this.postMissionScreen.querySelector('.post-mission-buttons'));
-            }
-        }
-        objectivesSummaryEl.innerHTML = `<h4>Objective Status:</h4>`; 
-        const objectivesUl = document.createElement('ul');
-        objectivesUl.style.listStyle = 'none';
-        objectivesUl.style.paddingLeft = '10px';
-
-        if (objectives && objectives.length > 0) {
-            objectives.forEach(obj => {
-                const li = document.createElement('li');
-                let objectiveText = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
-                 const templateData = {
-                    CURRENT: obj.currentProgress,
-                    TOTAL: obj.totalToAchieve,
-                    TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
-                    TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
-                    TARGET_CALLSIGN: obj.targetDetails ? obj.targetDetails.callsign : "VIP",
-                    TARGET_NAME: obj.targetDetails ? obj.targetDetails.name : "VIP",
-                    CURRENT_RESCUED: obj.currentProgress, 
-                    TOTAL_SPAWNED: obj.totalToAchieve,    
-                    CURRENT_EVACUATED: obj.currentEvacuated || 0,
-                    MIN_TO_EVAC: obj.minToAchieveForCompletion || 0
-                };
-                objectiveText = this.game._fillTextTemplate(objectiveText, templateData);
-                li.textContent = `${obj.isPrimary ? '(Primary) ' : '(Secondary) '}${objectiveText} - ${obj.isComplete ? 'COMPLETED' : 'FAILED'}`;
-                li.style.color = obj.isComplete ? 'lightgreen' : 'salmon';
-                objectivesUl.appendChild(li);
-            });
-        } else {
-            const li = document.createElement('li');
-            li.textContent = "No specific objectives tracked for this mission.";
-            objectivesUl.appendChild(li);
-        }
-        objectivesSummaryEl.appendChild(objectivesUl);
-
-
+        const statHostagesRecruitedEl = document.getElementById('statHostagesRecruited');
         const survivorListEl = document.getElementById('survivorList');
+        const newRecruitsListEl = document.getElementById('newRecruitsList');
+        const fallenListEl = document.getElementById('fallenList');
+    
+        if (objectiveListEl) {
+            objectiveListEl.innerHTML = '';
+            if (objectives && objectives.length > 0) {
+                objectives.forEach(obj => {
+                    const li = document.createElement('li');
+                    let text = `${obj.isPrimary ? '(Primary)' : '(Secondary)'} ${obj.type.replace('_', ' ')}`;
+                    li.innerHTML = `<span class="obj-status">${obj.isComplete ? 'COMPLETED' : 'FAILED'}</span> <span class="obj-text">${text}</span>`;
+                    li.classList.add(obj.isComplete ? 'completed' : 'failed');
+                    objectiveListEl.appendChild(li);
+                });
+            }
+        }
+    
+        if (statTimeTakenEl) statTimeTakenEl.textContent = timeTaken + "s";
+        if (statEnemiesKilledEl) statEnemiesKilledEl.textContent = enemiesKilled.toString();
+        if (statHostagesRecruitedEl) statHostagesRecruitedEl.textContent = (newlyRecruitedRaccoons || []).length.toString();
+    
         if (survivorListEl) {
             survivorListEl.innerHTML = '';
             if (survivingRaccoons && survivingRaccoons.length > 0) {
                 survivingRaccoons.forEach(r => { 
-                    const li = document.createElement('li'); 
-                    li.textContent = `${r.name || r.id} - Rank: ${r.rank}, XP: ${r.xp}${r.promotedThisMission ? ' (PROMOTED!)' : ''}`; 
+                    const li = document.createElement('li');
+                    const promotionText = r.promotedThisMission ? ' <span class="promotion-indicator">(PROMOTED!)</span>' : '';
+                    li.innerHTML = `<span>${r.name || r.id}</span> <span>Rank: ${r.rank}</span> <span>XP: ${r.xp}${promotionText}</span>`; 
                     survivorListEl.appendChild(li); 
                 });
             } else {
-                const li = document.createElement('li');
-                li.textContent = isVictory ? (this.uiText.POST_MISSION_SURVIVORS_NONE_VICTORY || "Mission accomplished, but no Raccoons survived.") : (this.uiText.POST_MISSION_SURVIVORS_NONE_DEFEAT || "All deployed Raccoons KIA.");
-                survivorListEl.appendChild(li);
+                survivorListEl.innerHTML = `<li>${isVictory ? (this.uiText.POST_MISSION_SURVIVORS_NONE_VICTORY || "Mission accomplished, but no Raccoons survived.") : (this.uiText.POST_MISSION_SURVIVORS_NONE_DEFEAT || "All deployed Raccoons KIA.")}</li>`;
             }
         }
-        const fallenListEl = document.getElementById('fallenList');
+    
+        const newRecruitsContainer = document.getElementById('newRecruitsContainer');
+        if (newRecruitsListEl && newRecruitsContainer) {
+            newRecruitsListEl.innerHTML = '';
+            if (newlyRecruitedRaccoons && newlyRecruitedRaccoons.length > 0) {
+                newRecruitsContainer.style.display = 'block';
+                newlyRecruitedRaccoons.forEach(r => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<span>${r.name || r.id}</span> <span>Rank: ${r.rank}</span> <span>XP: ${r.xp}</span>`; 
+                    newRecruitsListEl.appendChild(li);
+                });
+            } else {
+                newRecruitsContainer.style.display = 'none';
+            }
+        }
+    
         if (fallenListEl) {
             fallenListEl.innerHTML = '';
             if (fallenRaccoons && fallenRaccoons.length > 0) {
                 fallenRaccoons.forEach(fallenBrief => { 
-                    const fallenFull = this.game.fallenRaccoonsGlobal.find(frg => frg.id === fallenBrief.id) || fallenBrief; 
                     const li = document.createElement('li'); 
-                    li.textContent = `${fallenFull.name || fallenBrief.id} - (Rank: ${fallenBrief.rank})`; 
+                    li.innerHTML = `<span>${fallenBrief.name || fallenBrief.id}</span> <span>(Rank: ${fallenBrief.rank})</span>`; 
                     fallenListEl.appendChild(li); 
                 });
             } else { 
-                const li = document.createElement('li'); 
-                li.textContent = this.uiText.POST_MISSION_FALLEN_NONE || "No casualties this mission."; 
-                fallenListEl.appendChild(li); 
+                fallenListEl.innerHTML = `<li>${this.uiText.POST_MISSION_FALLEN_NONE || "No casualties this mission."}</li>`; 
             }
         }
-
+    
         const nextMissionBtn = document.getElementById('nextMissionButton');
         const retryMissionBtn = document.getElementById('retryMissionButton');
         const viewMemorialBtn = document.getElementById('viewMemorialButton');
@@ -554,20 +605,14 @@ class UI {
         if (viewMemorialBtn) {
             viewMemorialBtn.style.display = (this.game && this.game.fallenRaccoonsGlobal && this.game.fallenRaccoonsGlobal.length > 0) ? 'inline-block' : 'none';
         }
-
         if (campaignComplete && isVictory) {
-            if (nextMissionBtn) { 
-                nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign"; 
-                nextMissionBtn.style.display = 'inline-block'; 
-                nextMissionBtn.disabled = false; 
-            }
+            if (nextMissionBtn) { nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign"; nextMissionBtn.style.display = 'inline-block'; nextMissionBtn.disabled = false; }
             if (retryMissionBtn) retryMissionBtn.style.display = 'none';
         } else if (isVictory) {
             if (nextMissionBtn) {
                  const currentPhaseStructure = debriefData.phaseData; 
                  const missionsInThisPhase = currentPhaseStructure.missionsInPhase;
                  const isEndOfCurrentPhase = this.game.currentMissionIndex >= (missionsInThisPhase - 1);
-
                  if (isEndOfCurrentPhase) { 
                      const isEndOfCampaign = this.game.currentPhaseIndex + 1 >= this.game.totalCampaignPhases;
                      if (!isEndOfCampaign) { 
@@ -582,8 +627,7 @@ class UI {
                  } else {
                      nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_NEXT_MISSION || "Next Mission";
                  }
-                 nextMissionBtn.style.display = 'inline-block'; 
-                 nextMissionBtn.disabled = false;
+                 nextMissionBtn.style.display = 'inline-block'; nextMissionBtn.disabled = false;
             }
             if (retryMissionBtn) retryMissionBtn.style.display = 'none';
         } else { // Mission Failed
@@ -594,6 +638,7 @@ class UI {
                 retryMissionBtn.disabled = !(this.game && this.game.getAvailableRecruits().length > 0); 
             }
         }
+    
         this.postMissionScreen.style.display = 'flex'; 
         this.setCursor('default');
     }

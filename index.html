@@ -18,63 +18,117 @@
         <p class="game-version">v0.1.0 Alpha</p> <!-- Optional version display -->
     </div>
     
-    <div id="preMissionScreen" class="ui-panel">
-        <h3 id="preMissionPhaseTitle">Phase Title</h3>
-        <h2 id="preMissionTitle">Mission Title</h2>
-        <p id="preMissionBriefing" style="text-align: left; max-height: 100px; overflow-y: auto; white-space: pre-wrap;">Briefing text.</p>
+    <div id="preMissionScreen" class="ui-panel" style="display: none;">
+        <!-- New structure for a more detailed, two-column layout -->
+        <div id="preMissionHeader">
+             <h3 id="preMissionPhaseTitle">Phase Title</h3>
+             <h2 id="preMissionTitle">Mission Title</h2>
+        </div>
 
-        <!-- NEW WRAPPER for the two columns -->
-        <div class="roster-columns-container">
-            <div id="availableRecruitsContainer"> <!-- Removed inline style, handled by CSS -->
-                <h4 id="availableRecruitsTitle">Available Recruits (Click to Select):</h4>
-                <ul id="availableRecruitsList">
-                    <!-- Populated by JS -->
-                </ul>
+        <div id="preMissionContent">
+            <!-- Left Column: Roster Management -->
+            <div id="preMissionLeftPanel">
+                <div class="roster-section">
+                    <h4 id="availableRecruitsTitle">Available Recruits (Click to Select)</h4>
+                    <ul id="availableRecruitsGrid">
+                        <!-- JS will populate this with square grid items -->
+                    </ul>
+                </div>
             </div>
-            <div id="deployedSquadContainer"> <!-- Removed inline style, handled by CSS -->
-                <h4 id="deployedSquadTitle">Deploying Squad (<span id="deployedCountDisplay">0</span> / <span id="maxSquadSizeDisplay">4</span>):</h4>
-                <ul id="deployedSquadList">
-                    <!-- Populated by JS -->
-                </ul>
+
+            <!-- Right Column: Mission Details -->
+            <div id="preMissionRightPanel">
+                <div class="mission-details-section" id="briefingSection">
+                    <h4>Mission Briefing</h4>
+                    <p id="preMissionBriefing">Briefing text will be loaded here. It will describe the situation and what is at stake for the Raccoon Platoon.</p>
+                </div>
+
+                <div class="mission-details-section" id="objectivesSection">
+                    <h4>Objectives</h4>
+                    <ul id="preMissionObjectivesList">
+                        <!-- JS will populate this -->
+                    </ul>
+                </div>
+                
+                <div class="mission-details-section" id="intelSection">
+                    <h4>Intel</h4>
+                    <div class="intel-columns">
+                        <div id="mapReconContainer">
+                            <h5>Map Recon</h5>
+                            <div id="mapReconPhoto">RECON PHOTO UNAVAILABLE</div>
+                        </div>
+                        <div id="enemyIntelContainer">
+                            <h5>Known Enemies</h5>
+                            <div id="enemyIntelList">CLASSIFIED</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <!-- END NEW WRAPPER -->
 
-        <button id="startMissionButton">Deploy Selected Squad</button>
+        <div id="preMissionFooter">
+             <div id="deployedSquadContainer">
+                <h4>Deploying Squad (<span id="deployedCountDisplay">0</span> / <span id="maxSquadSizeDisplay">4</span>)</h4>
+                <ul id="deployedSquadList">
+                    <!-- JS will populate this with selected units -->
+                </ul>
+            </div>
+            <button id="startMissionButton" disabled>Deploy Selected Squad</button>
+        </div>
     </div>
 
-    <div id="postMissionScreen" class="ui-panel">
+    <div id="postMissionScreen" class="ui-panel" style="display: none;">
         <h2 id="missionOutcome">MISSION OUTCOME</h2>
         <p id="postMissionInfo">Phase X - Mission Y</p>
-
-        <!-- NEW WRAPPER for details -->
-        <div class="post-mission-details">
-            <div id="missionStats"> <!-- Removed inline style -->
-                <h4>Mission Stats:</h4>
-                <p>Time Taken: <span id="statTimeTaken">0.0</span>s</p>
-                <p>Enemies Eliminated: <span id="statEnemiesKilled">0</span></p>
+    
+        <div class="post-mission-content-wrapper">
+            <!-- Left Column -->
+            <div class="post-mission-column">
+                <div id="objectivesStatusContainer" class="post-mission-section">
+                    <h4>Objective Status</h4>
+                    <ul id="objectiveStatusList">
+                        <!-- JS Populated -->
+                    </ul>
+                </div>
+                <div id="missionStatsContainer" class="post-mission-section">
+                    <h4>Mission Stats</h4>
+                    <div id="missionStatsGrid">
+                        <p>Time Taken:</p><p><span id="statTimeTaken">0.0</span>s</p>
+                        <p>Enemies Eliminated:</p><p><span id="statEnemiesKilled">0</span></p>
+                        <p>Hostages Recruited:</p><p><span id="statHostagesRecruited">0</span></p>
+                        <!-- More stats can be added here -->
+                    </div>
+                </div>
             </div>
-
-            <div id="survivingRaccoons"> <!-- Removed inline style -->
-                <h4>Surviving Raccoons:</h4>
-                <ul id="survivorList"> <!-- Removed inline style -->
-                </ul>
-            </div>
-            <div id="fallenRaccoons"> <!-- Removed inline style -->
-                <h4>Fallen Heroes:</h4>
-                <ul id="fallenList"> <!-- Removed inline style -->
-                </ul>
+    
+            <!-- Right Column -->
+            <div class="post-mission-column">
+                <div id="survivorContainer" class="post-mission-section">
+                    <h4>Surviving Raccoons</h4>
+                    <ul id="survivorList">
+                        <!-- JS Populated -->
+                    </ul>
+                </div>
+                <div id="newRecruitsContainer" class="post-mission-section">
+                    <h4>New Recruits</h4>
+                    <ul id="newRecruitsList">
+                        <!-- JS Populated -->
+                    </ul>
+                </div>
+                <div id="fallenContainer" class="post-mission-section">
+                    <h4>Fallen Heroes</h4>
+                    <ul id="fallenList">
+                        <!-- JS Populated -->
+                    </ul>
+                </div>
             </div>
         </div>
-        <!-- END WRAPPER for details -->
-
-        <!-- NEW WRAPPER for buttons -->
+    
         <div class="post-mission-buttons">
             <button id="retryMissionButton" style="display:none;">Retry Mission</button>
             <button id="viewMemorialButton" style="display:none;">View Recruit Memorial</button>
             <button id="nextMissionButton" style="display:none;">Next</button>
         </div>
-        <!-- END WRAPPER for buttons -->
     </div>
 
     <div id="pauseMenuScreen" class="ui-panel" style="display: none;">
@@ -98,6 +152,10 @@
         <button id="backFromMemorialButton">Back</button>
     </div>
 
+    <!-- NEW: Video Loading Screen -->
+    <div id="videoLoadingScreen">
+        <video id="loadingVideoPlayer" loop muted playsinline></video>
+    </div>
 
     <div id="game-container">
         <div id="left-hud-panel" class="ui-panel"> 
@@ -122,9 +180,7 @@
         <div id="canvas-container">
             <canvas id="gameCanvas"></canvas>
             <div id="hud-objective" class="ui-panel"> 
-                <!-- "Objective:" text can be a static header or part of CSS ::before -->
                 <div id="objectiveTextContainer"> 
-                    <!-- Objective list items will be populated here by UI.js -->
                 </div>
             </div>
         </div>

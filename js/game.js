@@ -196,6 +196,25 @@ class Game {
                 }));
             }
         }
+
+        // --- NEW: Preload rank icons ---
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath) {
+            for (const rank in rankIconConfig) {
+                const path = rankIconPath + rankIconConfig[rank];
+                if (!this.preloadedImages[path]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload FAILED - UI] Rank Icon: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                        img.src = path;
+                    }));
+                }
+            }
+        }
+        // --- END NEW ---
+
         await Promise.all(imagePromises);
     }
 
@@ -442,7 +461,6 @@ class Game {
     }
 
     async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
-        // ... (other setup before world size calculation) ...
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
@@ -456,158 +474,179 @@ class Game {
             }
             return;
         }
+
+        if (this.ui) {
+            const videoPaths = ['assets/video/raccoon_1.mp4', 'assets/video/raccoon_2.mp4', 'assets/video/raccoon_3.mp4', 'assets/video/raccoon_4.mp4'];
+            const randomVideoPath = videoPaths[Math.floor(Math.random() * videoPaths.length)];
+            this.ui.showVideoLoadingScreen(randomVideoPath);
+        }
+        
         this.gameState = 'LOADING_MISSION';
-        if (this.ui && typeof this.ui.showLoadingScreen === 'function') { this.ui.showLoadingScreen("Preparing battlefield..."); } else { console.log("Loading mission..."); }
 
-        await this.preloadLevelAssets();
-        await this.preloadUnitAssets();
-        await this.preloadMiscAssets();
-
-        const musicSelectionRNG = this.currentMissionSeedRNG || this.campaignSeedRNG || new SeededRandom(Date.now());
-
-        this.audioManager.stopAllLoopingSounds();
-        const musicKeys = CONFIG.AUDIO_ASSETS.AMBIENT_MUSIC_TROPICAL_FOREST_KEYS;
-        if (musicKeys && musicKeys.length > 0) {
-            const randomMusicKey = musicSelectionRNG.pickFrom(musicKeys); 
-            if (this.audioManager.sounds[randomMusicKey] && this.audioManager.sounds[randomMusicKey].loaded) {
-                this.audioManager.play(randomMusicKey, { loop: true, volume: CONFIG.AUDIO_ASSETS[randomMusicKey]?.defaultVolume || 0.35 });
-                this.lastPlayedMusicKey = randomMusicKey;
-            } else {
-                console.warn(`[Game] Ambience track '${randomMusicKey}' not loaded or found in audioManager.sounds. Check config and preloading.`);
-            }
-        } else {
-            console.warn("[Game] No AMBIENT_MUSIC_TROPICAL_FOREST_KEYS found in CONFIG.AUDIO_ASSETS or the array is empty.");
-        }
-
-
-        this.deployedSquadRoster = selectedRecruitsForDeployment;
-        this.lastDeployedSquadIds = this.deployedSquadRoster.map(r => r.id);
-
-        this.deployedSquadRoster.forEach(r => {
-            r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-            if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); 
-            if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
-            if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0); 
-            if (r.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 0);
-            r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false;
-            r.isPlayerDirectFiring = false;
-            r.isHoldingPosition = false; 
-            r.isHoldingFire = false;   
+        this.masterRoster.forEach(r => {
+            if (r.isNewlyRescued) r.isNewlyRescued = false;
+            if (r.promotedThisMission) r.promotedThisMission = false;
         });
 
-        this.isObjectiveComplete = false; 
-        this.missionStartedAndPopulated = false;
-        this.fallenRaccoonsThisMission = [];
-        this.missionStartTime = performance.now();
-        this.hostageUnits = []; 
-
-        let worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1280) * (this.currentMissionParams.baseParams.worldSizeFactor || 1);
-        let worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 720) * (this.currentMissionParams.baseParams.worldSizeFactor || 1);
-
-        // --- NEW: Enforce Minimum World Size ---
-        if (this.canvas && this.canvas.width && this.canvas.height) { // Ensure canvas is available
-            worldWidth = Math.max(worldWidth, this.canvas.width);
-            worldHeight = Math.max(worldHeight, this.canvas.height);
-        } else { // Fallback if canvas isn't ready (should ideally not happen here)
-            worldWidth = Math.max(worldWidth, CONFIG.MIN_CANVAS_WIDTH || 800);
-            worldHeight = Math.max(worldHeight, CONFIG.MIN_CANVAS_HEIGHT || 600);
-        }
-        // --- END NEW ---
-        
-        CONFIG.WORLD_WIDTH = worldWidth; 
-        CONFIG.WORLD_HEIGHT = worldHeight;
-        
-        if (this.spatialGrid) {
-            this.spatialGrid.clear(); 
-        }
-        // Pass the game instance `this` to SpatialGrid constructor
-        this.spatialGrid = new SpatialGrid(worldWidth, worldHeight, this.SPATIAL_GRID_CELL_SIZE, this); 
-
-
-        const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(
-            worldWidth, worldHeight, 
-            this.currentMissionParams, 
-            this.deployedSquadRoster.length, 
-            this.preloadedImages,
-            this.currentMissionSeed 
+        // --- NEW: Create a timer promise ---
+        const minDisplayTimePromise = new Promise(resolve => 
+            setTimeout(resolve, CONFIG.MIN_LOADING_VIDEO_DURATION_MS || 5000)
         );
-        
-        this.generatePrerenderedBackground(worldWidth, worldHeight, this.currentMissionSeed); 
+        // --- END NEW ---
 
-        this.initialEnemyCount = this.enemyUnits.length; 
-        if (this.currentMissionParams && this.currentMissionParams.objectives) {
-            this.currentMissionParams.objectives.forEach(obj => {
-                if (obj.type === "EXTERMINATE") {
-                    obj.totalToAchieve = this.initialEnemyCount; 
-                    obj.currentProgress = 0;
-                } else if (obj.type === "ASSASSINATION") {
-                    if (!obj.targetUnitId && obj.targetDetails) {
-                        console.error(`[Game] CRITICAL: Assassination target ${obj.targetDetails.name} (${obj.targetDetails.callsign}) for objective ${obj.id} FAILED TO SPAWN or link. Mission may be uncompletable or objectives need to change.`);
-                    }
-                }
-            });
-            const hasPrimary = this.currentMissionParams.objectives.some(o => o.isPrimary);
-            if (!hasPrimary) {
-                const exterminateObj = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE");
-                if (exterminateObj) {
-                    exterminateObj.isPrimary = true;
-                    console.warn("[Game] No primary objective found after setup, defaulting EXTERMINATE to primary.");
+        // --- NEW: Wrap loading tasks in a single promise ---
+        const loadingTasksPromise = (async () => {
+            await this.preloadLevelAssets();
+            await this.preloadUnitAssets();
+            await this.preloadMiscAssets();
+
+            const musicSelectionRNG = this.currentMissionSeedRNG || this.campaignSeedRNG || new SeededRandom(Date.now());
+
+            this.audioManager.stopAllLoopingSounds();
+            const musicKeys = CONFIG.AUDIO_ASSETS.AMBIENT_MUSIC_TROPICAL_FOREST_KEYS;
+            if (musicKeys && musicKeys.length > 0) {
+                const randomMusicKey = musicSelectionRNG.pickFrom(musicKeys); 
+                if (this.audioManager.sounds[randomMusicKey] && this.audioManager.sounds[randomMusicKey].loaded) {
+                    this.audioManager.play(randomMusicKey, { loop: true, volume: CONFIG.AUDIO_ASSETS[randomMusicKey]?.defaultVolume || 0.35 });
+                    this.lastPlayedMusicKey = randomMusicKey;
                 } else {
-                    const defaultExtObj = this._instantiateObjective(this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE"), this.currentPhaseIndex, true);
-                    if (defaultExtObj) {
-                        defaultExtObj.totalToAchieve = this.initialEnemyCount;
-                        this.currentMissionParams.objectives.push(defaultExtObj);
-                        console.warn("[Game] No objectives found, adding default EXTERMINATE as primary.");
+                    console.warn(`[Game] Ambience track '${randomMusicKey}' not loaded or found in audioManager.sounds. Check config and preloading.`);
+                }
+            } else {
+                console.warn("[Game] No AMBIENT_MUSIC_TROPICAL_FOREST_KEYS found in CONFIG.AUDIO_ASSETS or the array is empty.");
+            }
+
+            this.deployedSquadRoster = selectedRecruitsForDeployment;
+            this.lastDeployedSquadIds = this.deployedSquadRoster.map(r => r.id);
+
+            this.deployedSquadRoster.forEach(r => {
+                r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
+                if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); 
+                if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
+                if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0); 
+                if (r.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 0);
+                r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false;
+                r.isPlayerDirectFiring = false;
+                r.isHoldingPosition = false; 
+                r.isHoldingFire = false;   
+            });
+
+            this.isObjectiveComplete = false; 
+            this.missionStartedAndPopulated = false;
+            this.fallenRaccoonsThisMission = [];
+            this.missionStartTime = performance.now();
+            this.hostageUnits = []; 
+
+            let worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1280) * (this.currentMissionParams.baseParams.worldSizeFactor || 1);
+            let worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 720) * (this.currentMissionParams.baseParams.worldSizeFactor || 1);
+
+            if (this.canvas && this.canvas.width && this.canvas.height) { 
+                worldWidth = Math.max(worldWidth, this.canvas.width);
+                worldHeight = Math.max(worldHeight, this.canvas.height);
+            } else { 
+                worldWidth = Math.max(worldWidth, CONFIG.MIN_CANVAS_WIDTH || 800);
+                worldHeight = Math.max(worldHeight, CONFIG.MIN_CANVAS_HEIGHT || 600);
+            }
+            
+            CONFIG.WORLD_WIDTH = worldWidth; 
+            CONFIG.WORLD_HEIGHT = worldHeight;
+            
+            if (this.spatialGrid) {
+                this.spatialGrid.clear(); 
+            }
+            this.spatialGrid = new SpatialGrid(worldWidth, worldHeight, this.SPATIAL_GRID_CELL_SIZE, this); 
+
+            const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(
+                worldWidth, worldHeight, 
+                this.currentMissionParams, 
+                this.deployedSquadRoster.length, 
+                this.preloadedImages,
+                this.currentMissionSeed 
+            );
+            
+            this.generatePrerenderedBackground(worldWidth, worldHeight, this.currentMissionSeed); 
+
+            this.initialEnemyCount = this.enemyUnits.length; 
+            if (this.currentMissionParams && this.currentMissionParams.objectives) {
+                this.currentMissionParams.objectives.forEach(obj => {
+                    if (obj.type === "EXTERMINATE") {
+                        obj.totalToAchieve = this.initialEnemyCount; 
+                        obj.currentProgress = 0;
+                    } else if (obj.type === "ASSASSINATION") {
+                        if (!obj.targetUnitId && obj.targetDetails) {
+                            console.error(`[Game] CRITICAL: Assassination target ${obj.targetDetails.name} (${obj.targetDetails.callsign}) for objective ${obj.id} FAILED TO SPAWN or link. Mission may be uncompletable or objectives need to change.`);
+                        }
+                    }
+                });
+                const hasPrimary = this.currentMissionParams.objectives.some(o => o.isPrimary);
+                if (!hasPrimary) {
+                    const exterminateObj = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE");
+                    if (exterminateObj) {
+                        exterminateObj.isPrimary = true;
+                        console.warn("[Game] No primary objective found after setup, defaulting EXTERMINATE to primary.");
+                    } else {
+                        const defaultExtObj = this._instantiateObjective(this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE"), this.currentPhaseIndex, true);
+                        if (defaultExtObj) {
+                            defaultExtObj.totalToAchieve = this.initialEnemyCount;
+                            this.currentMissionParams.objectives.push(defaultExtObj);
+                            console.warn("[Game] No objectives found, adding default EXTERMINATE as primary.");
+                        }
                     }
                 }
             }
-        }
 
-
-        this.level.obstacles.forEach(obs => {
-            if (obs.blocksMovement || obs.providesCover || obs.isPickup || obs.type === 'extraction_zone') { 
-                this.spatialGrid.addObject(obs);
-            }
-        });
-        this.deployedSquadRoster.forEach(unit => this.spatialGrid.addObject(unit));
-        this.enemyUnits.forEach(unit => this.spatialGrid.addObject(unit)); 
-        this.hostageUnits.forEach(unit => this.spatialGrid.addObject(unit)); 
-
-        this.deployedSquadRoster.forEach((raccoon, index) => {
-            if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
-            else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
-        });
-        this.selectedUnits = [...this.deployedSquadRoster];
-        this.gameObjects = []; 
-        this.visualEffects = []; 
-
-        this.inputHandler.isCtrlDragSelecting = false;
-        this.isDragging = false;
-        this.draggedFarEnough = false;
-
-        if (this.deployedSquadRoster.length > 0) {
-            let sumX = 0, sumY = 0;
-            this.deployedSquadRoster.forEach(unit => { 
-                sumX += unit.x; 
-                sumY += unit.y; 
+            this.level.obstacles.forEach(obs => {
+                if (obs.blocksMovement || obs.providesCover || obs.isPickup || obs.type === 'extraction_zone') { 
+                    this.spatialGrid.addObject(obs);
+                }
             });
-            const avgX = sumX / this.deployedSquadRoster.length;
-            const avgY = sumY / this.deployedSquadRoster.length;
-            
-            this.cameraX = avgX - (this.canvas.width / 2);
-            this.cameraY = avgY - (this.canvas.height / 2);
-            
-            this.clampCamera(); 
-            
-        } else { 
-            this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; 
-            this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2; 
-            this.clampCamera(); 
-        }
+            this.deployedSquadRoster.forEach(unit => this.spatialGrid.addObject(unit));
+            this.enemyUnits.forEach(unit => this.spatialGrid.addObject(unit)); 
+            this.hostageUnits.forEach(unit => this.spatialGrid.addObject(unit)); 
+
+            this.deployedSquadRoster.forEach((raccoon, index) => {
+                if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
+                else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
+            });
+            this.selectedUnits = [...this.deployedSquadRoster];
+            this.gameObjects = []; 
+            this.visualEffects = []; 
+
+            this.inputHandler.isCtrlDragSelecting = false;
+            this.isDragging = false;
+            this.draggedFarEnough = false;
+
+            if (this.deployedSquadRoster.length > 0) {
+                let sumX = 0, sumY = 0;
+                this.deployedSquadRoster.forEach(unit => { 
+                    sumX += unit.x; 
+                    sumY += unit.y; 
+                });
+                const avgX = sumX / this.deployedSquadRoster.length;
+                const avgY = sumY / this.deployedSquadRoster.length;
+                
+                this.cameraX = avgX - (this.canvas.width / 2);
+                this.cameraY = avgY - (this.canvas.height / 2);
+                
+                this.clampCamera(); 
+            } else { 
+                this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; 
+                this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2; 
+                this.clampCamera(); 
+            }
+        })();
+        // --- END NEW WRAPPER ---
+        
+        // --- NEW: Wait for both loading and the minimum time to pass ---
+        await Promise.all([loadingTasksPromise, minDisplayTimePromise]);
+        // --- END NEW ---
 
         this.gameState = 'RUNNING';
 
-        if (this.ui && typeof this.ui.hideLoadingScreen === 'function') { this.ui.hideLoadingScreen(); }
+        if (this.ui) {
+            this.ui.hideVideoLoadingScreen();
+        }
+
         if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); } 
         if (this.inputHandler) { this.inputHandler.isLMBHoldFiringActionActive = false; this.inputHandler.updateMouseCursor(); }
 
@@ -616,6 +655,7 @@ class Game {
         this.missionEndDelayTimer = -1;
         this.missionPendingOutcomeIsVictory = false;
     }
+
 
     incrementObjectiveEnemyCount(count = 1) {
         if (this.currentMissionParams && this.currentMissionParams.objectives) {
@@ -1374,7 +1414,8 @@ class Game {
             for (let i = 0; i < recruitsToAdd && this.masterRoster.length < maxRoster; i++) this.addNewRecruitToMasterRoster();
         }
 
-        let newlyRecruitedFromMission = 0;
+        // --- MODIFIED: Store the full Raccoon objects of new recruits ---
+        let newlyRecruitedRaccoons = []; 
         const rescueObjective = this.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
         if (isVictory && rescueObjective) {
             if (this.hostageUnits) {
@@ -1405,12 +1446,13 @@ class Game {
                         const newRecruit = new Raccoon(0, 0, this, `RCN-RES-${rosterRng.nextInt(1000, 9999)}-${this.masterRoster.length}`, chosenFaceUrl, newName);
                         newRecruit.rank = hostage.assignedRankOnRescue;
                         newRecruit.xp = hostage.assignedXpOnRescue || 0;
+                        newRecruit.isNewlyRescued = true;
                         newRecruit.applyRankBonuses(true);
                         newRecruit.updateXpToNextRank();
 
                         if (this.masterRoster.length < (CONFIG.MAX_TOTAL_ROSTER_SIZE || 20)) {
                             this.masterRoster.push(newRecruit);
-                            newlyRecruitedFromMission++;
+                            newlyRecruitedRaccoons.push(newRecruit); // Add the full object
                         }
                     }
                 });
@@ -1431,7 +1473,8 @@ class Game {
             enemiesKilled: enemiesKilledThisMission,
             timeTaken: missionDuration.toFixed(1),
             campaignComplete: (isVictory && isLastMissionInPhase && isLastPhaseOfCampaign),
-            hostagesRecruitedCount: newlyRecruitedFromMission
+            newlyRecruitedRaccoons: newlyRecruitedRaccoons, // Pass the new data
+            hostagesRecruitedCount: newlyRecruitedRaccoons.length // Still useful for a quick count
         };
 
         if (this.ui) {
@@ -2218,6 +2261,24 @@ class Game {
         }
         return points;
     }
+
+    addVisualEffect(type, data) {
+        if (type === 'explosion' && data && data.x !== undefined && data.y !== undefined && data.radius !== undefined) {
+            this.visualEffects.push(new ExplosionEffect(data.x, data.y, data.radius, this));
+        } else if (type === 'promotion' && data && data.unitId) {
+            const unit = this.deployedSquadRoster && this.deployedSquadRoster.find(r => r.id === data.unitId);
+            if (unit) {
+                this.visualEffects.push(new PromotionEffect(unit.x, unit.y - unit.size - 10, this));
+            }
+        } else if (type === 'extraction_zone' && data && data.obstacle) {
+            this.visualEffects.push(new ExtractionZoneEffect(data.obstacle, this));
+        }
+        // --- NEW ---
+        else if (type === 'help_text' && data && data.parentUnit) {
+            this.visualEffects.push(new HelpTextEffect(data.parentUnit, this));
+        }
+        // --- END NEW ---
+    }
 }
 
 
@@ -2326,6 +2387,68 @@ class ExtractionZoneEffect {
         ctx.textBaseline = "middle";
         ctx.fillText("EVAC", this.centerX, this.centerY);
 
+        ctx.restore();
+    }
+}
+
+// --- NEW: HelpTextEffect Class Definition ---
+class HelpTextEffect {
+    constructor(parentUnit, gameInstance) {
+        this.parentUnit = parentUnit;
+        this.game = gameInstance;
+        this.config = CONFIG.VISUAL_EFFECTS.HOSTAGE_HELP_TEXT || {};
+
+        this.text = (this.config.TEXT_OPTIONS && this.config.TEXT_OPTIONS.length > 0) 
+                  ? this.config.TEXT_OPTIONS[Math.floor(Math.random() * this.config.TEXT_OPTIONS.length)] 
+                  : "Help!";
+        
+        this.lifetime = this.config.LIFETIME_SECONDS || 2.0;
+        this.elapsedTime = 0;
+        this.isMarkedForDeletion = false;
+        this.type = 'help_text';
+        this.opacity = 1.0;
+        
+        this.yOffset = this.config.Y_OFFSET || -40;
+        this.font = this.config.FONT || "bold 18px Arial";
+        this.color = this.config.COLOR || "yellow";
+        this.fadeOutStart = this.lifetime * (this.config.FADE_OUT_START_PERCENT || 0.7);
+    }
+
+    update(deltaTime) {
+        this.elapsedTime += deltaTime;
+
+        // Mark for deletion if parent unit is gone, rescued, or lifetime is up
+        if (!this.parentUnit || !this.parentUnit.isAlive() || this.parentUnit.isRescued || this.elapsedTime >= this.lifetime) {
+            this.isMarkedForDeletion = true;
+            return;
+        }
+
+        // Handle fade out
+        if (this.elapsedTime > this.fadeOutStart) {
+            const fadeDuration = this.lifetime - this.fadeOutStart;
+            const timeIntoFade = this.elapsedTime - this.fadeOutStart;
+            this.opacity = 1.0 - (timeIntoFade / fadeDuration);
+        }
+    }
+
+    render(ctx) {
+        if (!this.parentUnit) return;
+        
+        ctx.save();
+        ctx.font = this.font;
+        ctx.fillStyle = this.color;
+        ctx.textAlign = 'center';
+        ctx.globalAlpha = this.opacity;
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 2;
+        ctx.shadowOffsetY = 2;
+
+        const renderX = this.parentUnit.x;
+        const renderY = this.parentUnit.y + this.yOffset;
+        
+        ctx.fillText(this.text, renderX, renderY);
+        
         ctx.restore();
     }
 }

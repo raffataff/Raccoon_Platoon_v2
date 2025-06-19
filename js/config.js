@@ -13,6 +13,8 @@ const CONFIG = {
     WORLD_GRASS_TILE_SIZE: 48,     // Approximate width/height of your grass tile sprites
     WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.35, // e.g., 0.25 means tiles can overlap by up to 25% of their size
                                           // Iteration step will be TILE_SIZE * (1 - OVERLAP_FACTOR)
+    // VIDEO SETTINGS
+    MIN_LOADING_VIDEO_DURATION_MS: 6000,                                      
 
     // --- Input ---
     INPUT_DRAG_THRESHOLD: 5,
@@ -296,7 +298,17 @@ const CONFIG = {
             LIFETIME: 1.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
             COLOR_RGB_FADE_START: [255, 223, 0], VELOCITY_Y: -20
         },
-        EXPLOSION: { LIFETIME: 0.8 }
+        EXPLOSION: { LIFETIME: 0.8 },
+        HOSTAGE_HELP_TEXT: {
+            TEXT_OPTIONS: ['Help!', 'Over here!', 'Psst!', 'Save me!'],
+            LIFETIME_SECONDS: 2.0,
+            INTERVAL_MIN_SECONDS: 4.0,
+            INTERVAL_MAX_SECONDS: 9.0,
+            FONT: 'bold 18px Arial',
+            COLOR: 'yellow',
+            Y_OFFSET: -45, // Pixels above the unit's y-coordinate
+            FADE_OUT_START_PERCENT: 0.9 // Starts fading out at 90% of its lifetime
+        }
     },
     UI_SETTINGS: {
         HEALTH_BAR: {
@@ -305,7 +317,16 @@ const CONFIG = {
             LOW_HP_THRESHOLD_PERCENT: 0.3, MEDIUM_HP_THRESHOLD_PERCENT: 0.6
         },
         RECRUIT_CARD: { DEFAULT_FACE_BG_COLOR: '#555555' },
-        MEMORIAL_CARD: { DEFAULT_FACE_BG_COLOR: '#333333' }
+        MEMORIAL_CARD: { DEFAULT_FACE_BG_COLOR: '#333333' },
+        RANK_ICON_PATH: 'assets/images/ranks/',
+        RANK_ICON_FILES: {
+            'Recruit': 'recruit.png',
+            'Private': 'private.png',
+            'Corporal': 'corporal.png',
+            'Sergeant': 'sergeant.png',
+            'Elite': 'elite.png',
+            'Ghost': 'ghost.png'
+        }
     },
 
     // --- Level Generation & Obstacles ---

@@ -1,10 +1,4 @@
 /* style.css */
-test {
-    background-color: #1c8107;
-    color: #C8C6B8;
-    font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
-    font-size: 14px;
-}
 html, body {
     margin: 0;
     padding: 0;
@@ -16,11 +10,9 @@ html, body {
     font-size: 15px;
 
     background-image: ''; /* If style.css is ROOT */
-    /* background-image: url('../assets/images/ui/main_menu_bg.jpg'); /* If style.css is in css/ */
     background-size: cover;       /* Fill the entire screen */
     background-position: center center; /* Center the image */
     background-repeat: no-repeat; /* Do not tile */
-    /* --- END FULL SCREEN BACKGROUND --- */
 }
 
 body, canvas {
@@ -51,7 +43,6 @@ body, canvas {
     overflow-y: auto;
     position: static;
     border-right: 3px ridge #201E1A;
-    /* Add a background for the HUD itself to ensure it covers the body background */
     background-color: #2A2825; /* Match panel color or choose another */
 }
 
@@ -84,8 +75,6 @@ canvas#gameCanvas {
 /* --- Main Menu Screen --- */
 #mainMenuScreen, #pauseMenuScreen {
     background-image: none;
-
-    /* Keep original panel styling */
     background-color: #2A2825;
     border: 1px solid #1C1A17;
     border-top-color: #48443D;
@@ -96,8 +85,6 @@ canvas#gameCanvas {
     box-shadow: 2px 2px 0px #12110F, 4px 4px 8px rgba(0,0,0,0.7);
     text-align: center;
     text-shadow: 1px 1px 1px rgba(0,0,0,0.4);
-
-    /* Keep positioning and layout */
     position: absolute; /* Keep this to position over the body */
     top: 50%;
     left: 50%;
@@ -176,172 +163,323 @@ canvas#gameCanvas {
     font-size: 35px;
 }
 
-/* You are reusing .main-menu-buttons, which is fine. */
-/* If you want specific styling for pause menu buttons: */
 #pauseMenuScreen .main-menu-buttons button {
     padding: 10px 15px; /* Slightly smaller perhaps */
     font-size: 1.2em;
 }
 
+/* --- Pre-Mission Screen Redesign --- */
 #preMissionScreen {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 1080px;
-    min-height: 90vh;
-    max-height: 95vh;
+    width: 95vw;
+    height: 95vh;
+    max-width: 1800px;
     z-index: 100;
     padding: 20px;
     display: flex;
     flex-direction: column;
+    background-color: rgba(30, 28, 25, 0.95);
+    border: 2px solid #48443D;
+    backdrop-filter: blur(5px);
 }
 
-#preMissionScreen h2 {
+#preMissionHeader {
+    text-align: center;
+    border-bottom: 2px groove #4F4A3F;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+}
+
+#preMissionHeader h3 {
+    font-size: 1.5em;
+    color: #B0A090;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#preMissionHeader h2 {
     color: #D09040;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    padding-bottom: 10px;
-    margin-bottom: 5px;
-    font-size: 1.8em;
-}
-#preMissionScreen h3 {
-    font-size: 1.8em;
-    color: #B0A090;
-    margin-bottom: 15px;
-    border-bottom: 2px groove #4F4A3F;
-}
-#preMissionScreen h2 {
-    border-bottom: none;
-     margin-bottom: 15px;
+    font-size: 2.2em;
+    margin: 5px 0 0 0;
 }
 
-
-#preMissionBriefing {
-    text-align: left;
-    max-height: 180px;
-    overflow-y: auto;
-    white-space: pre-wrap;
-    margin-bottom: 20px;
-    padding: 10px;
-    background-color: rgba(0,0,0,0.15);
-    border: 1px solid #403B30;
-    border-radius: 3px;
-    font-size: 1.1em;
-}
-
-.roster-columns-container {
+#preMissionContent {
     display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    gap: 20px;
     flex-grow: 1;
-    margin-bottom: 20px;
-    overflow: hidden;
+    gap: 20px;
+    overflow: hidden; /* Prevent content from spilling */
+    margin-bottom: 15px;
 }
 
-#availableRecruitsContainer,
-#deployedSquadContainer {
-    width: calc(50% - 10px);
-    text-align: left;
+#preMissionLeftPanel, #preMissionRightPanel {
+    padding: 15px;
+    background-color: rgba(10, 8, 5, 0.2);
+    border: 1px solid #3a3733;
+    border-radius: 3px;
     display: flex;
     flex-direction: column;
 }
 
-#availableRecruitsContainer h4,
-#deployedSquadContainer h4 {
-    margin-top: 0;
-    margin-bottom: 8px;
-    font-size: 0.95em;
-    color: #C8C6B8;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    padding-left: 5px;
+#preMissionLeftPanel {
+    flex: 3; /* Takes up more space */
 }
 
-#availableRecruitsList, #deployedSquadList {
+#preMissionRightPanel {
+    flex: 2; /* Takes up less space */
+    gap: 15px;
+}
+
+.roster-section h4, .mission-details-section h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    color: #C8C6B8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #4F4A3F;
+    padding-bottom: 8px;
+}
+
+#availableRecruitsGrid {
     list-style: none;
     padding: 5px;
     margin: 0;
     flex-grow: 1;
-    height: 500px;
     overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
     border: 1px solid #444;
     background-color: rgba(0,0,0,0.1);
     border-radius: 3px;
 }
 
-.recruit-selection-card {
-    display: flex;
-    align-items: center;
-    padding: 8px;
-    margin-bottom: 6px;
+.recruit-grid-card {
+    position: relative; 
+    aspect-ratio: 1 / 1; 
     background-color: #3A3733;
     border: 1px solid #2A2825;
-    border-radius: 3px;
+    border-radius: 4px;
     cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-}
-
-.recruit-selection-card:hover {
-    background-color: #4B4844;
-    border-color: #5C5854;
-}
-
-.recruit-selection-card.selected-for-deploy {
-    background-color: #3F4E3A;
-    border-left: 5px solid #60A050;
-    padding-left: 3px;
-}
-#availableRecruitsList .recruit-selection-card.selected-for-deploy {
-    background-color: #3F4E3A;
-    border-left: 5px solid #60A050;
-    padding-left: 3px;
-}
-
-
-.recruit-card-face {
-    width: 124px;
-    height: 124px;
-    background-size: cover;
-    background-position: center;
-    border-radius: 3px;
-    margin-right: 12px;
-    border: 1px solid #222;
-    flex-shrink: 0;
-}
-
-.recruit-card-info {
+    transition: all 0.2s ease;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
-    font-size: 1.2em;
+}
+
+.recruit-grid-card:hover {
+    transform: scale(1.05);
+    border-color: #D09040;
+    box-shadow: 0 0 10px rgba(208, 144, 64, 0.5);
+}
+
+.recruit-grid-card .recruit-card-face {
+    width: 100%;
+    height: 100%; 
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid #222;
+    flex-grow: 1;
+    background-size: cover;
+    background-position: center;
+}
+
+.recruit-grid-card .recruit-card-name {
+    background-color: rgba(20, 20, 15, 0.8);
+    color: #E8E4D8;
+    font-weight: bold;
+    font-size: 0.9em;
+    text-align: center;
+    padding: 6px 4px;
+    width: 100%;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    box-sizing: border-box;
+}
+
+.recruit-grid-card.new-recruit::after {
+    content: 'NEW';
+    position: absolute;
+    top: 5px;
+    right: -24px;
+    background-color: #60A050;
+    color: white;
+    font-size: 0.7em;
+    font-weight: bold;
+    padding: 3px 25px;
+    transform: rotate(45deg);
+    box-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+#preMissionFooter {
+    border-top: 2px groove #4F4A3F;
+    padding-top: 15px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+#deployedSquadContainer {
     flex-grow: 1;
 }
 
-.recruit-card-info div {
-    margin-bottom: 3px;
-    line-height: 1.4;
+#deployedSquadContainer h4 {
+    margin: 0 0 10px 0;
 }
-.recruit-card-info .id-name {
-    font-weight: bold;
-    font-size: 1.15em;
-    color: #E8E4D8;
+
+#deployedSquadList {
+    list-style: none;
+    padding: 5px;
+    margin: 0;
+    display: flex;
+    gap: 10px;
+    height: 100px;
+    border: 1px solid #444;
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 3px;
+    align-items: center;
+    justify-content: flex-start;
 }
-.recruit-card-info .rank {
-    color: #c9ae57;
+.empty-slot-placeholder {
+    color: #666;
+    text-align: center;
+    width: 100%;
+    font-style: italic;
 }
-.recruit-card-info .xp, .recruit-card-info .hp {
-    color: #a6c29a;
+
+.deployed-squad-card {
+    position: relative; /* For rank icon positioning */
+    display: flex;
+    align-items: center;
+    padding: 5px;
+    height: 90px;
+    width: 200px;
+    background-color: #3F4E3A;
+    border: 1px solid #60A050;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
+}
+.deployed-squad-card:hover {
+    background-color: #4a5c44;
+}
+.deployed-squad-card .recruit-card-face {
+    width: 80px;
+    height: 80px;
+    margin-right: 10px;
+    border-radius: 3px;
+    border: 1px solid #222;
+    background-size: cover;
+    background-position: center;
+}
+.deployed-squad-card .recruit-card-info {
     font-size: 0.9em;
 }
+.deployed-squad-card .recruit-card-info .name { font-weight: bold; font-size: 1.1em; color: #FFF; }
+.deployed-squad-card .recruit-card-info .rank { color: #d9be67; }
+.deployed-squad-card .recruit-card-info .xp { color: #b6d2aa; font-size: 1.1em;} /* Changed from HP */
 
 #startMissionButton {
-    margin-top: auto;
-    padding: 10px 20px;
-    width: 50%;
-    align-self: center;
+    padding: 15px 30px;
+    font-size: 1.2em;
+    height: fit-content;
 }
 
+/* Right Panel Styling */
+.mission-details-section {
+    background-color: rgba(10, 8, 5, 0.3);
+    border: 1px solid #302d2a;
+    padding: 15px;
+    border-radius: 3px;
+}
+#briefingSection { flex-grow: 2; overflow-y: auto; }
+#objectivesSection { flex-grow: 1; }
+#intelSection { flex-grow: 1; }
 
+#preMissionBriefing {
+    text-align: left;
+    max-height: none; 
+    overflow-y: auto;
+    white-space: pre-wrap;
+    padding: 0;
+    background-color: transparent;
+    border: none;
+    font-size: 1.1em;
+}
+
+#preMissionObjectivesList {
+    list-style: none;
+    padding-left: 5px;
+    margin: 0;
+}
+#preMissionObjectivesList li {
+    padding: 5px 0;
+    border-bottom: 1px dotted #4F4A3F;
+}
+#preMissionObjectivesList li:last-child {
+    border-bottom: none;
+}
+#preMissionObjectivesList li.primary-objective {
+    font-weight: bold;
+    color: #E8E4D8;
+}
+#preMissionObjectivesList li.secondary-objective {
+    color: #B0A090;
+    font-style: italic;
+}
+
+#intelSection .intel-columns {
+    display: flex;
+    gap: 15px;
+}
+#mapReconContainer, #enemyIntelContainer {
+    flex: 1;
+}
+#intelSection h5 {
+    margin: 0 0 8px 0;
+    color: #B0A090;
+    text-transform: uppercase;
+    font-size: 0.9em;
+}
+#mapReconPhoto, #enemyIntelList {
+    background-color: rgba(0,0,0,0.2);
+    border: 1px solid #4F4A3F;
+    height: 120px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+    font-style: italic;
+    border-radius: 3px;
+}
+
+/* Rank Icon Styling */
+.rank-icon {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 32px;
+    height: 32px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 2;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.7));
+}
+.deployed-squad-card .rank-icon {
+    width: 24px;
+    height: 24px;
+    top: 3px;
+    right: 3px;
+}
 
 #toggleFormationButton {
     width: 100%;
@@ -384,8 +522,6 @@ canvas#gameCanvas {
 .hud-control-group label {
     margin-right: auto;
 }
-
-
 
 .squad-member {
     border: 1px solid #111;
@@ -576,44 +712,55 @@ input[type="range"]::-moz-range-thumb {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 650px;
-    min-height: 550px;
-    max-height: 90vh;
+    width: 95vw;
+    height: 95vh;
+    max-width: 1400px;
     padding: 25px;
     display: flex;
     flex-direction: column;
     z-index: 100;
+    background-color: rgba(30, 28, 25, 0.95);
+    border: 2px solid #48443D;
+    backdrop-filter: blur(5px);
 }
 
 #postMissionScreen h2#missionOutcome {
-    font-size: 1.8em;
-    margin-bottom: 10px;
+    text-align: center;
+    font-size: 2.2em;
+    margin-bottom: 5px;
     padding-bottom: 15px;
     border-bottom: 2px groove #4F4A3F;
     color: #D09040;
 }
 
 #postMissionScreen p#postMissionInfo {
-    font-size: 0.9em;
+    font-size: 1.2em;
     color: #A8A498;
-    margin-bottom: 25px;
+    margin-bottom: 20px;
     text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.post-mission-details {
+.post-mission-content-wrapper {
     display: flex;
-    flex-direction: column;
-    gap: 15px;
-    overflow-y: auto;
     flex-grow: 1;
+    gap: 20px;
+    overflow-y: auto;
     padding: 10px;
-    background-color: rgba(0,0,0,0.05);
+    background-color: rgba(0,0,0,0.1);
+    border: 1px solid #403B30;
     border-radius: 3px;
 }
 
-#missionStats,
-#survivingRaccoons,
-#fallenRaccoons {
+.post-mission-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.post-mission-section {
     background-color: rgba(10,10,5,0.2);
     padding: 15px;
     border-radius: 3px;
@@ -622,42 +769,82 @@ input[type="range"]::-moz-range-thumb {
     margin: 0;
 }
 
-#missionStats h4,
-#survivingRaccoons h4,
-#fallenRaccoons h4 {
+.post-mission-section h4 {
     margin-top: 0;
-    margin-bottom: 10px;
-    font-size: 1.1em;
+    margin-bottom: 12px;
+    font-size: 1.2em;
     color: #C8C6B8;
-    border-bottom: 1px solid #403B30;
-    padding-bottom: 5px;
+    border-bottom: 1px solid #4F4A3F;
+    padding-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
-#missionStats p,
-#survivingRaccoons ul,
-#fallenRaccoons ul {
-    font-size: 0.95em;
-    margin-bottom: 5px;
-}
-#survivingRaccoons ul,
-#fallenRaccoons ul {
+#objectiveStatusList {
     list-style: none;
-    padding-left: 0;
-    max-height: 150px;
-    overflow-y: auto;
+    padding: 0;
+    margin: 0;
 }
-#survivingRaccoons li,
-#fallenRaccoons li {
-    padding: 4px 0;
-    border-bottom: 1px dotted #383632;
+#objectiveStatusList li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 4px;
+    text-transform: capitalize;
+    font-size: 1.1em;
 }
-#survivingRaccoons li:last-child,
-#fallenRaccoons li:last-child {
-    border-bottom: none;
+#objectiveStatusList li.completed .obj-status {
+    color: #6eff6e;
+    font-weight: bold;
+}
+#objectiveStatusList li.failed .obj-status {
+    color: #ff6e6e;
+    font-weight: bold;
+}
+#objectiveStatusList li .obj-text {
+    color: #B0A090;
 }
 
+#missionStatsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 15px;
+    font-size: 1.1em;
+}
+#missionStatsGrid p {
+    margin: 0;
+}
+#missionStatsGrid p:nth-child(odd) {
+    color: #A8A498;
+}
+#missionStatsGrid p:nth-child(even) {
+    font-weight: bold;
+    color: #E8E4D8;
+    text-align: right;
+}
+
+#survivorList, #fallenList, #newRecruitsList {
+    list-style: none;
+    padding-left: 0;
+    margin: 0;
+    max-height: 250px;
+    overflow-y: auto;
+}
+#survivorList li, #fallenList li, #newRecruitsList li {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 4px;
+    border-bottom: 1px dotted #383632;
+    font-size: 1.05em;
+}
+#survivorList li:last-child, #fallenList li:last-child, #newRecruitsList li:last-child {
+    border-bottom: none;
+}
+.promotion-indicator {
+    color: #ffd700;
+    font-weight: bold;
+    font-style: italic;
+    text-shadow: 1px 1px 2px #000;
+}
 
 .post-mission-buttons {
     margin-top: auto;
@@ -665,12 +852,13 @@ input[type="range"]::-moz-range-thumb {
     display: flex;
     justify-content: center;
     gap: 15px;
-    border-top: 1px solid #403B30;
+    border-top: 2px groove #4F4A3F;
 }
 
 #postMissionScreen button {
-    padding: 10px 18px;
-    min-width: 150px;
+    padding: 12px 25px;
+    min-width: 180px;
+    font-size: 1.1em;
 }
 
 /* --- Recruit Memorial Screen Enhancements --- */
@@ -799,4 +987,32 @@ input[type="range"]::-moz-range-thumb {
     padding: 12px 25px;
     font-size: 1.1em;
     min-width: 200px;
+}
+
+/* --- Video Loading Screen --- */
+#videoLoadingScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
+    z-index: 200; /* Highest z-index to cover everything */
+    display: none; /* Hidden by default */
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease-in-out;
+}
+
+#videoLoadingScreen.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#loadingVideoPlayer {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* This is key: scales the video to cover the screen without stretching */
 }

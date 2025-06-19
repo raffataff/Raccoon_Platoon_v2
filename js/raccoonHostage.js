@@ -32,16 +32,20 @@ class RaccoonHostage extends Raccoon {
         this.assignedRankOnRescue = randomRankEntry.rankName;
         this.assignedXpOnRescue = randomRankEntry.xpNeeded !== undefined ? randomRankEntry.xpNeeded : 0;
 
-        this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5; // Use raccoon scale
+        this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5;
         this.canShootWhileMoving = false; 
         this.aiState = 'IDLE_HOSTAGE';
         this.isPlayerDirectFiring = false; 
         this.isHoldingPosition = false; 
 
-        // --- NEW: Hostage Sprite Logic ---
         this.hostageSpritePath = 'assets/images/units/raccoon/hostage/';
         this.unrescuedKneelingSprite = null;
-        this.unrescuedKneelingSpriteDirection = 's'; // Default if random pick fails
+        this.unrescuedKneelingSpriteDirection = 's';
+
+        // --- NEW: Help Text Timer ---
+        this.helpTextConfig = CONFIG.VISUAL_EFFECTS.HOSTAGE_HELP_TEXT || {};
+        this.helpTextTimer = (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0) + Math.random() * ((this.helpTextConfig.INTERVAL_MAX_SECONDS || 9.0) - (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0));
+        // --- END NEW ---
 
         if (!this.isRescued) {
             const kneelingSprites = ['hostage_kneeling_s.png', 'hostage_kneeling_sw.png', 'hostage_kneeling_se.png'];
@@ -55,11 +59,11 @@ class RaccoonHostage extends Raccoon {
             } else {
                 this.unrescuedKneelingSpriteDirection = 's';
             }
-            this.facingAngle = this.getAngleFromDirection(this.unrescuedKneelingSpriteDirection); // Set initial facing angle
-            this.currentVisualState = 'idle_hostage_kneeling'; // Special state
+            this.facingAngle = this.getAngleFromDirection(this.unrescuedKneelingSpriteDirection);
+            this.currentVisualState = 'idle_hostage_kneeling';
         }
-        // --- END NEW ---
     }
+    
 
     // --- NEW: Helper to get angle from direction string ---
     getAngleFromDirection(dirStr) {
@@ -102,21 +106,27 @@ class RaccoonHostage extends Raccoon {
                     break;
                 }
             }
+
+            // --- NEW: Help Text Logic ---
+            this.helpTextTimer -= deltaTime;
+            if (this.helpTextTimer <= 0) {
+                if (this.game && typeof this.game.addVisualEffect === 'function') {
+                    this.game.addVisualEffect('help_text', { parentUnit: this });
+                }
+                this.helpTextTimer = (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0) + Math.random() * ((this.helpTextConfig.INTERVAL_MAX_SECONDS || 9.0) - (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0));
+            }
+            // --- END NEW ---
+
             if (this.isMoving) { 
                 this.isMoving = false;
                 this.currentPath = [];
             }
-            // For unrescued, visual state and direction are fixed by constructor
             this.currentVisualState = 'idle_hostage_kneeling';
-            this.updateVisualDirection(this.facingAngle); // Keep facingAngle consistent with chosen sprite
+            this.updateVisualDirection(this.facingAngle);
 
         } else { // Is rescued
-            // Once rescued, revert to standard Raccoon behavior for visual state and facing
-            // The parent Unit.update() and Raccoon.update() will handle this.
-            // We call super.update() here to invoke Raccoon's update logic, which in turn calls Unit's.
-            super.update(deltaTime); // This will set currentVisualState (walk/idle/fire) based on Raccoon logic
+            super.update(deltaTime); 
 
-            // Hostage-specific following logic (if not holding position)
             if (!this.isHoldingPosition) {
                  if (this.followTarget && this.followTarget.isAlive()) {
                     const distToFollowTarget = distance(this.x, this.y, this.followTarget.x, this.followTarget.y);
@@ -167,12 +177,11 @@ class RaccoonHostage extends Raccoon {
                         this.currentPath = [];
                     }
                 }
-            } else { // Is holding position
+            } else { 
                 if (this.isMoving) {
                     this.isMoving = false;
                     this.currentPath = [];
                 }
-                // Visual state for holding will be handled by super.update if it results in idle
             }
         }
     }
