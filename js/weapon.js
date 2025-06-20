@@ -190,8 +190,7 @@ class Projectile {
 
 class GrenadeProjectile {
     constructor(startX, startY, targetX, targetY, game, shooterUnit) {
-        // --- POOLING NOTE: This constructor is primarily for pool creation. ---
-        this.game = game; // Game instance needed early
+        this.game = game;
         this._spatialGridCells = new Set();
         this._pooled = false;
         this.isActiveInPool = false;
@@ -206,7 +205,6 @@ class GrenadeProjectile {
         this.y = startY;
         this.targetX = targetX;
         this.targetY = targetY;
-        // this.game = game; // Already set
         this.shooterUnit = shooterUnit;
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
 
@@ -229,8 +227,10 @@ class GrenadeProjectile {
         }
         this.rotation = 0;
 
-        this.flightTimeTotal = distance(startX, startY, targetX, targetY) / (grenadeMainConfig.RACCOON_GRENADE_PROJECTILE_SPEED || 120);
-        if (this.flightTimeTotal === 0) this.flightTimeTotal = grenadeVisualConfig.MIN_FLIGHT_TIME || 0.05;
+        // --- MODIFIED: Ensure flightTimeTotal is always recalculated ---
+        this.flightTimeTotal = distance(this.startX, this.startY, this.targetX, this.targetY) / (grenadeMainConfig.RACCOON_GRENADE_PROJECTILE_SPEED || 120);
+        if (this.flightTimeTotal <= 0) this.flightTimeTotal = grenadeVisualConfig.MIN_FLIGHT_TIME || 0.05;
+        // --- END MODIFIED ---
         this.flightTimeElapsed = 0;
 
         const arcPeakMin = grenadeVisualConfig.ARC_PEAK_HEIGHT_MIN || 20;

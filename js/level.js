@@ -65,9 +65,16 @@ class Level {
 
     _rectOverlap(rect1, rect2) { return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y); }
     
-    _isPlacementInvalid(newObstacleShape, newIsDecoration, existingObstacles) {
+    _isPlacementInvalid(newObstacleShape, newIsDecoration, existingObstacles, extraKeepOutZones = []) {
+        // Check against extra keep-out zones first
+        for (const zone of extraKeepOutZones) {
+            if (rectOverlap(newObstacleShape, zone)) {
+                return true; // Invalid if it overlaps a keep-out zone
+            }
+        }
+
         for (const existing of existingObstacles) {
-            if (newIsDecoration && existing.isDecoration) { // Allow decorations to overlap other decorations
+            if (newIsDecoration && existing.isDecoration) { 
                 continue;
             }
     
@@ -87,20 +94,14 @@ class Level {
                 if (existingShape.type === 'rectangle') collision = rectEllipseOverlap(existingShape, newObstacleShape);
                 else if (existingShape.type === 'circle') collision = circleEllipseOverlap(existingShape, newObstacleShape);
                 else if (existingShape.type === 'ellipse') {
-                    // Basic AABB check for ellipse-ellipse as a proxy for more complex check
                     const r1 = { x: newObstacleShape.x - newObstacleShape.radiusX, y: newObstacleShape.y - newObstacleShape.radiusY, width: newObstacleShape.radiusX * 2, height: newObstacleShape.radiusY * 2 };
                     const r2 = { x: existingShape.x - existingShape.radiusX, y: existingShape.y - existingShape.radiusY, width: existingShape.radiusX * 2, height: existingShape.radiusY * 2 };
-                    collision = rectOverlap(r1, r2); // If AABBs don't overlap, ellipses can't. This isn't perfect.
-                    // For more accuracy, a separating axis theorem for ellipses would be needed, which is complex.
-                    // Or, if AABBs do overlap, then a more precise ellipse-ellipse check (e.g. pointInEllipse checks on boundary points).
+                    collision = rectOverlap(r1, r2);
                 }
             }
             
             if (collision) {
-                // If it's a decoration trying to place on a non-decoration, allow if it's just a "providesCover" overlap
                 if (newIsDecoration && !existing.isDecoration && !existing.blocksMovement && existing.providesCover) {
-                    // This might be too permissive, but allows grass on edges of rocks etc.
-                    // For stricter placement, remove this 'continue'.
                     continue; 
                 }
                 return true; 
@@ -478,13 +479,15 @@ class Level {
         };
     }
 
-    generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParamsContainer = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}, missionSeed) {
+        generateLevelAndGetPlayerSpawns(worldWidth, worldHeight, missionParamsContainer = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}, missionSeed) {
         this.rng = new SeededRandom(missionSeed);
         this.obstacles = [];
         this.potentialSpawnerHuts = []; 
         this.activeSpawningHuts = [];
         this.initialHostageCount = 0; 
         this.missionTargetObstacles = [];
+
+        const extraKeepOutZones = [];
 
         if (this.game) {
             this.game.enemyUnits = [];
@@ -496,7 +499,6 @@ class Level {
         const baseParams = missionParamsContainer.baseParams || {};
 
         const genConfig = CONFIG.LEVEL_GENERATION || {};
-        // ... (border and playable area setup - unchanged) ...
         const playableMinX = (genConfig.BORDER_WIDTH || 30) + (genConfig.WORLD_MARGIN || 20);
         const playableMaxX = worldWidth - (genConfig.BORDER_WIDTH || 30) - (genConfig.WORLD_MARGIN || 20);
         const playableMinY = (genConfig.BORDER_WIDTH || 30) + (genConfig.WORLD_MARGIN || 20);
@@ -507,10 +509,8 @@ class Level {
         const playerSpawnZoneWidth = Math.max(pSpawnCfg.MIN_WIDTH || 150, playableWidth * (pSpawnCfg.WIDTH_FACTOR || 0.20));
         const playerSpawnZoneHeight = Math.max(pSpawnCfg.MIN_HEIGHT || 100, playableHeight * (pSpawnCfg.HEIGHT_FACTOR || 0.20));
         const playerSpawnZone = { x: playableMinX, y: playableMaxY - playerSpawnZoneHeight, width: playerSpawnZoneWidth, height: playerSpawnZoneHeight };
+        extraKeepOutZones.push(playerSpawnZone);
 
-
-        // ... (Border, EZ, Mission Target Obstacle (DESTROY_TARGET) Spawning - unchanged) ...
-        // Border generation...
         const sideBorderWidth = genConfig.BORDER_WIDTH || 30;
         const sideBorderColor = genConfig.BORDER_COLOR || '#25221D';
         const borderObstacleTypeName = genConfig.BORDER_OBSTACLE_TYPE;
@@ -637,7 +637,7 @@ class Level {
                             };
                             const collisionShapeForPlacementCheck = this._getObstacleCollisionShape(tempTargetForShapeCheck);
 
-                            if (!this._rectOverlap(collisionShapeForPlacementCheck, playerSpawnZone) && !this._isPlacementInvalid(collisionShapeForPlacementCheck, template.isDecoration, this.obstacles)) {
+                            if (!this._isPlacementInvalid(collisionShapeForPlacementCheck, template.isDecoration, this.obstacles, extraKeepOutZones)) {
                                 const missionTargetObs = {
                                     x: targetX, y: targetY, width: targetWidth, height: targetHeight,
                                     type: template.type, name: `${objective.targetNameSingular || template.name || template.type} (Objective)`,
@@ -667,7 +667,59 @@ class Level {
             }
         });
 
+        const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {}; 
+        const enemyDensityFactor = baseParams.enemyDensityFactor || 1.0; 
+        const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
+        const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5; 
+        const totalEnemiesToSpawn_InitialCalculation = Math.floor(baseNumEnemies * enemyDensityFactor) + this.rng.nextInt(0, Math.floor(randomAddMax * enemyDensityFactor));
+        
+        let enemiesSpawnedCount = 0; 
+        const enemyGroups = []; 
+        let bossSpawned = false;
+        const assassinationObjectiveInstance = missionObjectives.find(obj => obj.type === "ASSASSINATION");
 
+        if (assassinationObjectiveInstance && assassinationObjectiveInstance.targetDetails) {
+            const targetInfo = assassinationObjectiveInstance.targetDetails;
+            if (targetInfo.assassinationTypeKey === 'possum_boss_1') {
+                let bossX, bossY;
+                const bossMaxAttempts = 25; 
+                const bossSize = CONFIG.POSSUM_BOSS_1_SIZE * 5; 
+                const bossArenaRadius = CONFIG.POSSUM_BOSS_1_WEAPON_RANGE * 0.5;
+                
+                const bossSpawnMinX = playableMinX + bossArenaRadius;
+                const bossSpawnMaxX = playableMaxX - bossArenaRadius;
+                const bossSpawnMinY = playableMinY + bossArenaRadius;
+                const bossSpawnMaxY = playableMinY + (playableHeight * 0.5) - bossArenaRadius;
+
+                for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
+                    bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
+                    bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
+                    
+                    if (this.isSpawnPointClear(bossX, bossY, bossSize, this.obstacles, [])) {
+                        const boss = new PossumBoss1(bossX, bossY, this.game);
+                        this.game.enemyUnits.push(boss);
+                        assassinationObjectiveInstance.targetUnitId = boss.id;
+                        bossSpawned = true;
+                        enemiesSpawnedCount++;
+
+                        const arenaZone = {
+                            x: bossX - bossArenaRadius,
+                            y: bossY - bossArenaRadius,
+                            width: bossArenaRadius * 2,
+                            height: bossArenaRadius * 2
+                        };
+                        extraKeepOutZones.push(arenaZone);
+                        console.log(`Boss arena created at (${arenaZone.x.toFixed(0)}, ${arenaZone.y.toFixed(0)})`);
+
+                        break;
+                    }
+                }
+                if (!bossSpawned) {
+                    console.warn(`[Level Gen] Could not find suitable spawn for Boss Target: ${targetInfo.name}.`);
+                }
+            }
+        }
+        
         const obsGenCfg = genConfig.OBSTACLES || {}; 
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
         const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
@@ -723,10 +775,7 @@ class Level {
                 const tempObstacleForShape = { ...template, x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight };
                 const collisionCheckShape = this._getObstacleCollisionShape(tempObstacleForShape);
                 
-                const renderBoxForPlayerZoneCheck = { x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight };
-                if (obsX < playableMinX || obsX + obsRenderWidth > playableMaxX || obsY < playableMinY || obsY + obsRenderHeight > playableMaxY) { attempts++; continue; }
-                
-                if (!this._rectOverlap(renderBoxForPlayerZoneCheck, playerSpawnZone) && !this._isPlacementInvalid(collisionCheckShape, template.isDecoration, this.obstacles)) {
+                if (!this._isPlacementInvalid(collisionCheckShape, template.isDecoration, this.obstacles, extraKeepOutZones)) {
                     const newObstacle = {
                         x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight, type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
@@ -749,59 +798,6 @@ class Level {
             } while (!placed && attempts < placementMaxAttempts);
         }
         
-        // Enemy Spawning Logic (includes boss logic)
-        const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {}; 
-        const enemyDensityFactor = baseParams.enemyDensityFactor || 1.0; 
-        const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
-        const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5; 
-        const totalEnemiesToSpawn_InitialCalculation = Math.floor(baseNumEnemies * enemyDensityFactor) + this.rng.nextInt(0, Math.floor(randomAddMax * enemyDensityFactor));
-        
-        let enemiesSpawnedCount = 0; 
-        const enemyGroups = []; 
-        let bossSpawned = false;
-        const assassinationObjectiveInstance = missionObjectives.find(obj => obj.type === "ASSASSINATION");
-
-        // --- MODIFIED: Spawn Boss if it's an Assassination mission ---
-        if (assassinationObjectiveInstance && assassinationObjectiveInstance.targetDetails) {
-            const targetInfo = assassinationObjectiveInstance.targetDetails;
-            if (targetInfo.assassinationTypeKey === 'possum_boss_1') { // Check if this is the boss we need to spawn
-                let bossX, bossY, isBossSpawnClear;
-                let bossPlacementAttempts = 0;
-                const bossMaxAttempts = 15; 
-                const bossSize = CONFIG.POSSUM_BOSS_1_SIZE;
-                // Try to place boss further away, maybe in top third of playable map
-                const bossSpawnMinX = playableMinX;
-                const bossSpawnMaxX = playableMaxX - bossSize;
-                const bossSpawnMinY = playableMinY;
-                const bossSpawnMaxY = playableMinY + (playableHeight * 0.33) - bossSize;
-
-                do {
-                    bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
-                    bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
-                    const bossFootprint = {x: bossX - bossSize/2, y: bossY - bossSize/2, width: bossSize, height: bossSize};
-                    isBossSpawnClear = this.isSpawnPointClear(bossX, bossY, bossSize, this.obstacles, this.game.enemyUnits) && 
-                                   !this._rectOverlap(bossFootprint, playerSpawnZone);
-                    bossPlacementAttempts++;
-                } while (!isBossSpawnClear && bossPlacementAttempts < bossMaxAttempts);
-
-                if (isBossSpawnClear) {
-                    const boss = new PossumBoss1(bossX, bossY, this.game); // Ensure PossumBoss1 is defined
-                    this.game.enemyUnits.push(boss);
-                    assassinationObjectiveInstance.targetUnitId = boss.id; // Link boss instance to objective
-                    if (this.game.spatialGrid) this.game.spatialGrid.addObject(boss);
-                    bossSpawned = true;
-                    enemiesSpawnedCount++; 
-                    console.log(`Assassination Target ${targetInfo.name} (PossumBoss1) spawned at (${bossX.toFixed(0)}, ${bossY.toFixed(0)}).`);
-                } else {
-                    console.warn(`[Level Gen] Could not find suitable spawn for Boss Target: ${targetInfo.name}.`);
-                    // Potentially fail mission generation or spawn a fallback regular enemy as VIP?
-                    // For now, mission might proceed without the specific boss.
-                }
-            }
-            // Add else if for other assassinationTypeKey if you have more VIP types
-        }
-        // --- END MODIFIED ---
-        
         const totalEnemiesToSpawnForThisMission = totalEnemiesToSpawn_InitialCalculation; 
         const avgEnemiesPerGroup = enemySpawnCfg.AVG_ENEMIES_PER_GROUP_ATTEMPT || 2.0; 
         const numberOfGroupsToAttempt = Math.ceil(Math.max(0, totalEnemiesToSpawnForThisMission - enemiesSpawnedCount) / Math.max(1, avgEnemiesPerGroup));
@@ -817,20 +813,20 @@ class Level {
             let groupLeaderX, groupLeaderY, isLeaderSpawnClear; 
             let leaderPlacementAttempts = 0; 
             const leaderMaxAttempts = enemySpawnCfg.LEADER_PLACEMENT_MAX_ATTEMPTS || 20;
-            const minSpawnDistFromPlayerZone = enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 50;
-            let enemySpawnMinX = playableMinX; 
-            if (playerSpawnZone.x < worldWidth / 2) { enemySpawnMinX = playerSpawnZone.x + playerSpawnZone.width + minSpawnDistFromPlayerZone; }
-            const enemySpawnableWidth = Math.max(0, playableMaxX - enemySpawnMinX); 
-            if (enemySpawnableWidth <= CONFIG.POSSUM_HEAVY_SIZE * 2 && playerSpawnZone.x < worldWidth / 2) { continue; } 
-            do {
-                groupLeaderX = (playerSpawnZone.x < worldWidth / 2 && enemySpawnableWidth > CONFIG.POSSUM_HEAVY_SIZE) ? this.rng.nextFloat(enemySpawnMinX, enemySpawnMinX + enemySpawnableWidth - CONFIG.POSSUM_HEAVY_SIZE) : this.rng.nextFloat(playableMinX, playableMaxX - CONFIG.POSSUM_HEAVY_SIZE);
-                groupLeaderY = this.rng.nextFloat(playableMinY, playableMaxY - CONFIG.POSSUM_HEAVY_SIZE);
-                groupLeaderX = Math.max(playableMinX + CONFIG.POSSUM_HEAVY_SIZE / 2, Math.min(groupLeaderX, playableMaxX - CONFIG.POSSUM_HEAVY_SIZE / 2));
-                groupLeaderY = Math.max(playableMinY + CONFIG.POSSUM_HEAVY_SIZE / 2, Math.min(groupLeaderY, playableMaxY - CONFIG.POSSUM_HEAVY_SIZE / 2));
+            
+            for (let attempt = 0; attempt < leaderMaxAttempts; attempt++) {
+                groupLeaderX = this.rng.nextFloat(playableMinX, playableMaxX);
+                groupLeaderY = this.rng.nextFloat(playableMinY, playableMaxY);
+
                 const leaderFootprint = {x: groupLeaderX - CONFIG.POSSUM_HEAVY_SIZE/2, y: groupLeaderY - CONFIG.POSSUM_HEAVY_SIZE/2, width: CONFIG.POSSUM_HEAVY_SIZE, height: CONFIG.POSSUM_HEAVY_SIZE};
-                isLeaderSpawnClear = this.isSpawnPointClear(groupLeaderX, groupLeaderY, CONFIG.POSSUM_HEAVY_SIZE, this.obstacles, this.game.enemyUnits) && !this._rectOverlap(leaderFootprint, playerSpawnZone); 
-                leaderPlacementAttempts++;
-            } while (!isLeaderSpawnClear && leaderPlacementAttempts < leaderMaxAttempts);
+
+                if (this.isSpawnPointClear(groupLeaderX, groupLeaderY, CONFIG.POSSUM_HEAVY_SIZE, this.obstacles, this.game.enemyUnits) &&
+                    !this._isPlacementInvalid(leaderFootprint, false, [], extraKeepOutZones)) {
+                        isLeaderSpawnClear = true;
+                        break;
+                }
+            }
+
             if (isLeaderSpawnClear) {
                 const currentGroupMembers = [];
                 for (let m = 0; m < currentGroupSizeAttempt && enemiesSpawnedCount < totalEnemiesToSpawnForThisMission; m++) {
@@ -847,7 +843,7 @@ class Level {
                         memberX = Math.max(playableMinX + currentEnemyUnitSize / 2, Math.min(memberX, playableMaxX - currentEnemyUnitSize / 2)); 
                         memberY = Math.max(playableMinY + currentEnemyUnitSize / 2, Math.min(memberY, playableMaxY - currentEnemyUnitSize / 2));
                         const memberFootprint = {x: memberX - currentEnemyUnitSize/2, y: memberY - currentEnemyUnitSize/2, width: currentEnemyUnitSize, height: currentEnemyUnitSize};
-                        isMemberSpawnClear = this.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.obstacles, this.game.enemyUnits.concat(currentGroupMembers)) && !this._rectOverlap(memberFootprint, playerSpawnZone); 
+                        isMemberSpawnClear = this.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.obstacles, this.game.enemyUnits.concat(currentGroupMembers)) && !this._isPlacementInvalid(memberFootprint, false, [], extraKeepOutZones); 
                         memberPlacementAttempts++;
                     } while(!isMemberSpawnClear && memberPlacementAttempts < memberMaxAttempts);
                     if (isMemberSpawnClear) {
@@ -861,7 +857,6 @@ class Level {
         }
 
         if (rescueObjectiveInstance) {
-            // ... (Hostage spawning - unchanged)
             const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
             const numHostagesToSpawn = rescueObjectiveInstance.totalToAchieve; 
             this.initialHostageCount = numHostagesToSpawn;
@@ -913,7 +908,7 @@ class Level {
                             const angle = this.rng.nextFloat(0, 2 * Math.PI); const radius = this.rng.nextFloat(0, spawnNearRadius);
                             hostageX = groupLeader.x + Math.cos(angle) * radius; hostageY = groupLeader.y + Math.sin(angle) * radius;
                             hostageX = Math.max(playableMinX + hostageSize / 2, Math.min(hostageX, playableMaxX - hostageSize / 2)); hostageY = Math.max(playableMinY + hostageSize / 2, Math.min(hostageY, playableMaxY - hostageSize / 2));
-                            if (!this._rectOverlap({ x: hostageX - hostageSize/2, y: hostageY - hostageSize/2, width: hostageSize, height: hostageSize }, playerSpawnZone) &&
+                            if (!this._isPlacementInvalid({ x: hostageX - hostageSize/2, y: hostageY - hostageSize/2, width: hostageSize, height: hostageSize }, false, [], extraKeepOutZones) && 
                                 this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
                                 const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
                                 this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++; break; 
@@ -929,7 +924,7 @@ class Level {
                         hostageX = this.rng.nextFloat(playableMinX, playableMaxX - hostageSize);
                         hostageY = this.rng.nextFloat(playableMinY, playableMinY + (playableHeight * 0.6 - hostageSize)); 
                         const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
-                        if (!this._rectOverlap(tempHostageShapeForPlayerZone, playerSpawnZone) && 
+                        if (!this._isPlacementInvalid(tempHostageShapeForPlayerZone, false, [], extraKeepOutZones) && 
                             distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2) > 150 && 
                             this.isSpawnPointClear(hostageX, hostageY, hostageSize, this.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
                             const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${i}`);

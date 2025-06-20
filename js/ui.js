@@ -518,6 +518,87 @@ class UI {
         this.setCursor('default');
     }
     
+    _createPostMissionRecruitCard(recruit, type) {
+        const card = document.createElement('li');
+        card.className = 'post-mission-recruit-card';
+
+        const faceDiv = document.createElement('div');
+        faceDiv.className = 'recruit-face';
+        faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
+        card.appendChild(faceDiv);
+
+        const infoDiv = document.createElement('div');
+        infoDiv.className = 'recruit-info';
+        
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'recruit-name';
+        nameDiv.textContent = recruit.name;
+        infoDiv.appendChild(nameDiv);
+
+        const rankXpContainer = document.createElement('div');
+        rankXpContainer.className = 'recruit-rank-xp-container';
+        
+        // --- MODIFIED: Complete restructure of the rank/xp/promotion info ---
+        if (type === 'survivor' && recruit.promotedThisMission) {
+            card.classList.add('is-promoted');
+            const rankConfig = CONFIG.RANK_THRESHOLDS;
+            const currentRankIndex = rankConfig.findIndex(r => r.rankName === recruit.rank);
+            const prevRank = currentRankIndex > 0 ? rankConfig[currentRankIndex - 1].rankName : "Recruit";
+
+            rankXpContainer.innerHTML = `
+                <div class="rank-wrapper">
+                    <span class="rank-text-old">${prevRank}</span>
+                    <span class="rank-text-new">${recruit.rank}</span>
+                </div>
+                <div class="xp-text">XP: ${recruit.xp}</div>
+                <div class="promotion-indicator">PROMOTED!</div>`;
+        } else if (type === 'fallen') {
+             rankXpContainer.innerHTML = `<div class="rank-text">${recruit.rank || 'Recruit'}</div><div class="status-kia-text">KIA</div>`;
+        } else { // Survivor (not promoted) or New Recruit
+            rankXpContainer.innerHTML = `<div class="rank-text">${recruit.rank}</div><div class="xp-text">XP: ${recruit.xp}</div>`;
+        }
+        // --- END MODIFIED ---
+        infoDiv.appendChild(rankXpContainer);
+        
+        card.appendChild(infoDiv);
+
+        const rankIconContainer = document.createElement('div');
+        rankIconContainer.className = 'rank-icon-container';
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+
+        if (rankIconConfig && rankIconPath) {
+            // --- MODIFIED: Correctly add old rank icon for promotion animation ---
+            if (type === 'survivor' && recruit.promotedThisMission) {
+                const rankConfig = CONFIG.RANK_THRESHOLDS;
+                const currentRankIndex = rankConfig.findIndex(r => r.rankName === recruit.rank);
+                const prevRankName = currentRankIndex > 0 ? rankConfig[currentRankIndex - 1].rankName : null;
+
+                if (prevRankName && rankIconConfig[prevRankName]) {
+                     const oldRankIcon = document.createElement('div');
+                     oldRankIcon.className = 'rank-icon old-rank';
+                     oldRankIcon.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[prevRankName]}')`;
+                     rankIconContainer.appendChild(oldRankIcon);
+                }
+            }
+            // --- END MODIFIED ---
+            if (rankIconConfig[recruit.rank]) {
+                const newRankIcon = document.createElement('div');
+                // --- MODIFIED: Add 'new-rank' class for animation targeting ---
+                newRankIcon.className = 'rank-icon new-rank';
+                newRankIcon.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
+                rankIconContainer.appendChild(newRankIcon);
+            }
+        }
+        card.appendChild(rankIconContainer);
+
+        if (type === 'fallen') {
+            card.classList.add('fallen');
+        }
+
+        return card;
+    }
+
     showPostMissionScreen_Debrief(debriefData) {
         if (!this.postMissionScreen || !debriefData) return;
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
@@ -530,21 +611,19 @@ class UI {
         if(this.missionOutcomeText) this.missionOutcomeText.textContent = isVictory ? (this.uiText.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!") : (this.uiText.POST_MISSION_FAILED || "MISSION FAILED!");
         
         const postMissionInfoEl = document.getElementById('postMissionInfo');
-        if(postMissionInfoEl && phaseData && missionData) {
-            // --- MODIFIED: Add phase and mission numbers ---
+        if(postMissionInfoEl && phaseData && missionData) { 
             const phaseNumText = `Phase ${this.game.currentPhaseIndex + 1}`;
             const missionNumText = `Mission ${this.game.currentMissionIndex + 1} / ${phaseData.missionsInPhase}`;
-            postMissionInfoEl.textContent = `${phaseData.name}  |  ${missionData.name}  |  (${phaseNumText} - ${missionNumText})`;
-            // --- END MODIFIED ---
+            postMissionInfoEl.textContent = `${phaseData.name} | ${missionData.name} | (${phaseNumText} - ${missionNumText})`;
         }
     
         const objectiveListEl = document.getElementById('objectiveStatusList');
         const statTimeTakenEl = document.getElementById('statTimeTaken');
         const statEnemiesKilledEl = document.getElementById('statEnemiesKilled');
         const statHostagesRecruitedEl = document.getElementById('statHostagesRecruited');
-        const survivorListEl = document.getElementById('survivorList');
         const newRecruitsListEl = document.getElementById('newRecruitsList');
-        const fallenListEl = document.getElementById('fallenList');
+        // --- MODIFIED: Use the new unified roster list ---
+        const rosterStatusListEl = document.getElementById('rosterStatusList');
     
         if (objectiveListEl) {
             objectiveListEl.innerHTML = '';
@@ -552,7 +631,7 @@ class UI {
                 objectives.forEach(obj => {
                     const li = document.createElement('li');
                     let text = `${obj.isPrimary ? '(Primary)' : '(Secondary)'} ${obj.type.replace('_', ' ')}`;
-                    li.innerHTML = `<span class="obj-status">${obj.isComplete ? 'COMPLETED' : 'FAILED'}</span> <span class="obj-text">${text}</span>`;
+                    li.innerHTML = `<span class="obj-text">${text}</span><span class="obj-status">${obj.isComplete ? 'COMPLETED' : 'FAILED'}</span>`;
                     li.classList.add(obj.isComplete ? 'completed' : 'failed');
                     objectiveListEl.appendChild(li);
                 });
@@ -563,17 +642,17 @@ class UI {
         if (statEnemiesKilledEl) statEnemiesKilledEl.textContent = enemiesKilled.toString();
         if (statHostagesRecruitedEl) statHostagesRecruitedEl.textContent = (newlyRecruitedRaccoons || []).length.toString();
     
-        if (survivorListEl) {
-            survivorListEl.innerHTML = '';
+        // --- MODIFIED: Populate the unified roster list ---
+        if (rosterStatusListEl) {
+            rosterStatusListEl.innerHTML = '';
             if (survivingRaccoons && survivingRaccoons.length > 0) {
-                survivingRaccoons.forEach(r => { 
-                    const li = document.createElement('li');
-                    const promotionText = r.promotedThisMission ? ' <span class="promotion-indicator">(PROMOTED!)</span>' : '';
-                    li.innerHTML = `<span>${r.name || r.id}</span> <span>Rank: ${r.rank}</span> <span>XP: ${r.xp}${promotionText}</span>`; 
-                    survivorListEl.appendChild(li); 
-                });
-            } else {
-                survivorListEl.innerHTML = `<li>${isVictory ? (this.uiText.POST_MISSION_SURVIVORS_NONE_VICTORY || "Mission accomplished, but no Raccoons survived.") : (this.uiText.POST_MISSION_SURVIVORS_NONE_DEFEAT || "All deployed Raccoons KIA.")}</li>`;
+                survivingRaccoons.forEach(r => rosterStatusListEl.appendChild(this._createPostMissionRecruitCard(r, 'survivor')));
+            }
+            if (fallenRaccoons && fallenRaccoons.length > 0) {
+                fallenRaccoons.forEach(r => rosterStatusListEl.appendChild(this._createPostMissionRecruitCard(r, 'fallen')));
+            }
+            if (survivingRaccoons.length === 0 && fallenRaccoons.length === 0) {
+                 rosterStatusListEl.innerHTML = `<li class="no-entry">${isVictory ? (this.uiText.POST_MISSION_SURVIVORS_NONE_VICTORY || "Mission accomplished, but no Raccoons survived.") : (this.uiText.POST_MISSION_SURVIVORS_NONE_DEFEAT || "All deployed Raccoons KIA.")}</li>`;
             }
         }
     
@@ -581,27 +660,10 @@ class UI {
         if (newRecruitsListEl && newRecruitsContainer) {
             newRecruitsListEl.innerHTML = '';
             if (newlyRecruitedRaccoons && newlyRecruitedRaccoons.length > 0) {
-                newRecruitsContainer.style.display = 'block';
-                newlyRecruitedRaccoons.forEach(r => {
-                    const li = document.createElement('li');
-                    li.innerHTML = `<span>${r.name || r.id}</span> <span>Rank: ${r.rank}</span> <span>XP: ${r.xp}</span>`; 
-                    newRecruitsListEl.appendChild(li);
-                });
+                newRecruitsContainer.style.display = 'flex';
+                newlyRecruitedRaccoons.forEach(r => newRecruitsListEl.appendChild(this._createPostMissionRecruitCard(r, 'new')));
             } else {
                 newRecruitsContainer.style.display = 'none';
-            }
-        }
-    
-        if (fallenListEl) {
-            fallenListEl.innerHTML = '';
-            if (fallenRaccoons && fallenRaccoons.length > 0) {
-                fallenRaccoons.forEach(fallenBrief => { 
-                    const li = document.createElement('li'); 
-                    li.innerHTML = `<span>${fallenBrief.name || fallenBrief.id}</span> <span>(Rank: ${fallenBrief.rank})</span>`; 
-                    fallenListEl.appendChild(li); 
-                });
-            } else { 
-                fallenListEl.innerHTML = `<li>${this.uiText.POST_MISSION_FALLEN_NONE || "No casualties this mission."}</li>`; 
             }
         }
     
@@ -609,40 +671,39 @@ class UI {
         const retryMissionBtn = document.getElementById('retryMissionButton');
         const viewMemorialBtn = document.getElementById('viewMemorialButton');
         
-        if (viewMemorialBtn) {
-            viewMemorialBtn.style.display = (this.game && this.game.fallenRaccoonsGlobal && this.game.fallenRaccoonsGlobal.length > 0) ? 'inline-block' : 'none';
-        }
+        if (viewMemorialBtn) { viewMemorialBtn.style.display = (this.game?.fallenRaccoonsGlobal?.length > 0) ? 'inline-block' : 'none'; }
         if (campaignComplete && isVictory) {
             if (nextMissionBtn) { nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign"; nextMissionBtn.style.display = 'inline-block'; nextMissionBtn.disabled = false; }
             if (retryMissionBtn) retryMissionBtn.style.display = 'none';
         } else if (isVictory) {
             if (nextMissionBtn) {
-                 const currentPhaseStructure = debriefData.phaseData; 
-                 const missionsInThisPhase = currentPhaseStructure.missionsInPhase;
-                 const isEndOfCurrentPhase = this.game.currentMissionIndex >= (missionsInThisPhase - 1);
-                 if (isEndOfCurrentPhase) { 
-                     const isEndOfCampaign = this.game.currentPhaseIndex + 1 >= this.game.totalCampaignPhases;
-                     if (!isEndOfCampaign) { 
-                         let nextPhaseName = `Phase ${this.game.currentPhaseIndex + 2}`; 
-                         if (this.game.campaignStructure[this.game.currentPhaseIndex + 1] && this.game.campaignStructure[this.game.currentPhaseIndex + 1].name) {
-                             nextPhaseName = this.game.campaignStructure[this.game.currentPhaseIndex + 1].name;
-                         }
-                         nextMissionBtn.textContent = (this.uiText.BUTTON_TEXT_START_PHASE_PREFIX || "Start ") + nextPhaseName;
-                     } else { 
-                         nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats";
-                     }
-                 } else {
-                     nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_NEXT_MISSION || "Next Mission";
-                 }
-                 nextMissionBtn.style.display = 'inline-block'; nextMissionBtn.disabled = false;
+                const currentPhaseStructure = debriefData.phaseData; 
+                const missionsInThisPhase = currentPhaseStructure.missionsInPhase;
+                const isEndOfCurrentPhase = this.game.currentMissionIndex >= (missionsInThisPhase - 1);
+                if (isEndOfCurrentPhase) { 
+                    const isEndOfCampaign = this.game.currentPhaseIndex + 1 >= this.game.totalCampaignPhases;
+                    if (!isEndOfCampaign) { 
+                        let nextPhaseName = `Phase ${this.game.currentPhaseIndex + 2}`; 
+                        if (this.game.campaignStructure[this.game.currentPhaseIndex + 1]?.name) {
+                            nextPhaseName = this.game.campaignStructure[this.game.currentPhaseIndex + 1].name;
+                        }
+                        nextMissionBtn.textContent = (this.uiText.BUTTON_TEXT_START_PHASE_PREFIX || "Start ") + nextPhaseName;
+                    } else { 
+                        nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats";
+                    }
+                } else {
+                    nextMissionBtn.textContent = this.uiText.BUTTON_TEXT_NEXT_MISSION || "Next Mission";
+                }
+                nextMissionBtn.style.display = 'inline-block'; 
+                nextMissionBtn.disabled = false;
             }
             if (retryMissionBtn) retryMissionBtn.style.display = 'none';
-        } else { // Mission Failed
+        } else {
             if (nextMissionBtn) nextMissionBtn.style.display = 'none';
             if (retryMissionBtn) { 
                 retryMissionBtn.textContent = this.uiText.BUTTON_TEXT_RETRY_MISSION || "Retry Mission"; 
                 retryMissionBtn.style.display = 'inline-block'; 
-                retryMissionBtn.disabled = !(this.game && this.game.getAvailableRecruits().length > 0); 
+                retryMissionBtn.disabled = !(this.game?.getAvailableRecruits().length > 0); 
             }
         }
     

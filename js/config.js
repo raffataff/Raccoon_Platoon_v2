@@ -110,21 +110,19 @@ const CONFIG = {
     POSSUM_BOSS_1_WEAPON_ACCURACY_STATIONARY: 1.0, 
     POSSUM_BOSS_1_WEAPON_ACCURACY_MOVING: 1.0,
     POSSUM_BOSS_1_GRENADE_AOE_RADIUS: 80,
-    // --- NEW: Secondary Weapon for Boss ---
     POSSUM_BOSS_1_SECONDARY_WEAPON: {
         DAMAGE: 15,
-        ROF: 4, // Rate of fire
+        ROF: 4, // --- CORRECTED: From 1 to 4 for a faster burst ---
         RANGE: 320,
         PROJECTILE_SPEED: 450,
         ACCURACY_STATIONARY: 0.80,
         ACCURACY_MOVING: 0.40,
-        PROJECTILE_COLOR: '#FF8C00' // Dark Orange
+        PROJECTILE_COLOR: '#FF8C00'
     },
-    // --- END NEW ---
     POSSUM_BOSS_1_SPRITE_PATH: 'assets/images/units/possum_boss_1/',
-    POSSUM_BOSS_1_SPRITE_SCALE_FACTOR: 0.3,
+    POSSUM_BOSS_1_SPRITE_SCALE_FACTOR: 0.2,
     POSSUM_BOSS_1_DEAD_SPRITE_PATH: 'assets/images/units/possum_boss_1/dead/',
-    POSSUM_BOSS_1_DEAD_SPRITE_FILES: ['possum_boss1_dead1.png', 'possum_boss1_dead2.png'],
+    POSSUM_BOSS_1_DEAD_SPRITE_FILES: ['possum_boss1_dead1.png'],
     POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.1,
     PROJECTILE_COLOR_POSSUM_BOSS_1: '#FF4500',
     XP_FOR_BOSS_KILL: 250,
@@ -180,17 +178,18 @@ const CONFIG = {
         },
         POSSUM_BOSS_1: {
             DETECTION_RANGE: 500,
-            // Engagement Distances
-            PREFERRED_GRENADE_RANGE_MIN: 50,
             PREFERRED_GRENADE_RANGE_MAX: 450,
-            MIN_ENGAGEMENT_DISTANCE: 80, 
-            // Cooldowns & Volleys
-            GRENADE_THROW_COOLDOWN_BASE: 0.3,  // Time between each grenade in a volley
-            GRENADE_THROW_COOLDOWN_RANDOM_ADD: 0.4,
-            MG_SUPPRESSION_DURATION_SECONDS: 0.7, // How long it fires the MG before switching back
-            GRENADES_PER_VOLLEY: 3,             // How many grenades it fires in a row
-            // State Timers
-            EVALUATION_INTERVAL_SECONDS: 0.5, 
+            MIN_ENGAGEMENT_DISTANCE: 120, // Push player back if they get this close
+            
+            // --- MODIFIED: New Volley & Burst settings ---
+            GRENADE_COOLDOWN_BETWEEN_SHOTS: 0.6, // Time between each grenade in a volley
+            GRENADES_PER_VOLLEY: 4,             // How many grenades it fires in a row
+            GRENADE_TARGET_SPREAD_RADIUS: 180,   // How far from the player it can aim grenades
+            
+            MG_BURST_SIZE: 5,                   // How many shots in one MG burst
+            MG_COOLDOWN_AFTER_BURST: 2.5,       // Cooldown after completing an MG burst
+            // --- END MODIFIED ---
+
             REPOSITION_DURATION_MAX_SECONDS: 2.0 
         },
     },
@@ -273,7 +272,7 @@ const CONFIG = {
         RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.3 },
         POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.7, pitchVariation: 0.03 },
         POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.mp3', defaultVolume: 0.3, pitchVariation: 0.03 },
-        POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.mp3', defaultVolume: 0.6, pitchVariation: 0.1 },
+        POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.mp3', defaultVolume: 0.2, pitchVariation: 0.1 },
         GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.mp3', defaultVolume: 0.3, pitchVariation: 0.4 },
         // Unit SFX
         UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.1 },
@@ -405,7 +404,7 @@ const CONFIG = {
     POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
     POSSUM_HUT_SPRITE_FILES: ['possum_hut_1.png'],
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
-    POSSUM_RELAY_TOWER_SPRITE_FILES: ['possum_tower_1.png'],
+    POSSUM_RELAY_TOWER_SPRITE_FILES: ['possum_tower_2.png'],
 
 
     HEALTH_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/health/',
@@ -597,9 +596,9 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.01,
             spriteScale: 0.9,
-            spriteNormal: 'assets/images/objects/possums/towers/possum_tower_1.png', 
-            spriteDestroyed: 'assets/images/objects/possums/towers/possum_relay_tower_destroyed.png',
-            spriteDestroyedScale: 0.5,
+            spriteNormal: 'assets/images/objects/possums/towers/possum_tower_2.png', 
+            spriteDestroyed: 'assets/images/objects/possums/towers/possum_tower_2_destroyed.png',
+            spriteDestroyedScale: 0.9,
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.15), radiusX: (w=>w*0.44), radiusY: (h=>h*0.33) },
             isDecoration: false,
             sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED' // Example: You'd add this key to AUDIO_ASSETS

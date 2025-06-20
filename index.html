@@ -77,13 +77,14 @@
         </div>
     </div>
 
-    <div id="postMissionScreen" class="ui-panel" style="display: none;">
+        <div id="postMissionScreen" class="ui-panel">
         <h2 id="missionOutcome">MISSION OUTCOME</h2>
         <p id="postMissionInfo">Phase X - Mission Y</p>
-    
+
+        <!-- MODIFIED: New wrapper for a cleaner layout -->
         <div class="post-mission-content-wrapper">
-            <!-- Left Column -->
-            <div class="post-mission-column">
+            <!-- Left Column for Stats -->
+            <div class="post-mission-column-left">
                 <div id="objectivesStatusContainer" class="post-mission-section">
                     <h4>Objective Status</h4>
                     <ul id="objectiveStatusList">
@@ -96,17 +97,16 @@
                         <p>Time Taken:</p><p><span id="statTimeTaken">0.0</span>s</p>
                         <p>Enemies Eliminated:</p><p><span id="statEnemiesKilled">0</span></p>
                         <p>Hostages Recruited:</p><p><span id="statHostagesRecruited">0</span></p>
-                        <!-- More stats can be added here -->
                     </div>
                 </div>
             </div>
     
-            <!-- Right Column -->
-            <div class="post-mission-column">
-                <div id="survivorContainer" class="post-mission-section">
-                    <h4>Surviving Raccoons</h4>
-                    <ul id="survivorList">
-                        <!-- JS Populated -->
+            <!-- Right Column for Roster -->
+            <div class="post-mission-column-right">
+                 <div id="rosterStatusContainer" class="post-mission-section">
+                    <h4>Roster Status</h4>
+                    <ul id="rosterStatusList">
+                        <!-- JS Populated with survivors AND fallen -->
                     </ul>
                 </div>
                 <div id="newRecruitsContainer" class="post-mission-section">
@@ -115,18 +115,12 @@
                         <!-- JS Populated -->
                     </ul>
                 </div>
-                <div id="fallenContainer" class="post-mission-section">
-                    <h4>Fallen Heroes</h4>
-                    <ul id="fallenList">
-                        <!-- JS Populated -->
-                    </ul>
-                </div>
             </div>
         </div>
     
         <div class="post-mission-buttons">
-            <button id="retryMissionButton" style="display:none;">Retry Mission</button>
             <button id="viewMemorialButton" style="display:none;">View Recruit Memorial</button>
+            <button id="retryMissionButton" style="display:none;">Retry Mission</button>
             <button id="nextMissionButton" style="display:none;">Next</button>
         </div>
     </div>
