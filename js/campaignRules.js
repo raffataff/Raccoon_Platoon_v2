@@ -75,7 +75,7 @@ const CAMPAIGN_RULES = {
         { 
             type: "ASSASSINATION",    
             weight: 2, // Keep this relatively low if it's mainly for phase finales
-            unlocksPhase: 1, // Or 0 if you want non-boss assassinations earlier
+            unlocksPhase: 0, // Or 0 if you want non-boss assassinations earlier
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
             isPrimary: true,
@@ -124,7 +124,7 @@ const CAMPAIGN_RULES = {
             assassinationTypeKey: "possum_boss_1",
             name: "General Whiskers", callsign: "Whiskers", 
             description: "A cunning strategist known for his brutal tactics.", 
-            weight: 3, unlocksPhase: 1, isBoss: true 
+            weight: 3, unlocksPhase: 0, isBoss: true 
         },
         { 
             assassinationTypeKey: "possum_boss_1",

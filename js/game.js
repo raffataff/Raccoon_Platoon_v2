@@ -224,21 +224,27 @@ class Game {
             {
                 name: 'raccoon',
                 basePath: CONFIG.RACCOON_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], walk: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], fire: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }, 
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']}, 
                 deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
             },
             {
+                name: 'raccoon_hostage',
+                basePath: 'assets/images/units/raccoon/hostage/', // Base path to the folder
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }
+                // We reuse the standard raccoon dead sprite, so no deadPath/deadFiles needed here
+            },
+            {
                 name: 'possum_grunt',
                 basePath: CONFIG.POSSUM_GRUNT_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], walk: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], fire: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }, 
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']}, 
                 deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
             },
             {
                 name: 'possum_heavy',
                 basePath: CONFIG.POSSUM_HEAVY_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], walk: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], fire: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }, 
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']}, 
                 deadPath: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES
             },
@@ -246,10 +252,7 @@ class Game {
                 name: 'possum_boss_1',
                 basePath: CONFIG.POSSUM_BOSS_1_SPRITE_PATH,
                 actions: { 
-                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
-                    walk: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'], 
-                    fire: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']  
-                },
+                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']},
                 deadPath: CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_FILES
             }
@@ -259,8 +262,16 @@ class Game {
             if (unitTypeConfig.basePath && unitTypeConfig.actions) {
                 for (const actionKey in unitTypeConfig.actions) { 
                     unitTypeConfig.actions[actionKey].forEach(dir => {
+                        // --- MODIFIED: Use a consistent naming convention ---
+                        let filename;
+                        if (unitTypeConfig.name === 'raccoon_hostage') {
+                             filename = `hostage_idle_${dir}.png`;
+                        } else {
+                             filename = `${unitTypeConfig.name}_${actionKey}_${dir}.png`;
+                        }
                         const spriteKey = `${unitTypeConfig.name}_${actionKey}_${dir}`;
-                        const spritePath = `${unitTypeConfig.basePath}${actionKey}/${spriteKey}.png`; 
+                        const spritePath = `${unitTypeConfig.basePath}${actionKey}/${filename}`; 
+                        // --- END MODIFIED ---
 
                         if (!this.preloadedImages[spriteKey]) { 
                             imagePromises.push(new Promise((resolve) => {
@@ -476,7 +487,7 @@ class Game {
         }
 
         if (this.ui) {
-            const videoPaths = ['assets/video/raccoon_1.mp4', 'assets/video/raccoon_2.mp4', 'assets/video/raccoon_3.mp4', 'assets/video/raccoon_4.mp4'];
+            const videoPaths = ['assets/video/raccoon_1.mp4', 'assets/video/raccoon_2.mp4', 'assets/video/raccoon_3.mp4', 'assets/video/raccoon_4.mp4', 'assets/video/raccoon_5.mp4'];
             const randomVideoPath = videoPaths[Math.floor(Math.random() * videoPaths.length)];
             this.ui.showVideoLoadingScreen(randomVideoPath);
         }

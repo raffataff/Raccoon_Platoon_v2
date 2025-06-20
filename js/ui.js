@@ -43,10 +43,10 @@ class UI {
         this.startMissionButton = document.getElementById('startMissionButton');
         this.retryMissionButton = document.getElementById('retryMissionButton');
         this.nextMissionButton = document.getElementById('nextMissionButton');
-
+        
         this.videoLoadingScreen = document.getElementById('videoLoadingScreen');
         this.loadingVideoPlayer = document.getElementById('loadingVideoPlayer');
-        
+
         this._addSoundToButton(this.newCampaignButton, () => {
             if (this.game) {
                 this.hideMainMenuScreen();
@@ -130,7 +130,7 @@ class UI {
                  this.mainMenuScreen.style.display = 'flex';
             }
         });
-
+        
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game) {
             const initialSpacing = (this.game && this.game.formationSpacingMultiplier !== undefined) ? this.game.formationSpacingMultiplier : (CONFIG.INITIAL_FORMATION_SPACING || 3.5);
             this.formationSpacingSlider.value = initialSpacing.toString();
@@ -454,7 +454,12 @@ class UI {
             return;
         }
 
-        if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
+        // --- MODIFIED: Add phase and mission numbers ---
+        const phaseNumText = `Phase ${this.game.currentPhaseIndex + 1} / ${this.game.totalCampaignPhases}`;
+        const missionNumText = `Mission ${this.game.currentMissionIndex + 1} / ${phaseData.missionsInPhase}`;
+        if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = `${phaseData.name} (${phaseNumText} - ${missionNumText})`;
+        // --- END MODIFIED ---
+
         if(this.preMissionTitle) this.preMissionTitle.textContent = missionData.baseParams.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
         if(this.preMissionBriefing) this.preMissionBriefing.textContent = missionData.baseParams.briefing || "No briefing available.";
         
@@ -512,7 +517,7 @@ class UI {
         this.preMissionScreen.style.display = 'flex'; 
         this.setCursor('default');
     }
-
+    
     showPostMissionScreen_Debrief(debriefData) {
         if (!this.postMissionScreen || !debriefData) return;
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
@@ -525,11 +530,13 @@ class UI {
         if(this.missionOutcomeText) this.missionOutcomeText.textContent = isVictory ? (this.uiText.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!") : (this.uiText.POST_MISSION_FAILED || "MISSION FAILED!");
         
         const postMissionInfoEl = document.getElementById('postMissionInfo');
-        // --- MODIFIED: Removed incorrect .baseParams access ---
-        if(postMissionInfoEl && phaseData && missionData) { 
-             postMissionInfoEl.textContent = `${phaseData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT} - ${missionData.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT}`;
+        if(postMissionInfoEl && phaseData && missionData) {
+            // --- MODIFIED: Add phase and mission numbers ---
+            const phaseNumText = `Phase ${this.game.currentPhaseIndex + 1}`;
+            const missionNumText = `Mission ${this.game.currentMissionIndex + 1} / ${phaseData.missionsInPhase}`;
+            postMissionInfoEl.textContent = `${phaseData.name}  |  ${missionData.name}  |  (${phaseNumText} - ${missionNumText})`;
+            // --- END MODIFIED ---
         }
-        // --- END MODIFIED ---
     
         const objectiveListEl = document.getElementById('objectiveStatusList');
         const statTimeTakenEl = document.getElementById('statTimeTaken');

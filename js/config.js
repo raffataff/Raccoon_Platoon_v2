@@ -38,10 +38,6 @@ const CONFIG = {
     RACCOON_MIN_ENGAGEMENT_DISTANCE: 150, // Try to keep this far for grenade lobs
     RACCOON_PREFERRED_ENGAGEMENT_DISTANCE_MAX: 400, // Max preferred range
     RACCOON_ENGAGE_RANGE_BUFFER: 20, // Buffer for deciding to move vs shoot
-    // MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3, // Using Unit's default for now
-    // STUCK_ENGAGE_NUDGE_FACTOR: 2.0, 
-    // STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
-    // DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
     GRENADE_THROW_COOLDOWN_BASE: 4.0,
     GRENADE_THROW_COOLDOWN_RANDOM_ADD: 2.5,
     RACCOON_SPEED: 200,
@@ -75,7 +71,7 @@ const CONFIG = {
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_RIFLE_DAMAGE: 8,
     POSSUM_RIFLE_ROF: 5,
-    POSSUM_RIFLE_RANGE: 350,
+    POSSUM_RIFLE_RANGE: 400,
     POSSUM_RIFLE_PROJECTILE_SPEED: 400,
     POSSUM_RIFLE_ACCURACY_STATIONARY: 0.75,
     POSSUM_RIFLE_ACCURACY_MOVING: 0.45,
@@ -103,25 +99,35 @@ const CONFIG = {
     POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.55, 
 
     // --- Units: Possum Boss 1 ---
-    POSSUM_BOSS_1_HP: 250, // Increased HP
-    POSSUM_BOSS_1_SPEED: 900, // Slightly slower
-    POSSUM_BOSS_1_SIZE: 20,  // Larger
-    POSSUM_BOSS_1_COLOR: '#703510', // Darker brown/red
-    POSSUM_BOSS_1_WEAPON_DAMAGE: 55, // Grenade damage
-    POSSUM_BOSS_1_WEAPON_ROF: 0.25, // Corresponds to cooldown (1/0.25 = 4s) - used for GRENADE_THROW_COOLDOWN_BASE
+    POSSUM_BOSS_1_HP: 250,
+    POSSUM_BOSS_1_SPEED: 900,
+    POSSUM_BOSS_1_SIZE: 18,
+    POSSUM_BOSS_1_COLOR: '#703510',
+    POSSUM_BOSS_1_WEAPON_DAMAGE: 55,
+    POSSUM_BOSS_1_WEAPON_ROF: 0.25,
     POSSUM_BOSS_1_WEAPON_RANGE: 450, 
-    POSSUM_BOSS_1_WEAPON_PROJECTILE_SPEED: 200, // Slower for grenades
-    // Accuracy for grenades is more about the AI's targeting than projectile spread
+    POSSUM_BOSS_1_WEAPON_PROJECTILE_SPEED: 200,
     POSSUM_BOSS_1_WEAPON_ACCURACY_STATIONARY: 1.0, 
     POSSUM_BOSS_1_WEAPON_ACCURACY_MOVING: 1.0,
-    POSSUM_BOSS_1_GRENADE_AOE_RADIUS: 80, // Larger AOE for boss grenades
+    POSSUM_BOSS_1_GRENADE_AOE_RADIUS: 80,
+    // --- NEW: Secondary Weapon for Boss ---
+    POSSUM_BOSS_1_SECONDARY_WEAPON: {
+        DAMAGE: 15,
+        ROF: 4, // Rate of fire
+        RANGE: 320,
+        PROJECTILE_SPEED: 450,
+        ACCURACY_STATIONARY: 0.80,
+        ACCURACY_MOVING: 0.40,
+        PROJECTILE_COLOR: '#FF8C00' // Dark Orange
+    },
+    // --- END NEW ---
     POSSUM_BOSS_1_SPRITE_PATH: 'assets/images/units/possum_boss_1/',
     POSSUM_BOSS_1_SPRITE_SCALE_FACTOR: 0.3,
     POSSUM_BOSS_1_DEAD_SPRITE_PATH: 'assets/images/units/possum_boss_1/dead/',
     POSSUM_BOSS_1_DEAD_SPRITE_FILES: ['possum_boss1_dead1.png', 'possum_boss1_dead2.png'],
-    POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.2,
-    PROJECTILE_COLOR_POSSUM_BOSS_1: '#FF4500', // Example: Orange-red for boss grenades
-    XP_FOR_BOSS_KILL: 250, // XP reward for defeating the boss
+    POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.1,
+    PROJECTILE_COLOR_POSSUM_BOSS_1: '#FF4500',
+    XP_FOR_BOSS_KILL: 250,
     
     // --- Units: General & AI ---
     UNIT_VISUALS: {
@@ -173,22 +179,19 @@ const CONFIG = {
             DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
         },
         POSSUM_BOSS_1: {
-            DETECTION_RANGE: 400,
-            MAX_CHASE_DISTANCE_FROM_POST_FACTOR: 1.5, // Can chase a bit further
-            GUARD_POST_POSITION_TOLERANCE: 7,
-            SUSPICIOUS_STATE_SCAN_DURATION: 1.0,
-            CHASE_PREDICTION_TIME_FACTOR: 0.10, // Less prediction, more direct lobbing
-            CHASE_DESTINATION_REFRESH_INTERVAL: 1.0,
-            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 3,
-            MIN_ENGAGEMENT_DISTANCE: 150, // Try to keep this far for grenade lobs
-            PREFERRED_ENGAGEMENT_DISTANCE_MAX: 400, // Max preferred range
-            ENGAGE_RANGE_BUFFER: 20, // Buffer for deciding to move vs shoot
-            // MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3, // Using Unit's default for now
-            // STUCK_ENGAGE_NUDGE_FACTOR: 2.0, 
-            // STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
-            // DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
-            GRENADE_THROW_COOLDOWN_BASE: 0.5,
-            GRENADE_THROW_COOLDOWN_RANDOM_ADD: 1.5,
+            DETECTION_RANGE: 500,
+            // Engagement Distances
+            PREFERRED_GRENADE_RANGE_MIN: 50,
+            PREFERRED_GRENADE_RANGE_MAX: 450,
+            MIN_ENGAGEMENT_DISTANCE: 80, 
+            // Cooldowns & Volleys
+            GRENADE_THROW_COOLDOWN_BASE: 0.3,  // Time between each grenade in a volley
+            GRENADE_THROW_COOLDOWN_RANDOM_ADD: 0.4,
+            MG_SUPPRESSION_DURATION_SECONDS: 0.7, // How long it fires the MG before switching back
+            GRENADES_PER_VOLLEY: 3,             // How many grenades it fires in a row
+            // State Timers
+            EVALUATION_INTERVAL_SECONDS: 0.5, 
+            REPOSITION_DURATION_MAX_SECONDS: 2.0 
         },
     },
 
@@ -270,7 +273,7 @@ const CONFIG = {
         RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.3 },
         POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.7, pitchVariation: 0.03 },
         POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.mp3', defaultVolume: 0.3, pitchVariation: 0.03 },
-        POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launch.mp3', defaultVolume: 0.6, pitchVariation: 0.1 },
+        POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.mp3', defaultVolume: 0.6, pitchVariation: 0.1 },
         GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.mp3', defaultVolume: 0.3, pitchVariation: 0.4 },
         // Unit SFX
         UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.1 },
@@ -298,16 +301,16 @@ const CONFIG = {
             LIFETIME: 1.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
             COLOR_RGB_FADE_START: [255, 223, 0], VELOCITY_Y: -20
         },
-        EXPLOSION: { LIFETIME: 0.8 },
+        EXPLOSION: { LIFETIME: 1.8 },
         HOSTAGE_HELP_TEXT: {
             TEXT_OPTIONS: ['Help!', 'Over here!', 'Psst!', 'Save me!'],
             LIFETIME_SECONDS: 2.0,
             INTERVAL_MIN_SECONDS: 4.0,
             INTERVAL_MAX_SECONDS: 9.0,
-            FONT: 'bold 18px Arial',
+            FONT: 'bold 18px Lucida Console',
             COLOR: 'yellow',
             Y_OFFSET: -45, // Pixels above the unit's y-coordinate
-            FADE_OUT_START_PERCENT: 0.9 // Starts fading out at 90% of its lifetime
+            FADE_OUT_START_PERCENT: 0.8 // Starts fading out at 90% of its lifetime
         }
     },
     UI_SETTINGS: {

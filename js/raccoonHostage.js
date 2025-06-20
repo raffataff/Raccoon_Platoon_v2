@@ -42,10 +42,8 @@ class RaccoonHostage extends Raccoon {
         this.unrescuedKneelingSprite = null;
         this.unrescuedKneelingSpriteDirection = 's';
 
-        // --- NEW: Help Text Timer ---
         this.helpTextConfig = CONFIG.VISUAL_EFFECTS.HOSTAGE_HELP_TEXT || {};
         this.helpTextTimer = (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0) + Math.random() * ((this.helpTextConfig.INTERVAL_MAX_SECONDS || 9.0) - (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0));
-        // --- END NEW ---
 
         if (!this.isRescued) {
             const kneelingSprites = ['hostage_kneeling_s.png', 'hostage_kneeling_sw.png', 'hostage_kneeling_se.png'];
@@ -63,9 +61,7 @@ class RaccoonHostage extends Raccoon {
             this.currentVisualState = 'idle_hostage_kneeling';
         }
     }
-    
 
-    // --- NEW: Helper to get angle from direction string ---
     getAngleFromDirection(dirStr) {
         switch (dirStr) {
             case 's': return Math.PI / 2;
@@ -79,7 +75,6 @@ class RaccoonHostage extends Raccoon {
             default: return Math.PI / 2;
         }
     }
-    // --- END NEW ---
 
     update(deltaTime) {
         if (!this.isAlive()) {
@@ -107,7 +102,6 @@ class RaccoonHostage extends Raccoon {
                 }
             }
 
-            // --- NEW: Help Text Logic ---
             this.helpTextTimer -= deltaTime;
             if (this.helpTextTimer <= 0) {
                 if (this.game && typeof this.game.addVisualEffect === 'function') {
@@ -115,7 +109,6 @@ class RaccoonHostage extends Raccoon {
                 }
                 this.helpTextTimer = (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0) + Math.random() * ((this.helpTextConfig.INTERVAL_MAX_SECONDS || 9.0) - (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0));
             }
-            // --- END NEW ---
 
             if (this.isMoving) { 
                 this.isMoving = false;
@@ -125,7 +118,13 @@ class RaccoonHostage extends Raccoon {
             this.updateVisualDirection(this.facingAngle);
 
         } else { // Is rescued
-            super.update(deltaTime); 
+            super.update(deltaTime);
+            
+            // --- NEW: Exit if currently phasing to prevent follow logic from interfering ---
+            if (this.isPhasing) {
+                return;
+            }
+            // --- END NEW ---
 
             if (!this.isHoldingPosition) {
                  if (this.followTarget && this.followTarget.isAlive()) {
@@ -198,8 +197,12 @@ class RaccoonHostage extends Raccoon {
         this.aiState = 'FOLLOWING_PLAYER'; 
         this.color = CONFIG.RACCOON_COLOR; 
         this.isHoldingPosition = false; 
-        this.spriteBaseName = 'raccoon'; // Switch to use standard Raccoon sprites
-        this.currentVisualState = 'idle'; // Reset visual state, will be updated by Raccoon/Unit logic
+
+        // --- MODIFIED: Change the sprite base name to use the new hostage sprites ---
+        this.spriteBaseName = 'raccoon_hostage'; 
+        // --- END MODIFIED ---
+
+        this.currentVisualState = 'idle';
 
         console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);
 
@@ -211,14 +214,12 @@ class RaccoonHostage extends Raccoon {
         this.lastRepathTime = 0; 
     }
 
-    // ... (setMoveTarget, addXp, incrementKillCount, etc. from RaccoonHostage remain unchanged)
     setMoveTarget(worldX, worldY) {
         if (!this.isAlive() || !this.isRescued || this.isHoldingPosition) {
             this.isMoving = false;
             this.currentPath = [];
             return false;
         }
-        // Call the original Unit.setMoveTarget logic
         return Unit.prototype.setMoveTarget.call(this, worldX, worldY, this.isPhasing); // Pass phasing status
     }
 
@@ -236,7 +237,6 @@ class RaccoonHostage extends Raccoon {
     _handleEnemyCombat() {} 
 
     die() {
-        // ... (die logic unchanged)
         const wasRescuedBeforeDeath = this.isRescued;
         Unit.prototype.die.call(this); 
         
@@ -255,7 +255,6 @@ class RaccoonHostage extends Raccoon {
     }
 
     render(ctx) {
-        // --- MODIFIED RENDER for Hostage Specific Sprites ---
         if (!this.isRescued && this.isAlive() && this.unrescuedKneelingSprite) {
             ctx.save();
             ctx.translate(this.x, this.y);
@@ -265,7 +264,6 @@ class RaccoonHostage extends Raccoon {
             const sHeight = sprite.naturalHeight * scale;
             ctx.drawImage(sprite, -sWidth / 2, -sHeight / 2, sWidth, sHeight);
             
-            // Rescue prompt
             let playerNear = false;
             if (this.game.deployedSquadRoster) { 
                 for (const playerUnit of this.game.deployedSquadRoster) {
@@ -282,18 +280,7 @@ class RaccoonHostage extends Raccoon {
             }
             ctx.restore();
         } else {
-            // If rescued, or if kneeling sprite isn't available, use parent Raccoon's render.
-            // The parent Raccoon's render will use this.currentVisualState and this.currentVisualDirection
-            // which are set by Raccoon/Unit.update() logic when rescued.
             super.render(ctx); 
         }
-        // --- END MODIFIED ---
     }
-}
-
-// Helper function (if not already globally available or in utils.js)
-function distanceSq(x1, y1, x2, y2) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    return dx * dx + dy * dy;
 }

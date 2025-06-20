@@ -74,7 +74,7 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u', '1', '2', '3', '4']; // Added number keys
+            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u', '1', '2', '3', '4'];
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -134,29 +134,34 @@ class InputHandler {
                     }
                 }
             }
+
+            // --- MODIFIED: 'U' key now affects ALL player-controlled units, not just selected ones. ---
             if ((event.key === 'u' || event.key === 'U') && !isInputFieldActive) {
-                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
-                    console.log("'U' key pressed. Forcing phase out for selected units.");
-                    this.game.selectedUnits.forEach(unit => {
-                        if ((unit instanceof Raccoon || (unit instanceof RaccoonHostage && unit.isRescued)) && unit.isAlive()) {
-                            if (typeof unit.forcePhaseOut === 'function') {
+                const playerUnits = this.game.getLivingPlayerControlledUnits();
+                if (playerUnits && playerUnits.length > 0) {
+                    console.log("'U' key pressed. Forcing phase out for all player-controlled units.");
+                    playerUnits.forEach(unit => {
+                        // The condition `(unit instanceof Raccoon && !(unit instanceof RaccoonHostage))` is redundant
+                        // because RaccoonHostage inherits from Raccoon.
+                        // We just need to ensure hostages are rescued to be considered player-controlled.
+                        if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
+                           if (unit instanceof RaccoonHostage && !unit.isRescued) {
+                                // Don't phase out unrescued hostages
+                           } else {
                                 unit.forcePhaseOut(1.0); // Phase for 1 second
-                            }
+                           }
                         }
                     });
                 }
             }
+            // --- END MODIFIED ---
             
-            // --- NEW: Handle squad member selection via number keys ---
             const keyNumber = parseInt(event.key, 10);
-            if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) { // Support up to 9 units
-                // Check if the game and deployed squad exist
+            if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) { 
                 if (this.game.deployedSquadRoster && this.game.deployedSquadRoster.length >= keyNumber) {
                     const targetUnit = this.game.deployedSquadRoster[keyNumber - 1];
                     
-                    // Check if the target unit is valid and alive
                     if (targetUnit && targetUnit.isAlive()) {
-                        // Cancel any pending actions on the currently selected units
                         if (this.game.selectedUnits) {
                             this.game.selectedUnits.forEach(unit => {
                                 if (unit instanceof Raccoon && unit.isAimingGrenade) {
@@ -165,16 +170,13 @@ class InputHandler {
                             });
                         }
                         
-                        // Replace the current selection with the new unit
                         this.game.selectedUnits = [targetUnit];
                         
-                        // Update UI to reflect the new selection
                         this.game.ui.updateSquadPanel();
                         this.updateMouseCursor();
                     }
                 }
             }
-            // --- END NEW ---
         });
 
         document.addEventListener('keyup', (event) => {
