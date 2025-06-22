@@ -9,6 +9,10 @@ class PossumBoss1 extends Unit {
               CONFIG.POSSUM_BOSS_1_COLOR, 
               id || `BOSS1-${Date.now().toString(36).slice(-4)}`);
 
+        this.deadSpritePathKey = 'POSSUM_BOSS_1_DEAD_SPRITE_PATH';
+        this.deadSpriteFilesKey = 'POSSUM_BOSS_1_DEAD_SPRITE_FILES';
+        this.deadSpriteScaleKey = 'POSSUM_BOSS_1_DEAD_SPRITE_SCALE';
+        
         this.primaryWeapon = WEAPONS.POSSUM_BOSS_1_WEAPON; 
         this.secondaryWeapon = WEAPONS.POSSUM_BOSS_1_SECONDARY;
         this.weapon = this.primaryWeapon; 

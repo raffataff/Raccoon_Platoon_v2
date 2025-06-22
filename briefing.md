@@ -1,142 +1,109 @@
-# Raccoon Platoon - Project Status & Overview (Gamma - Full Procedural Campaign & Render Debugging Focus)
+Of course, Director. A comprehensive briefing document is essential for team alignment and onboarding. I've synthesized our entire development history, the game's current state, and the future goals outlined in the GDD into the following document.
 
-## Project Overview
+***
 
-**Game Name:** Raccoon Platoon  
-**Concept:** An HTML5 real-time, squad-based, top-down tactical action game inspired by "Cannon Fodder." Players control a squad of raccoon soldiers ("Recruits") through procedurally generated levels, battling enemy possums, and completing mission objectives. (Ref GDD 1.1)
+# Project Briefing & Roadmap: Raccoon Platoon
 
-**Core Loop:**  
-- Squad control (selection, movement, formation)  
-- Tactical combat (direct aiming/firing, special weapons, cover mechanics)  
-- Completing diverse mission objectives  
-- Managing a persistent roster of recruits with permadeath and an XP/promotion system through a multi-phase campaign
-
-**Current State:** Gamma (Major Refactor & Debugging Phase). Core gameplay loop elements are in place.
-
-### Recent Major Advancements & Current Focus
-
-#### Fully Procedural Campaign & Mission Parameter Generation (NEW & CORE FOCUS)
-- `campaignRules.js` restructured to define base parameters with per-phase scaling (e.g., world size, enemy density, heavy chance, objective-specific counts).
-- Weighted pools for qualitative elements (biomes, objective types, target types, text components for names and briefings).
-- Features (objectives, biomes, target types) unlock based on phase progression (`unlocksPhase` property).
-- `Game.js` now dynamically generates the entire campaign structure and individual mission parameters based on `campaignRules.js` and seeded RNGs.
-- The old `CAMPAIGN_DATA.js` is now a reference for content ideas only.
-
-#### Seed-Based Procedural Level Generation (Foundation Stable)
-- Level layouts (obstacles, enemy/hostage placements, decorations) are generated deterministically based on a mission seed.
-
-#### Hostage Mechanics (Refined)
-- Vulnerable, spawn thematically (with groups or at huts with guards), global "Hold/Follow" command (`K`).
-
-#### Player Tactical Commands (Stable)
-- "Hold Position" (`H`), "Hold Fire" (`J`) for Raccoons.
-
-#### Combat System (Refined)
-- Player bullets don't harm other player units; grenades still do. Bullets damage Possum Huts.
-
-#### Hut Spawning (Refined)
-- Trickle effect, initial guards for hostage huts. Mission target huts can now also spawn enemies.
-
-#### Sprite Fallback Logic (NEW in `Unit.js`)
-- `Unit.render()` attempts to load specific action sprites, defaults to 'idle' sprites if not found. Currently, only 'idle' sprites are preloaded.
-
-#### Current Major Blocker: Rendering Issue
-- Game world (beyond the prerendered background) is not rendering on the main canvas. HUD and UI panels are visible. Debugging is focused on `Game.render()` and the `sortableObjects` pipeline.
+**DOCUMENT VERSION:** 1.0
+**DATE:** [Current Date]
+**TO:** New Development Team Members
+**FROM:** Lead Developer
 
 ---
 
-## Implemented Features (Reflecting New Procedural System)
+## 1. Project Overview
 
-### 2.1. Core Gameplay Mechanics
+### 1.1. High-Concept
+**Raccoon Platoon** is a top-down, squad-based, real-time tactical action game developed in pure JavaScript and rendered on HTML5 Canvas. Players command a persistent roster of raccoon recruits against a tyrannical possum regime across a series of procedurally generated missions. The game emphasizes quick tactical decisions, squad management, and features core mechanics like permadeath for individual recruits.
 
-- **Squad Control:** Selection, Movement (A* with Min-Heap, path smoothing, collision sliding, LOS checks, stuck detection/phasing), Formations (Horizontal/Vertical, spacing).
-- **Tactical Commands:** Hold Position (`H`), Hold Fire (`J`).
-- **Combat:** Weapon stats in `config/weapon.js`, Direct Fire (LMB), Manual Target Lock (Shift+LMB), Auto-Targeting. Friendly fire disabled for bullets, grenades have AOE FF. Destructible obstacles. Raccoon Grenades (`G`). LOS & Cover.
-- **Enemy Types & AI:** Grunt, Heavy. Alert propagation. Dynamic Hut Spawning.
-- **XP & Promotion System:** Implemented.
-- **Y-Sorting for Depth:** Implemented in `Game.render()`.
+### 1.2. Core Gameplay Loop
+The gameplay is structured around a continuous campaign loop:
 
-### 2.2. User Interface (UI)
+1.  **Pre-Mission Phase:** The player is presented with a mission briefing, objectives, and their available roster. They select a squad of up to 4 raccoons to deploy.
+2.  **Mission Phase:** The player controls the deployed squad in a top-down, real-time environment. Control is primarily mouse-driven for movement (right-click) and targeting (left-click). Units auto-acquire and fire on targets but can be given specific commands.
+3.  **Post-Mission Phase:** After mission success or failure, a detailed debriefing screen shows statistics, casualties, promotions, and new recruits gained. The campaign then progresses to the next mission or phase.
 
-- **Screens:** Main Menu, Pre-Mission, Post-Mission, Game Over, Recruit Memorial, Pause.
-- **HUD:** Squad roster (shows Hold Pos/Fire status), controls panel, objective display.
+### 1.3. Key Inspirations
+The project's primary inspiration is the classic tactical shooter **"Cannon Fodder"**. This influence is seen in the top-down perspective, squad control, the expendable nature of recruits, and the blend of action with dark humor.
 
-### 2.3. Campaign & Roster (SIGNIFICANTLY REVISED)
-
-- **Fully Procedural Campaign Generation:**  
-    - Campaign seed determines total number of phases.
-    - Each phase has procedurally generated parameters (name, biome, intro, conclusion, number of missions).
-- **Fully Procedural Mission Parameter Generation:**  
-    - Each mission's parameters are generated using a mission-specific RNG and rules from `campaignRules.js`.
-    - Quantitative and qualitative parameters are scaled and chosen from weighted pools.
-- **Permadeath & Recruit Memorial:** New recruits from mission wins/hostage rescue.
-
-### 2.4. Technical Aspects & Rendering
-
-- **Asset Preloading:** Only 'idle' sprites are preloaded.
-- **Procedural Level Generation:** Deterministic layouts based on mission seed. Order of operations refined.
-- **Dynamic NavGrid. AudioManager. Ambient Effects (Flying Birds).**
-- **Rendering Debug Focus:** Step-by-step diagnosis of `Game.render()`.
-
-### 2.5. Save/Load System
-
-- Basic `localStorage` for campaign progress (needs re-verification after procedural refactor).
-
-### 2.6. Hostage Rescue Missions (Refined)
-
-- **Objective Type:** RESCUE_HOSTAGES.
-- **RaccoonHostage Unit:** Vulnerable, changes team on rescue, follows player.
-- **Hostage Commands (`K`):** Toggles isHoldingPosition for all rescued, alive hostages.
-- **Spawning:** Hostages spawn with enemy groups or near designated Possum Huts.
-- **Win Condition:** Rescue minimum hostages, defeat initial enemies, escort to Extraction Zone.
-
-### 2.7. Destroy Target Missions (Refined)
-
-- **Objective Type:** DESTROY_TARGET.
-- **Targets:** Specific obstacles designated as mission targets.
-- **Level Generation:** Places required number of target types.
-- **Win Condition:** All designated target obstacles destroyed and all initial enemies defeated.
+### 1.4. Technical Stack
+*   **Language:** JavaScript (ES6+ Class-based)
+*   **Platform:** HTML5
+*   **Rendering:** 2D Canvas API
+*   **Frameworks:** None. This is a pure vanilla JavaScript project.
 
 ---
 
-## Current Control Scheme (Summary)
+## 2. Current Development Status
 
-- **LMB Tap/Hold:** Direct Fire
-- **Shift + LMB:** Manual Target Lock
-- **Ctrl + LMB Drag:** Box Select
-- **Right Click:** Move / Cancel Grenade
-- **G:** Grenade Aim
-- **F:** Formation
-- **H:** Hold Position (Raccoons)
-- **J:** Hold Fire (Raccoons)
-- **K:** Hold/Follow (Hostages)
-- **Spacebar:** Select All
-- **Esc:** Contextual
+The project has a solid, playable core. The main gameplay loop is fully functional.
 
----
+### 2.1. Core Systems - Implemented & Stable
+*   **Campaign Generation:** A procedurally generated campaign structure is in place, governed by `campaignRules.js`. Each campaign has a unique seed, generating a variable number of phases and missions.
+*   **Mission Generation:** Levels are procedurally generated by `level.js`, creating unique layouts with obstacles, enemy placements, and objective locations based on the mission parameters.
+*   **Roster Management:** The `Game` class manages a master roster of raccoons. Recruits have persistent names, stats, and XP. Permadeath is functional, with fallen recruits being moved to a global memorial list.
+*   **Unit & Combat Mechanics:**
+    *   **Player Units:** `Raccoon` and `RaccoonHostage` classes are implemented. Recruits can gain XP and be promoted through ranks defined in `config.js`.
+    *   **Enemy Units:** `PossumGrunt`, `PossumHeavy`, and a `PossumBoss1` are implemented with distinct stats and AI.
+    *   **Weapon System:** A robust weapon system (`weapon.js`) defines properties for damage, range, rate-of-fire, etc. Both bullet and grenade projectile types are functional.
+    *   **AI:** The boss (`PossumBoss1`) features a multi-stage attack cycle (grenade volleys and MG bursts) and repositioning logic. Grunts and Heavies have basic patrol, chase, and attack behaviors.
+*   **Performance & Collision:**
+    *   `spatialGrid.js` is used for efficient collision detection and line-of-sight checks.
+    *   `ObjectPool.js` is implemented for projectiles to reduce garbage collection overhead during intense combat.
 
-## Known Issues / Immediate Next Steps
+### 2.2. User Interface (UI) - Recently Overhauled
+The UI has undergone significant recent development to establish a professional and immersive "command center" aesthetic.
+*   **Pre-Mission Screen:** A fullscreen layout with detailed mission intel (briefing, objectives) and a horizontal, visually-driven roster selection system.
+*   **Post-Mission Screen:** A comprehensive debriefing screen showing detailed stats, objective status, and visual cards for survivors, fallen heroes, and new recruits. Features dynamic animations for promotions.
+*   **Recruit Memorial:** A dedicated, full-screen "Wall of the Fallen" to honor lost recruits.
+*   **Video Loader:** A random video intro now plays to mask level generation time, creating a seamless transition into the mission.
 
-- **Formal Multi-Objective System**
-- **River/Stream Generation Algorithm.**
-- **Save/Load System Re-verification.**
-- **UI/UX Polish:**
-- **Advanced Level Generation**
-- **Performance Optimization**
-
----
-
-## Future Considerations
-
-- **Refine Biome-Specific Environment Generation:** Ensure biome influences level generation.
-- **Mission Variety.**
-- **Advanced AI:** Cover usage, "Suspicious" state refinement.
-- Raccoon Special Abilities
-- Story Elements
-- Difficulty Settings
-- Multiplayer
-- **Full Unit Animations & More SFX.**
+### 2.3. Known Issues & Recent Bug Fixes
+The team has recently addressed several critical bugs:
+*   **Fixed:** The `PossumBoss1` AI was completely rewritten to correctly execute its attack patterns and movement, resolving a major issue where it was static and unresponsive.
+*   **Fixed:** Dead hostage sprites were not rendering due to a flaw in the `die()` method's logic; this has been corrected to align with the standard unit death process.
+*   **Fixed:** Numerous text and icon alignment bugs on the post-mission screen have been resolved.
+*   **Known Issue:** The automatic "stuck detection" for units can be unreliable. A manual "unstuck" key (`U`) has been implemented as a workaround, which forces all player-controlled units to phase through obstacles for a short duration.
 
 ---
 
-This document aims to be a precise snapshot. The immediate priority is fixing the world rendering. After that, testing the fixes for mission end flow will be next.
+## 3. Development Roadmap & Next Steps
+
+This roadmap is based on the original Game Design Document (`mission.md`).
+
+### 3.1. Immediate Priorities (Next 1-2 Sprints)
+The focus is on expanding content variety and polishing existing systems.
+*   **Improving enemy unit movements** 
+*   **Improving level generation parameters**
+*   **New Enemy Types:** Implement the **Sniper Possum** as described in the GDD. This will require AI logic for finding concealed positions and a distinct visual indicator (e.g., laser sight).
+*   **New Mission Objectives:** Implement more `DESTROY_TARGET` objective types (e.g., "Possum Relay Towers") and potentially the "Hold Position" objective.
+
+### 3.2. Mid-Term Goals (Features for Next Major Version)
+These features require more significant system development.
+*   **Advanced AI & Cover:** Enhance enemy AI to intelligently use cover. This involves adding logic for units to evaluate nearby obstacles and "peek" to fire. A basic morale system could also be explored.
+*   **New Weapons & Pickups:** Introduce new weapon types for player pickup (e.g., Rocket Launcher) and associated ammo management.
+*   **The Graveyard:** As discussed, when the art assets are ready, implement the post-mission "graveyard" sequence where a tombstone is added for each fallen recruit.
+*   **UI Polish:** Add the placeholder "Map Recon" and "Known Enemies" intel to the pre-mission screen.
+
+### 3.3. Long-Term Vision (Post-MVP Enhancements)
+These are ambitious goals to consider once the core single-player experience is complete and polished.
+*   **Vehicles:** Implement simple vehicles or mounted guns for both factions.
+
+---
+
+## 4. Onboarding Notes for New Developers
+
+Welcome to the Raccoon Platoon!
+
+### 4.1. Key Files to Review
+To get up to speed quickly, please familiarize yourself with the following core files:
+1.  **`game.js`:** The heart of the application. It manages the main game loop, state, and orchestrates all other modules.
+2.  **`unit.js`:** The base class for all characters in the game. Understanding this class is key to understanding how all other units behave.
+3.  **`level.js`:** Governs the procedural generation of the entire mission environment, from obstacle placement to enemy spawning.
+4.  **`ui.js`:** Manages all user-facing screens and HUD elements.
+5.  **`config.js`:** The central hub for all game balance numbers, asset paths, and feature flags.
+
+### 4.2. Development Philosophy
+*   **Director-Led:** All new features and major changes are initiated by the Game Director.
+*   **Complete Functions:** We avoid providing code with placeholders or missing chunks (`...`). Always provide full, complete functions for review.
+*   **Code Quality:** Ensure no oversights are made when generating or modifying code. Perform checks to ensure logic is sound and bug-free before presenting for confirmation.

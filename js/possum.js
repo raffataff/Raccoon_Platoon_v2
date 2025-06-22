@@ -3,6 +3,11 @@
 class PossumGrunt extends Unit {
     constructor(x, y, game, id) {
         super(x, y, game, 'enemy', CONFIG.POSSUM_GRUNT_HP, CONFIG.POSSUM_GRUNT_SPEED, CONFIG.POSSUM_GRUNT_SIZE, CONFIG.POSSUM_GRUNT_COLOR, id);
+
+        this.deadSpritePathKey = 'POSSUM_GRUNT_DEAD_SPRITE_PATH';
+        this.deadSpriteFilesKey = 'POSSUM_GRUNT_DEAD_SPRITE_FILES';
+        this.deadSpriteScaleKey = 'POSSUM_GRUNT_DEAD_SPRITE_SCALE';
+        
         this.weapon = WEAPONS.POSSUM_RIFLE;
         this.detectionRange = CONFIG.POSSUM_DETECTION_RANGE || 250;
         this.gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};

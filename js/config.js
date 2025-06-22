@@ -21,7 +21,7 @@ const CONFIG = {
     INPUT_TAP_THRESHOLD_MS: 30,
 
     // --- Pathfinding ---
-    GRID_CELL_SIZE: 8, // Reduced for finer grid, ensure performance
+    GRID_CELL_SIZE: 12, // Reduced for finer grid, ensure performance
     DEBUG_PATHING_UNIT_ID: null, 
     DEBUG_DRAW_NAV_GRID_BLOCKED: true, 
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, 
@@ -87,21 +87,21 @@ const CONFIG = {
     POSSUM_HEAVY_SIZE: 18,
     POSSUM_HEAVY_COLOR: '#6A4A3A',
     POSSUM_HEAVY_WEAPON_DAMAGE: 18,
-    POSSUM_HEAVY_WEAPON_ROF: 1,
+    POSSUM_HEAVY_WEAPON_ROF: 2,
     POSSUM_HEAVY_WEAPON_RANGE: 440,
-    POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED: 350,
+    POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED: 450,
     POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY: 0.85,
     POSSUM_HEAVY_WEAPON_ACCURACY_MOVING: 0.3,
     POSSUM_HEAVY_SPRITE_PATH: 'assets/images/units/possum_heavy/', 
     POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.55, 
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'], 
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.55, 
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.7, 
 
     // --- Units: Possum Boss 1 ---
     POSSUM_BOSS_1_HP: 250,
     POSSUM_BOSS_1_SPEED: 900,
-    POSSUM_BOSS_1_SIZE: 18,
+    POSSUM_BOSS_1_SIZE: 20,
     POSSUM_BOSS_1_COLOR: '#703510',
     POSSUM_BOSS_1_WEAPON_DAMAGE: 55,
     POSSUM_BOSS_1_WEAPON_ROF: 0.25,
@@ -120,10 +120,10 @@ const CONFIG = {
         PROJECTILE_COLOR: '#FF8C00'
     },
     POSSUM_BOSS_1_SPRITE_PATH: 'assets/images/units/possum_boss_1/',
-    POSSUM_BOSS_1_SPRITE_SCALE_FACTOR: 0.2,
+    POSSUM_BOSS_1_SPRITE_SCALE_FACTOR: 0.7,
     POSSUM_BOSS_1_DEAD_SPRITE_PATH: 'assets/images/units/possum_boss_1/dead/',
-    POSSUM_BOSS_1_DEAD_SPRITE_FILES: ['possum_boss1_dead1.png'],
-    POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.1,
+    POSSUM_BOSS_1_DEAD_SPRITE_FILES: ['possum_boss1_dead1.png', 'possum_boss1_dead2.png'],
+    POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.3,
     PROJECTILE_COLOR_POSSUM_BOSS_1: '#FF4500',
     XP_FOR_BOSS_KILL: 250,
     
@@ -137,7 +137,7 @@ const CONFIG = {
         KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 1 },
         GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 }
     },
-    UNIT_PATHING_RADIUS_BUFFER: 12, // Buffer around unit for pathfinding checks
+    UNIT_PATHING_RADIUS_BUFFER: 8, // Buffer around unit for pathfinding checks
     UNIT_STUCK_FRAMES_THRESHOLD: 2,
     STUCK_FRAMES_THRESHOLD_PATHING: 2, 
     REPATH_STUCK_COOLDOWN: 0.3,
@@ -190,7 +190,16 @@ const CONFIG = {
             MG_COOLDOWN_AFTER_BURST: 2.5,       // Cooldown after completing an MG burst
             // --- END MODIFIED ---
 
-            REPOSITION_DURATION_MAX_SECONDS: 2.0 
+            REPOSITION_DURATION_MAX_SECONDS: 2.0 ,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 2], // Always spawns exactly 2
+                countPerPhaseBonus: 0, // Boss guards don't scale
+                spawnRadius: 100,
+                unitPool: [
+                    { type: 'possum_heavy', weight: 1 } // Only spawns Heavies
+                ]
+            }
         },
     },
 
@@ -400,9 +409,12 @@ const CONFIG = {
     PALM_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
     PALM_TREE_FALLEN_SPRITE_FILES: ['palm_fallen_log_1.png'],
 
+    // Possum Huts
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
-    POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
-    POSSUM_HUT_SPRITE_FILES: ['possum_hut_1.png'],
+    POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/possum_hut_1_small_destroyed.png',
+    POSSUM_HUT_SPRITE_FILES: ['possum_hut_1_small.png'],
+
+    // Possum Towers
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
     POSSUM_RELAY_TOWER_SPRITE_FILES: ['possum_tower_2.png'],
 
@@ -426,7 +438,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
             spriteScale: 0.5,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.3), width: (w => w * 0.95), height: (h => h * 0.1)},
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.3), width: (w => w * 0.97), height: (h => h * 0.1)},
             // sfxOnDestroy: 'FENCE_BREAK_SOUND' // Example
         },
         {
@@ -583,12 +595,29 @@ const CONFIG = {
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.2,
-            spriteScale: 0.5, 
-            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_destroyed.png',
-            spriteDestroyedScale: 0.5, 
+            spriteScale: 1, 
+            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_small_destroyed.png',
+            spriteDestroyedScale: 1, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.48), offsetY: (h=>h*0.45), radiusX: (w=>w*0.35), radiusY: (h=>h*0.29) },
             isDecoration: false,
-            sfxOnDestroy: 'POSSUM_HUT_DESTROYED' // SFX key from AUDIO_ASSETS
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+
+            // --- NEW PROPOSED SPAWNING SYSTEM ---
+            initialGuardPack: {
+                enabled: true, // Master switch for this feature on this object
+                // Number of guards to spawn.
+                countRange: [2, 4], // Spawn between 2 and 4 guards initially.
+                // Add this many guards for each phase index (e.g., Phase 1 (idx 0) = +0, Phase 2 (idx 1) = +0.5)
+                countPerPhaseBonus: 0.5,
+                // How far from the object's center can they spawn.
+                spawnRadius: 80,
+                // Pool of units that can be spawned, with relative weights.
+                unitPool: [
+                    { type: 'possum_grunt', weight: 4 }, // Grunts are 4x more likely than Heavies
+                    { type: 'possum_heavy', weight: 1 }
+                ]
+            }
+            // --- END NEW ---
         },
         {
             type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',

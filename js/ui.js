@@ -1,4 +1,5 @@
 // js/ui.js
+
 class UI {
     constructor(game) {
         this.game = game;
@@ -9,27 +10,23 @@ class UI {
         this.newCampaignButton = document.getElementById('newCampaignButton');
         this.mainMenuMemorialButton = document.getElementById('mainMenuMemorialButton');
         this.optionsButton = document.getElementById('optionsButton');
-
         this.preMissionScreen = document.getElementById('preMissionScreen');
         this.postMissionScreen = document.getElementById('postMissionScreen');
         this.gameOverScreen = document.getElementById('gameOverScreen');
         this.recruitMemorialScreen = document.getElementById('recruitMemorialScreen');
-        this.memorialEntriesContainer = document.getElementById('memorialEntriesContainer');
+        this.memorialEntriesList = document.getElementById('memorialEntriesList');
         this.backFromMemorialButton = document.getElementById('backFromMemorialButton');
         this.viewMemorialButton = document.getElementById('viewMemorialButton');
         this.leftHudPanel = document.getElementById('left-hud-panel');
         this.squadPanel = document.getElementById('hud-squad');
-        this.objectiveTextContainer = document.getElementById('objectiveTextContainer'); 
-
+        this.objectiveTextContainer = document.getElementById('objectiveTextContainer');
         this.missionOutcomeText = document.getElementById('missionOutcome');
-        
         this.preMissionPhaseTitle = document.getElementById('preMissionPhaseTitle');
         this.preMissionTitle = document.getElementById('preMissionTitle');
         this.preMissionBriefing = document.getElementById('preMissionBriefing');
         this.preMissionObjectivesList = document.getElementById('preMissionObjectivesList');
-        this.availableRecruitsGrid = document.getElementById('availableRecruitsGrid');
+        this.availableRecruitsList = document.getElementById('availableRecruitsList');
         this.deployedSquadList = document.getElementById('deployedSquadList');
-
         this.gameOverTitle = document.getElementById('gameOverTitle');
         this.gameOverMessage = document.getElementById('gameOverMessage');
         this.restartCampaignButton = document.getElementById('restartCampaignButton');
@@ -43,10 +40,9 @@ class UI {
         this.startMissionButton = document.getElementById('startMissionButton');
         this.retryMissionButton = document.getElementById('retryMissionButton');
         this.nextMissionButton = document.getElementById('nextMissionButton');
-        
         this.videoLoadingScreen = document.getElementById('videoLoadingScreen');
         this.loadingVideoPlayer = document.getElementById('loadingVideoPlayer');
-
+        
         this._addSoundToButton(this.newCampaignButton, () => {
             if (this.game) {
                 this.hideMainMenuScreen();
@@ -55,7 +51,6 @@ class UI {
             }
         });
         this._addSoundToButton(this.mainMenuMemorialButton, () => this.showRecruitMemorialScreen());
-
         this._addSoundToButton(this.startMissionButton, () => {
             if (this.game) {
                 const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
@@ -69,7 +64,6 @@ class UI {
                 }
             }
         });
-
         this._addSoundToButton(this.retryMissionButton, () => {
              if (this.game) {
                 if (this.game.generateAndSetCurrentMissionParams(this.game.currentPhaseIndex, this.game.currentMissionIndex)) { 
@@ -130,7 +124,6 @@ class UI {
                  this.mainMenuScreen.style.display = 'flex';
             }
         });
-        
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game) {
             const initialSpacing = (this.game && this.game.formationSpacingMultiplier !== undefined) ? this.game.formationSpacingMultiplier : (CONFIG.INITIAL_FORMATION_SPACING || 3.5);
             this.formationSpacingSlider.value = initialSpacing.toString();
@@ -161,10 +154,37 @@ class UI {
                 }
             });
         }
-        
         this._applyHoverSoundsToAllButtons();
     }
 
+    showVideoLoadingScreen(videoPath) {
+        if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return;
+
+        this.loadingVideoPlayer.src = videoPath;
+        this.loadingVideoPlayer.load();
+        this.loadingVideoPlayer.play().catch(error => {
+            console.warn("Video autoplay was prevented. User interaction might be required.", error);
+            // Fallback to a static loading screen if video fails
+        });
+
+        this.videoLoadingScreen.style.display = 'flex';
+        setTimeout(() => {
+            this.videoLoadingScreen.classList.add('visible');
+        }, 10);
+    }
+
+    hideVideoLoadingScreen() {
+        if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return;
+
+        this.videoLoadingScreen.classList.remove('visible');
+
+        setTimeout(() => {
+            this.videoLoadingScreen.style.display = 'none';
+            this.loadingVideoPlayer.pause();
+            this.loadingVideoPlayer.src = ''; 
+        }, 500); 
+    }
+    
     _addSoundToButton(buttonElement, clickCallback) {
         if (buttonElement) {
             buttonElement.addEventListener('click', () => {
@@ -198,37 +218,6 @@ class UI {
         });
     }
 
-    showVideoLoadingScreen(videoPath) {
-        if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return;
-
-        this.loadingVideoPlayer.src = videoPath;
-        this.loadingVideoPlayer.load();
-        this.loadingVideoPlayer.play().catch(error => {
-            console.warn("Video autoplay was prevented. User interaction might be required.", error);
-            // Fallback to a static loading screen if video fails
-        });
-
-        this.videoLoadingScreen.style.display = 'flex';
-        // A tiny delay to allow the display property to apply before changing opacity
-        setTimeout(() => {
-            this.videoLoadingScreen.classList.add('visible');
-        }, 10);
-    }
-
-    hideVideoLoadingScreen() {
-        if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return;
-
-        this.videoLoadingScreen.classList.remove('visible');
-
-        // After the fade-out transition ends, hide the element and pause the video
-        setTimeout(() => {
-            this.videoLoadingScreen.style.display = 'none';
-            this.loadingVideoPlayer.pause();
-            this.loadingVideoPlayer.src = ''; // Clear source to free up memory
-        }, 500); // This duration should match the CSS transition duration
-    }
-    
-    // ... (showMainMenuScreen, hideMainMenuScreen, etc. - all other UI methods from your existing UI.js)
     showMainMenuScreen() {
         if (!this.mainMenuScreen) return;
         this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
@@ -257,16 +246,15 @@ class UI {
         this.gameOverScreen.style.display = 'flex'; this.setCursor('default');
     }
 
-    _createRecruitGridCard(recruit) {
+    _createRosterCard(recruit) {
         const card = document.createElement('li');
-        card.className = 'recruit-grid-card';
+        card.className = 'roster-card';
         card.dataset.raccoonId = recruit.id;
 
         if (recruit.isNewlyRescued) {
             card.classList.add('new-recruit');
         }
 
-        // --- NEW: Add Rank Icon ---
         const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
         const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
         if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
@@ -275,18 +263,13 @@ class UI {
             rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
             card.appendChild(rankIconDiv);
         }
-        // --- END NEW ---
 
         const faceDiv = document.createElement('div');
-        faceDiv.className = 'recruit-card-face';
-        if (recruit.faceImageUrl) {
-            faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
-        } else {
-            faceDiv.style.backgroundColor = this.uiSettings.RECRUIT_CARD?.DEFAULT_FACE_BG_COLOR || '#555';
-        }
+        faceDiv.className = 'roster-card-face';
+        faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
         
         const nameDiv = document.createElement('div');
-        nameDiv.className = 'recruit-card-name';
+        nameDiv.className = 'roster-card-name';
         nameDiv.textContent = recruit.name || recruit.id;
         
         card.appendChild(faceDiv);
@@ -309,19 +292,8 @@ class UI {
 
     _createDeployedCard(recruit) {
         const card = document.createElement('li');
-        card.className = 'deployed-squad-card'; 
+        card.className = 'deployed-squad-card';
         card.dataset.raccoonId = recruit.id;
-        
-        // --- NEW: Add Rank Icon ---
-        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
-        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
-        if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
-            const rankIconDiv = document.createElement('div');
-            rankIconDiv.className = 'rank-icon';
-            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
-            card.appendChild(rankIconDiv);
-        }
-        // --- END NEW ---
         
         const faceDiv = document.createElement('div');
         faceDiv.className = 'recruit-card-face';
@@ -331,15 +303,22 @@ class UI {
         
         const infoDiv = document.createElement('div');
         infoDiv.className = 'recruit-card-info';
-        // --- MODIFIED: Changed HP to XP ---
         infoDiv.innerHTML = `
             <div class="name">${recruit.name || recruit.id}</div>
             <div class="rank">Rank: ${recruit.rank || 'Recruit'}</div>
             <div class="xp">XP: ${recruit.xp}</div>`;
-        // --- END MODIFIED ---
         
         card.appendChild(faceDiv);
         card.appendChild(infoDiv);
+
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
+            const rankIconDiv = document.createElement('div');
+            rankIconDiv.className = 'rank-icon';
+            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
+            card.appendChild(rankIconDiv);
+        }
 
         card.addEventListener('click', () => {
             if (this.game && this.game.audioManager) this.game.audioManager.play('UI_BUTTON_CLICK');
@@ -349,71 +328,19 @@ class UI {
         });
         return card;
     }
-
-    _createRecruitSelectionCard(recruit, isSelectedForDeploymentContext) {
-        const card = document.createElement('li');
-        card.classList.add('recruit-selection-card');
-        card.dataset.raccoonId = recruit.id;
-        const isActuallySelected = this.game && this.game.tempSelectedForDeployment.find(r => r.id === recruit.id);
-        if (isActuallySelected) card.classList.add('selected-for-deploy');
-
-        const faceDiv = document.createElement('div');
-        faceDiv.classList.add('recruit-card-face');
-        if (recruit.faceImageUrl) {
-            faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
-        } else {
-            faceDiv.style.backgroundColor = (this.uiSettings.RECRUIT_CARD && this.uiSettings.RECRUIT_CARD.DEFAULT_FACE_BG_COLOR) || '#555';
-        }
-
-        const infoDiv = document.createElement('div');
-        infoDiv.classList.add('recruit-card-info');
-        infoDiv.innerHTML = `
-            <div class="id-name">${recruit.name || recruit.id}</div>
-            <div class="rank">Rank: ${recruit.rank || 'Recruit'}</div>
-            <div class="hp">HP: ${recruit.hp} / ${recruit.maxHp}</div>
-            <div class="xp">XP: ${recruit.xp || 0}</div>`;
-        card.appendChild(faceDiv); card.appendChild(infoDiv);
-
-        card.addEventListener('mouseenter', () => {
-            if (this.game && this.game.audioManager) {
-                this.game.audioManager.play('UI_BUTTON_HOVER', { volume: 0.2 });
-            }
-        });
-
-        card.addEventListener('click', () => {
-            if (this.game && this.game.audioManager) {
-                this.game.audioManager.play('UI_BUTTON_CLICK');
-            }
-            if (!this.game) return;
-            const currentlyInDeployed = this.game.tempSelectedForDeployment.find(depR => depR.id === recruit.id);
-            const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
-            if (currentlyInDeployed) {
-                this.game.tempSelectedForDeployment = this.game.tempSelectedForDeployment.filter(depR => depR.id !== recruit.id);
-            } else {
-                if (this.game.tempSelectedForDeployment.length < maxSquadSize) {
-                    this.game.tempSelectedForDeployment.push(recruit);
-                } else {
-                     alert((this.uiText.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()));
-                    return;
-                }
-            }
-            this.refreshRecruitSelectionLists();
-        });
-        return card;
-    }
-
+    
     refreshRecruitSelectionLists() {
-        if (!this.availableRecruitsGrid || !this.deployedSquadList || !this.game) return;
+        if (!this.availableRecruitsList || !this.deployedSquadList || !this.game) return;
         
         const allMasterRosterRecruits = this.game.getAvailableRecruits();
         const tempSelectedIds = this.game.tempSelectedForDeployment.map(r => r.id);
 
-        this.availableRecruitsGrid.innerHTML = '';
+        this.availableRecruitsList.innerHTML = '';
         this.deployedSquadList.innerHTML = '';
 
         allMasterRosterRecruits.forEach(recruit => {
             if (!tempSelectedIds.includes(recruit.id)) {
-                this.availableRecruitsGrid.appendChild(this._createRecruitGridCard(recruit));
+                this.availableRecruitsList.appendChild(this._createRosterCard(recruit));
             }
         });
 
@@ -454,11 +381,9 @@ class UI {
             return;
         }
 
-        // --- MODIFIED: Add phase and mission numbers ---
         const phaseNumText = `Phase ${this.game.currentPhaseIndex + 1} / ${this.game.totalCampaignPhases}`;
         const missionNumText = `Mission ${this.game.currentMissionIndex + 1} / ${phaseData.missionsInPhase}`;
         if(this.preMissionPhaseTitle) this.preMissionPhaseTitle.textContent = `${phaseData.name} (${phaseNumText} - ${missionNumText})`;
-        // --- END MODIFIED ---
 
         if(this.preMissionTitle) this.preMissionTitle.textContent = missionData.baseParams.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
         if(this.preMissionBriefing) this.preMissionBriefing.textContent = missionData.baseParams.briefing || "No briefing available.";
@@ -518,6 +443,7 @@ class UI {
         this.setCursor('default');
     }
     
+    // --- MODIFIED: Rewritten to use the new card generator ---
     _createPostMissionRecruitCard(recruit, type) {
         const card = document.createElement('li');
         card.className = 'post-mission-recruit-card';
@@ -535,30 +461,40 @@ class UI {
         nameDiv.textContent = recruit.name;
         infoDiv.appendChild(nameDiv);
 
-        const rankXpContainer = document.createElement('div');
-        rankXpContainer.className = 'recruit-rank-xp-container';
+        const rankLineDiv = document.createElement('div');
+        rankLineDiv.className = 'recruit-rank-line';
+
+        const xpLineDiv = document.createElement('div');
+        xpLineDiv.className = 'recruit-xp-line';
         
-        // --- MODIFIED: Complete restructure of the rank/xp/promotion info ---
+        // --- MODIFIED: More robust HTML generation for rank line ---
         if (type === 'survivor' && recruit.promotedThisMission) {
             card.classList.add('is-promoted');
             const rankConfig = CONFIG.RANK_THRESHOLDS;
             const currentRankIndex = rankConfig.findIndex(r => r.rankName === recruit.rank);
             const prevRank = currentRankIndex > 0 ? rankConfig[currentRankIndex - 1].rankName : "Recruit";
+            
+            // Build the string dynamically to avoid ghost elements
+            rankLineDiv.innerHTML = `
+                <span class="rank-text-old">${prevRank}</span>
+                <span class="rank-arrow">▶</span>
+                <span class="rank-text-new">${recruit.rank}</span>
+                <span class="promotion-indicator">PROMOTED!</span>`;
 
-            rankXpContainer.innerHTML = `
-                <div class="rank-wrapper">
-                    <span class="rank-text-old">${prevRank}</span>
-                    <span class="rank-text-new">${recruit.rank}</span>
-                </div>
-                <div class="xp-text">XP: ${recruit.xp}</div>
-                <div class="promotion-indicator">PROMOTED!</div>`;
+            xpLineDiv.textContent = `XP: ${recruit.xp}`;
+
         } else if (type === 'fallen') {
-             rankXpContainer.innerHTML = `<div class="rank-text">${recruit.rank || 'Recruit'}</div><div class="status-kia-text">KIA</div>`;
+             rankLineDiv.innerHTML = `<span class="rank-text">${recruit.rank || 'Recruit'}</span>`;
+             xpLineDiv.innerHTML = `<span class="status-kia-text">KIA</span>`;
         } else { // Survivor (not promoted) or New Recruit
-            rankXpContainer.innerHTML = `<div class="rank-text">${recruit.rank}</div><div class="xp-text">XP: ${recruit.xp}</div>`;
+            // This now only generates the single rank text, fixing the alignment
+            rankLineDiv.innerHTML = `<span class="rank-text">${recruit.rank}</span>`;
+            xpLineDiv.textContent = `XP: ${recruit.xp}`;
         }
         // --- END MODIFIED ---
-        infoDiv.appendChild(rankXpContainer);
+        
+        infoDiv.appendChild(rankLineDiv);
+        infoDiv.appendChild(xpLineDiv);
         
         card.appendChild(infoDiv);
 
@@ -568,7 +504,6 @@ class UI {
         const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
 
         if (rankIconConfig && rankIconPath) {
-            // --- MODIFIED: Correctly add old rank icon for promotion animation ---
             if (type === 'survivor' && recruit.promotedThisMission) {
                 const rankConfig = CONFIG.RANK_THRESHOLDS;
                 const currentRankIndex = rankConfig.findIndex(r => r.rankName === recruit.rank);
@@ -581,10 +516,8 @@ class UI {
                      rankIconContainer.appendChild(oldRankIcon);
                 }
             }
-            // --- END MODIFIED ---
             if (rankIconConfig[recruit.rank]) {
                 const newRankIcon = document.createElement('div');
-                // --- MODIFIED: Add 'new-rank' class for animation targeting ---
                 newRankIcon.className = 'rank-icon new-rank';
                 newRankIcon.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
                 rankIconContainer.appendChild(newRankIcon);
@@ -622,7 +555,6 @@ class UI {
         const statEnemiesKilledEl = document.getElementById('statEnemiesKilled');
         const statHostagesRecruitedEl = document.getElementById('statHostagesRecruited');
         const newRecruitsListEl = document.getElementById('newRecruitsList');
-        // --- MODIFIED: Use the new unified roster list ---
         const rosterStatusListEl = document.getElementById('rosterStatusList');
     
         if (objectiveListEl) {
@@ -642,7 +574,6 @@ class UI {
         if (statEnemiesKilledEl) statEnemiesKilledEl.textContent = enemiesKilled.toString();
         if (statHostagesRecruitedEl) statHostagesRecruitedEl.textContent = (newlyRecruitedRaccoons || []).length.toString();
     
-        // --- MODIFIED: Populate the unified roster list ---
         if (rosterStatusListEl) {
             rosterStatusListEl.innerHTML = '';
             if (survivingRaccoons && survivingRaccoons.length > 0) {
@@ -712,34 +643,51 @@ class UI {
     }
 
     showRecruitMemorialScreen() {
-        // ... (unchanged)
-        if (!this.recruitMemorialScreen || !this.game || !this.memorialEntriesContainer) return;
+        if (!this.recruitMemorialScreen || !this.game || !this.memorialEntriesList) return;
         this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
-        this.memorialEntriesContainer.innerHTML = '';
+        
+        this.memorialEntriesList.innerHTML = '';
         if (this.game.fallenRaccoonsGlobal && this.game.fallenRaccoonsGlobal.length > 0) {
             this.game.fallenRaccoonsGlobal.forEach(fallen => {
-                const entryDiv = document.createElement('div'); entryDiv.classList.add('memorial-entry');
-                const faceDiv = document.createElement('div'); faceDiv.classList.add('memorial-entry-face');
-                if (fallen.faceImageUrl) faceDiv.style.backgroundImage = `url('${fallen.faceImageUrl}')`;
-                else faceDiv.style.backgroundColor = (this.uiSettings.MEMORIAL_CARD && this.uiSettings.MEMORIAL_CARD.DEFAULT_FACE_BG_COLOR) || '#333';
-                entryDiv.appendChild(faceDiv);
-                const infoDiv = document.createElement('div'); infoDiv.classList.add('memorial-entry-info');
+                const entryLi = document.createElement('li');
+                entryLi.className = 'memorial-entry';
+
+                const faceDiv = document.createElement('div');
+                faceDiv.className = 'memorial-face';
+                faceDiv.style.backgroundImage = `url('${fallen.faceImageUrl}')`;
+
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'memorial-info';
                 infoDiv.innerHTML = `
-                    <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_NAME || "Name:"}</span> <span class="field-value">${fallen.name || fallen.id}</span></div>
-                    <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_RANK || "Rank Achieved:"}</span> <span class="field-value">${fallen.rank || 'Recruit'}</span></div>
-                    <div><span class.field-label">${this.uiText.MEMORIAL_LABEL_MISSION || "Fell In:"}</span> <span class="field-value">${fallen.missionDied || (this.uiText.UNKNOWN_MISSION_TEXT || "Unknown Mission")}</span></div>
-                    <div><span class="field-label">${this.uiText.MEMORIAL_LABEL_PHASE || "During:"}</span> <span class="field-value">${fallen.phaseDied || (this.uiText.UNKNOWN_PHASE_TEXT || "Unknown Phase")}</span></div>`;
-                entryDiv.appendChild(infoDiv); this.memorialEntriesContainer.appendChild(entryDiv);
+                    <div class="memorial-name">${fallen.name || fallen.id}</div>
+                    <div class="memorial-detail"><span>Rank Achieved:</span> ${fallen.rank || 'Recruit'}</div>
+                    <div class="memorial-detail"><span>Fell In:</span> ${fallen.missionDied || 'Unknown Mission'}</div>
+                    <div class="memorial-detail"><span>During:</span> ${fallen.phaseDied || 'Unknown Phase'}</div>
+                `;
+
+                const rankIconContainer = document.createElement('div');
+                rankIconContainer.className = 'memorial-rank-icon';
+                const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+                const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+                if (rankIconConfig && rankIconPath && rankIconConfig[fallen.rank]) {
+                    rankIconContainer.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[fallen.rank]}')`;
+                }
+                
+                entryLi.appendChild(faceDiv);
+                entryLi.appendChild(infoDiv);
+                entryLi.appendChild(rankIconContainer);
+                this.memorialEntriesList.appendChild(entryLi);
             });
         } else {
-            this.memorialEntriesContainer.innerHTML = `<p style="text-align: center; padding: 20px;">${this.uiText.MEMORIAL_NO_FALLEN || "No Raccoons have fallen... yet."}</p>`;
+            this.memorialEntriesList.innerHTML = `<li class="no-entry">${this.uiText.MEMORIAL_NO_FALLEN || "No Raccoons have fallen... yet."}</li>`;
         }
-        this.recruitMemorialScreen.style.display = 'flex'; this.setCursor('default');
+
+        this.recruitMemorialScreen.style.display = 'flex'; 
+        this.setCursor('default');
     }
 
     showPauseMenuScreen() {
-        // ... (unchanged)
         if (!this.pauseMenuScreen) return;
         this.pauseMenuScreen.style.display = 'flex';
         this.setCursor('default');
@@ -749,14 +697,12 @@ class UI {
     }
 
     hidePauseMenuScreen() {
-        // ... (unchanged)
         if (this.pauseMenuScreen) {
             this.pauseMenuScreen.style.display = 'none';
         }
     }
 
     showHUD() {
-        // ... (unchanged)
         if(this.leftHudPanel) this.leftHudPanel.style.display = 'flex';
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game && this.game.formationSpacingMultiplier !== undefined) {
@@ -807,30 +753,26 @@ class UI {
             objectiveStr = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
             objectiveStr = this.game._fillTextTemplate(objectiveStr, templateData);
 
-            // Specific formatting for assassination if needed AFTER filling template
             if (obj.type === "ASSASSINATION" && obj.targetDetails) {
                 const targetName = obj.targetDetails.name || "VIP";
                 const targetCallsign = obj.targetDetails.callsign || obj.targetDetails.name || "TARGET";
                 
                 let objectiveText = (this.uiText[obj.descriptionTemplateKey] || "Eliminate: {TARGET_CALLSIGN}")
                     .replace("{TARGET_CALLSIGN}", targetCallsign)
-                    .replace("{TARGET_NAME}", targetName); // In case your template uses {TARGET_NAME}
+                    .replace("{TARGET_NAME}", targetName); 
 
                 if (obj.isComplete) {
                     objectiveText += " - ELIMINATED";
                 } else {
                     const targetUnit = this.game.enemyUnits.find(e => e.id === obj.targetUnitId);
                     if (targetUnit && targetUnit.isAlive()) {
-                        objectiveText += ` (HP: ${Math.round(targetUnit.hp)}/${targetUnit.maxHp})`; // Show Boss HP
+                        objectiveText += ` (HP: ${Math.round(targetUnit.hp)}/${targetUnit.maxHp})`; 
                     } else if (obj.targetUnitId && (!targetUnit || !targetUnit.isAlive())) {
-                        // This case means the objective is not yet complete, but the targetUnit is gone/dead.
-                        // This should lead to obj.isComplete being true soon via checkMissionStatus.
-                        // For the UI, we can just show the name until it updates to ELIMINATED.
                     } else if (!obj.targetUnitId) {
-                        objectiveText += " - (AWAITING TARGET)"; // If boss hasn't spawned/linked yet
+                        objectiveText += " - (AWAITING TARGET)"; 
                     }
                 }
-                objectiveStr = objectiveText; // This was missing; assign to objectiveStr
+                objectiveStr = objectiveText;
             }
 
 
@@ -844,7 +786,6 @@ class UI {
     }
     
     updateHostageStatus(hostage, wasRescuedAndIsAlive) {
-        // ... (unchanged)
         if (this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
             const rescueObjective = this.game.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
             if (rescueObjective) {
@@ -855,14 +796,12 @@ class UI {
 
 
     updateFormationButton(formationType) {
-        // ... (unchanged)
         if (this.toggleFormationButton && formationType) {
             this.toggleFormationButton.textContent = `Formation: ${formationType.charAt(0).toUpperCase() + formationType.slice(1).toLowerCase()}`;
         }
     }
 
     updateSquadPanel() {
-        // ... (unchanged)
         if (!this.game || !this.squadPanel || !this.game.deployedSquadRoster) {
              if (this.squadPanel) this.squadPanel.innerHTML = `<p>${this.uiText.HUD_NO_SQUAD_DEPLOYED || "No squad deployed."}</p>`;
              return;
@@ -925,7 +864,6 @@ class UI {
     }
 
     setCursor(styleName) {
-        // ... (unchanged)
         if (this.game && this.game.canvas) {
             this.game.canvas.classList.remove(
                 'cursor-default', 'cursor-attack', 'cursor-cell',

@@ -3,6 +3,11 @@ class Raccoon extends Unit {
                 existingXP = 0, existingRank = null, existingKills = 0) {
 
         super(x, y, game, 'player', CONFIG.RACCOON_HP, CONFIG.RACCOON_SPEED, CONFIG.RACCOON_SIZE, CONFIG.RACCOON_COLOR, id);
+
+        this.deadSpritePathKey = 'RACCOON_DEAD_SPRITE_PATH';
+        this.deadSpriteFilesKey = 'RACCOON_DEAD_SPRITE_FILES';
+        this.deadSpriteScaleKey = 'RACCOON_DEAD_SPRITE_SCALE';
+        
         this.weapon = WEAPONS.RACCOON_MACHINE_GUN;
         this.name = name || "Recruit";
         this.grenadeAmmo = CONFIG.RACCOON_STARTING_GRENADES || 0;

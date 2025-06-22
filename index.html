@@ -19,37 +19,31 @@
     </div>
     
     <div id="preMissionScreen" class="ui-panel" style="display: none;">
-        <!-- New structure for a more detailed, two-column layout -->
         <div id="preMissionHeader">
              <h3 id="preMissionPhaseTitle">Phase Title</h3>
              <h2 id="preMissionTitle">Mission Title</h2>
         </div>
-
         <div id="preMissionContent">
-            <!-- Left Column: Roster Management -->
             <div id="preMissionLeftPanel">
                 <div class="roster-section">
                     <h4 id="availableRecruitsTitle">Available Recruits (Click to Select)</h4>
-                    <ul id="availableRecruitsGrid">
-                        <!-- JS will populate this with square grid items -->
+                    <!-- MODIFIED: Changed from grid to list for horizontal scroll -->
+                    <ul id="availableRecruitsList">
+                        <!-- JS will populate this with horizontal card items -->
                     </ul>
                 </div>
             </div>
-
-            <!-- Right Column: Mission Details -->
             <div id="preMissionRightPanel">
                 <div class="mission-details-section" id="briefingSection">
                     <h4>Mission Briefing</h4>
-                    <p id="preMissionBriefing">Briefing text will be loaded here. It will describe the situation and what is at stake for the Raccoon Platoon.</p>
+                    <p id="preMissionBriefing">Briefing text will be loaded here.</p>
                 </div>
-
                 <div class="mission-details-section" id="objectivesSection">
                     <h4>Objectives</h4>
                     <ul id="preMissionObjectivesList">
                         <!-- JS will populate this -->
                     </ul>
                 </div>
-                
                 <div class="mission-details-section" id="intelSection">
                     <h4>Intel</h4>
                     <div class="intel-columns">
@@ -65,7 +59,6 @@
                 </div>
             </div>
         </div>
-
         <div id="preMissionFooter">
              <div id="deployedSquadContainer">
                 <h4>Deploying Squad (<span id="deployedCountDisplay">0</span> / <span id="maxSquadSizeDisplay">4</span>)</h4>
@@ -73,7 +66,7 @@
                     <!-- JS will populate this with selected units -->
                 </ul>
             </div>
-            <button id="startMissionButton" disabled>Deploy Selected Squad</button>
+            <button id="startMissionButton" disabled>Begin Mission</button>
         </div>
     </div>
 
@@ -140,9 +133,11 @@
         <button id="restartCampaignButton">Restart Campaign</button>
     </div>
 
-    <div id="recruitMemorialScreen" class="ui-panel" style="display: none; width: 600px; max-height: 700px; overflow-y: auto;">
+    <div id="recruitMemorialScreen" class="ui-panel" style="display: none;">
         <h2 id="memorialTitle">Wall of the Fallen</h2>
-        <div id="memorialEntriesContainer" style="text-align: left; margin: 20px 0;">...</div>
+        <ul id="memorialEntriesList">
+            <!-- JS Populated with memorial entries -->
+        </ul>
         <button id="backFromMemorialButton">Back</button>
     </div>
 

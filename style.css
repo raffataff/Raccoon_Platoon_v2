@@ -707,6 +707,257 @@ input[type="range"]::-moz-range-thumb {
 .cursor-target-mode-default { cursor: url('assets/images/ui/cursors/target_default.png') 16 16, crosshair; }
 .cursor-target-mode-enemy { cursor: url('assets/images/ui/cursors/target_enemy_hover.png') 16 16, crosshair; }
 
+#preMissionScreen {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 95vw;
+    height: 95vh;
+    max-width: 1800px;
+    z-index: 100;
+    padding: 25px;
+    display: flex;
+    flex-direction: column;
+    background-color: rgba(30, 28, 25, 0.95);
+    border: 2px solid #48443D;
+    backdrop-filter: blur(5px);
+}
+
+#preMissionHeader h3 {
+    font-size: 1.5em;
+    color: #B0A090;
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+#preMissionHeader h2 {
+    color: #D09040;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 2.5em;
+    margin: 5px 0 0 0;
+}
+
+#preMissionLeftPanel, #preMissionRightPanel {
+    padding: 15px;
+    background-color: rgba(10, 8, 5, 0.2);
+    border: 1px solid #3a3733;
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+}
+
+#preMissionLeftPanel {
+    flex: 1; /* Make columns equal width */
+}
+
+#preMissionRightPanel {
+    flex: 1; /* Make columns equal width */
+    gap: 20px;
+}
+
+.roster-section h4, .mission-details-section h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.5em;
+    color: #C8C6B8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #4F4A3F;
+    padding-bottom: 10px;
+}
+
+#availableRecruitsList {
+    list-style: none;
+    padding: 10px;
+    flex-grow: 1;
+    overflow-y: auto; /* Enable VERTICAL scrolling */
+    overflow-x: hidden; /* Disable horizontal scrolling */
+    display: grid; /* Use CSS Grid */
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Create responsive columns */
+    gap: 24px;
+    border: 1px solid #444;
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 3px;
+}
+
+.roster-card {
+    position: relative;
+    width: 140px;
+    height: 160px;
+    flex-shrink: 0; /* Prevent cards from shrinking */
+    background-color: #3A3733;
+    border: 1px solid #2A2825;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    margin: 5px;
+}
+/* --- END MODIFIED --- */
+
+.roster-card:hover {
+    transform: translateY(-5px);
+    border-color: #D09040;
+    box-shadow: 0 5px 10px rgba(208, 144, 64, 0.3);
+}
+
+.roster-card .roster-card-face {
+    width: 140px;
+    height: 140px;
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid #222;
+    background-size: cover;
+    background-position: center;
+}
+
+.roster-card .roster-card-name {
+    background-color: rgba(20, 20, 15, 0.8);
+    color: #E8E4D8;
+    font-weight: bold;
+    font-size: 1em;
+    text-align: center;
+    padding: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.roster-card.new-recruit::after {
+    content: 'NEW';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    background-color: #60A050;
+    color: white;
+    font-size: 0.9em;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px 0 3px 0;
+    z-index: 3;
+}
+
+#deployedSquadContainer {
+    flex-grow: 1;
+}
+
+#deployedSquadList {
+    list-style: none;
+    padding: 5px;
+    margin-left: 0px; /* Align with left padding */
+    display: flex;
+    gap: 10px;
+    min-height: 120px;
+    max-width: 76.5%;
+    border: 1px solid #444;
+    background-color: rgba(0,0,0,0.1);
+    border-radius: 3px;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+/* --- MODIFIED: Restored dedicated styling for deployed cards --- */
+.deployed-squad-card {
+    display: flex;
+    align-items: center;
+    margin-left: 5px;
+    padding: 5px;
+    height: 100px;
+    width: 275px;
+    background-color: #3F4E3A; /* Greenish tint to show they are selected */
+    border: 1px solid #60A050;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.deployed-squad-card:hover {
+    background-color: #4a5c44;
+    transform: translateY(-3px);
+}
+
+.deployed-squad-card .recruit-card-face {
+    width: 100px;
+    height: 100px;
+    margin: 2px;
+    border-radius: 3px;
+    border: 1px solid #222;
+    background-size: cover;
+    background-position: center;
+}
+
+.deployed-squad-card .recruit-card-info {
+    font-size: 1.1em;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-left: 5px;
+}
+
+.deployed-squad-card .name { font-weight: bold; font-size: 1.1em; color: #FFF; }
+.deployed-squad-card .rank { color: #d9be67; }
+.deployed-squad-card .xp { color: #b6d2aa; }
+.deployed-squad-card .rank-icon {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 36px;
+    height: 36px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    z-index: 2;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.7));
+}
+/* --- END MODIFIED --- */
+
+
+#startMissionButton {
+    padding: 15px 30px;
+    font-size: 1.2em;
+    height: 90px;
+}
+
+/* --- MODIFIED: Make deployed cards use post-mission style --- */
+.post-mission-recruit-card.deployed {
+    width: 220px;
+    height: 90px;
+    background-color: #3F4E3A;
+    border-color: #60A050;
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.post-mission-recruit-card.deployed:hover {
+    background-color: #4a5c44;
+    transform: translateY(-3px);
+}
+
+.post-mission-recruit-card.deployed .recruit-info .rank,
+.post-mission-recruit-card.deployed .recruit-info .xp {
+    font-size: 1em;
+}
+/* --- END MODIFIED --- */
+
+#preMissionBriefing {
+    font-size: 1.4em; /* Increased font size */
+    line-height: 1.6;
+}
+
+#preMissionObjectivesList li {
+    font-size: 1.4em; /* Increased font size */
+}
+
+#intelSection h5 {
+    font-size: 1em;
+    letter-spacing: 1px;
+}
+
 /* --- Post-Mission Screen REDESIGN --- */
 #postMissionScreen {
     top: 50%;
@@ -857,14 +1108,14 @@ input[type="range"]::-moz-range-thumb {
     background-color: #312E2B;
     border: 1px solid #403B30;
     border-radius: 3px;
-    padding: 10px;
+    padding: 3px;
     position: relative;
     overflow: hidden;
 }
 
 .post-mission-recruit-card .recruit-face {
-    width: 64px;
-    height: 64px;
+    width: 96px;
+    height: 96px;
     background-size: cover;
     background-position: center;
     border-radius: 3px;
@@ -886,52 +1137,47 @@ input[type="range"]::-moz-range-thumb {
     color: #E8E4D8;
 }
 
-/* --- MODIFIED: New structure for rank/xp/promotion --- */
-.post-mission-recruit-card .recruit-rank-xp-container {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+.recruit-rank-line, .recruit-xp-line {
     font-size: 1.1em;
     color: #A8A498;
-}
-
-.rank-wrapper {
-    position: relative;
-    height: 1.2em; /* Height of one line of text */
-}
-
-.rank-text {
-    position: absolute;
-    left: 0; top: 0;
-    transition: opacity 0.3s ease;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
 }
 
 .is-promoted .rank-text-old {
-    animation: fade-out-anim 0.4s forwards;
+    text-decoration: line-through;
+    opacity: 0.7;
+    animation: fade-out-anim 0.8s forwards 0.5s;
 }
-.is-promoted .rank-text-new {
+
+.is-promoted .rank-arrow {
     opacity: 0;
-    animation: fade-in-anim 0.4s forwards 0.4s;
     color: #ffd700;
-    font-weight: bold;
+    animation: fade-in-anim 0.4s forwards 0.7s;
 }
-.is-promoted .promotion-indicator {
-    display: inline;
+
+.is-promoted .rank-text-new {
     color: #ffd700;
     font-weight: bold;
+    opacity: 0;
+    animation: fade-in-anim 0.4s forwards 0.9s;
+}
+
+.promotion-indicator {
+    color: #ffd700;
+    font-weight: bold;
+    font-style: italic;
     text-shadow: 1px 1px 2px #000;
     opacity: 0;
-    animation: fade-in-anim 0.4s forwards 0.6s;
-    margin-left: 10px;
+    animation: fade-in-anim 0.4s forwards 1.1s;
 }
-/* Hide default promotion indicator if not promoted */
-.promotion-indicator { display: none; }
-/* --- END MODIFIED --- */
 
 .status-kia-text {
     color: #ff6e6e;
+    font-size: 1.5em;
+    font-style: italic;
     font-weight: bold;
-    font-size: 1.2em;
 }
 
 .post-mission-recruit-card .rank-icon-container {
@@ -954,18 +1200,19 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .is-promoted .rank-icon.old-rank {
-    animation: fade-out-scale-down 0.4s ease-in-out forwards;
+    animation: fall-off-anim 0.5s ease-in forwards;
 }
+
 .is-promoted .rank-icon.new-rank {
     opacity: 0;
-    transform: scale(1.5);
-    animation: fade-in-scale-up 0.4s ease-in-out forwards 0.4s;
+    animation: slide-in-bounce-anim 0.8s cubic-bezier(0.5, 0.2, 0.3, 1.5) forwards 0.5s;
 }
 
 .post-mission-recruit-card.fallen {
     background-color: #443232;
     border-color: #6e4e4e;
 }
+
 .post-mission-recruit-card.fallen .recruit-face {
     filter: grayscale(80%) brightness(0.8);
 }
@@ -999,21 +1246,45 @@ input[type="range"]::-moz-range-thumb {
     50% { background-color: #5a543e; }
     100% { background-color: #312E2B; }
 }
-@keyframes fade-out-scale-down {
-    from { opacity: 1; transform: scale(1); }
-    to { opacity: 0; transform: scale(0.5); }
-}
-@keyframes fade-in-scale-up {
-    from { opacity: 0; transform: scale(0.5); }
-    to { opacity: 1; transform: scale(1); }
-}
+
 @keyframes fade-out-anim {
-    from { opacity: 1; }
-    to { opacity: 0; }
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-5px); }
 }
 @keyframes fade-in-anim {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from { opacity: 0; transform: translateY(5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* New Animation Keyframes */
+@keyframes fall-off-anim {
+    from {
+        opacity: 1;
+        transform: translateY(0) rotate(0deg);
+    }
+    to {
+        opacity: 0;
+        transform: translateY(60px) rotate(90deg);
+    }
+}
+
+@keyframes slide-in-bounce-anim {
+    0% {
+        opacity: 0;
+        transform: translateY(-60px) scale(1.5);
+    }
+    60% {
+        opacity: 1;
+        transform: translateY(5px) scale(0.9);
+    }
+    80% {
+        transform: translateY(-2px) scale(1.05);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        filter: drop-shadow(0 0 5px #ffd700);
+    }
 }
 
 /* --- Recruit Memorial Screen Enhancements --- */
@@ -1021,85 +1292,110 @@ input[type="range"]::-moz-range-thumb {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 800px;
-    min-height: 500px;
-    max-height: 85vh;
+    width: 90vw;
+    height: 90vh;
+    max-width: 1000px;
     padding: 25px;
-    display: flex;
+    display: none; /* Changed from flex */
     flex-direction: column;
     z-index: 110;
+    background-color: rgba(30, 28, 25, 0.95);
+    border: 2px solid #48443D;
+    backdrop-filter: blur(5px);
 }
 
 #recruitMemorialScreen h2#memorialTitle {
     color: #B0A090;
+    text-align: center;
     text-transform: uppercase;
     letter-spacing: 1.5px;
     border-bottom: 2px groove #4F4A3F;
-    padding-bottom: 10px;
+    padding-bottom: 15px;
     margin-top: 0;
     margin-bottom: 20px;
-    font-size: 1.6em;
+    font-size: 2.2em;
 }
 
-#memorialEntriesContainer {
+#memorialEntriesList {
+    list-style: none;
+    padding: 10px;
+    margin: 0;
     flex-grow: 1;
     overflow-y: auto;
-    padding: 15px;
-    background-color: rgba(0,0,0,0.15);
+    background-color: rgba(0,0,0,0.2);
     border: 1px solid #403B30;
     border-radius: 3px;
-    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
 }
 
 .memorial-entry {
-    padding: 12px 10px;
-    border-bottom: 1px dashed #4F4A3F;
-    font-size: 0.95em;
     display: flex;
-    flex-direction: row;
     align-items: center;
-    gap: 15px;
-}
-.memorial-entry:last-child {
-    border-bottom: none;
+    gap: 20px;
+    padding: 12px;
+    background-color: #2A2825;
+    border: 1px solid #403B30;
+    border-radius: 3px;
 }
 
-.memorial-entry-face {
-    width: 99px;
-    height: 99px;
+.memorial-face {
+    width: 100px;
+    height: 100px;
     background-size: cover;
     background-position: center;
     border-radius: 3px;
-    border: 1px solid #2A2825;
+    border: 1px solid #1C1A17;
     flex-shrink: 0;
-    filter: grayscale(30%) sepia(40%);
+    filter: grayscale(60%) sepia(30%) brightness(0.9);
 }
 
-.memorial-entry-info {
+.memorial-info {
+    flex-grow: 1;
     display: flex;
     flex-direction: column;
+    gap: 6px;
 }
 
-.memorial-entry .field-label {
+.memorial-name {
+    font-size: 1.5em;
     font-weight: bold;
-    color: #A8A498;
-    min-width: 120px;
-    display: inline-block;
-    margin-right: 5px;
-}
-.memorial-entry .field-value {
     color: #D8D8C8;
 }
-.memorial-entry div {
-    margin-bottom: 4px;
+
+.memorial-detail {
+    font-size: 1.1em;
+    color: #A8A498;
 }
 
+.memorial-detail span {
+    font-weight: bold;
+    color: #888;
+    min-width: 140px;
+    display: inline-block;
+}
+
+.memorial-rank-icon {
+    width: 64px;
+    height: 64px;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    flex-shrink: 0;
+    opacity: 0.7;
+}
 
 #backFromMemorialButton {
-    margin-top: auto;
-    padding: 10px 18px;
+    margin-top: 20px;
+    padding: 12px 25px;
     align-self: center;
-    min-width: 120px;
+    min-width: 150px;
+    font-size: 1.1em;
+}
+
+.memorial-entry:last-child {
+    border-bottom: 1px solid #403B30; /* Ensure last item also has a border */
 }
 
 

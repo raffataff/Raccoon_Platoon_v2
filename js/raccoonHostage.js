@@ -11,6 +11,10 @@ class RaccoonHostage extends Raccoon {
 
         super(x, y, game, id, tempFace, tempName, 0, "Recruit", 0);
 
+        this.deadSpritePathKey = 'RACCOON_DEAD_SPRITE_PATH';
+        this.deadSpriteFilesKey = 'RACCOON_DEAD_SPRITE_FILES';
+        this.deadSpriteScaleKey = 'RACCOON_DEAD_SPRITE_SCALE';
+
         this.team = 'neutral'; 
         this.originalColor = hostageConfig.NEUTRAL_COLOR || '#FFD700';
         this.color = this.originalColor;
@@ -120,11 +124,9 @@ class RaccoonHostage extends Raccoon {
         } else { // Is rescued
             super.update(deltaTime);
             
-            // --- NEW: Exit if currently phasing to prevent follow logic from interfering ---
             if (this.isPhasing) {
                 return;
             }
-            // --- END NEW ---
 
             if (!this.isHoldingPosition) {
                  if (this.followTarget && this.followTarget.isAlive()) {
@@ -197,11 +199,7 @@ class RaccoonHostage extends Raccoon {
         this.aiState = 'FOLLOWING_PLAYER'; 
         this.color = CONFIG.RACCOON_COLOR; 
         this.isHoldingPosition = false; 
-
-        // --- MODIFIED: Change the sprite base name to use the new hostage sprites ---
         this.spriteBaseName = 'raccoon_hostage'; 
-        // --- END MODIFIED ---
-
         this.currentVisualState = 'idle';
 
         console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);
@@ -220,7 +218,7 @@ class RaccoonHostage extends Raccoon {
             this.currentPath = [];
             return false;
         }
-        return Unit.prototype.setMoveTarget.call(this, worldX, worldY, this.isPhasing); // Pass phasing status
+        return Unit.prototype.setMoveTarget.call(this, worldX, worldY, this.isPhasing);
     }
 
     addXp() {}
@@ -236,30 +234,12 @@ class RaccoonHostage extends Raccoon {
     _handlePlayerCombat() {} 
     _handleEnemyCombat() {} 
 
-    die() {
-        const wasRescuedBeforeDeath = this.isRescued;
-        Unit.prototype.die.call(this); 
-        
-        console.log(`Hostage ${this.id} (${this.name || ''}) has fallen. Was rescued: ${wasRescuedBeforeDeath}`);
-        
-        if (this.game.hostageUnits) {
-            const index = this.game.hostageUnits.indexOf(this);
-            if (index > -1) {
-                this.game.hostageUnits.splice(index, 1);
-            }
-        }
-        
-        if (this.game.ui && typeof this.game.ui.updateHostageStatus === 'function') {
-            this.game.ui.updateHostageStatus(this, false); 
-        }
-    }
-
     render(ctx) {
         if (!this.isRescued && this.isAlive() && this.unrescuedKneelingSprite) {
             ctx.save();
             ctx.translate(this.x, this.y);
             const sprite = this.unrescuedKneelingSprite;
-            const scale = this.spriteScaleFactor; // Use Raccoon scale
+            const scale = this.spriteScaleFactor;
             const sWidth = sprite.naturalWidth * scale;
             const sHeight = sprite.naturalHeight * scale;
             ctx.drawImage(sprite, -sWidth / 2, -sHeight / 2, sWidth, sHeight);
@@ -275,7 +255,7 @@ class RaccoonHostage extends Raccoon {
             if (playerNear) {
                 ctx.fillStyle = "yellow"; ctx.font = "bold 20px Arial";
                 ctx.textAlign = "center";
-                ctx.fillText("!", 0, -this.size - 10 - sHeight/2 + this.size/2); // Adjust y based on sprite
+                ctx.fillText("!", 0, -this.size - 10 - sHeight/2 + this.size/2);
                 ctx.textAlign = "left"; 
             }
             ctx.restore();
@@ -283,4 +263,10 @@ class RaccoonHostage extends Raccoon {
             super.render(ctx); 
         }
     }
+}
+
+function distanceSq(x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    return dx * dx + dy * dy;
 }

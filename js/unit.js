@@ -46,10 +46,14 @@ class Unit {
         this.phasingTimer = 0;  
 
         this.lastNudgeWasLeft = false; 
-        this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.25; 
+        this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5; 
         this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5; 
         this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.15; 
         this.lastImmediateBumpRepathTime = 0;
+
+        this.deadSpritePathKey = null;
+        this.deadSpriteFilesKey = null;
+        this.deadSpriteScaleKey = null;
 
         if (this instanceof Raccoon) { 
             this.spriteBaseName = 'raccoon';
@@ -62,7 +66,7 @@ class Unit {
             this.spriteScaleFactor = CONFIG.POSSUM_GRUNT_SPRITE_SCALE_FACTOR || 1.0;
         } else if (this instanceof PossumBoss1) {
             this.spriteBaseName = 'possum_boss_1';
-            this.spriteScaleFactor = CONFIG.POSSUM_BOSS1_SPRITE_SCALE_FACTOR || 1.0;
+            this.spriteScaleFactor = CONFIG.POSSUM_BOSS_1_SPRITE_SCALE_FACTOR || 1.0;
         }
         
         this.updateVisualDirection(this.facingAngle); 
@@ -72,6 +76,7 @@ class Unit {
     }
 
     updateVisualDirection(angleToUse) {
+        /* ... (Unchanged from previous complete version) ... */
         const angle = angleToUse;
         const twoPi = Math.PI * 2;
         const normalizedAngle = ((angle % twoPi) + twoPi) % twoPi;
@@ -89,6 +94,7 @@ class Unit {
     }
 
     _updateVelocity(deltaTime) {
+        /* ... (Unchanged from previous complete version) ... */
         this.timeSinceLastVelocitySample += deltaTime;
         if (this.timeSinceLastVelocitySample >= this.velocitySampleTime) {
             const dx = this.x - this.lastPosition.x;
@@ -171,18 +177,27 @@ class Unit {
             } else { this.currentVisualState = 'idle'; }
         } else { this.currentVisualState = 'idle'; }
         
-        if (this instanceof Raccoon) {
-            if (this.isAimingGrenade) {} 
-            else if (this.isPlayerDirectFiring || (this.manualTarget && this.manualTarget.isAlive()) || (this.autoTarget && this.autoTarget.isAlive())) {
-                if (!(this.team === 'player' && this.isHoldingFire) || this.isPlayerDirectFiring) { this.facingAngle = this.gunAimAngle; }
+        // --- MODIFIED: Universal Facing Logic ---
+        // This block now applies to ALL units, not just Raccoons.
+        if (this.isAimingGrenade) {
+            // Aiming logic is specific to Raccoon, but we check here to prevent override.
+        } else if (this.isPlayerDirectFiring || (this.manualTarget && this.manualTarget.isAlive()) || (this.autoTarget && this.autoTarget.isAlive())) {
+            // If any unit is targeting something, its facing angle should match its aim angle.
+            // This allows enemies to turn and face their target while stationary.
+            // Exception: A player unit that is told to "Hold Fire" should not turn.
+            if (!this.isHoldingFire || this.isPlayerDirectFiring) {
+                this.facingAngle = this.gunAimAngle;
             }
         }
+        // --- END MODIFIED ---
+
         this.updateVisualDirection(this.facingAngle);
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
 
     
     forcePhaseOut(duration = 1.0) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.isAlive()) return;
         this.isPhasing = true;
         this.phasingTimer = duration;
@@ -194,10 +209,12 @@ class Unit {
     }
 
     getCollisionShape() {
+        /* ... (Unchanged from previous complete version) ... */
         return { type: 'circle', x: this.x, y: this.y, radius: this.size / 2 };
     }
 
-    calculatePath(explicitStartGrid = null, isPhasingOverride = false) { 
+    calculatePath(explicitStartGrid = null, isPhasingOverride = false) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; return false; }
         const navGrid = this.game.level.getNavigationGrid();
         if (!navGrid) { this.isMoving = false; this.currentPath = []; return false; }
@@ -327,8 +344,8 @@ class Unit {
         let finalDeltaX = desiredDeltaX; let finalDeltaY = desiredDeltaY;
 
         if (this.isMoving && this.game) { 
-            const SEPARATION_CHECK_RADIUS = this.size * 4.5; const SEPARATION_FORCE_FACTOR = 0.9; 
-            const MIN_SEPARATION_DISTANCE_FACTOR = 0.95; 
+            const SEPARATION_CHECK_RADIUS = this.size * 2.0; const SEPARATION_FORCE_FACTOR = 1.1; 
+            const MIN_SEPARATION_DISTANCE_FACTOR = 1.2; 
             let separationDX = 0; let separationDY = 0; let unitsInSeparationRange = 0;
             let unitsToConsiderForSeparation = [];
             if (this.team === 'player') unitsToConsiderForSeparation = this.game.getLivingPlayerControlledUnits();
@@ -368,7 +385,7 @@ class Unit {
         if (distToNextNode > 1e-5) { 
             const potentialNewX_combined = this.x + finalDeltaX; 
             const potentialNewY_combined = this.y + finalDeltaY;
-            const collisionCheckRadius = this.size / 2 + 0.9; 
+            const collisionCheckRadius = this.size / 2 + 1.2; 
             const unitBodyShape_combined = { type: 'circle', x: potentialNewX_combined, y: potentialNewY_combined, radius: collisionCheckRadius };
             let isCollisionWithDesiredMove = false;
             for (const obs of obstaclesForCollision) {
@@ -448,10 +465,12 @@ class Unit {
                 }
             }
         } 
-        else if (fullBlockEncountered && this.team === 'player' && !(this instanceof RaccoonHostage) && this.isMoving) {
+        // --- MODIFIED: Universal Bump Logic ---
+        // Removed `&& this.team === 'player'` to apply this smart recovery to all units.
+        else if (fullBlockEncountered && !(this instanceof RaccoonHostage) && this.isMoving) {
             if (currentTime - this.lastImmediateBumpRepathTime > this.IMMEDIATE_BUMP_REPATH_COOLDOWN) {
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                    console.log(`[${this.id} _HM] Player Unit Immediate BUMP (Full Block). StepBack & SideStep -> Repath.`);
+                    console.log(`[${this.id} _HM] Unit Immediate BUMP (Full Block). StepBack & SideStep -> Repath.`);
                 }
                 this.lastImmediateBumpRepathTime = currentTime;
                 
@@ -495,6 +514,7 @@ class Unit {
                 this.x = originalX; this.y = originalY;
             }
         }
+        // --- END MODIFIED ---
 
         const worldW = CONFIG.WORLD_WIDTH || 0; const worldH = CONFIG.WORLD_HEIGHT || 0;
         this.x = Math.max(this.size/2, Math.min(this.x, worldW - this.size/2));
@@ -504,10 +524,8 @@ class Unit {
         this.lastDeltaY = this.y - originalY;
     }
 
-    // --- Methods from setMoveTarget onwards are restored to their state from "Full Unit.js" ---
-    // --- which correctly passes `isPhasing` to `calculatePath` and handles pool for `_executeFire` ---
-
     setMoveTarget(worldX, worldY) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
 
@@ -595,6 +613,7 @@ class Unit {
     }
 
     setManualTarget(target) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         this.manualTarget = target; this.autoTarget = null;
         if (target && target.isAlive()) {
@@ -605,6 +624,7 @@ class Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
+        /* ... (Unchanged from previous complete version) ... */
         if ((this instanceof Raccoon && this.isAimingGrenade) || this.actionTimer > 0 || !this.weapon) return;
         let targetToShoot = null; let fireAtX, fireAtY;
         if (this.manualTarget && this.manualTarget.isAlive()) {
@@ -632,6 +652,7 @@ class Unit {
     }
 
     _handlePlayerCombat(deltaTime, obstacles) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.isPlayerDirectFiring || (this instanceof Raccoon && this.isAimingGrenade) || this.actionTimer > 0 || !this.weapon) return;
         let targetToShoot = null; let fireAtX, fireAtY;
         if (this.manualTarget && this.manualTarget.isAlive()) {
@@ -658,6 +679,7 @@ class Unit {
     }
 
     findAutoTarget(potentialTargets, obstacles) {
+        /* ... (Unchanged from previous complete version) ... */
         let closestTarget = null;
         let engagementRange = (this.weapon ? this.weapon.range : (this.detectionRange || 150));
         if (this.team === 'player' && this instanceof Raccoon && this.weapon) {
@@ -686,6 +708,7 @@ class Unit {
     }
 
     _executeFire(pointX, pointY, fireAngle = null) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) return;
         if (this.team === 'player' && this.isHoldingFire && !this.isPlayerDirectFiring) return; 
         if (this.isMoving && !this.canShootWhileMoving && !this.isPlayerDirectFiring) return;
@@ -707,6 +730,7 @@ class Unit {
     }
 
     fireAtPoint(pointX, pointY) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         const fireAngle = Math.atan2(pointY - this.y, pointX - this.x);
         this._executeFire(pointX, pointY, fireAngle);
@@ -714,6 +738,7 @@ class Unit {
     }
 
     takeDamage(amount, attackerUnit = null) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.isAlive()) return;
         const prevHp = this.hp; this.hp -= amount; let died = false;
         if (this.hp <= 0) {
@@ -742,6 +767,7 @@ class Unit {
     }
 
     propagateAlert(sourceOfAlertUnit = null) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.isAlive() || this.team !== 'enemy' || !this.game || !this.game.enemyUnits) return;
         this.game.enemyUnits.forEach(otherEnemy => {
             if (otherEnemy && otherEnemy.isAlive() && otherEnemy !== this && (otherEnemy.aiState === 'PATROLLING' || otherEnemy.aiState === 'GUARDING')) { 
@@ -761,6 +787,7 @@ class Unit {
     }
 
     die() {
+        /* ... (Unchanged from previous complete version) ... */
         this.manualTarget = null; this.autoTarget = null; this.isMoving = false; this.currentPath = [];
         this.isPlayerDirectFiring = false; this.isHoldingPosition = false; this.isHoldingFire = false;   
         const wasSelected = this.game && this.game.selectedUnits.includes(this);
@@ -774,9 +801,13 @@ class Unit {
         if (wasSelected && this.game && this.game.ui) this.game.ui.updateSquadPanel();
     }
 
-    isAlive() { return this.hp > 0; }
+    isAlive() {
+        /* ... (Unchanged from previous complete version) ... */
+        return this.hp > 0;
+    }
 
     render(ctx) {
+        /* ... (Unchanged from previous complete version) ... */
         const kiaStyle = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.KIA_STYLE;
         const facingIndicatorStyle = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.FACING_INDICATOR;
         
@@ -818,26 +849,12 @@ class Unit {
                 drawOffsetY = -spriteHeight / 2;
             }
         } else { 
-            let deadSpriteConfigPath = null;
-            let deadSpriteConfigFiles = null;
-            
-            if (this instanceof Raccoon || (this.constructor.name === 'RaccoonHostage')) { 
-                deadSpriteConfigPath = CONFIG.RACCOON_DEAD_SPRITE_PATH;
-                deadSpriteConfigFiles = CONFIG.RACCOON_DEAD_SPRITE_FILES;
-                spriteScale = CONFIG.RACCOON_DEAD_SPRITE_SCALE !== undefined ? CONFIG.RACCOON_DEAD_SPRITE_SCALE : this.spriteScaleFactor;
-            } else if (this instanceof PossumGrunt) {
-                deadSpriteConfigPath = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH;
-                deadSpriteConfigFiles = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES;
-                spriteScale = CONFIG.POSSUM_GRUNT_DEAD_SPRITE_SCALE !== undefined ? CONFIG.POSSUM_GRUNT_DEAD_SPRITE_SCALE : this.spriteScaleFactor;
-            } else if (this instanceof PossumHeavy) {
-                deadSpriteConfigPath = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH;
-                deadSpriteConfigFiles = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES;
-                spriteScale = CONFIG.POSSUM_HEAVY_DEAD_SPRITE_SCALE !== undefined ? CONFIG.POSSUM_HEAVY_DEAD_SPRITE_SCALE : this.spriteScaleFactor;
-            } else if (this instanceof PossumBoss1) {
-                deadSpriteConfigPath = CONFIG.POSSUM_BOS_1_DEAD_SPRITE_PATH;
-                deadSpriteConfigFiles = CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_FILES;
-                spriteScale = CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_SCALE !== undefined ? CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_SCALE : this.spriteScaleFactor;
-            }
+            // --- MODIFIED: Generic dead sprite logic ---
+            const deadSpriteConfigPath = this.deadSpritePathKey ? CONFIG[this.deadSpritePathKey] : null;
+            const deadSpriteConfigFiles = this.deadSpriteFilesKey ? CONFIG[this.deadSpriteFilesKey] : null;
+            const deadSpriteScaleValue = this.deadSpriteScaleKey ? CONFIG[this.deadSpriteScaleKey] : this.spriteScaleFactor;
+            spriteScale = deadSpriteScaleValue !== undefined ? deadSpriteScaleValue : this.spriteScaleFactor;
+            // --- END MODIFIED ---
 
             if (!this.assignedDeadSpritePath && deadSpriteConfigPath && deadSpriteConfigFiles && deadSpriteConfigFiles.length > 0) {
                 const randomDeadFile = deadSpriteConfigFiles[Math.floor(Math.random() * deadSpriteConfigFiles.length)];
@@ -885,7 +902,6 @@ class Unit {
             ctx.globalAlpha = 1.0;
         }
 
-
         if (this.isAlive() && CONFIG.UNIT_VISUALS.DRAW_GUN_AIM_INDICATOR && facingIndicatorStyle) {
             ctx.strokeStyle = facingIndicatorStyle.COLOR || 'black';
             ctx.lineWidth = facingIndicatorStyle.LINE_WIDTH || 1;
@@ -897,29 +913,24 @@ class Unit {
 
         ctx.restore(); 
         
-        // Health Bar and NEW Selection Outline Logic
         if (this.isAlive() && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
             const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
             const barX = this.x - barWidth / 2; 
             const hpBarHeight = healthBarStyle.HEIGHT || 4;
             const spriteVisualHeight = spriteToDraw ? spriteHeight : this.size; 
-            const barY = this.y - (spriteVisualHeight / 2) - (healthBarStyle.Y_OFFSET_BASE || 0) - hpBarHeight - 5; // Position above unit
+            const barY = this.y - (spriteVisualHeight / 2) - (healthBarStyle.Y_OFFSET_BASE || 0) - hpBarHeight - 5;
             const hpPercent = this.hp / this.maxHp;
 
-            // Draw selection outline for health bar if selected
             if (this.game && this.game.selectedUnits && this.game.selectedUnits.includes(this)) {
-                this.game.ctx.strokeStyle = 'rgba(0, 150, 255, 0.9)'; // Blue selection color
-                this.game.ctx.lineWidth = 2; // Outline thickness
-                // Draw outline around the background of the health bar
+                this.game.ctx.strokeStyle = 'rgba(0, 150, 255, 0.9)';
+                this.game.ctx.lineWidth = 2;
                 this.game.ctx.strokeRect(barX - 2, barY - 2, barWidth + 4, hpBarHeight + 4); 
             }
 
-            // Draw health bar background
             this.game.ctx.fillStyle = healthBarStyle.BG_COLOR || '#333333';
             this.game.ctx.fillRect(barX - 1, barY - 1, barWidth + 2, hpBarHeight + 2);
 
-            // Draw health fill
             let fillColor = healthBarStyle.HP_COLOR_FULL || '#00CC00';
             if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) {
                 fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000';

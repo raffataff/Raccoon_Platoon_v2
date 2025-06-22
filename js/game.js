@@ -40,7 +40,7 @@ class Game {
         this.DRAG_THRESHOLD = CONFIG.INPUT_DRAG_THRESHOLD || 5;
 
         this.FORMATION_TYPES = ['HORIZONTAL', 'VERTICAL', 'SQUARE', 'DIAMOND'];
-        this.currentFormationIndex = 0;
+        this.currentFormationIndex = 3;
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
         this.formationSpacingMultiplier = CONFIG.INITIAL_FORMATION_SPACING || 3.5;
 
@@ -1875,6 +1875,12 @@ class Game {
             if(effect) effect.update(deltaTime);
             return effect && !effect.isMarkedForDeletion;
         });
+        
+        // --- MODIFIED: Cleanup is now handled here, universally ---
+        this.hostageUnits = this.hostageUnits.filter(h => !h.isMarkedForDeletion);
+        // We don't filter `deployedSquadRoster` or `enemyUnits` because we need to keep track of dead bodies.
+        // If we needed to clean them up, this is where it would happen.
+        // --- END MODIFIED ---
 
         if (!this.missionStartedAndPopulated && this.gameState === 'RUNNING') {
              this.missionStartedAndPopulated = true;
