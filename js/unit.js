@@ -46,8 +46,8 @@ class Unit {
         this.phasingTimer = 0;  
 
         this.lastNudgeWasLeft = false; 
-        this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5; 
-        this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5; 
+        this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 1.5; 
+        this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 1.5; 
         this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.15; 
         this.lastImmediateBumpRepathTime = 0;
 
@@ -166,35 +166,45 @@ class Unit {
             else if (this.team === 'enemy') { this._handleEnemyCombat(deltaTime, this.game.level.obstacles); }
         }
         
-        if (!this.isAlive()) { this.currentVisualState = 'death'; } 
-        else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6)) { 
+        // --- MODIFIED: Reworked State Machine Logic ---
+        if (!this.isAlive()) {
+            this.currentVisualState = 'death';
+        } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6)) {
+            // If moving, always show walking animation and face movement direction.
             this.currentVisualState = 'walk';
             this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
-        } else if ((this.manualTarget || this.autoTarget || this.isPlayerDirectFiring) && this.attackCooldown <= 0 && this.actionTimer <= 0 && !(this instanceof Raccoon && this.isAimingGrenade)) {
-            if (!(this.team === 'player' && this.isHoldingFire) || this.isPlayerDirectFiring) { 
-                this.currentVisualState = 'fire';
-                if (!(this instanceof Raccoon && this.isAimingGrenade)) { this.facingAngle = this.gunAimAngle; }
-            } else { this.currentVisualState = 'idle'; }
-        } else { this.currentVisualState = 'idle'; }
-        
-        // --- MODIFIED: Universal Facing Logic ---
-        // This block now applies to ALL units, not just Raccoons.
-        if (this.isAimingGrenade) {
-            // Aiming logic is specific to Raccoon, but we check here to prevent override.
-        } else if (this.isPlayerDirectFiring || (this.manualTarget && this.manualTarget.isAlive()) || (this.autoTarget && this.autoTarget.isAlive())) {
-            // If any unit is targeting something, its facing angle should match its aim angle.
-            // This allows enemies to turn and face their target while stationary.
-            // Exception: A player unit that is told to "Hold Fire" should not turn.
-            if (!this.isHoldingFire || this.isPlayerDirectFiring) {
+        } else {
+            // If stationary, decide between idle and fire.
+            const hasTarget = (this.manualTarget && this.manualTarget.isAlive()) || 
+                              (this.autoTarget && this.autoTarget.isAlive()) || 
+                              this.isPlayerDirectFiring;
+            
+            const isEngaged = hasTarget && !(this instanceof Raccoon && this.isAimingGrenade);
+
+            if (isEngaged) {
+                // If engaged with a target, ALWAYS face the target.
                 this.facingAngle = this.gunAimAngle;
+                
+                // Decide visual state based on cooldown and hold fire status.
+                const canFire = (this.attackCooldown <= 0 && this.actionTimer <= 0);
+                const isOrderedToFire = !(this.team === 'player' && this.isHoldingFire) || this.isPlayerDirectFiring;
+
+                if (canFire && isOrderedToFire) {
+                    this.currentVisualState = 'fire';
+                } else {
+                    this.currentVisualState = 'idle';
+                }
+            } else {
+                // If not engaged (no target, or aiming grenade), just be idle.
+                // Facing angle remains from last state (either from walking or previous aiming).
+                this.currentVisualState = 'idle';
             }
         }
         // --- END MODIFIED ---
-
+        
         this.updateVisualDirection(this.facingAngle);
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
-
     
     forcePhaseOut(duration = 1.0) {
         /* ... (Unchanged from previous complete version) ... */
@@ -274,6 +284,7 @@ class Unit {
     }
 
     _handleMovement(deltaTime) {
+        /* ... (Unchanged from previous complete version) ... */
         const originalX = this.x;
         const originalY = this.y;
         const currentTime = performance.now() / 1000; 
@@ -344,8 +355,8 @@ class Unit {
         let finalDeltaX = desiredDeltaX; let finalDeltaY = desiredDeltaY;
 
         if (this.isMoving && this.game) { 
-            const SEPARATION_CHECK_RADIUS = this.size * 2.0; const SEPARATION_FORCE_FACTOR = 1.1; 
-            const MIN_SEPARATION_DISTANCE_FACTOR = 1.2; 
+            const SEPARATION_CHECK_RADIUS = this.size * 1.5; const SEPARATION_FORCE_FACTOR = 0.9; 
+            const MIN_SEPARATION_DISTANCE_FACTOR = 0.95; 
             let separationDX = 0; let separationDY = 0; let unitsInSeparationRange = 0;
             let unitsToConsiderForSeparation = [];
             if (this.team === 'player') unitsToConsiderForSeparation = this.game.getLivingPlayerControlledUnits();
@@ -465,8 +476,6 @@ class Unit {
                 }
             }
         } 
-        // --- MODIFIED: Universal Bump Logic ---
-        // Removed `&& this.team === 'player'` to apply this smart recovery to all units.
         else if (fullBlockEncountered && !(this instanceof RaccoonHostage) && this.isMoving) {
             if (currentTime - this.lastImmediateBumpRepathTime > this.IMMEDIATE_BUMP_REPATH_COOLDOWN) {
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
@@ -514,7 +523,6 @@ class Unit {
                 this.x = originalX; this.y = originalY;
             }
         }
-        // --- END MODIFIED ---
 
         const worldW = CONFIG.WORLD_WIDTH || 0; const worldH = CONFIG.WORLD_HEIGHT || 0;
         this.x = Math.max(this.size/2, Math.min(this.x, worldW - this.size/2));

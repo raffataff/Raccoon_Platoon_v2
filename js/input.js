@@ -74,7 +74,7 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u', '1', '2', '3', '4'];
+            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u', 'p', '1', '2', '3', '4'];
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -155,6 +155,14 @@ class InputHandler {
                 }
             }
             // --- END MODIFIED ---
+
+            // --- NEW: Debug Visuals Toggle ---
+            if ((event.key === 'p' || event.key === 'P') && !isInputFieldActive) {
+                if (this.game && typeof this.game.toggleDebugVisuals === 'function') {
+                    this.game.toggleDebugVisuals();
+                }
+            }
+            // --- END NEW ---
             
             const keyNumber = parseInt(event.key, 10);
             if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) { 
@@ -196,6 +204,7 @@ class InputHandler {
     }
 
     _updateMousePositions(event) {
+        /* ... (Unchanged from previous complete version) ... */
         const rect = this.canvas.getBoundingClientRect();
         const mouseXRelative = event.clientX - rect.left;
         const mouseYRelative = event.clientY - rect.top;
@@ -216,6 +225,7 @@ class InputHandler {
 
 
     handleMouseDown(event) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.game || this.game.gameState !== 'RUNNING') return;
          event.preventDefault();
         this._updateMousePositions(event);
@@ -249,6 +259,7 @@ class InputHandler {
     }
 
     handleMouseMove(event) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.game) return;
         this._updateMousePositions(event);
 
@@ -275,6 +286,7 @@ class InputHandler {
     }
 
     handleMouseUp(event) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.game || this.game.gameState !== 'RUNNING') return;
 
         if (event.button === 0) { // Left Mouse Button
@@ -304,6 +316,7 @@ class InputHandler {
     }
 
     handleMouseLeave(event) {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.game) return;
         if (this.isLeftMouseDown && this.game.gameState === 'RUNNING') {
             if (this.isLMBHoldFiringActionActive && !this.isShiftPressed && !this.isCtrlPressed) {
@@ -321,6 +334,7 @@ class InputHandler {
     }
 
     getEnemyUnitUnderCursor(worldX, worldY) {
+        /* ... (Unchanged from previous complete version) ... */
         if (this.game && this.game.enemyUnits) {
             for (const enemy of this.game.enemyUnits) {
                 if (enemy.isAlive() && distance(worldX, worldY, enemy.x, enemy.y) < enemy.size + 7) {
@@ -332,6 +346,7 @@ class InputHandler {
     }
 
     updateMouseCursor() {
+        /* ... (Unchanged from previous complete version) ... */
         if (!this.game || !this.game.ui ) {
             if (this.game && this.game.ui) this.game.ui.setCursor('default');
             return;

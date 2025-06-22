@@ -21,10 +21,10 @@ const CONFIG = {
     INPUT_TAP_THRESHOLD_MS: 30,
 
     // --- Pathfinding ---
-    GRID_CELL_SIZE: 12, // Reduced for finer grid, ensure performance
+    GRID_CELL_SIZE: 8, // Reduced for finer grid, ensure performance
     DEBUG_PATHING_UNIT_ID: null, 
     DEBUG_DRAW_NAV_GRID_BLOCKED: true, 
-    DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: false, 
+    DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true, 
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 40,

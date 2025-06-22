@@ -43,61 +43,51 @@ class PossumHeavy extends Unit {
     }
 
     aiLogicHeavy(deltaTime, playerUnitsOnMap, obstacles) {
-        let currentTarget = this.manualTarget;
-
         if (this.actionTimer > 0) { return; }
 
+        // --- MODIFIED: Reworked AI Logic for clarity and decisiveness ---
+        
+        // 1. Target Acquisition
+        let currentTarget = this.manualTarget;
         if (!currentTarget || !currentTarget.isAlive()) {
             this.manualTarget = null;
             this.findAutoTarget(playerUnitsOnMap || [], obstacles);
             currentTarget = this.autoTarget;
         }
 
-        if (currentTarget && currentTarget.isAlive()) {
-            this.manualTarget = currentTarget;
-            const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
-            const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
-
-            if (this.aiState === 'GUARDING' || this.aiState === 'SUSPICIOUS') {
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] Acquired target ${currentTarget.id}. Current state: ${this.aiState}. Dist: ${distToTarget.toFixed(0)}, LOS: ${losToTarget}`);
-                this.lastKnownPlayerPosition = null;
-                this.alertedByAlly = false;
-                this.propagateAlert(this.manualTarget);
-            }
-
-            if (distToTarget <= (this.weapon.range - this.ENGAGE_RANGE_BUFFER) && losToTarget) {
-                if (this.aiState !== 'ENGAGING_SHOOTING_HEAVY') {
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] Target ${currentTarget.id} in range & LOS. Switching to ENGAGING_SHOOTING_HEAVY.`);
-                    this.aiState = 'ENGAGING_SHOOTING_HEAVY';
-                    if (this.isMoving) { this.isMoving = false; this.currentPath = []; }
-                }
-            } else {
-                if (this.aiState !== 'ENGAGING_CHASING_HEAVY') {
-                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] Target ${currentTarget.id} out of range/LOS. Switching to ENGAGING_CHASING_HEAVY.`);
-                    this.aiState = 'ENGAGING_CHASING_HEAVY';
-                    this.timeSinceLastChaseDestUpdate = this.CHASE_DESTINATION_REFRESH_INTERVAL;
-                    this.chaseDestination = null;
-                }
-            }
-        } else {
+        // If no target exists, revert to non-combat states.
+        if (!currentTarget || !currentTarget.isAlive()) {
             if (this.aiState === 'ENGAGING_CHASING_HEAVY' || this.aiState === 'ENGAGING_SHOOTING_HEAVY') {
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] Target lost. Reverting to GUARDING/SUSPICIOUS from ${this.aiState}.`);
                 this.aiState = (this.lastKnownPlayerPosition) ? 'SUSPICIOUS' : 'GUARDING';
-                 if (this.aiState === 'GUARDING' && (!this.isMoving || this.worldTargetX !== this.guardPost.x || this.worldTargetY !== this.guardPost.y)) {
-                    this.setMoveTarget(this.guardPost.x, this.guardPost.y);
-                } else if (this.aiState === 'SUSPICIOUS' && this.lastKnownPlayerPosition && (!this.isMoving || this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y)) {
-                     if(!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)){
-                        this.aiState = 'GUARDING';
-                        this.setMoveTarget(this.guardPost.x, this.guardPost.y);
-                    }
-                }
             }
             this.manualTarget = null;
             this.chaseDestination = null;
+        } else {
+            // We have a live target. Decide whether to shoot or chase.
+            const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
+            const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
+
+            // Behavioral Guard Clause: If in range and can see the target, STOP and SHOOT.
+            if (distToTarget <= (this.weapon.range - this.ENGAGE_RANGE_BUFFER) && losToTarget) {
+                this.aiState = 'ENGAGING_SHOOTING_HEAVY';
+                if (this.isMoving) {
+                    this.isMoving = false;
+                    this.currentPath = [];
+                }
+            } else {
+                // Otherwise, chase the target.
+                this.aiState = 'ENGAGING_CHASING_HEAVY';
+            }
+             // Propagate alert to allies if we just became aware of the target.
+            if (this.aiState !== 'GUARDING' && this.aiState !== 'SUSPICIOUS' && !this.alertedByAlly) {
+                this.propagateAlert(currentTarget);
+            }
         }
 
+        // 2. Execute State-Specific Behavior
         switch (this.aiState) {
             case 'GUARDING':
+                /* ... (Unchanged logic) ... */
                 const atPostTolerance = this.heavyAIConfig.GUARD_POST_POSITION_TOLERANCE || this.game.level.gridCellSize / 2;
                 const distToGuardPostCurrent = distance(this.x, this.y, this.guardPost.x, this.guardPost.y);
 
@@ -115,6 +105,7 @@ class PossumHeavy extends Unit {
                 }
                 break;
             case 'SUSPICIOUS':
+                /* ... (Unchanged logic) ... */
                 if (this.lastKnownPlayerPosition) {
                     const distToLKP = distance(this.x, this.y, this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
                     const arrivalToleranceLKP = this.game.level.gridCellSize * 1.5;
@@ -143,32 +134,18 @@ class PossumHeavy extends Unit {
                 break;
 
             case 'ENGAGING_SHOOTING_HEAVY':
-                if (this.manualTarget && this.manualTarget.isAlive()) {
-                    if (this.isMoving) {
-                        this.isMoving = false;
-                        this.currentPath = [];
-                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] SHOOTING_HEAVY: Stopped movement to fire.`);
-                    }
-                    if (distance(this.x, this.y, this.manualTarget.x, this.manualTarget.y) > 0.1) {
-                        const angleToTarget = Math.atan2(this.manualTarget.y - this.y, this.manualTarget.x - this.x);
-                        this.facingAngle = angleToTarget;
-                        this.gunAimAngle = angleToTarget;
-                    }
-                } else {
-                    this.aiState = 'GUARDING';
-                }
+                // The `update` function in unit.js now handles the actual firing and facing direction.
+                // This state's only job is to exist; no further logic is needed here.
                 break;
 
             case 'ENGAGING_CHASING_HEAVY':
-                if (this.manualTarget && this.manualTarget.isAlive()) {
-                    const target = this.manualTarget;
+                if (currentTarget && currentTarget.isAlive()) {
                     const currentDistToGuardPost = distance(this.x, this.y, this.guardPost.x, this.guardPost.y);
 
                     if (currentDistToGuardPost >= this.maxChaseDistanceFromPost) {
                         this.aiState = 'GUARDING';
                         this.chaseDestination = null;
                         this.manualTarget = null;
-                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] Too far from post while CHASING. State: GUARDING.`);
                         this.setMoveTarget(this.guardPost.x, this.guardPost.y);
                         break;
                     }
@@ -178,27 +155,26 @@ class PossumHeavy extends Unit {
                         shouldUpdateChaseDest = true;
                     } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
                         shouldUpdateChaseDest = true;
-                    } else if (distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
+                    } else if (distanceSq(currentTarget.x, currentTarget.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
                         shouldUpdateChaseDest = true;
-                    } else if (!this.isMoving && distance(this.x, this.y, target.x, target.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
+                    } else if (!this.isMoving && distance(this.x, this.y, currentTarget.x, currentTarget.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
                         shouldUpdateChaseDest = true;
                     }
 
                     if (shouldUpdateChaseDest) {
                         const predictionTime = this.heavyAIConfig.CHASE_PREDICTION_TIME_FACTOR || 0.15;
-                        let predictedX = target.x + target.currentVelocity.x * predictionTime;
-                        let predictedY = target.y + target.currentVelocity.y * predictionTime;
+                        let predictedX = currentTarget.x + currentTarget.currentVelocity.x * predictionTime;
+                        let predictedY = currentTarget.y + currentTarget.currentVelocity.y * predictionTime;
 
                         predictedX = Math.max(this.size, Math.min(predictedX, CONFIG.WORLD_WIDTH - this.size));
                         predictedY = Math.max(this.size, Math.min(predictedY, CONFIG.WORLD_HEIGHT - this.size));
 
                         const distToThisPredicted = distance(this.x, this.y, predictedX, predictedY);
                         if (distToThisPredicted < this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY) {
-                             if (distance(this.x, this.y, target.x, target.y) > 1.0) {
-                                const angleToActualTarget = Math.atan2(target.y - this.y, target.x - this.x);
+                             if (distance(this.x, this.y, currentTarget.x, currentTarget.y) > 1.0) {
+                                const angleToActualTarget = Math.atan2(currentTarget.y - this.y, currentTarget.x - this.x);
                                 predictedX = this.x + Math.cos(angleToActualTarget) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
                                 predictedY = this.y + Math.sin(angleToActualTarget) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
-                                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] CHASING: Predicted target too close, adjusting to maintain min approach distance from current pos.`);
                             } else {
                                 predictedX = this.x;
                                 predictedY = this.y;
@@ -209,19 +185,16 @@ class PossumHeavy extends Unit {
                         this.chaseDestination = { x: predictedX, y: predictedY };
                         if(this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y)){
                             this.timeSinceLastChaseDestUpdate = 0;
-                            if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogicHeavy] CHASING: Updated chase destination to (${predictedX.toFixed(0)}, ${predictedY.toFixed(0)}). Pathing success.`);
-                        } else {
-                             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} aiLogicHeavy] CHASING: setMoveTarget failed for new chase destination.`);
                         }
                     }
-                } else {
-                    this.aiState = 'GUARDING';
                 }
                 break;
         }
+        // --- END MODIFIED ---
     }
 
     onStuck(reason = 'unknown') {
+        /* ... (Unchanged from previous complete version) ... */
         const heavyAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_HEAVY) ? CONFIG.AI.POSSUM_HEAVY : {};
         const currentTime = performance.now() / 1000;
 
