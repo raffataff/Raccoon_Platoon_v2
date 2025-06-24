@@ -46,8 +46,8 @@ class Unit {
         this.phasingTimer = 0;  
 
         this.lastNudgeWasLeft = false; 
-        this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 1.5; 
-        this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 1.5; 
+        this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5; 
+        this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5; 
         this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.15; 
         this.lastImmediateBumpRepathTime = 0;
 
@@ -166,38 +166,37 @@ class Unit {
             else if (this.team === 'enemy') { this._handleEnemyCombat(deltaTime, this.game.level.obstacles); }
         }
         
-        // --- MODIFIED: Reworked State Machine Logic ---
+        // --- MODIFIED: Simplified and Corrected State Machine Logic ---
         if (!this.isAlive()) {
             this.currentVisualState = 'death';
-        } else if (this.isMoving && (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6)) {
-            // If moving, always show walking animation and face movement direction.
-            this.currentVisualState = 'walk';
-            this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
         } else {
-            // If stationary, decide between idle and fire.
+            const isActuallyMoving = this.isMoving && (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6);
+            
+            // Determine if the unit is in a state where it *wants* to fire.
             const hasTarget = (this.manualTarget && this.manualTarget.isAlive()) || 
                               (this.autoTarget && this.autoTarget.isAlive()) || 
                               this.isPlayerDirectFiring;
             
-            const isEngaged = hasTarget && !(this instanceof Raccoon && this.isAimingGrenade);
+            const isReadyToFire = (this.attackCooldown <= 0 && this.actionTimer <= 0);
+            const isOrderedToFire = !(this.isHoldingFire && !this.isPlayerDirectFiring);
 
-            if (isEngaged) {
-                // If engaged with a target, ALWAYS face the target.
-                this.facingAngle = this.gunAimAngle;
-                
-                // Decide visual state based on cooldown and hold fire status.
-                const canFire = (this.attackCooldown <= 0 && this.actionTimer <= 0);
-                const isOrderedToFire = !(this.team === 'player' && this.isHoldingFire) || this.isPlayerDirectFiring;
+            const isFiringThisFrame = hasTarget && isReadyToFire && isOrderedToFire && !(this instanceof Raccoon && this.isAimingGrenade);
 
-                if (canFire && isOrderedToFire) {
-                    this.currentVisualState = 'fire';
-                } else {
-                    this.currentVisualState = 'idle';
-                }
-            } else {
-                // If not engaged (no target, or aiming grenade), just be idle.
-                // Facing angle remains from last state (either from walking or previous aiming).
+            if (isFiringThisFrame) {
+                this.currentVisualState = 'fire';
+                this.facingAngle = this.gunAimAngle; // Firing ALWAYS dictates facing direction.
+            } else if (hasTarget && isOrderedToFire) {
+                // If we have a target but are on cooldown, we should be idle but still face the target.
                 this.currentVisualState = 'idle';
+                this.facingAngle = this.gunAimAngle;
+            } else if (isActuallyMoving) {
+                // If not firing or aiming, movement dictates facing direction.
+                this.currentVisualState = 'walk';
+                this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
+            } else {
+                // If not firing and not moving, we are truly idle.
+                this.currentVisualState = 'idle';
+                // The facingAngle remains from its last state (movement or aiming).
             }
         }
         // --- END MODIFIED ---
@@ -205,7 +204,7 @@ class Unit {
         this.updateVisualDirection(this.facingAngle);
         if (actionTimerFinishedThisFrame && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
     }
-    
+
     forcePhaseOut(duration = 1.0) {
         /* ... (Unchanged from previous complete version) ... */
         if (!this.isAlive()) return;

@@ -702,25 +702,27 @@ class Level {
                 if (targetTemplateOriginal) {
                     for (let i = 0; i < objective.totalToAchieve; i++) {
                         let targetX, targetY, placedTarget = false;
-                        let actualTargetSpritePath = null;
-                        let targetImage = null;
-                        const template = targetTemplateOriginal; 
-
-                        let targetFilesArray = [];
-                        let targetPathBase = '';
-                        let targetUseRandomSpriteFromList = false;
-
-                        if (template.type === 'possum_hut') { targetFilesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || []; targetPathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || ''; targetUseRandomSpriteFromList = true; }
-                        else if (template.type === 'possum_relay_tower') { targetFilesArray = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || []; targetPathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || ''; targetUseRandomSpriteFromList = true; }
-                        else if (template.spriteNormal) { actualTargetSpritePath = template.spriteNormal; }
-
-                        if (targetUseRandomSpriteFromList && targetFilesArray.length > 0 && targetPathBase) {
-                            actualTargetSpritePath = targetPathBase + this.rng.pickFrom(targetFilesArray);
+                        
+                        // Use the new sprite pair system for huts
+                        let actualSpritePath = null;
+                        let actualDestroyedSpritePath = null;
+                        if (targetTemplateOriginal.type === 'possum_hut') {
+                            const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
+                            if (hutSpritePairs.length > 0) {
+                                const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                                const pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
+                                actualSpritePath = pathBase + selectedPair.normal;
+                                actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                            }
+                        } else {
+                            actualSpritePath = targetTemplateOriginal.spriteNormal || null;
+                            actualDestroyedSpritePath = targetTemplateOriginal.spriteDestroyed || null;
                         }
-                        if (actualTargetSpritePath) targetImage = preloadedAssetImages[actualTargetSpritePath];
+                        
+                        let targetImage = actualSpritePath ? preloadedAssetImages[actualSpritePath] : null;
 
-                        const targetWidth = targetImage ? targetImage.naturalWidth * (template.spriteScale || 1) : (template.width || 64);
-                        const targetHeight = targetImage ? targetImage.naturalHeight * (template.spriteScale || 1) : (template.height || 64);
+                        const targetWidth = targetImage ? targetImage.naturalWidth * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.width || 64);
+                        const targetHeight = targetImage ? targetImage.naturalHeight * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.height || 64);
 
                         for (let attempt = 0; attempt < (genConfig.OBSTACLES.PLACEMENT_MAX_ATTEMPTS || 15); attempt++) {
                             targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
@@ -729,24 +731,24 @@ class Level {
                             const tempTargetForShapeCheck = { 
                                 x:targetX, y:targetY, 
                                 width:targetWidth, height:targetHeight, 
-                                collisionShape: template.collisionShape 
+                                collisionShape: targetTemplateOriginal.collisionShape 
                             };
                             const collisionShapeForPlacementCheck = this._getObstacleCollisionShape(tempTargetForShapeCheck);
 
-                            if (!this._isPlacementInvalid(collisionShapeForPlacementCheck, template.isDecoration, this.obstacles, extraKeepOutZones)) {
+                            if (!this._isPlacementInvalid(collisionShapeForPlacementCheck, targetTemplateOriginal.isDecoration, this.obstacles, extraKeepOutZones)) {
                                 const missionTargetObs = {
                                     x: targetX, y: targetY, width: targetWidth, height: targetHeight,
-                                    type: template.type, name: `${objective.targetNameSingular || template.name || template.type} (Objective)`,
-                                    color: template.color, destructible: template.destructible,
-                                    hp: template.hp, maxHp: template.maxHp, isDestroyed: false,
-                                    blocksMovement: template.blocksMovement, providesCover: template.providesCover,
-                                    isDecoration: template.isDecoration,
-                                    spriteNormalPath: actualTargetSpritePath, imageNormal: targetImage, 
-                                    spriteDestroyedPath: template.spriteDestroyed, imageDestroyed: template.spriteDestroyed ? preloadedAssetImages[template.spriteDestroyed] : null,
-                                    spriteScale: template.spriteScale || 1.0, spriteDestroyedScale: template.spriteDestroyedScale,
-                                    collisionShape: template.collisionShape, 
+                                    type: targetTemplateOriginal.type, name: `${objective.targetNameSingular || targetTemplateOriginal.name || targetTemplateOriginal.type} (Objective)`,
+                                    color: targetTemplateOriginal.color, destructible: targetTemplateOriginal.destructible,
+                                    hp: targetTemplateOriginal.hp, maxHp: targetTemplateOriginal.maxHp, isDestroyed: false,
+                                    blocksMovement: targetTemplateOriginal.blocksMovement, providesCover: targetTemplateOriginal.providesCover,
+                                    isDecoration: targetTemplateOriginal.isDecoration,
+                                    spriteNormalPath: actualSpritePath, imageNormal: targetImage, 
+                                    spriteDestroyedPath: actualDestroyedSpritePath, imageDestroyed: actualDestroyedSpritePath ? preloadedAssetImages[actualDestroyedSpritePath] : null,
+                                    spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
+                                    collisionShape: targetTemplateOriginal.collisionShape, 
                                     isMissionTarget: true, objectiveId: objective.id,
-                                    isSpawner: template.type === 'possum_hut',
+                                    isSpawner: targetTemplateOriginal.type === 'possum_hut',
                                     spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                                     delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0 
                                 };
@@ -777,7 +779,6 @@ class Level {
 
         if (assassinationObjectiveInstance && assassinationObjectiveInstance.targetDetails) {
             const targetInfo = assassinationObjectiveInstance.targetDetails;
-            // Spawning for possum_boss_1
             if (targetInfo.assassinationTypeKey === 'possum_boss_1') {
                 let bossX, bossY;
                 const bossMaxAttempts = 25; 
@@ -830,10 +831,21 @@ class Level {
             const template = this._getRandomObstacleTemplate();
             if (!template) { continue; }
             let obsRenderWidth, obsRenderHeight;
-            let actualSpritePath = null, actualImageObject = null, actualDestroyedSpritePath = template.spriteDestroyed || null, actualDestroyedImageObject = null;
+            let actualSpritePath = null, actualImageObject = null;
+            let actualDestroyedSpritePath = template.spriteDestroyed || null, actualDestroyedImageObject = null;
             let normalSpriteScale = template.spriteScale || 1.0, destroyedSpriteScale = template.spriteDestroyedScale;
             let filesArray = [], pathBase = '', useRandomSpriteFromList = false;
-                 if (template.type === 'bush_medium') { filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
+
+            if (template.type === 'possum_hut') {
+                const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'bush_medium') { filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'bush_large') { filesArray = CONFIG.BUSH_SPRITES_64PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_64PX_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'fence_barbed_straight_short') { filesArray = CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'fence_barbed_straight_long') { filesArray = CONFIG.FENCE_BARBED_LONG_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
@@ -842,11 +854,11 @@ class Level {
             else if (template.type === 'tree_palm_single') { filesArray = CONFIG.PALM_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_double') { filesArray = CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_triple') { filesArray = CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'possum_hut') { filesArray = CONFIG.POSSUM_HUT_SPRITE_FILES || []; pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'possum_relay_tower') { filesArray = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || []; pathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'pickup_health') { filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || []; pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_fallen') { filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else { actualSpritePath = template.spriteNormal || null; }
+            
             if (useRandomSpriteFromList) { 
                 if (filesArray.length > 0 && pathBase) {
                     actualSpritePath = pathBase + this.rng.pickFrom(filesArray); 
@@ -992,6 +1004,8 @@ class Level {
                             const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
                             hutHostageCounts.set(hut.name || hut.type + hut.x + hut.y, (currentHutHostageCount + 1));
+                            const hutDef = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === hut.type);
+                            if(hutDef) this._spawnInitialGuardsForObject(hut, hutDef);
                             break;
                         }
                     }

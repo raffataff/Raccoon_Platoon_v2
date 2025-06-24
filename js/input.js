@@ -22,26 +22,38 @@ class InputHandler {
         this.canvas.addEventListener('mouseup', (event) => this.handleMouseUp(event));
         this.canvas.addEventListener('mouseleave', (event) => this.handleMouseLeave(event));
         this.canvas.addEventListener('contextmenu', (event) => {
-            if (this.game && this.game.gameState === 'RUNNING') {
+            // --- MODIFIED: Added mission ending states to the condition ---
+            const isGameplayActive = this.game && (
+                this.game.gameState === 'RUNNING' ||
+                this.game.gameState === 'MISSION_ENDING_VICTORY' ||
+                this.game.gameState === 'MISSION_ENDING_DEFEAT'
+            );
+
+            if (isGameplayActive) {
                 event.preventDefault();
-                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
-                if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false;}
+
+                // Only execute right-click commands if in the 'RUNNING' state
+                if (this.game.gameState === 'RUNNING') {
+                    if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                    if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false;}
 
 
-                const rect = this.canvas.getBoundingClientRect();
-                const scaleX = this.canvas.width / rect.width;
-                const scaleY = this.canvas.height / rect.height;
+                    const rect = this.canvas.getBoundingClientRect();
+                    const scaleX = this.canvas.width / rect.width;
+                    const scaleY = this.canvas.height / rect.height;
 
-                const screenX = (event.clientX - rect.left) * scaleX;
-                const screenY = (event.clientY - rect.top) * scaleY;
-                const worldX = screenX + this.game.cameraX;
-                const worldY = screenY + this.game.cameraY;
+                    const screenX = (event.clientX - rect.left) * scaleX;
+                    const screenY = (event.clientY - rect.top) * scaleY;
+                    const worldX = screenX + this.game.cameraX;
+                    const worldY = screenY + this.game.cameraY;
 
-                if (typeof this.game.handleRightClickCommand === 'function') {
-                    this.game.handleRightClickCommand(worldX, worldY);
+                    if (typeof this.game.handleRightClickCommand === 'function') {
+                        this.game.handleRightClickCommand(worldX, worldY);
+                    }
+                    this.updateMouseCursor();
                 }
-                this.updateMouseCursor();
             }
+            // --- END MODIFIED ---
         });
 
         document.addEventListener('keydown', (event) => {
@@ -135,34 +147,26 @@ class InputHandler {
                 }
             }
 
-            // --- MODIFIED: 'U' key now affects ALL player-controlled units, not just selected ones. ---
             if ((event.key === 'u' || event.key === 'U') && !isInputFieldActive) {
                 const playerUnits = this.game.getLivingPlayerControlledUnits();
                 if (playerUnits && playerUnits.length > 0) {
                     console.log("'U' key pressed. Forcing phase out for all player-controlled units.");
                     playerUnits.forEach(unit => {
-                        // The condition `(unit instanceof Raccoon && !(unit instanceof RaccoonHostage))` is redundant
-                        // because RaccoonHostage inherits from Raccoon.
-                        // We just need to ensure hostages are rescued to be considered player-controlled.
                         if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
                            if (unit instanceof RaccoonHostage && !unit.isRescued) {
-                                // Don't phase out unrescued hostages
                            } else {
-                                unit.forcePhaseOut(1.0); // Phase for 1 second
+                                unit.forcePhaseOut(1.0);
                            }
                         }
                     });
                 }
             }
-            // --- END MODIFIED ---
-
-            // --- NEW: Debug Visuals Toggle ---
+            
             if ((event.key === 'p' || event.key === 'P') && !isInputFieldActive) {
                 if (this.game && typeof this.game.toggleDebugVisuals === 'function') {
                     this.game.toggleDebugVisuals();
                 }
             }
-            // --- END NEW ---
             
             const keyNumber = parseInt(event.key, 10);
             if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) { 

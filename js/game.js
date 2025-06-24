@@ -371,14 +371,41 @@ class Game {
     }
 
     async preloadLevelAssets() {
-        /* ... (Unchanged from previous complete version) ... */
         const obstacleDefs = CONFIG.OBSTACLE_DEFINITIONS || [];
         const imagePromises = [];
+
+        // Preload from the new possum hut sprite pairs
+        if (CONFIG.POSSUM_HUT_SPRITE_FILES && CONFIG.POSSUM_HUT_SPRITE_PATH) {
+            const hutPath = CONFIG.POSSUM_HUT_SPRITE_PATH;
+            CONFIG.POSSUM_HUT_SPRITE_FILES.forEach(pair => {
+                const normalPath = hutPath + pair.normal;
+                const destroyedPath = hutPath + pair.destroyed;
+                if (pair.normal && !this.preloadedImages[normalPath]) {
+                     imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                        img.src = normalPath;
+                    }));
+                }
+                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
+                     imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                        img.src = destroyedPath;
+                    }));
+                }
+            });
+        }
+        
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
+            // Updated condition to exclude the new hut logic from this generic loop
             if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) || (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) || (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) || (def.type === 'bush_large' && CONFIG.BUSH_SPRITES_64PX_FILES) || (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) || (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) || (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) || (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) || (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) || (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) || (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) || (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ) {
                 handledByDedicatedList = true;
             }
+
             const spritesToLoadOnTemplate = [];
             if (!handledByDedicatedList) {
                 if (def.spriteNormal) spritesToLoadOnTemplate.push({ path: def.spriteNormal, key: def.spriteNormal });
@@ -397,7 +424,7 @@ class Game {
                 }
             });
         });
-        const listBasedSprites = [ { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" }, { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" }, { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" }, { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" }, { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" }, { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" }, { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" }, { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" }, { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" }, { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }, { files: CONFIG.POSSUM_HUT_SPRITE_FILES, path: CONFIG.POSSUM_HUT_SPRITE_PATH, name: "possum_hut" } ];
+        const listBasedSprites = [ { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" }, { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" }, { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" }, { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" }, { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" }, { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" }, { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" }, { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" }, { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" }, { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }];
         listBasedSprites.forEach(spriteSet => {
             const spriteFiles = spriteSet.files || []; const spritePathBase = spriteSet.path || '';
             if (spritePathBase && spriteFiles.length > 0) {
@@ -510,7 +537,24 @@ class Game {
         }
 
         if (this.ui) {
-            const videoPaths = ['assets/video/raccoon_1.mp4', 'assets/video/raccoon_2.mp4', 'assets/video/raccoon_3.mp4', 'assets/video/raccoon_4.mp4', 'assets/video/raccoon_5.mp4'];
+            const videoPaths = [
+                'assets/video/raccoon_1.mp4',
+                'assets/video/raccoon_2.mp4',
+                'assets/video/raccoon_3.mp4',
+                'assets/video/raccoon_4.mp4',
+                'assets/video/raccoon_5.mp4',
+                'assets/video/raccoon_6.mp4',
+                'assets/video/raccoon_7.mp4',
+                'assets/video/raccoon_8.mp4',
+                'assets/video/raccoon_9.mp4',
+                'assets/video/raccoon_10.mp4',
+                'assets/video/raccoon_11.mp4',
+                'assets/video/raccoon_12.mp4',
+                'assets/video/raccoon_13.mp4',
+                'assets/video/raccoon_14.mp4',
+                'assets/video/raccoon_15.mp4',
+                'assets/video/raccoon_16.mp4',
+            ];
             const randomVideoPath = videoPaths[Math.floor(Math.random() * videoPaths.length)];
             this.ui.showVideoLoadingScreen(randomVideoPath);
         }
@@ -1104,7 +1148,6 @@ class Game {
     }
 
     generateAndSetCurrentMissionParams(phaseIdx, missionIdx) {
-        /* ... (Unchanged from previous complete version) ... */
         const missionSpecificSeedValue = this.campaignSeed + (phaseIdx * 1000) + (missionIdx * 10);
         this.currentMissionSeedRNG = new SeededRandom(missionSpecificSeedValue);
         this.currentMissionSeed = missionSpecificSeedValue;
@@ -1125,9 +1168,11 @@ class Game {
         for (const key in baseParamsRules) {
             const rule = baseParamsRules[key];
             let value;
-            if (key === "numPrimaryObjectivesRange" || key === "numSecondaryObjectivesRange") { // These are ranges, not scaled values
-                value = rule; // Keep as array [min, max]
+            // --- MODIFIED: Adjust logic for new objective structures ---
+            if (key === "numPrimaryObjectivesRange" || key === "numSecondaryObjectives") { 
+                value = rule; // Keep as object/array
             } else {
+            // --- END MODIFIED ---
                 value = rule.initial + (rule.perPhaseIncrement * phaseIdx);
                 if (rule.max !== undefined) value = Math.min(value, rule.max);
                 let randomnessRange = value * rule.randomnessFactor;
@@ -1144,10 +1189,17 @@ class Game {
             baseP.numPrimaryObjectivesRange[0], 
             baseP.numPrimaryObjectivesRange[1]
         );
-        const numSecondariesToSelect = this.currentMissionSeedRNG.nextInt(
-            baseP.numSecondaryObjectivesRange[0], 
-            baseP.numSecondaryObjectivesRange[1]
-        );
+        
+        // --- MODIFIED: Calculate dynamic secondary objective range ---
+        const secObjRule = baseP.numSecondaryObjectives;
+        const minSec = Math.round(secObjRule.baseRange[0] + (secObjRule.incrementPerPhase * phaseIdx));
+        const maxSec = Math.round(secObjRule.baseRange[1] + (secObjRule.incrementPerPhase * phaseIdx));
+        
+        const finalMinSec = Math.min(minSec, secObjRule.maxRange[0]);
+        const finalMaxSec = Math.min(maxSec, secObjRule.maxRange[1]);
+
+        const numSecondariesToSelect = this.currentMissionSeedRNG.nextInt(finalMinSec, finalMaxSec);
+        // --- END MODIFIED ---
 
         console.log(`[Game Gen] P${phaseIdx}M${missionIdx}: Selecting ${numPrimariesToSelect} Primaries, ${numSecondariesToSelect} Secondaries.`);
 
@@ -1258,13 +1310,11 @@ class Game {
             }
         }
         
-        // --- NEW: Force-add EXTERMINATE if it wasn't selected ---
         const exterminateObjectiveExists = objectivesArray.some(obj => obj.type === "EXTERMINATE");
         if (!exterminateObjectiveExists) {
             console.log("[Game Gen] 'Exterminate' not selected. Forcing as a secondary objective.");
             const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
             if (exterminateDef) {
-                // Instantiate it as a secondary objective
                 const fallbackExterminate = this._instantiateObjective(exterminateDef, phaseIdx, false);
                 if (fallbackExterminate) {
                     objectivesArray.push(fallbackExterminate);
@@ -1275,9 +1325,7 @@ class Game {
                 console.error("[Game Gen] CRITICAL: Could not find EXTERMINATE definition for fallback!");
             }
         }
-        // --- END NEW ---
-
-        // Ensure EXTERMINATE is present if no other objective is and it wasn't added
+        
         if (objectivesArray.length === 0) {
             console.warn("[Game Gen] No objectives selected at all. Adding default EXTERMINATE.");
             const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
@@ -1287,8 +1335,7 @@ class Game {
             }
         }
         
-        // ... (Mission name and briefing generation - uses _getObjectiveDescriptionForBriefing as before) ...
-        const phaseBiome = currentPhaseInfo.biome; // Ensure phaseBiome is defined
+        const phaseBiome = currentPhaseInfo.biome; 
         const missionNameParts = this.campaignRules.MISSION_NAME_PARTS;
         const biomeEntryForName = this.campaignRules.BIOME_POOL.find(b => b.name === phaseBiome) || {themeAdjectives: ["General"]};
         const biomeThemeAdj = biomeEntryForName.themeAdjectives;
@@ -1337,6 +1384,7 @@ class Game {
         this.tempSelectedForDeployment = []; 
         return true;
     }
+
 
     recordRaccoonFallen(raccoon) {
         /* ... (Unchanged from previous complete version) ... */

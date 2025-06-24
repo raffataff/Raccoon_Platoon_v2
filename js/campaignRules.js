@@ -6,13 +6,17 @@ const CAMPAIGN_RULES = {
     // --- Base Values and Scaling ---
     BASE_PARAMETERS: {
         worldSizeFactor:    { initial: 1.8,  perPhaseIncrement: 0.35, max: 5.0, randomnessFactor: 0.01 },
-        enemyDensityFactor: { initial: 1.1,  perPhaseGrowthFactor: 0.2, max: 5.0, randomnessFactor: 0.2 }, // 20% growth per phase
-        heavyChance:        { initial: 0.2,  perPhaseGrowthFactor: 0.2, max: 0.65, randomnessFactor: 0.05 },
-        numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.4,  max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
-        numHostagesToSpawn: { initial: 1,    perPhaseIncrement: 0.6,  max: 5, roundToInt: true, randomnessFactor: 0.1 },
+        enemyDensityFactor: { initial: 1.1,  perPhaseGrowthFactor: 0.4, max: 5.0, randomnessFactor: 0.2 }, // 20% growth per phase
+        heavyChance:        { initial: 0.2,  perPhaseGrowthFactor: 0.4, max: 0.65, randomnessFactor: 0.05 },
+        numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.2,  max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
+        numHostagesToSpawn: { initial: 1,    perPhaseIncrement: 0.4,  max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue:{ initial: 1,    perPhaseIncrement: 0.3,  max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
         numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
-        numSecondaryObjectivesRange: [0, 4], // e.g., 0 to 2 secondary objectives (EXTERMINATE often being one)
+        numSecondaryObjectives: { 
+            baseRange: [0, 1],          // At Phase 0, select between 0 and 1 secondary objectives.
+            incrementPerPhase: 0.4,     // Add 0.4 to both min and max of the range per phase.
+            maxRange: [1, 6]            // The range will not exceed a max of [1, 4].
+        },
     },
 
     // --- Pools of Options ---
@@ -65,7 +69,7 @@ const CAMPAIGN_RULES = {
         { 
             type: "RESCUE_HOSTAGES",  
             weight: 3, 
-            unlocksPhase: 0, 
+            unlocksPhase: 1, 
             descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
             completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
             isPrimary: true,

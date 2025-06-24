@@ -29,12 +29,7 @@ const CONFIG = {
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 40,
     RACCOON_DETECTION_RANGE: 400,
-    RACCOON_MAX_CHASE_DISTANCE_FROM_POST_FACTOR: 1.5, // Can chase a bit further
-    RACCOON_GUARD_POST_POSITION_TOLERANCE: 10,
-    RACCOON_SUSPICIOUS_STATE_SCAN_DURATION: 1.0,
-    RACCOON_CHASE_PREDICTION_TIME_FACTOR: 0.10, // Less prediction, more direct lobbing
-    RACCOON_CHASE_DESTINATION_REFRESH_INTERVAL: 1.0,
-    RACCOON_CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 3,
+    
     RACCOON_MIN_ENGAGEMENT_DISTANCE: 150, // Try to keep this far for grenade lobs
     RACCOON_PREFERRED_ENGAGEMENT_DISTANCE_MAX: 400, // Max preferred range
     RACCOON_ENGAGE_RANGE_BUFFER: 20, // Buffer for deciding to move vs shoot
@@ -411,8 +406,11 @@ const CONFIG = {
 
     // Possum Huts
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
-    POSSUM_HUT_SPRITE_DESTROYED: 'assets/images/objects/possums/huts/possum_hut_1_small_destroyed.png',
-    POSSUM_HUT_SPRITE_FILES: ['possum_hut_1_small.png'],
+    POSSUM_HUT_SPRITE_FILES: [
+        { normal: 'possum_hut_1_small.png', destroyed: 'possum_hut_1_small_destroyed.png' },
+        { normal: 'possum_hut_2.png',       destroyed: 'possum_hut_2_destroyed.png' },
+        { normal: 'possum_hut_3.png',       destroyed: 'possum_hut_3_destroyed.png' }
+    ],
 
     // Possum Towers
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
@@ -596,28 +594,20 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.2,
             spriteScale: 1, 
-            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_1_small_destroyed.png',
             spriteDestroyedScale: 1, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.48), offsetY: (h=>h*0.45), radiusX: (w=>w*0.35), radiusY: (h=>h*0.29) },
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
-
-            // --- NEW PROPOSED SPAWNING SYSTEM ---
             initialGuardPack: {
-                enabled: true, // Master switch for this feature on this object
-                // Number of guards to spawn.
-                countRange: [2, 4], // Spawn between 2 and 4 guards initially.
-                // Add this many guards for each phase index (e.g., Phase 1 (idx 0) = +0, Phase 2 (idx 1) = +0.5)
-                countPerPhaseBonus: 0.5,
-                // How far from the object's center can they spawn.
+                enabled: true, 
+                countRange: [2, 4],
+                countPerPhaseBonus: 0.3, // Scales with mission phase
                 spawnRadius: 80,
-                // Pool of units that can be spawned, with relative weights.
                 unitPool: [
-                    { type: 'possum_grunt', weight: 4 }, // Grunts are 4x more likely than Heavies
+                    { type: 'possum_grunt', weight: 4 },
                     { type: 'possum_heavy', weight: 1 }
                 ]
             }
-            // --- END NEW ---
         },
         {
             type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',
