@@ -26,11 +26,13 @@ class PossumHeavy extends Unit {
 
 
         this.STUCK_RECOVERY_COOLDOWN_INTERNAL = this.heavyAIConfig.STUCK_RECOVERY_COOLDOWN_SHORT || 0.75;
-        // MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL is now used by the base Unit.onStuck for phasing.
         this.HEAVY_MAX_STUCK_ATTEMPTS_BEFORE_DESPERATE = this.heavyAIConfig.MAX_CONSECUTIVE_STUCK_ATTEMPTS || 3;
         this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL = this.heavyAIConfig.DESPERATE_STUCK_MOVE_RADIUS_CELLS || 4;
 
-        this.setMoveTarget(this.guardPost.x, this.guardPost.y);
+        // --- MODIFIED: Removed premature setMoveTarget call ---
+        // The AI's 'GUARDING' state will handle the initial move command on the first update.
+        this.isMoving = false;
+        // --- END MODIFIED ---
     }
 
     update(deltaTime) {

@@ -1,7 +1,7 @@
 // js/campaignRules.js
 const CAMPAIGN_RULES = {
     PLAYER_STARTING_SEED: Date.now(),
-    CAMPAIGN_LENGTH_PHASES_RANGE: [3, 50], // Campaign will have 3 to 100 phases
+    CAMPAIGN_LENGTH_PHASES_RANGE: [30, 100], // Campaign will have between 30 and 100 phases.
 
     // --- Base Values and Scaling ---
     BASE_PARAMETERS: {
@@ -105,12 +105,12 @@ const CAMPAIGN_RULES = {
             targetTypeKey: "possum_hut",                
             nameSingular: "Possum Hut", namePlural: "Possum Huts",
             weight: 2, unlocksPhase: 1, 
-            maxInstancesPerMission: 4 // Typically, one "Destroy Possum Huts" objective per mission.
+            maxInstancesPerMission: 3 // Typically, one "Destroy Possum Huts" objective per mission.
         },
         { 
             targetTypeKey: "possum_relay_tower",       
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
-            weight: 1, unlocksPhase: 2,
+            weight: 1, unlocksPhase: 1,
             maxInstancesPerMission: 2
         },
     ],
@@ -153,7 +153,11 @@ const CAMPAIGN_RULES = {
 
     // --- Phase Generation Text ---
     PHASE_GENERATION: {
-        MISSIONS_PER_PHASE_RANGE: [3, 6], 
+         missionsPerPhase: {
+            baseRange: [3, 4],          // At Phase 0, it will be exactly 3 missions.
+            incrementPerPhase: 0.4,     // Add 0.5 to both min and max of the range per phase.
+            maxRange: [4, 8]            // The range will not exceed a max of [4, 8].
+        },
         NAME_PARTS: { 
             PREFIXES: ["Operation", "Task Force", "Project", "Campaign", "Initiative", "Directive", "Protocol", "Vanguard", "Spearhead", "Crusade"],
             DESCRIPTORS: ["Fury", "Dawn", "Viper", "Thunder", "Silence", "Ghost", "Resolve", "Echo", "Retribution", "Genesis", "Last Stand", "Steel Rain", "Broken Fang", "Avalanche", "Quake"]

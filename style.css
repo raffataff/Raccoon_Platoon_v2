@@ -4,15 +4,11 @@ html, body {
     padding: 0;
     height: 100%;
     overflow: hidden;
-    background-color: transparent; /* Keep a fallback color */
+    background-color: #1e1c18; /* Keep a fallback color */
     color: #D8D8C8;
     font-family: 'Consolas', 'Lucida Console', 'Courier New', monospace;
     font-size: 15px;
-
-    background-image: ''; /* If style.css is ROOT */
-    background-size: cover;       /* Fill the entire screen */
-    background-position: center center; /* Center the image */
-    background-repeat: no-repeat; /* Do not tile */
+    
 }
 
 body, canvas {
@@ -65,7 +61,7 @@ body, canvas {
 
 canvas#gameCanvas {
     border: 3px ridge #201E1A;
-    background-color: #4A4843; /* This will be drawn over by game's world fill if world is smaller */
+    background-color: #1e1c18; /* This will be drawn over by game's world fill if world is smaller */
     box-shadow: 0 0 20px rgba(0,0,0,0.6) inset, 0 0 5px rgba(0,0,0,0.5);
     display: block; /* Good practice for canvas responsiveness */
     width: 100%;    /* Fill container width */
@@ -75,7 +71,7 @@ canvas#gameCanvas {
 /* --- Main Menu Screen --- */
 #mainMenuScreen, #pauseMenuScreen {
     background-image: none;
-    background-color: #2A2825;
+    background-color: #2a2525;
     border: 1px solid #1C1A17;
     border-top-color: #48443D;
     border-left-color: #48443D;
@@ -234,6 +230,13 @@ canvas#gameCanvas {
     gap: 15px;
 }
 
+
+.roster-section {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; 
+}
+
 .roster-section h4, .mission-details-section h4 {
     margin-top: 0;
     margin-bottom: 10px;
@@ -244,16 +247,15 @@ canvas#gameCanvas {
     border-bottom: 1px solid #4F4A3F;
     padding-bottom: 8px;
 }
-
-#availableRecruitsGrid {
+#availableRecruitsList {
+    align-content: flex-start;
     list-style: none;
-    padding: 5px;
     margin: 0;
-    flex-grow: 1;
-    overflow-y: auto;
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 12px;
+    overflow-y:scroll; 
+    overflow-x: hidden; 
+    display: grid; 
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
+    gap: 0px;
     border: 1px solid #444;
     background-color: rgba(0,0,0,0.1);
     border-radius: 3px;
@@ -285,7 +287,6 @@ canvas#gameCanvas {
     border-radius: 0;
     border: none;
     border-bottom: 1px solid #222;
-    flex-grow: 1;
     background-size: cover;
     background-position: center;
 }
@@ -429,10 +430,10 @@ canvas#gameCanvas {
 }
 #preMissionObjectivesList li.primary-objective {
     font-weight: bold;
-    color: #E8E4D8;
+    color: #a2ace7;
 }
 #preMissionObjectivesList li.secondary-objective {
-    color: #B0A090;
+    color: #7a359b;
     font-style: italic;
 }
 
@@ -768,6 +769,14 @@ input[type="range"]::-moz-range-thumb {
     padding-bottom: 10px;
 }
 
+.roster-section {
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1; /* Make this section fill the parent panel */
+    overflow: hidden; /* Hide any overflow from its children */
+}
+
+
 #availableRecruitsList {
     list-style: none;
     padding: 10px;
@@ -839,6 +848,32 @@ input[type="range"]::-moz-range-thumb {
     padding: 2px 6px;
     border-radius: 3px 0 3px 0;
     z-index: 3;
+}
+/* --- Custom Scrollbar Styling for Recruit List --- */
+
+
+/* For WebKit browsers (Chrome, Safari, Edge) */
+#availableRecruitsList::-webkit-scrollbar {
+  width: 12px; /* width of the entire scrollbar */
+  background: #1C1A17; /* color of the tracking area */
+  border-radius: 2px;
+  border: 1px solid #0F0E0C;
+}
+
+#availableRecruitsList::-webkit-scrollbar-track {
+  background: #1C1A17; /* color of the tracking area */
+  border-radius: 2px;
+  border: 1px solid #0F0E0C;
+}
+
+#availableRecruitsList::-webkit-scrollbar-thumb {
+  background-color: #786060; /* color of the scroll thumb */
+  border-radius: 3px; /* roundness of the scroll thumb */
+  border: 1px solid #4A4235; /* creates padding around scroll thumb */
+}
+
+#availableRecruitsList::-webkit-scrollbar-thumb:hover {
+  background-color: #9A8F78; /* color of the scroll thumb on hover */
 }
 
 #deployedSquadContainer {

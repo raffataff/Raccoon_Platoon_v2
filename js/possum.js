@@ -30,16 +30,13 @@ class PossumGrunt extends Unit {
 
 
         this.STUCK_RECOVERY_COOLDOWN_INTERNAL = this.gruntAIConfig.STUCK_RECOVERY_COOLDOWN_SHORT || 0.75;
-        // MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL is now used by the base Unit.onStuck for phasing.
-        // We can keep a separate, perhaps lower, threshold for the Grunt's *own* desperate move if phasing isn't triggered.
         this.GRUNT_MAX_STUCK_ATTEMPTS_BEFORE_DESPERATE = this.gruntAIConfig.MAX_CONSECUTIVE_STUCK_ATTEMPTS || 3;
         this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL = this.gruntAIConfig.DESPERATE_STUCK_MOVE_RADIUS_CELLS || 5;
 
-        if (this.currentTargetPatrolPoint.x !== this.x || this.currentTargetPatrolPoint.y !== this.y) {
-            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
-        } else {
-            this.isMoving = false;
-        }
+        // --- MODIFIED: Removed premature setMoveTarget call ---
+        // The AI's 'PATROLLING' state will handle the initial move command on the first update.
+        this.isMoving = false;
+        // --- END MODIFIED ---
     }
 
     generateSecondPatrolPoint(originX, originY, minRadius, maxRadius, attemptToAvoidCurrent = null) {

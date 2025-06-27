@@ -40,7 +40,7 @@ class Game {
         this.DRAG_THRESHOLD = CONFIG.INPUT_DRAG_THRESHOLD || 5;
 
         this.FORMATION_TYPES = ['HORIZONTAL', 'VERTICAL', 'SQUARE', 'DIAMOND'];
-        this.currentFormationIndex = 0;
+        this.currentFormationIndex = CONFIG.FORMATION_INDEX || 3; // Default to DIAMOND formation
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
         this.formationSpacingMultiplier = CONFIG.INITIAL_FORMATION_SPACING || 3.5;
 
@@ -374,7 +374,6 @@ class Game {
         const obstacleDefs = CONFIG.OBSTACLE_DEFINITIONS || [];
         const imagePromises = [];
 
-        // Preload from the new possum hut sprite pairs
         if (CONFIG.POSSUM_HUT_SPRITE_FILES && CONFIG.POSSUM_HUT_SPRITE_PATH) {
             const hutPath = CONFIG.POSSUM_HUT_SPRITE_PATH;
             CONFIG.POSSUM_HUT_SPRITE_FILES.forEach(pair => {
@@ -399,10 +398,35 @@ class Game {
             });
         }
         
+        // --- NEW: Preload tower sprite pairs ---
+        if (CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES && CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH) {
+            const towerPath = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH;
+            CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES.forEach(pair => {
+                const normalPath = towerPath + pair.normal;
+                const destroyedPath = towerPath + pair.destroyed;
+                if (pair.normal && !this.preloadedImages[normalPath]) {
+                     imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                        img.src = normalPath;
+                    }));
+                }
+                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
+                     imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                        img.src = destroyedPath;
+                    }));
+                }
+            });
+        }
+        // --- END NEW ---
+
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
-            // Updated condition to exclude the new hut logic from this generic loop
-            if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) || (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) || (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) || (def.type === 'bush_large' && CONFIG.BUSH_SPRITES_64PX_FILES) || (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) || (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) || (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) || (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) || (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) || (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) || (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) || (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ) {
+            if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) || (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) || (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) || (def.type === 'bush_large' && CONFIG.TROPICAL_BUSH_LARGE_FILES) || (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) || (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) || (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) || (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) || (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) || (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) || (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) || (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) || (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES) ) {
                 handledByDedicatedList = true;
             }
 
@@ -424,7 +448,7 @@ class Game {
                 }
             });
         });
-        const listBasedSprites = [ { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" }, { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" }, { files: CONFIG.BUSH_SPRITES_64PX_FILES, path: CONFIG.BUSH_SPRITES_64PX_PATH, name: "bush64" }, { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" }, { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" }, { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" }, { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" }, { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" }, { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" }, { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }];
+        const listBasedSprites = [ { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" }, { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" }, { files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, name: "bush64" }, { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" }, { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" }, { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" }, { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" }, { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" }, { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" }, { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }];
         listBasedSprites.forEach(spriteSet => {
             const spriteFiles = spriteSet.files || []; const spritePathBase = spriteSet.path || '';
             if (spritePathBase && spriteFiles.length > 0) {
@@ -970,7 +994,6 @@ class Game {
     }
 
     _generatePhaseStructure(phaseIdx) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.campaignStructure[phaseIdx]) return; 
 
         const phaseSeed = this.campaignSeed + (phaseIdx * 1000); 
@@ -983,7 +1006,7 @@ class Game {
                 phaseNum: phaseIdx, name: `Phase ${phaseIdx + 1} (Biome Error)`, biome: this.campaignRules.BIOME_POOL[0].name,
                 biomeDescription: this.campaignRules.BIOME_POOL[0].description,
                 introduction: "Error: Could not determine biome for this phase.", conclusion: "",
-                missionsInPhase: this.currentPhaseSeedRNG.nextInt(phaseRules.MISSIONS_PER_PHASE_RANGE[0], phaseRules.MISSIONS_PER_PHASE_RANGE[1])
+                missionsInPhase: 3
             };
             return;
         }
@@ -1003,6 +1026,17 @@ class Game {
             phaseObjectiveSummary: phaseObjectiveSummary
         });
 
+        // --- MODIFIED: Calculate dynamic number of missions per phase ---
+        const mppRule = phaseRules.missionsPerPhase;
+        const minMissions = Math.round(mppRule.baseRange[0] + (mppRule.incrementPerPhase * phaseIdx));
+        const maxMissions = Math.round(mppRule.baseRange[1] + (mppRule.incrementPerPhase * phaseIdx));
+        
+        const finalMinMissions = Math.min(minMissions, mppRule.maxRange[0]);
+        const finalMaxMissions = Math.min(maxMissions, mppRule.maxRange[1]);
+
+        const numMissions = this.currentPhaseSeedRNG.nextInt(finalMinMissions, finalMaxMissions);
+        // --- END MODIFIED ---
+
         this.campaignStructure[phaseIdx] = {
             phaseNum: phaseIdx,
             name: phaseName,
@@ -1010,7 +1044,7 @@ class Game {
             biomeDescription: selectedBiomeEntry.description,
             introduction: phaseIntro,
             conclusion: "",
-            missionsInPhase: this.currentPhaseSeedRNG.nextInt(phaseRules.MISSIONS_PER_PHASE_RANGE[0], phaseRules.MISSIONS_PER_PHASE_RANGE[1])
+            missionsInPhase: numMissions
         };
     }
 
@@ -1967,9 +2001,7 @@ class Game {
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
         }
 
-        // --- MODIFIED: Use the master debug flag ---
         if (this.isDebugVisualsActive) {
-            // Draw Nav Grid
             if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid) {
                 const navGrid = this.level.navGrid; const cellSize = this.level.gridCellSize;
                 this.ctx.save(); this.ctx.fillStyle = 'rgba(100, 0, 0, 0.1)'; 
@@ -1992,16 +2024,39 @@ class Game {
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
         sortableObjects.forEach((item, index) => { const obj = item.entity; if (!obj) { return; } try { if (item.isUnit) { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {  if (obj.isDestroyed && obj.imageDestroyed) { let renderWidth, renderHeight, drawX, drawY; if (obj.spriteDestroyedScale !== undefined && obj.spriteDestroyedScale !== null) { renderWidth = obj.imageDestroyed.naturalWidth * obj.spriteDestroyedScale; renderHeight = obj.imageDestroyed.naturalHeight * obj.spriteDestroyedScale; drawX = obj.x + (obj.width / 2) - (renderWidth / 2);  drawY = obj.y + obj.height - renderHeight;  } else { renderWidth = obj.width; renderHeight = obj.height; drawX = obj.x; drawY = obj.y; } if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight); } else if (!obj.isDestroyed && obj.imageNormal) { if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height); } else if ((!obj.isDecoration || !obj.imageNormal) && !obj.isDestroyed) { let obsColor = obj.color || '#555555'; this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height); } if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) { const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR; const hpBarHeight = healthBarStyle.HEIGHT || 4; const hpBarWidth = Math.min(obj.width * 0.7, 60);  const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4;  this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2); let fillColor = healthBarStyle.HP_COLOR_FULL ||'#0c0'; const hpPercent = obj.hp / obj.maxHp; if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) { fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000'; } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) { fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#CCCC00'; } this.ctx.fillStyle = fillColor; this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight); } } } catch (e) { } });
         
-        // --- MODIFIED: Use the master debug flag ---
         if (this.isDebugVisualsActive) {
-            // Draw Obstacle Collision Shapes
+            // --- MODIFIED: Added Spawn Zone Debug Drawing ---
+            if (this.level && this.level.playerSpawnZone) {
+                this.ctx.save();
+                const zone = this.level.playerSpawnZone;
+                this.ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; // Red for keep-out
+                this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
+                this.ctx.lineWidth = 2;
+                this.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                this.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '14px Arial';
+                this.ctx.fillText('ENEMY KEEP-OUT ZONE', zone.x + 5, zone.y + 20);
+                this.ctx.restore();
+            }
+            if (this.level && this.level.effectivePlayerSpawnZone) {
+                this.ctx.save();
+                const zone = this.level.effectivePlayerSpawnZone;
+                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.15)'; // Green for spawn area
+                this.ctx.strokeStyle = 'rgba(100, 255, 100, 0.8)';
+                this.ctx.lineWidth = 1;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
+                this.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
+                this.ctx.fillStyle = 'white';
+                this.ctx.font = '14px Arial';
+                this.ctx.fillText('RACCOON SPAWN AREA', zone.x + 5, zone.y + 40);
+                this.ctx.restore();
+            }
+            // --- END MODIFIED ---
             if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.save(); this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShape = this.level._getObstacleCollisionShape(obstacle); if (!collisionShape) return; if (obstacle.isDestroyed && !obstacle.blocksMovement) {} else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); }  else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); }  else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } }); this.ctx.restore(); }
-            
-            // Draw Hut Spawn Areas
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_SPAWN_AREAS) { this.level.renderHutSpawnAreas(this.ctx); }
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_HUT_STATUS_TEXT) { this.ctx.save(); this.ctx.fillStyle = "white"; this.ctx.font = "10px Arial"; this.ctx.textAlign = "center"; (this.level.potentialSpawnerHuts || []).forEach(hut => { if (!hut.isDestroyed) { let status = "POTENTIAL"; if (hut.isActivelySpawning) { status = hut.unitsToSpawnThisBurst > 0 ? `BURST (${hut.unitsToSpawnThisBurst} left, next in ${hut.timeUntilNextUnitInBurst.toFixed(1)}s)` : `ACTIVE (CD: ${hut.spawnCooldownTimer.toFixed(1)}s)`; } this.ctx.fillText(status, hut.x + hut.width / 2, hut.y - 5); } }); this.ctx.restore(); }
-            
-            // Draw Pathing Lines
             if (this.selectedUnits && this.selectedUnits.length > 0) { this.ctx.save(); this.ctx.strokeStyle = 'rgba(50, 150, 255, 0.7)'; this.ctx.fillStyle = 'rgba(50, 150, 255, 0.9)'; this.ctx.lineWidth = 1.5; this.ctx.setLineDash([3, 3]); this.selectedUnits.forEach(unit => { if (unit.isMoving && unit.currentPath && unit.currentPath.length > 0) { this.ctx.beginPath(); this.ctx.moveTo(unit.x, unit.y); this.ctx.lineTo(unit.currentPath[0].x, unit.currentPath[0].y); for (let i = 0; i < unit.currentPath.length - 1; i++) { this.ctx.lineTo(unit.currentPath[i+1].x, unit.currentPath[i+1].y); } this.ctx.stroke(); unit.currentPath.forEach(node => { this.ctx.beginPath(); this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2); this.ctx.fill(); }); } }); this.ctx.restore(); }
         }
         

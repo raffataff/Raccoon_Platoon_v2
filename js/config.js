@@ -136,6 +136,7 @@ const CONFIG = {
     UNIT_STUCK_FRAMES_THRESHOLD: 2,
     STUCK_FRAMES_THRESHOLD_PATHING: 2, 
     REPATH_STUCK_COOLDOWN: 0.3,
+
     ENEMY_ALERT_PROPAGATION_RADIUS: 200,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95, 
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10, 
@@ -241,10 +242,15 @@ const CONFIG = {
 
     // --- Roster, Progression & Campaign ---
     INITIAL_ROSTER_SIZE: 5,
-    NEW_RECRUITS_PER_MISSION_WIN: 3,
+    NEW_RECRUITS_PER_MISSION_WIN: 2,
     MAX_SQUAD_SIZE_MVP: 4,
     MAX_TOTAL_ROSTER_SIZE: 1000,
+
+    // Formation settings
+    FORMATION_INDEX: 3,
     INITIAL_FORMATION_SPACING: 1.9,
+
+    // --- Progression ---
     XP_PER_MISSION_SURVIVED: 35,
     XP_PER_HIT: 1,
     XP_PER_KILL: 10,
@@ -342,11 +348,11 @@ const CONFIG = {
         BORDER_COLOR: '#25221D', 
         BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long', 
         PLAYER_SPAWN_ZONE: { 
-            MIN_WIDTH: 80, 
-            WIDTH_FACTOR: 0.20, 
-            MIN_HEIGHT: 80, 
-            HEIGHT_FACTOR: 0.20, 
-            INTERNAL_PADDING_FACTOR: 1.5 
+            MIN_WIDTH: 780, 
+            WIDTH_FACTOR: 0.10, 
+            MIN_HEIGHT: 580, 
+            HEIGHT_FACTOR: 0.10, //
+            INTERNAL_PADDING_FACTOR: 30.0 // Factor to ensure enough space around player spawn
         },
         OBSTACLES: { 
             BASE_COUNT: 50, 
@@ -356,7 +362,8 @@ const CONFIG = {
         },
         PLAYER_SPAWN_PLACEMENT: { 
             MAX_ATTEMPTS: 30, 
-            FALLBACK_SPACING_FACTOR: 3.0 
+            FALLBACK_SPACING_FACTOR: 3.0,
+            PLAYER_SPAWN_AREA: 0.2
         },
         DECORATIONS: {
             GRASS_CLUTTER: {
@@ -384,9 +391,12 @@ const CONFIG = {
     ],
     BUSH_SPRITES_32PX_PATH: 'assets/images/objects/biomes/tropical/grass2/',
     BUSH_SPRITES_32PX_FILES: ['grass7.png'],
-       
-    BUSH_SPRITES_64PX_PATH: 'assets/images/objects/biomes/tropical/grass2/',
-    BUSH_SPRITES_64PX_FILES: ['grass7.png'],
+    TROPICAL_BUSH_LARGE_PATH: 'assets/images/objects/biomes/tropical/bushes/',
+    TROPICAL_BUSH_LARGE_FILES: [
+        'fern_large_1.png', 'fern_large_2.png', 'fern_large_3.png', 'fern_large_4.png', 'fern_large_5.png',
+        'plant_red_large_1.png', 'plant_red_large_2.png', 'plant_red_large_3.png'
+    ],
+
     ROCK_SPRITES_16PX_PATH: 'assets/images/objects/rocks/grassy/16/',
     ROCK_SPRITES_16PX_FILES: [], 
     ROCK_SPRITES_32PX_PATH: 'assets/images/objects/rocks/grassy/32/',
@@ -414,7 +424,10 @@ const CONFIG = {
 
     // Possum Towers
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
-    POSSUM_RELAY_TOWER_SPRITE_FILES: ['possum_tower_2.png'],
+    POSSUM_RELAY_TOWER_SPRITE_FILES: [
+        { normal: 'possum_tower_2.png', destroyed: 'possum_tower_2_destroyed.png' },
+        { normal: 'possum_tower_3.png', destroyed: 'possum_tower_3_destroyed.png' }
+    ],
 
 
     HEALTH_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/health/',
@@ -452,7 +465,7 @@ const CONFIG = {
             type: 'bush_medium', name: 'Medium Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.2, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
@@ -460,8 +473,8 @@ const CONFIG = {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.2, 
+            spawnWeight: 2, isDecoration: false,
+            spriteScale: 0.22, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         
@@ -469,7 +482,7 @@ const CONFIG = {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 8, isDecoration: false,
+            spawnWeight: 5, isDecoration: false,
             spriteScale: 0.3, 
             collisionShape: { type: 'ellipse', offsetX: (w => w*0.45), offsetY: (h => h*0.42), radiusX: (w => w*0.45), radiusY: (h => h*0.25) },
             // sfxOnDestroy: 'ROCK_CRUMBLE_SOUND' // Example
@@ -478,7 +491,7 @@ const CONFIG = {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 1, isDecoration: false,
             spriteScale: 0.7, 
             collisionShape: { type: 'ellipse', offsetX: (w => w*0.46), offsetY: (h => h*0.47), radiusX: (w => w*0.43), radiusY: (h => h*0.27) },
         },
@@ -486,9 +499,9 @@ const CONFIG = {
             type: 'tree_palm_single', name: 'Palm Tree Single', color: '#005522',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 0.4, 
-            collisionShape: { type: 'circle', offsetX: (w=>w*0.4), offsetY: (h=>h*1.2), radius: (w => w * 0.12) },
+            collisionShape: { type: 'circle', offsetX: (w=>w*0.4), offsetY: (h=>h*1.23), radius: (w => w * 0.12) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
             // sfxOnDestroy: 'TREE_FALL_SOUND' // Example
@@ -497,9 +510,9 @@ const CONFIG = {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 1.2, 
-            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.39), offsetY: (h=>h*1.25), radiusX: (w=>w*0.17), radiusY: (h=>h*0.13) },
+            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.39), offsetY: (h=>h*1.26), radiusX: (w=>w*0.17), radiusY: (h=>h*0.13) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
             // sfxOnDestroy: 'TREE_FALL_SOUND' // Example
@@ -508,9 +521,9 @@ const CONFIG = {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 1.2, 
-            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.2), radiusX: (w=>w*0.19), radiusY: (h=>h*0.15) },
+            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.26), radiusX: (w=>w*0.19), radiusY: (h=>h*0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
             // sfxOnDestroy: 'TREE_FALL_SOUND' // Example
@@ -521,7 +534,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1,
             isDecoration: false,
-            spriteScale: 1.0,
+            spriteScale: 1.2,
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.1), offsetY: (h=>h*0.22), width: (w=>w*0.85), height: (h=>h*0.15) },
         },
         {
@@ -533,9 +546,9 @@ const CONFIG = {
             maxHp: Infinity,
             blocksMovement: true,
             providesCover: true,
-            spawnWeight: 2,
+            spawnWeight: 4,
             spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
-            spriteScale: 1.20, 
+            spriteScale: 1.30, 
             spriteDestroyed: null,
             collisionShape: { type: 'rectangle', offsetX: (w=>w*0.041), offsetY: (h=>h*0.175), width: (w=>w*0.852), height: (h=>h*0.2) },
             isDecoration: false
@@ -614,13 +627,25 @@ const CONFIG = {
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.01,
-            spriteScale: 0.9,
-            spriteNormal: 'assets/images/objects/possums/towers/possum_tower_2.png', 
-            spriteDestroyed: 'assets/images/objects/possums/towers/possum_tower_2_destroyed.png',
-            spriteDestroyedScale: 0.9,
+            spriteScale: 0.4,
+            // DEPRECATED: spriteNormal and spriteDestroyed are now handled by list
+            spriteDestroyedScale: 0.4,
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.15), radiusX: (w=>w*0.44), radiusY: (h=>h*0.33) },
             isDecoration: false,
-            sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED' // Example: You'd add this key to AUDIO_ASSETS
+            sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED', // Example: You'd add this key to AUDIO_ASSETS
+            // --- NEW: Guard Pack for Towers ---
+            initialGuardPack: {
+                enabled: true,
+                countRange: [1, 3], // Fewer, but tougher guards
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 100,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 2 },
+                    { type: 'possum_heavy', weight: 3 }, // More likely to be heavies
+                    { type: 'possum_boss_1', weight: 1 } // Chance for a boss unit
+                ]
+            }
+            // --- END NEW ---
         },
         {
             type: 'extraction_zone', name: 'Extraction Zone', color: '#3C78FF',
