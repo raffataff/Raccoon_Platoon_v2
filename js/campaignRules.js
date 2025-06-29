@@ -110,7 +110,7 @@ const CAMPAIGN_RULES = {
         { 
             targetTypeKey: "possum_relay_tower",       
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
-            weight: 1, unlocksPhase: 1,
+            weight: 1, unlocksPhase: 2,
             maxInstancesPerMission: 2
         },
     ],

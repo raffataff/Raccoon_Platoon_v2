@@ -426,7 +426,21 @@ class Game {
 
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
-            if ((def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) || (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) || (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) || (def.type === 'bush_large' && CONFIG.TROPICAL_BUSH_LARGE_FILES) || (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) || (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) || (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) || (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) || (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) || (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) || (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) || (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) || (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES) ) {
+            if (
+                (def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) || 
+                (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) || 
+                (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || 
+                (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) || 
+                (def.type === 'bush_large' && CONFIG.TROPICAL_BUSH_LARGE_FILES) || 
+                (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) || 
+                (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) || 
+                (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) || 
+                (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) || 
+                (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) || 
+                (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) || 
+                (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) || 
+                (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) || 
+                (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES) ) {
                 handledByDedicatedList = true;
             }
 
@@ -448,7 +462,21 @@ class Game {
                 }
             });
         });
-        const listBasedSprites = [ { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" }, { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" }, { files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, name: "bush64" }, { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" }, { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" }, { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" }, { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" }, { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" }, { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" }, { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }];
+        const listBasedSprites = [ 
+            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, 
+            { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" }, 
+            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, 
+            { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" }, 
+            { files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, name: "bush_large" }, 
+            { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" }, 
+            { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" }, 
+            { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" }, 
+            { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" }, 
+            { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" }, 
+            { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" }, 
+            { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }
+        ];
+
         listBasedSprites.forEach(spriteSet => {
             const spriteFiles = spriteSet.files || []; const spritePathBase = spriteSet.path || '';
             if (spritePathBase && spriteFiles.length > 0) {
@@ -544,8 +572,7 @@ class Game {
         }
     }
 
-    async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
-        /* ... (Unchanged from previous complete version) ... */
+        async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
@@ -561,26 +588,38 @@ class Game {
         }
 
         if (this.ui) {
-            const videoPaths = [
-                'assets/video/raccoon_1.mp4',
-                'assets/video/raccoon_2.mp4',
-                'assets/video/raccoon_3.mp4',
-                'assets/video/raccoon_4.mp4',
-                'assets/video/raccoon_5.mp4',
-                'assets/video/raccoon_6.mp4',
-                'assets/video/raccoon_7.mp4',
-                'assets/video/raccoon_8.mp4',
-                'assets/video/raccoon_9.mp4',
-                'assets/video/raccoon_10.mp4',
-                'assets/video/raccoon_11.mp4',
-                'assets/video/raccoon_12.mp4',
-                'assets/video/raccoon_13.mp4',
-                'assets/video/raccoon_14.mp4',
-                'assets/video/raccoon_15.mp4',
-                'assets/video/raccoon_16.mp4',
-            ];
-            const randomVideoPath = videoPaths[Math.floor(Math.random() * videoPaths.length)];
-            this.ui.showVideoLoadingScreen(randomVideoPath);
+            let videoPathToShow;
+            // --- MODIFIED: Play specific video for the first mission of a phase ---
+            if (this.currentMissionIndex === 0) {
+                const phaseStartVideoPaths = [
+                    'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
+                    'assets/video/landing/Helicopter_Landing_1.mp4',
+                    'assets/video/landing/Helicopter_Landing_2.mp4'
+                ];
+                videoPathToShow = phaseStartVideoPaths[Math.floor(Math.random() * phaseStartVideoPaths.length)];
+            } else {
+            // --- END MODIFIED ---
+                const videoPaths = [
+                    'assets/video/raccoon_1.mp4',
+                    'assets/video/raccoon_2.mp4',
+                    'assets/video/raccoon_3.mp4',
+                    'assets/video/raccoon_4.mp4',
+                    'assets/video/raccoon_5.mp4',
+                    'assets/video/raccoon_6.mp4',
+                    'assets/video/raccoon_7.mp4',
+                    'assets/video/raccoon_8.mp4',
+                    'assets/video/raccoon_9.mp4',
+                    'assets/video/raccoon_10.mp4',
+                    'assets/video/raccoon_11.mp4',
+                    'assets/video/raccoon_12.mp4',
+                    'assets/video/raccoon_13.mp4',
+                    'assets/video/raccoon_14.mp4',
+                    'assets/video/raccoon_15.mp4',
+                    'assets/video/raccoon_16.mp4',
+                ];
+                videoPathToShow = videoPaths[Math.floor(Math.random() * videoPaths.length)];
+            }
+            this.ui.showVideoLoadingScreen(videoPathToShow);
         }
         
         this.gameState = 'LOADING_MISSION';

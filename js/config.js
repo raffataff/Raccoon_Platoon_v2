@@ -391,6 +391,7 @@ const CONFIG = {
     ],
     BUSH_SPRITES_32PX_PATH: 'assets/images/objects/biomes/tropical/grass2/',
     BUSH_SPRITES_32PX_FILES: ['grass7.png'],
+
     TROPICAL_BUSH_LARGE_PATH: 'assets/images/objects/biomes/tropical/bushes/',
     TROPICAL_BUSH_LARGE_FILES: [
         'fern_large_1.png', 'fern_large_2.png', 'fern_large_3.png', 'fern_large_4.png', 'fern_large_5.png',
@@ -473,8 +474,8 @@ const CONFIG = {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.22, 
+            spawnWeight: 20, isDecoration: false,
+            spriteScale: 0.5, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
         
@@ -482,7 +483,7 @@ const CONFIG = {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.3, 
             collisionShape: { type: 'ellipse', offsetX: (w => w*0.45), offsetY: (h => h*0.42), radiusX: (w => w*0.45), radiusY: (h => h*0.25) },
             // sfxOnDestroy: 'ROCK_CRUMBLE_SOUND' // Example
@@ -510,7 +511,7 @@ const CONFIG = {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 1.2, 
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.39), offsetY: (h=>h*1.26), radiusX: (w=>w*0.17), radiusY: (h=>h*0.13) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
@@ -546,7 +547,7 @@ const CONFIG = {
             maxHp: Infinity,
             blocksMovement: true,
             providesCover: true,
-            spawnWeight: 4,
+            spawnWeight: 3,
             spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
             spriteScale: 1.30, 
             spriteDestroyed: null,
@@ -557,7 +558,7 @@ const CONFIG = {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
+            spawnWeight: 1,
             explosionDamage: 50, explosionAoeRadius: 80,
             spriteNormal: 'assets/images/objects/barrels/barrel_red.png',
             spriteScale: 0.08, 
@@ -633,7 +634,6 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w=>w*0.38), offsetY: (h=>h*1.15), radiusX: (w=>w*0.44), radiusY: (h=>h*0.33) },
             isDecoration: false,
             sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED', // Example: You'd add this key to AUDIO_ASSETS
-            // --- NEW: Guard Pack for Towers ---
             initialGuardPack: {
                 enabled: true,
                 countRange: [1, 3], // Fewer, but tougher guards
@@ -645,7 +645,6 @@ const CONFIG = {
                     { type: 'possum_boss_1', weight: 1 } // Chance for a boss unit
                 ]
             }
-            // --- END NEW ---
         },
         {
             type: 'extraction_zone', name: 'Extraction Zone', color: '#3C78FF',
