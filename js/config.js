@@ -21,10 +21,11 @@ const CONFIG = {
     INPUT_TAP_THRESHOLD_MS: 30,
 
     // --- Pathfinding ---
-    GRID_CELL_SIZE: 8, // Reduced for finer grid, ensure performance
+    GRID_CELL_SIZE: 4, // Reduced for finer grid, ensure performance
     DEBUG_PATHING_UNIT_ID: null, 
     DEBUG_DRAW_NAV_GRID_BLOCKED: true, 
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true, 
+    DEBUG_DRAW_UNIT_PATHING_BOUNDS: true,
 
     // --- Units: Raccoon (Player) ---
     RACCOON_HP: 40,
@@ -121,6 +122,25 @@ const CONFIG = {
     POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.3,
     PROJECTILE_COLOR_POSSUM_BOSS_1: '#FF4500',
     XP_FOR_BOSS_KILL: 250,
+
+    // --- NEW: Units: Possum Sniper ---
+    POSSUM_SNIPER_HP: 25,
+    POSSUM_SNIPER_SPEED: 100,
+    POSSUM_SNIPER_SIZE: 14,
+    POSSUM_SNIPER_COLOR: '#788270', // Drab green/grey
+    POSSUM_SNIPER_SPRITE_PATH: 'assets/images/units/possum_sniper/',
+    POSSUM_SNIPER_SPRITE_SCALE_FACTOR: 0.7,
+    POSSUM_SNIPER_DEAD_SPRITE_PATH: 'assets/images/units/possum_sniper/dead/',
+    POSSUM_SNIPER_DEAD_SPRITE_FILES: ['possum_sniper_dead.png'],
+    POSSUM_SNIPER_DEAD_SPRITE_SCALE: 0.5,
+
+    POSSUM_SNIPER_RIFLE_DAMAGE: 35,
+    POSSUM_SNIPER_RIFLE_ROF: 0.2, // Very slow, 1 shot every 5 seconds
+    POSSUM_SNIPER_RIFLE_RANGE: 700, // Very long range
+    POSSUM_SNIPER_RIFLE_PROJECTILE_SPEED: 900, // Very fast projectile
+    POSSUM_SNIPER_RIFLE_ACCURACY: 1.0, // Snipers don't miss
+    PROJECTILE_COLOR_POSSUM_SNIPER: '#FF2400', // Scarlet red for visibility
+
     
     // --- Units: General & AI ---
     UNIT_VISUALS: {
@@ -132,7 +152,7 @@ const CONFIG = {
         KIA_STYLE: { PLAYER_FILL_COLOR: 'darkgrey', ENEMY_FILL_COLOR: '#555555', OPACITY: 1 },
         GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 }
     },
-    UNIT_PATHING_RADIUS_BUFFER: 8, // Buffer around unit for pathfinding checks
+    UNIT_PATHING_RADIUS_BUFFER: 18, // Buffer around unit for pathfinding checks
     UNIT_STUCK_FRAMES_THRESHOLD: 2,
     STUCK_FRAMES_THRESHOLD_PATHING: 2, 
     REPATH_STUCK_COOLDOWN: 0.3,
@@ -193,9 +213,19 @@ const CONFIG = {
                 countPerPhaseBonus: 0, // Boss guards don't scale
                 spawnRadius: 100,
                 unitPool: [
-                    { type: 'possum_heavy', weight: 1 } // Only spawns Heavies
+                    { type: 'possum_grunt', weight: 2 }, 
+                    { type: 'possum_sniper', weight: 1 }, // Chance for a sniper guard
+                    { type: 'possum_heavy', weight: 3 } // More likely to be heavies
                 ]
             }
+        },
+        POSSUM_SNIPER: {
+            DETECTION_RANGE: 750, // Can see slightly further than it can shoot
+            SETUP_TIME_SECONDS: 2.5, // How long it aims before firing
+            FIRE_COOLDOWN_SECONDS: 5.0, // Cooldown after a shot
+            REPOSITION_CHANCE_AFTER_SHOT: 0.6, // 60% chance to move after firing
+            REPOSITION_MAX_DISTANCE: 300,
+            REPOSITION_MIN_DISTANCE: 100
         },
     },
 
@@ -248,7 +278,7 @@ const CONFIG = {
 
     // Formation settings
     FORMATION_INDEX: 3,
-    INITIAL_FORMATION_SPACING: 1.9,
+    INITIAL_FORMATION_SPACING: 2.5, // Spacing between units in formation
 
     // --- Progression ---
     XP_PER_MISSION_SURVIVED: 35,
@@ -320,6 +350,11 @@ const CONFIG = {
             COLOR: 'yellow',
             Y_OFFSET: -45, // Pixels above the unit's y-coordinate
             FADE_OUT_START_PERCENT: 0.8 // Starts fading out at 90% of its lifetime
+        },
+        LASER_SIGHT: {
+            COLOR_START: 'rgba(255, 0, 0, 0.0)',
+            COLOR_END: 'rgba(255, 0, 0, 0.7)',
+            LINE_WIDTH: 2
         }
     },
     UI_SETTINGS: {
@@ -380,7 +415,14 @@ const CONFIG = {
             PLACEMENT_MARGIN_FROM_EDGE: 30,
             MIN_DISTANCE_FROM_PLAYER_SPAWN: 900,
             MAX_PLACEMENT_ATTEMPTS: 20
-        }
+        },
+        TREE_FALL_SETTINGS: {
+            ENABLED: true,
+            FALL_CHANCE: 0.45, // 45% chance a destroyed tree leaves a fallen log
+            MAX_PLACEMENT_ATTEMPTS: 5, // How many times to try placing the log before giving up
+            PLACEMENT_DISTANCE_MIN: 10, // Min distance from the stump
+            PLACEMENT_DISTANCE_MAX: 20  // Max distance from the stump
+        },
     },
     
     GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/',
@@ -513,7 +555,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
             spriteScale: 1.2, 
-            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.39), offsetY: (h=>h*1.26), radiusX: (w=>w*0.17), radiusY: (h=>h*0.13) },
+            collisionShape: { type: 'ellipse', offsetX: (w=>w*0.39), offsetY: (h=>h*1.24), radiusX: (w=>w*0.17), radiusY: (h=>h*0.13) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75, 
             // sfxOnDestroy: 'TREE_FALL_SOUND' // Example
@@ -642,7 +684,8 @@ const CONFIG = {
                 unitPool: [
                     { type: 'possum_grunt', weight: 2 },
                     { type: 'possum_heavy', weight: 3 }, // More likely to be heavies
-                    { type: 'possum_boss_1', weight: 1 } // Chance for a boss unit
+                    { type: 'possum_boss_1', weight: 1 }, // Chance for a boss unit
+                    { type: 'possum_sniper', weight: 3 }
                 ]
             }
         },
@@ -659,8 +702,11 @@ const CONFIG = {
     ],
 
     ENEMY_SPAWNING: {
-        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 6,
-        RANDOM_ADDITION_FACTOR_MAX: 5,
+        QUADRANT_SPAWNING_ENABLED: true, // Master toggle for this system
+        QUADRANT_COLS: 3,               // How many columns to divide the map into
+        QUADRANT_ROWS: 2,               // How many rows to divide the map into
+        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 10,
+        RANDOM_ADDITION_FACTOR_MAX: 6,
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
         SMALL_GROUP_CHANCE: 0.6,
         SMALL_GROUP_SIZE_MIN: 2,

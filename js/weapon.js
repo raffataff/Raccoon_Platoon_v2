@@ -1,6 +1,6 @@
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
-                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null) { 
+                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null, muzzleFlashScale = 1.0) { // Added muzzleFlashScale
         this.name = name;
         this.damage = damage;
         this.rof = rof;
@@ -9,7 +9,8 @@ class Weapon {
         this.projectileColor = projectileColor;
         this.accuracyStationary = accuracyStationary;
         this.accuracyMoving = accuracyMoving;
-        this.sfxFireKey = sfxFireKey; 
+        this.sfxFireKey = sfxFireKey;
+        this.muzzleFlashScale = muzzleFlashScale; // Store the new property
     }
 }
 
@@ -19,30 +20,33 @@ const WEAPONS = {
         CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
         CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON,
         CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
-        'RACCOON_MG_FIRE' 
+        'RACCOON_MG_FIRE',
+        1.0 // Standard muzzle flash size
     ),
     POSSUM_RIFLE: new Weapon(
         'Possum Rifle',
         CONFIG.POSSUM_RIFLE_DAMAGE, CONFIG.POSSUM_RIFLE_ROF, CONFIG.POSSUM_RIFLE_RANGE,
         CONFIG.POSSUM_RIFLE_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM,
         CONFIG.POSSUM_RIFLE_ACCURACY_STATIONARY, CONFIG.POSSUM_RIFLE_ACCURACY_MOVING,
-        'POSSUM_RIFLE_FIRE' 
+        'POSSUM_RIFLE_FIRE',
+        0.9 // Slightly smaller flash
     ),
     POSSUM_HEAVY_WEAPON: new Weapon(
         'Possum Heavy MG',
         CONFIG.POSSUM_HEAVY_WEAPON_DAMAGE, CONFIG.POSSUM_HEAVY_WEAPON_ROF, CONFIG.POSSUM_HEAVY_WEAPON_RANGE,
         CONFIG.POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM_HEAVY,
         CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY, CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_MOVING,
-        'POSSUM_HEAVY_MG_FIRE' 
+        'POSSUM_HEAVY_MG_FIRE',
+        1.5 // Larger muzzle flash
     ),
     POSSUM_BOSS_1_WEAPON: new Weapon(
         'Possum Boss 1 Grenade Launcher',
         CONFIG.POSSUM_BOSS_1_WEAPON_DAMAGE, CONFIG.POSSUM_BOSS_1_WEAPON_ROF, CONFIG.POSSUM_BOSS_1_WEAPON_RANGE,
         CONFIG.POSSUM_BOSS_1_WEAPON_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM_BOSS_1,
         CONFIG.POSSUM_BOSS_1_WEAPON_ACCURACY_STATIONARY, CONFIG.POSSUM_BOSS_1_WEAPON_ACCURACY_MOVING,
-        'POSSUM_BOSS_1_WEAPON_FIRE'
+        'POSSUM_BOSS_1_WEAPON_FIRE',
+        1.8 // Large grenade launcher flash
     ),
-    // --- NEW: Boss Secondary Weapon ---
     POSSUM_BOSS_1_SECONDARY: new Weapon(
         'Possum Boss 1 Heavy Repeater',
         CONFIG.POSSUM_BOSS_1_SECONDARY_WEAPON.DAMAGE,
@@ -52,9 +56,21 @@ const WEAPONS = {
         CONFIG.POSSUM_BOSS_1_SECONDARY_WEAPON.PROJECTILE_COLOR,
         CONFIG.POSSUM_BOSS_1_SECONDARY_WEAPON.ACCURACY_STATIONARY,
         CONFIG.POSSUM_BOSS_1_SECONDARY_WEAPON.ACCURACY_MOVING,
-        'POSSUM_HEAVY_MG_FIRE' // Reuse heavy MG sound for now
+        'POSSUM_HEAVY_MG_FIRE',
+        1.3 // Boss's MG has a respectable flash
+    ),
+    POSSUM_SNIPER_RIFLE: new Weapon(
+        'Possum Sniper Rifle',
+        CONFIG.POSSUM_SNIPER_RIFLE_DAMAGE,
+        CONFIG.POSSUM_SNIPER_RIFLE_ROF,
+        CONFIG.POSSUM_SNIPER_RIFLE_RANGE,
+        CONFIG.POSSUM_SNIPER_RIFLE_PROJECTILE_SPEED,
+        CONFIG.PROJECTILE_COLOR_POSSUM_SNIPER,
+        CONFIG.POSSUM_SNIPER_RIFLE_ACCURACY, // Same accuracy for stationary and moving
+        CONFIG.POSSUM_SNIPER_RIFLE_ACCURACY,
+        'POSSUM_HEAVY_MG_FIRE', // Using the same sound as heavy MG for now
+        1.2 // Muzzle flash scale
     )
-    // --- END NEW ---
 };
 
 class Projectile {
@@ -163,6 +179,18 @@ class Projectile {
                         }
                     }
                     if (obj.blocksMovement || obj.providesCover) {
+                        // --- MODIFICATION START ---
+                        if (this.game.addVisualEffect) {
+                            const isTree = obj.type.startsWith('tree_');
+                            const impactAngle = Math.atan2(this.velocityY, this.velocityX) + Math.PI; // Reverse of bullet direction
+
+                            if (isTree) {
+                                this.game.addVisualEffect('wood_splinter', { x: this.x, y: this.y, angle: impactAngle });
+                            } else if (obj.blocksMovement) { // Only spark on hard surfaces that block movement
+                                this.game.addVisualEffect('spark', { x: this.x, y: this.y });
+                            }
+                        }
+                        // --- MODIFICATION END ---
                         this.isMarkedForDeletion = true;
                         return;
                     }

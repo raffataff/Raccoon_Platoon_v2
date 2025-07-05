@@ -6,8 +6,9 @@ const CAMPAIGN_RULES = {
     // --- Base Values and Scaling ---
     BASE_PARAMETERS: {
         worldSizeFactor:    { initial: 1.8,  perPhaseIncrement: 0.35, max: 5.0, randomnessFactor: 0.01 },
-        enemyDensityFactor: { initial: 1.1,  perPhaseGrowthFactor: 0.4, max: 5.0, randomnessFactor: 0.2 }, // 20% growth per phase
-        heavyChance:        { initial: 0.2,  perPhaseGrowthFactor: 0.4, max: 0.65, randomnessFactor: 0.05 },
+        enemyDensityFactor: { initial: 1.0,  perPhaseGrowthFactor: 0.4, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
+        heavyChance:        { initial: 0.2,  perPhaseGrowthFactor: 0.05, max: 0.5, randomnessFactor: 0.05 },
+        sniperChance:       { initial: 0.2,  perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
         numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.2,  max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1,    perPhaseIncrement: 0.4,  max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue:{ initial: 1,    perPhaseIncrement: 0.3,  max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },

@@ -108,29 +108,24 @@ class Game {
         })();
     }
 
-    // --- NEW: Debug Toggle Function ---
     toggleDebugVisuals() {
         this.isDebugVisualsActive = !this.isDebugVisualsActive;
         console.log(`[Game] Debug Visuals Toggled: ${this.isDebugVisualsActive ? 'ON' : 'OFF'}`);
     }
-    // --- END NEW ---
 
     getProjectileFromPool(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy) {
-        /* ... (Unchanged from previous complete version) ... */
         const projectile = this.projectilePool.acquire();
         projectile.reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy);
         return projectile;
     }
 
     getGrenadeProjectileFromPool(startX, startY, targetX, targetY, shooterUnit) {
-        /* ... (Unchanged from previous complete version) ... */
         const grenade = this.grenadeProjectilePool.acquire();
         grenade.reset(startX, startY, targetX, targetY, shooterUnit);
         return grenade;
     }
 
     _weightedRandomSelect(items, rngInstance) {
-        /* ... (Unchanged from previous complete version) ... */
         if (!items || items.length === 0) return null;
         const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1), 0);
         if (totalWeight <= 0) { 
@@ -148,7 +143,6 @@ class Game {
     }
 
     _fillTextTemplate(templateString, data) {
-        /* ... (Unchanged from previous complete version) ... */
         if (!templateString) return "";
         return templateString.replace(/{(\w+)}/g, (match, key) => {
             return data.hasOwnProperty(key) ? data[key] : match;
@@ -156,14 +150,12 @@ class Game {
     }
 
     getLivingPlayerControlledUnits() {
-        /* ... (Unchanged from previous complete version) ... */
         const livingRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [];
         const livingRescuedHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
         return [...livingRaccoons, ...livingRescuedHostages];
     }
 
     setNextBirdSpawnTimer(rngInstance = null) {
-        /* ... (Unchanged from previous complete version) ... */
         const rng = rngInstance || (this.level && this.level.rng) || this.currentMissionSeedRNG || Math;
         if (this.birdSpawnConfig) {
             this.nextBirdSpawnTime = rng.nextFloat(
@@ -176,7 +168,6 @@ class Game {
     }
 
     async preloadMiscAssets() {
-        /* ... (Unchanged from previous complete version) ... */
         const imagePromises = [];
         if (this.birdSpawnConfig && this.birdSpawnConfig.TILE_SHEET_PATH) {
             const path = this.birdSpawnConfig.TILE_SHEET_PATH;
@@ -214,7 +205,6 @@ class Game {
             }
         }
 
-        // --- NEW: Preload rank icons ---
         const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
         const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
         if (rankIconConfig && rankIconPath) {
@@ -230,13 +220,11 @@ class Game {
                 }
             }
         }
-        // --- END NEW ---
 
         await Promise.all(imagePromises);
     }
 
     async preloadUnitAssets() {
-        /* ... (Unchanged from previous complete version) ... */
         const imagePromises = [];
         const unitTypesToPreload = [
             {
@@ -250,7 +238,6 @@ class Game {
                 name: 'raccoon_hostage',
                 basePath: 'assets/images/units/raccoon/hostage/', // Base path to the folder
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }
-                // We reuse the standard raccoon dead sprite, so no deadPath/deadFiles needed here
             },
             {
                 name: 'possum_grunt',
@@ -267,6 +254,13 @@ class Game {
                 deadFiles: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES
             },
             {
+                name: 'possum_sniper',
+                basePath: CONFIG.POSSUM_SNIPER_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.POSSUM_SNIPER_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_SNIPER_DEAD_SPRITE_FILES
+            },
+            {
                 name: 'possum_boss_1',
                 basePath: CONFIG.POSSUM_BOSS_1_SPRITE_PATH,
                 actions: { 
@@ -280,7 +274,6 @@ class Game {
             if (unitTypeConfig.basePath && unitTypeConfig.actions) {
                 for (const actionKey in unitTypeConfig.actions) { 
                     unitTypeConfig.actions[actionKey].forEach(dir => {
-                        // --- MODIFIED: Use a consistent naming convention ---
                         let filename;
                         if (unitTypeConfig.name === 'raccoon_hostage') {
                              filename = `hostage_idle_${dir}.png`;
@@ -289,7 +282,6 @@ class Game {
                         }
                         const spriteKey = `${unitTypeConfig.name}_${actionKey}_${dir}`;
                         const spritePath = `${unitTypeConfig.basePath}${actionKey}/${filename}`; 
-                        // --- END MODIFIED ---
 
                         if (!this.preloadedImages[spriteKey]) { 
                             imagePromises.push(new Promise((resolve) => {
@@ -398,7 +390,6 @@ class Game {
             });
         }
         
-        // --- NEW: Preload tower sprite pairs ---
         if (CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES && CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH) {
             const towerPath = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH;
             CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES.forEach(pair => {
@@ -422,7 +413,6 @@ class Game {
                 }
             });
         }
-        // --- END NEW ---
 
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
@@ -497,7 +487,6 @@ class Game {
     }
 
     async preloadAudioAssets() {
-        /* ... (Unchanged from previous complete version) ... */
         if (CONFIG.AUDIO_ASSETS && this.audioManager) {
             for (const key in CONFIG.AUDIO_ASSETS) {
                 const asset = CONFIG.AUDIO_ASSETS[key];
@@ -514,7 +503,6 @@ class Game {
     }
 
     generatePrerenderedBackground(worldWidth, worldHeight, seedForBackground) {
-        /* ... (Unchanged from previous complete version) ... */
         this.prerenderedBackgroundCanvas.width = worldWidth;
         this.prerenderedBackgroundCanvas.height = worldHeight;
         const ctx = this.prerenderedBackgroundCtx;
@@ -548,7 +536,6 @@ class Game {
     }
 
     start() {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.masterRoster || this.masterRoster.length === 0) {
             this.initializeNewCampaign();
             if (!this.masterRoster || this.masterRoster.length === 0) {
@@ -589,16 +576,17 @@ class Game {
 
         if (this.ui) {
             let videoPathToShow;
-            // --- MODIFIED: Play specific video for the first mission of a phase ---
             if (this.currentMissionIndex === 0) {
                 const phaseStartVideoPaths = [
                     'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
                     'assets/video/landing/Helicopter_Landing_1.mp4',
-                    'assets/video/landing/Helicopter_Landing_2.mp4'
+                    'assets/video/landing/Helicopter_Landing_2.mp4',
+                    'assets/video/landing/Helicopter_Landing_3.mp4',
+                    'assets/video/landing/Helicopter_Landing_4.mp4',
+                    'assets/video/landing/Helicopter_Landing_5.mp4',
                 ];
                 videoPathToShow = phaseStartVideoPaths[Math.floor(Math.random() * phaseStartVideoPaths.length)];
             } else {
-            // --- END MODIFIED ---
                 const videoPaths = [
                     'assets/video/raccoon_1.mp4',
                     'assets/video/raccoon_2.mp4',
@@ -616,6 +604,7 @@ class Game {
                     'assets/video/raccoon_14.mp4',
                     'assets/video/raccoon_15.mp4',
                     'assets/video/raccoon_16.mp4',
+                    'assets/video/raccoon_17.mp4',
                 ];
                 videoPathToShow = videoPaths[Math.floor(Math.random() * videoPaths.length)];
             }
@@ -629,13 +618,10 @@ class Game {
             if (r.promotedThisMission) r.promotedThisMission = false;
         });
 
-        // --- NEW: Create a timer promise ---
         const minDisplayTimePromise = new Promise(resolve => 
             setTimeout(resolve, CONFIG.MIN_LOADING_VIDEO_DURATION_MS || 5000)
         );
-        // --- END NEW ---
 
-        // --- NEW: Wrap loading tasks in a single promise ---
         const loadingTasksPromise = (async () => {
             await this.preloadLevelAssets();
             await this.preloadUnitAssets();
@@ -776,11 +762,8 @@ class Game {
                 this.clampCamera(); 
             }
         })();
-        // --- END NEW WRAPPER ---
         
-        // --- NEW: Wait for both loading and the minimum time to pass ---
         await Promise.all([loadingTasksPromise, minDisplayTimePromise]);
-        // --- END NEW ---
 
         this.gameState = 'RUNNING';
 
@@ -798,7 +781,6 @@ class Game {
     }
 
     incrementObjectiveEnemyCount(count = 1) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.currentMissionParams && this.currentMissionParams.objectives) {
             const exterminateObj = this.currentMissionParams.objectives.find(obj => obj.type === "EXTERMINATE");
             if (exterminateObj) {
@@ -814,7 +796,6 @@ class Game {
     }
 
     handleLMBFireActionStart(worldX, worldY) {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive() && typeof unit._executeFire === 'function') {
@@ -827,7 +808,6 @@ class Game {
     }
 
     updateLMBFireActionTarget(worldX, worldY) {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits || this.selectedUnits.length === 0) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive() && unit.isPlayerDirectFiring) {
@@ -837,7 +817,6 @@ class Game {
     }
 
     handleLMBFireActionEnd() {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon) {
@@ -848,7 +827,6 @@ class Game {
     }
 
     handleSetManualTargetCommand(enemyUnit) {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.selectedUnits || this.selectedUnits.length === 0 || !enemyUnit || !enemyUnit.isAlive()) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive()) {
@@ -862,7 +840,6 @@ class Game {
     }
 
     handleGrenadeThrowConfirm(worldX, worldY) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) return;
 
         const aimingRaccoons = this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
@@ -894,7 +871,6 @@ class Game {
     }
 
     handleRightClickCommand(worldX, worldY) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isLMBHoldFiringActionActive) { this.handleLMBFireActionEnd(); this.inputHandler.isLMBHoldFiringActionActive = false; }
 
@@ -915,7 +891,6 @@ class Game {
     }
 
     togglePause() {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'RUNNING') {
             this.previousGameState = this.gameState;
             this.gameState = 'PAUSED';
@@ -935,7 +910,6 @@ class Game {
     }
 
     restartCurrentMission() {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.currentMissionParams && this.getAvailableRecruits().length > 0) {
             if (this.inputHandler.isLMBHoldFiringActionActive) {
                 this.handleLMBFireActionEnd();
@@ -959,7 +933,6 @@ class Game {
     }
 
     quitToMainMenu() {
-        /* ... (Unchanged from previous complete version) ... */
         this.audioManager.stopAllLoopingSounds();
         this.lastPlayedMusicKey = null;
         this.gameState = 'MAIN_MENU';
@@ -984,7 +957,6 @@ class Game {
     }
 
     initializeNewCampaign() {
-        /* ... (Unchanged from previous complete version) ... */
         this.audioManager.stopAllLoopingSounds();
         this.lastPlayedMusicKey = null;
         this.masterRoster = [];
@@ -1065,7 +1037,6 @@ class Game {
             phaseObjectiveSummary: phaseObjectiveSummary
         });
 
-        // --- MODIFIED: Calculate dynamic number of missions per phase ---
         const mppRule = phaseRules.missionsPerPhase;
         const minMissions = Math.round(mppRule.baseRange[0] + (mppRule.incrementPerPhase * phaseIdx));
         const maxMissions = Math.round(mppRule.baseRange[1] + (mppRule.incrementPerPhase * phaseIdx));
@@ -1074,7 +1045,6 @@ class Game {
         const finalMaxMissions = Math.min(maxMissions, mppRule.maxRange[1]);
 
         const numMissions = this.currentPhaseSeedRNG.nextInt(finalMinMissions, finalMaxMissions);
-        // --- END MODIFIED ---
 
         this.campaignStructure[phaseIdx] = {
             phaseNum: phaseIdx,
@@ -1088,12 +1058,10 @@ class Game {
     }
 
     getAvailableRecruits() {
-        /* ... (Unchanged from previous complete version) ... */
         return this.masterRoster.filter(r => r.isAlive());
     }
 
     resizeCanvas() {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.canvasContainer) this.canvasContainer = document.getElementById('canvas-container');
         if (!this.canvasContainer) return;
         const containerWidth = this.canvasContainer.offsetWidth; const containerHeight = this.canvasContainer.offsetHeight;
@@ -1103,7 +1071,6 @@ class Game {
     }
 
     clampCamera() {
-        /* ... (Unchanged from previous complete version) ... */
         const worldWidth = CONFIG.WORLD_WIDTH || 0; 
         const worldHeight = CONFIG.WORLD_HEIGHT || 0;
         const canvasWidth = this.canvas.width || 0;
@@ -1117,7 +1084,6 @@ class Game {
     }
     
     _instantiateObjective(objDef, phaseIdx, isPrimary, forceSpecificTargetKey = null) {
-        /* ... (Unchanged from previous complete version) ... */
         const baseP = this.currentMissionParams.baseParams; 
         const newObj = {
             type: objDef.type,
@@ -1187,7 +1153,6 @@ class Game {
     }
 
     _getObjectiveDescriptionForBriefing(objectiveInstance, baseParams) {
-        /* ... (Unchanged from previous complete version) ... */
         let desc = `Objective type ${objectiveInstance.type} not fully described.`; 
         const uiTextStrings = CONFIG.UI_TEXT_STRINGS;
         const templateKey = objectiveInstance.descriptionTemplateKey;
@@ -1237,33 +1202,57 @@ class Game {
         const baseParamsRules = this.campaignRules.BASE_PARAMETERS;
         const briefingParts = this.campaignRules.BRIEFING_PARTS;
 
-        // Generate base mission parameters (worldSizeFactor, enemyDensityFactor, etc.)
+        // --- MODIFICATION START ---
         for (const key in baseParamsRules) {
             const rule = baseParamsRules[key];
             let value;
-            // --- MODIFIED: Adjust logic for new objective structures ---
+
             if (key === "numPrimaryObjectivesRange" || key === "numSecondaryObjectives") { 
-                value = rule; // Keep as object/array
+                value = rule; 
             } else {
-            // --- END MODIFIED ---
-                value = rule.initial + (rule.perPhaseIncrement * phaseIdx);
+                // Check for unlock phase. If not unlocked, use the initial value (or 0 for chances).
+                if (rule.unlocksPhase !== undefined && phaseIdx < rule.unlocksPhase) {
+                    if (key.toLowerCase().includes('chance')) {
+                        value = 0; // If a "chance" is not unlocked, it's 0.
+                    } else {
+                        value = rule.initial; // Otherwise, use its initial value.
+                    }
+                } else {
+                    // It's unlocked, so calculate the scaled value.
+                    if (rule.perPhaseGrowthFactor) {
+                        // Apply compound growth for factors
+                        value = rule.initial * Math.pow(1 + rule.perPhaseGrowthFactor, phaseIdx);
+                    } else if (rule.perPhaseIncrement) {
+                        // Apply linear increment for increments
+                        value = rule.initial + (rule.perPhaseIncrement * phaseIdx);
+                    } else {
+                        value = rule.initial;
+                    }
+                }
+                
                 if (rule.max !== undefined) value = Math.min(value, rule.max);
-                let randomnessRange = value * rule.randomnessFactor;
+                
+                let randomnessRange = value * (rule.randomnessFactor || 0);
                 value += this.currentMissionSeedRNG.nextFloat(-randomnessRange, randomnessRange);
+
+                // Re-clamp after applying randomness
                 if (rule.max !== undefined) value = Math.min(value, rule.max);
                 if (rule.roundToInt) value = Math.round(value);
-                if (key.startsWith("num") || key.startsWith("min")) value = Math.max(0, value);
+                
+                // Final sanity check for non-negative values where it matters
+                if (key.toLowerCase().includes('num') || key.toLowerCase().includes('min') || key.toLowerCase().includes('chance')) {
+                    value = Math.max(0, value);
+                }
             }
             baseP[key] = value;
         }
-
-        // --- Determine Number of Primary and Secondary Objectives ---
+        // --- MODIFICATION END ---
+        
         const numPrimariesToSelect = this.currentMissionSeedRNG.nextInt(
             baseP.numPrimaryObjectivesRange[0], 
             baseP.numPrimaryObjectivesRange[1]
         );
         
-        // --- MODIFIED: Calculate dynamic secondary objective range ---
         const secObjRule = baseP.numSecondaryObjectives;
         const minSec = Math.round(secObjRule.baseRange[0] + (secObjRule.incrementPerPhase * phaseIdx));
         const maxSec = Math.round(secObjRule.baseRange[1] + (secObjRule.incrementPerPhase * phaseIdx));
@@ -1272,17 +1261,15 @@ class Game {
         const finalMaxSec = Math.min(maxSec, secObjRule.maxRange[1]);
 
         const numSecondariesToSelect = this.currentMissionSeedRNG.nextInt(finalMinSec, finalMaxSec);
-        // --- END MODIFIED ---
 
         console.log(`[Game Gen] P${phaseIdx}M${missionIdx}: Selecting ${numPrimariesToSelect} Primaries, ${numSecondariesToSelect} Secondaries.`);
 
-        const selectedObjectiveTypesThisMission = new Set(); // To avoid duplicates of same type unless allowed
+        const selectedObjectiveTypesThisMission = new Set(); 
 
-        // --- Select Primary Objectives ---
         const isPhaseFinale = (missionIdx === currentPhaseInfo.missionsInPhase - 1);
         for (let i = 0; i < numPrimariesToSelect; i++) {
             let newPrimaryObjective = null;
-            if (isPhaseFinale && i === 0) { // First (and likely only) primary for finale is ASSASSINATION
+            if (isPhaseFinale && i === 0) { 
                 const assassinationObjDefSource = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "ASSASSINATION" && o.isPhaseFinaleCandidate);
                 if (assassinationObjDefSource && assassinationObjDefSource.unlocksPhase <= phaseIdx) {
                     const availableBosses = (this.campaignRules.ASSASSINATION_TARGET_POOL || [])
@@ -1301,12 +1288,12 @@ class Game {
                 } else { console.warn(`[Game Gen] Phase Finale: ASSASSINATION obj def not found/unlocked for P${phaseIdx}.`); }
             } 
             
-            if (!newPrimaryObjective) { // If not finale, or finale assassination failed, pick random primary
+            if (!newPrimaryObjective) { 
                 const availablePrimaries = this.campaignRules.OBJECTIVE_POOL.filter(o => 
                     (o.isPrimary === undefined || o.isPrimary) && 
                     o.unlocksPhase <= phaseIdx &&
-                    !selectedObjectiveTypesThisMission.has(o.type) && // Avoid duplicate types for primary
-                    !(isPhaseFinale && o.type === "ASSASSINATION" && o.isPhaseFinaleCandidate) // Avoid random boss assassination if not picked above
+                    !selectedObjectiveTypesThisMission.has(o.type) && 
+                    !(isPhaseFinale && o.type === "ASSASSINATION" && o.isPhaseFinaleCandidate) 
                 );
                 if (availablePrimaries.length > 0) {
                     const chosenPrimaryDef = this._weightedRandomSelect(availablePrimaries, this.currentMissionSeedRNG);
@@ -1321,7 +1308,7 @@ class Game {
             if (newPrimaryObjective) {
                 objectivesArray.push(newPrimaryObjective);
                 selectedObjectiveTypesThisMission.add(newPrimaryObjective.type);
-            } else if (i === 0) { // Failed to select even the first primary
+            } else if (i === 0) { 
                 console.warn("[Game Gen] CRITICAL: Failed to select any primary objective. Defaulting to EXTERMINATE.");
                 const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
                 if (exterminateDef) {
@@ -1331,20 +1318,18 @@ class Game {
                         selectedObjectiveTypesThisMission.add(fallbackPrimary.type);
                     } else { console.error("[Game Gen] CRITICAL: Fallback EXTERMINATE also failed!");}
                 } else { console.error("[Game Gen] CRITICAL: No EXTERMINATE definition for fallback!");}
-                break; // Stop trying to add more primaries if the first failed so badly
+                break; 
             }
         }
 
-        // --- Select Secondary Objectives ---
         const primaryObjectiveTypes = new Set(objectivesArray.filter(o => o.isPrimary).map(o => o.type));
         for (let i = 0; i < numSecondariesToSelect; i++) {
             const availableSecondaries = this.campaignRules.OBJECTIVE_POOL.filter(o => {
                 if (o.unlocksPhase > phaseIdx) return false;
-                if (selectedObjectiveTypesThisMission.has(o.type) && (o.maxInstancesPerMission || 1) <= objectivesArray.filter(obj => obj.type === o.type).length) return false; // Already have max instances
+                if (selectedObjectiveTypesThisMission.has(o.type) && (o.maxInstancesPerMission || 1) <= objectivesArray.filter(obj => obj.type === o.type).length) return false; 
                 
-                // Check canCoexistWith against all current primaries
                 let canCoexist = true;
-                if (o.canCoexistWith) { // If the secondary defines restrictions
+                if (o.canCoexistWith) { 
                     for (const primaryType of primaryObjectiveTypes) {
                         if (!o.canCoexistWith.includes(primaryType)) {
                             canCoexist = false; break;
@@ -1353,12 +1338,11 @@ class Game {
                 }
                 if (!canCoexist) return false;
 
-                // Check from primaries' perspectives
                 for (const primaryObj of objectivesArray) {
                     if (primaryObj.isPrimary) {
                         const primaryDef = this.campaignRules.OBJECTIVE_POOL.find(def => def.type === primaryObj.type);
                         if (primaryDef && primaryDef.canCoexistWith && !primaryDef.canCoexistWith.includes(o.type)) {
-                            return false; // This primary cannot coexist with the candidate secondary
+                            return false; 
                         }
                     }
                 }
@@ -1371,7 +1355,7 @@ class Game {
                     const newSecondaryObjective = this._instantiateObjective(chosenSecondaryDef, phaseIdx, false);
                     if (newSecondaryObjective) {
                         objectivesArray.push(newSecondaryObjective);
-                        selectedObjectiveTypesThisMission.add(newSecondaryObjective.type); // Add even if it's a second instance of a type
+                        selectedObjectiveTypesThisMission.add(newSecondaryObjective.type); 
                          console.log(`[Game Gen] Added Secondary: ${newSecondaryObjective.type}`);
                     } else {
                         console.warn(`[Game Gen] Failed to instantiate secondary: ${chosenSecondaryDef.type}`);
@@ -1379,7 +1363,7 @@ class Game {
                 }
             } else {
                 console.log("[Game Gen] No more compatible secondary objectives to select.");
-                break; // No more suitable secondaries
+                break; 
             }
         }
         
@@ -1460,7 +1444,6 @@ class Game {
 
 
     recordRaccoonFallen(raccoon) {
-        /* ... (Unchanged from previous complete version) ... */
         if (raccoon && raccoon.team === 'player') {
             if (!this.fallenRaccoonsThisMission.find(r => r.id === raccoon.id)) {
                 this.fallenRaccoonsThisMission.push({ id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl });
@@ -1480,7 +1463,6 @@ class Game {
     }
 
     addNewRecruitToMasterRoster() {
-        /* ... (Unchanged from previous complete version) ... */
         const currentLivingNames = this.masterRoster.filter(r => r.isAlive()).map(r => r.name);
         let faceImageFile = 'default_face.png';
         const rosterRng = this.campaignSeedRNG || new SeededRandom(Date.now()); 
@@ -1503,7 +1485,6 @@ class Game {
     }
 
     initiateMissionEnd(isVictory) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT' || this.gameState === 'POST_MISSION_DEBRIEF') {
             return;
         }
@@ -1524,7 +1505,6 @@ class Game {
     }
 
     actuallyEndMission(isVictory) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.inputHandler.isLMBHoldFiringActionActive) {
             this.handleLMBFireActionEnd();
             this.inputHandler.isLMBHoldFiringActionActive = false;
@@ -1552,7 +1532,6 @@ class Game {
             for (let i = 0; i < recruitsToAdd && this.masterRoster.length < maxRoster; i++) this.addNewRecruitToMasterRoster();
         }
 
-        // --- MODIFIED: Store the full Raccoon objects of new recruits ---
         let newlyRecruitedRaccoons = []; 
         const rescueObjective = this.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
         if (isVictory && rescueObjective) {
@@ -1590,7 +1569,7 @@ class Game {
 
                         if (this.masterRoster.length < (CONFIG.MAX_TOTAL_ROSTER_SIZE || 20)) {
                             this.masterRoster.push(newRecruit);
-                            newlyRecruitedRaccoons.push(newRecruit); // Add the full object
+                            newlyRecruitedRaccoons.push(newRecruit); 
                         }
                     }
                 });
@@ -1611,8 +1590,8 @@ class Game {
             enemiesKilled: enemiesKilledThisMission,
             timeTaken: missionDuration.toFixed(1),
             campaignComplete: (isVictory && isLastMissionInPhase && isLastPhaseOfCampaign),
-            newlyRecruitedRaccoons: newlyRecruitedRaccoons, // Pass the new data
-            hostagesRecruitedCount: newlyRecruitedRaccoons.length // Still useful for a quick count
+            newlyRecruitedRaccoons: newlyRecruitedRaccoons, 
+            hostagesRecruitedCount: newlyRecruitedRaccoons.length 
         };
 
         if (this.ui) {
@@ -1625,7 +1604,6 @@ class Game {
     }
 
     proceedToNextLogicalStep() {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'CAMPAIGN_COMPLETE') {
             if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_ALREADY_COMPLETE, true); return;
         }
@@ -1692,7 +1670,6 @@ class Game {
     }
 
     toggleFormation() {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING') return;
         this.currentFormationIndex = (this.currentFormationIndex + 1) % this.FORMATION_TYPES.length;
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
@@ -1700,12 +1677,10 @@ class Game {
     }
 
     setFormationSpacing(multiplier) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'RUNNING') this.formationSpacingMultiplier = parseFloat(multiplier);
     }
 
     selectUnitsInCtrlDragRectangle() {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.draggedFarEnough || this.gameState !== 'RUNNING') return;
         const worldDragStartX = this.dragStartX + this.cameraX;
         const worldDragStartY = this.dragStartY + this.cameraY;
@@ -1737,7 +1712,6 @@ class Game {
     }
 
     deselectAllUnits() {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.selectedUnits.length === 0) return;
         let aimingCancelled = false;
         if(this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit instanceof Raccoon && unit.isAimingGrenade) { unit.cancelGrenadeAim(); aimingCancelled = true; } });
@@ -1747,7 +1721,6 @@ class Game {
     }
 
     selectAllPlayerUnits() {
-        /* ... (Unchanged from previous complete version) ... */
         const allAliveUnits = this.deployedSquadRoster ? this.deployedSquadRoster.filter(unit => unit.isAlive()) : [];
         const currentSelectionIds = this.selectedUnits.map(u => u.id).sort().join(',');
         const allAliveUnitsIds = allAliveUnits.map(u => u.id).sort().join(',');
@@ -1761,7 +1734,6 @@ class Game {
     }
 
     addProjectile(projectile) { 
-        /* ... (Unchanged from previous complete version) ... */
         this.gameObjects.push(projectile);
         if (this.spatialGrid && projectile) {
             this.spatialGrid.addObject(projectile);
@@ -1769,26 +1741,23 @@ class Game {
     }
 
     checkMissionStatus() {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated || !this.currentMissionParams || !this.currentMissionParams.objectives) {
             return;
         }
     
-        // --- MODIFIED: Reverted to check ALL objectives, not just primary ones ---
         let allObjectivesNowComplete = true; 
     
         if (this.currentMissionParams.objectives.length === 0) {
             allObjectivesNowComplete = this.enemyUnits.every(e => !e.isAlive());
         } else {
             this.currentMissionParams.objectives.forEach(obj => {
-                // Keep the dynamic re-evaluation for the Exterminate objective
                 if (obj.type === 'EXTERMINATE') {
                     obj.currentProgress = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
                     if (obj.totalToAchieve === undefined) obj.totalToAchieve = this.initialEnemyCount;
                     
                     obj.isComplete = (obj.currentProgress >= obj.totalToAchieve);
 
-                } else if (!obj.isComplete) { // Other objectives can still be set-and-forget
+                } else if (!obj.isComplete) { 
                     if (obj.type === 'DESTROY_TARGET') {
                         obj.currentProgress = this.level.missionTargetObstacles ? 
                                               this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed && t.objectiveId === obj.id).length : 0;
@@ -1829,12 +1798,10 @@ class Game {
                         }
                         obj.currentEvacuated = hostagesAtEvacCount; 
                         let enemiesClearedForThisRescue = false;
-                        // For rescue, enemy clearance can be a primary OR a secondary exterminate objective.
                         const exterminateObjective = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE");
                         if (exterminateObjective) {
                             enemiesClearedForThisRescue = exterminateObjective.isComplete;
                         } else { 
-                            // If no exterminate objective exists for some reason, default to checking all enemies
                             enemiesClearedForThisRescue = this.enemyUnits.every(e => !e.isAlive());
                         }
                         if (obj.currentProgress >= obj.minToAchieveForCompletion && 
@@ -1854,7 +1821,6 @@ class Game {
                     }
                 }
     
-                // --- MODIFIED: Check ALL objectives, not just primary ones ---
                 if (!obj.isComplete) {
                     allObjectivesNowComplete = false; 
                 }
@@ -1869,14 +1835,12 @@ class Game {
             return; 
         }
     
-        // --- MODIFIED: Victory is based on all objectives being complete again ---
         if (allObjectivesNowComplete && this.gameState === 'RUNNING') { 
             this.initiateMissionEnd(true); 
         }
     }
 
     spawnFlyingBirdFlock() {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.birdSpawnConfig || !this.preloadedImages[this.birdSpawnConfig.TILE_SHEET_PATH] || !(this.level && this.level.rng)) return; 
 
         const rng = this.level.rng; 
@@ -1905,7 +1869,6 @@ class Game {
     }
 
     update(deltaTime) {
-        /* ... (Unchanged from previous complete version) ... */
         if (this.gameState === 'PAUSED') {
             return;
         }
@@ -2000,11 +1963,7 @@ class Game {
             return effect && !effect.isMarkedForDeletion;
         });
         
-        // --- MODIFIED: Cleanup is now handled here, universally ---
         this.hostageUnits = this.hostageUnits.filter(h => !h.isMarkedForDeletion);
-        // We don't filter `deployedSquadRoster` or `enemyUnits` because we need to keep track of dead bodies.
-        // If we needed to clean them up, this is where it would happen.
-        // --- END MODIFIED ---
 
         if (!this.missionStartedAndPopulated && this.gameState === 'RUNNING') {
              this.missionStartedAndPopulated = true;
@@ -2040,21 +1999,6 @@ class Game {
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
         }
 
-        if (this.isDebugVisualsActive) {
-            if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid) {
-                const navGrid = this.level.navGrid; const cellSize = this.level.gridCellSize;
-                this.ctx.save(); this.ctx.fillStyle = 'rgba(100, 0, 0, 0.1)'; 
-                for (let y = 0; y < navGrid.length; y++) {
-                    for (let x = 0; x < navGrid[y].length; x++) {
-                        if (navGrid[y][x] === 1) { 
-                            this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
-                        }
-                    }
-                }
-                this.ctx.restore();
-            }
-        }
-        
         let sortableObjects = [];
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
@@ -2064,39 +2008,100 @@ class Game {
         sortableObjects.forEach((item, index) => { const obj = item.entity; if (!obj) { return; } try { if (item.isUnit) { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {  if (obj.isDestroyed && obj.imageDestroyed) { let renderWidth, renderHeight, drawX, drawY; if (obj.spriteDestroyedScale !== undefined && obj.spriteDestroyedScale !== null) { renderWidth = obj.imageDestroyed.naturalWidth * obj.spriteDestroyedScale; renderHeight = obj.imageDestroyed.naturalHeight * obj.spriteDestroyedScale; drawX = obj.x + (obj.width / 2) - (renderWidth / 2);  drawY = obj.y + obj.height - renderHeight;  } else { renderWidth = obj.width; renderHeight = obj.height; drawX = obj.x; drawY = obj.y; } if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight); } else if (!obj.isDestroyed && obj.imageNormal) { if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height); } else if ((!obj.isDecoration || !obj.imageNormal) && !obj.isDestroyed) { let obsColor = obj.color || '#555555'; this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height); } if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) { const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR; const hpBarHeight = healthBarStyle.HEIGHT || 4; const hpBarWidth = Math.min(obj.width * 0.7, 60);  const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4;  this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2); let fillColor = healthBarStyle.HP_COLOR_FULL ||'#0c0'; const hpPercent = obj.hp / obj.maxHp; if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) { fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000'; } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) { fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#CCCC00'; } this.ctx.fillStyle = fillColor; this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight); } } } catch (e) { } });
         
         if (this.isDebugVisualsActive) {
-            // --- MODIFIED: Added Spawn Zone Debug Drawing ---
-            if (this.level && this.level.playerSpawnZone) {
-                this.ctx.save();
-                const zone = this.level.playerSpawnZone;
-                this.ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; // Red for keep-out
-                this.ctx.strokeStyle = 'rgba(255, 100, 100, 0.8)';
-                this.ctx.lineWidth = 2;
-                this.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
-                this.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
-                this.ctx.fillStyle = 'white';
-                this.ctx.font = '14px Arial';
-                this.ctx.fillText('ENEMY KEEP-OUT ZONE', zone.x + 5, zone.y + 20);
-                this.ctx.restore();
+            this.ctx.save();
+            
+            // Draw Nav Grid
+            if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid) {
+                const navGrid = this.level.navGrid; const cellSize = this.level.gridCellSize;
+                this.ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; // Red for blocked
+                for (let y = 0; y < navGrid.length; y++) {
+                    for (let x = 0; x < navGrid[y].length; x++) {
+                        if (navGrid[y][x] === 1) { // 1 means blocked
+                            this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                        }
+                    }
+                }
             }
-            if (this.level && this.level.effectivePlayerSpawnZone) {
-                this.ctx.save();
-                const zone = this.level.effectivePlayerSpawnZone;
-                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.15)'; // Green for spawn area
-                this.ctx.strokeStyle = 'rgba(100, 255, 100, 0.8)';
-                this.ctx.lineWidth = 1;
-                this.ctx.setLineDash([5, 5]);
-                this.ctx.fillRect(zone.x, zone.y, zone.width, zone.height);
-                this.ctx.strokeRect(zone.x, zone.y, zone.width, zone.height);
-                this.ctx.fillStyle = 'white';
-                this.ctx.font = '14px Arial';
-                this.ctx.fillText('RACCOON SPAWN AREA', zone.x + 5, zone.y + 40);
-                this.ctx.restore();
+            
+            // Draw Player Spawn Zones
+            if (this.level) {
+                if (this.level.playerSpawnZone) {
+                    this.ctx.fillStyle = 'rgba(255, 255, 0, 0.1)'; // Yellow tint
+                    this.ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.fillRect(this.level.playerSpawnZone.x, this.level.playerSpawnZone.y, this.level.playerSpawnZone.width, this.level.playerSpawnZone.height);
+                    this.ctx.strokeRect(this.level.playerSpawnZone.x, this.level.playerSpawnZone.y, this.level.playerSpawnZone.width, this.level.playerSpawnZone.height);
+                }
+                if (this.level.effectivePlayerSpawnZone) {
+                    this.ctx.fillStyle = 'rgba(0, 255, 255, 0.2)'; // Cyan tint
+                    this.ctx.strokeStyle = 'rgba(0, 255, 255, 0.7)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.fillRect(this.level.effectivePlayerSpawnZone.x, this.level.effectivePlayerSpawnZone.y, this.level.effectivePlayerSpawnZone.width, this.level.effectivePlayerSpawnZone.height);
+                    this.ctx.strokeRect(this.level.effectivePlayerSpawnZone.x, this.level.effectivePlayerSpawnZone.y, this.level.effectivePlayerSpawnZone.width, this.level.effectivePlayerSpawnZone.height);
+                }
             }
-            // --- END MODIFIED ---
-            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.save(); this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShape = this.level._getObstacleCollisionShape(obstacle); if (!collisionShape) return; if (obstacle.isDestroyed && !obstacle.blocksMovement) {} else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); }  else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); }  else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } }); this.ctx.restore(); }
+
+            // --- NEW: Draw Quadrant Grid ---
+            if (this.level && this.level.quadrantBoundaries) {
+                const { minX, minY, maxX, maxY, cols, rows, width, height } = this.level.quadrantBoundaries;
+
+                this.ctx.strokeStyle = 'rgba(255, 100, 255, 1.0)';
+                this.ctx.lineWidth = 5;
+                this.ctx.setLineDash([5, 10]);
+
+                // Draw vertical lines
+                for (let c = 1; c < cols; c++) {
+                    const lineX = minX + c * width;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(lineX, minY);
+                    this.ctx.lineTo(lineX, maxY);
+                    this.ctx.stroke();
+                }
+
+                // Draw horizontal lines
+                for (let r = 1; r < rows; r++) {
+                    const lineY = minY + r * height;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(minX, lineY);
+                    this.ctx.lineTo(maxX, lineY);
+                    this.ctx.stroke();
+                }
+                
+                this.ctx.setLineDash([]);
+            }
+
+            // Draw Obstacle Collision Shapes
+            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShape = this.level._getObstacleCollisionShape(obstacle); if (!collisionShape) return; if (obstacle.isDestroyed && !obstacle.blocksMovement) {} else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); }  else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); }  else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } }); }
+
+            // Draw Hut Spawner Info
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_SPAWN_AREAS) { this.level.renderHutSpawnAreas(this.ctx); }
-            if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_HUT_STATUS_TEXT) { this.ctx.save(); this.ctx.fillStyle = "white"; this.ctx.font = "10px Arial"; this.ctx.textAlign = "center"; (this.level.potentialSpawnerHuts || []).forEach(hut => { if (!hut.isDestroyed) { let status = "POTENTIAL"; if (hut.isActivelySpawning) { status = hut.unitsToSpawnThisBurst > 0 ? `BURST (${hut.unitsToSpawnThisBurst} left, next in ${hut.timeUntilNextUnitInBurst.toFixed(1)}s)` : `ACTIVE (CD: ${hut.spawnCooldownTimer.toFixed(1)}s)`; } this.ctx.fillText(status, hut.x + hut.width / 2, hut.y - 5); } }); this.ctx.restore(); }
-            if (this.selectedUnits && this.selectedUnits.length > 0) { this.ctx.save(); this.ctx.strokeStyle = 'rgba(50, 150, 255, 0.7)'; this.ctx.fillStyle = 'rgba(50, 150, 255, 0.9)'; this.ctx.lineWidth = 1.5; this.ctx.setLineDash([3, 3]); this.selectedUnits.forEach(unit => { if (unit.isMoving && unit.currentPath && unit.currentPath.length > 0) { this.ctx.beginPath(); this.ctx.moveTo(unit.x, unit.y); this.ctx.lineTo(unit.currentPath[0].x, unit.currentPath[0].y); for (let i = 0; i < unit.currentPath.length - 1; i++) { this.ctx.lineTo(unit.currentPath[i+1].x, unit.currentPath[i+1].y); } this.ctx.stroke(); unit.currentPath.forEach(node => { this.ctx.beginPath(); this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2); this.ctx.fill(); }); } }); this.ctx.restore(); }
+            if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_HUT_STATUS_TEXT) { this.ctx.fillStyle = "white"; this.ctx.font = "10px Arial"; this.ctx.textAlign = "center"; (this.level.potentialSpawnerHuts || []).forEach(hut => { if (!hut.isDestroyed) { let status = "POTENTIAL"; if (hut.isActivelySpawning) { status = hut.unitsToSpawnThisBurst > 0 ? `BURST (${hut.unitsToSpawnThisBurst} left, next in ${hut.timeUntilNextUnitInBurst.toFixed(1)}s)` : `ACTIVE (CD: ${hut.spawnCooldownTimer.toFixed(1)}s)`; } this.ctx.fillText(status, hut.x + hut.width / 2, hut.y - 5); } }); }
+            
+            // Draw Pathing Lines
+            if (this.selectedUnits && this.selectedUnits.length > 0) { 
+                this.ctx.strokeStyle = 'rgba(50, 150, 255, 0.7)'; 
+                this.ctx.fillStyle = 'rgba(50, 150, 255, 0.9)'; 
+                this.ctx.lineWidth = 3; 
+                this.ctx.setLineDash([3, 3]); 
+                this.selectedUnits.forEach(unit => { 
+                    if (unit.isMoving && unit.currentPath && unit.currentPath.length > 0) { 
+                        this.ctx.beginPath(); 
+                        this.ctx.moveTo(unit.x, unit.y); 
+                        this.ctx.lineTo(unit.currentPath[0].x, unit.currentPath[0].y); 
+                        for (let i = 0; i < unit.currentPath.length - 1; i++) { 
+                            this.ctx.lineTo(unit.currentPath[i+1].x, unit.currentPath[i+1].y); 
+                        } 
+                        this.ctx.stroke(); 
+                        unit.currentPath.forEach(node => { 
+                            this.ctx.beginPath(); 
+                            this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2); 
+                            this.ctx.fill(); 
+                        }); 
+                    } 
+                });
+            }
+
+            this.ctx.restore();
         }
         
         this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
@@ -2135,7 +2140,6 @@ class Game {
     }
 
     gameLoop(timestamp) {
-        /* ... (Unchanged from previous complete version) ... */
         const now = performance.now();
         if (!this.lastTime) {
             this.lastTime = now;
@@ -2182,7 +2186,6 @@ class Game {
     }
 
     calculateFormationPoints(centerX, centerY, units, formationType = 'HORIZONTAL') {
-        /* ... (Unchanged from previous complete version) ... */
         const points = [];
         const aliveUnits = units ? units.filter(u => u.isAlive()) : [];
         const numUnits = aliveUnits.length;
@@ -2270,7 +2273,13 @@ class Game {
     }
 
     addVisualEffect(type, data) {
-        /* ... (Unchanged from previous complete version) ... */
+        // --- MODIFIED: Allow passing a pre-created effect instance ---
+        if (type instanceof MuzzleFlashEffect || type instanceof BloodEffect || type instanceof SparkEffect || type instanceof WoodSplinterEffect || type instanceof LaserSightEffect) {
+            this.visualEffects.push(type);
+            return;
+        }
+        // --- END MODIFIED ---
+
         if (type === 'explosion' && data && data.x !== undefined && data.y !== undefined && data.radius !== undefined) {
             this.visualEffects.push(new ExplosionEffect(data.x, data.y, data.radius, this));
         } else if (type === 'promotion' && data && data.unitId) {
@@ -2280,12 +2289,17 @@ class Game {
             }
         } else if (type === 'extraction_zone' && data && data.obstacle) {
             this.visualEffects.push(new ExtractionZoneEffect(data.obstacle, this));
-        }
-        // --- NEW ---
-        else if (type === 'help_text' && data && data.parentUnit) {
+        } else if (type === 'help_text' && data && data.parentUnit) {
             this.visualEffects.push(new HelpTextEffect(data.parentUnit, this));
+        } else if (type === 'blood' && data) {
+            this.visualEffects.push(new BloodEffect(data.x, data.y, data.angle));
+        } else if (type === 'spark' && data) {
+            this.visualEffects.push(new SparkEffect(data.x, data.y));
+        } else if (type === 'wood_splinter' && data) {
+            this.visualEffects.push(new WoodSplinterEffect(data.x, data.y, data.angle));
+        } else if (type === 'muzzle_flash' && data) {
+            this.visualEffects.push(new MuzzleFlashEffect(data.x, data.y, data.scale));
         }
-        // --- END NEW ---
     }
 }
 
@@ -2305,19 +2319,86 @@ class PromotionEffect {
 
 class ExplosionEffect {
     constructor(x, y, radius, gameInstance) {
-        this.game = gameInstance; this.x = x; this.y = y; this.maxRadius = radius; this.currentRadius = 0;
+        this.game = gameInstance;
+        this.x = x;
+        this.y = y;
+        this.maxRadius = radius;
+        this.currentRadius = 0;
         this.effectConfig = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.EXPLOSION) ? CONFIG.VISUAL_EFFECTS.EXPLOSION : {};
-        this.lifetime = this.effectConfig.LIFETIME || 0.5; this.elapsedTime = 0; this.isMarkedForDeletion = false; this.type = 'explosion';
+        this.lifetime = this.effectConfig.LIFETIME || 0.5;
+        this.elapsedTime = 0;
+        this.isMarkedForDeletion = false;
+        this.type = 'explosion';
+        
+        // --- NEW: Debris particles for enhanced explosion ---
+        this.particles = [];
+        const particleCount = 30 + (radius / 4); // More particles for bigger explosions
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * (radius * 0.8) + (radius * 0.2) + 0.5;
+            this.particles.push({
+                x: this.x,
+                y: this.y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                lifetime: Math.random() * 1.4 + 0.4, // Live for 0.4 to 1.2 seconds
+                alpha: 1.0,
+                size: Math.random() * 3 + 1
+            });
+        }
+        // --- END NEW ---
     }
-    update(deltaTime) { this.elapsedTime += deltaTime; this.currentRadius = (this.elapsedTime / this.lifetime) * this.maxRadius; if (this.elapsedTime >= this.lifetime) this.isMarkedForDeletion = true; }
+
+    update(deltaTime) {
+        this.elapsedTime += deltaTime;
+        this.currentRadius = (this.elapsedTime / this.lifetime) * this.maxRadius;
+        if (this.elapsedTime >= this.lifetime) {
+            this.isMarkedForDeletion = true;
+        }
+        
+        // --- NEW: Update debris particles ---
+        this.particles.forEach(p => {
+            p.x += p.vx * deltaTime;
+            p.y += p.vy * deltaTime;
+            p.vx *= 0.95; // Air resistance
+            p.vy *= 0.95;
+            p.lifetime -= deltaTime;
+            if (p.lifetime <= 0) {
+                p.alpha = 0;
+            } else {
+                p.alpha = p.lifetime / 1.2; // Fade out
+            }
+        });
+        this.particles = this.particles.filter(p => p.alpha > 0);
+        // --- END NEW ---
+    }
+
     render(ctx) {
-        const progress = this.elapsedTime / this.lifetime; const alpha = 1 - progress;
+        const progress = this.elapsedTime / this.lifetime;
+        const alpha = 1 - progress;
         
         const colorIntensity = Math.floor(255 * (1 - progress*0.5)); 
         const gIntensity = Math.floor(255 * (1-progress)); 
-        ctx.fillStyle = `rgba(${colorIntensity}, ${Math.floor(gIntensity*0.6)}, 0, ${alpha*0.7})`; ctx.beginPath(); ctx.arc(this.x,this.y,this.currentRadius,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = `rgba(${colorIntensity}, ${Math.floor(gIntensity*0.6)}, 0, ${alpha*0.7})`;
+        ctx.beginPath();
+        ctx.arc(this.x,this.y,this.currentRadius,0,Math.PI*2);
+        ctx.fill();
         
-        if (progress < 0.4) { ctx.fillStyle = `rgba(255,255,${Math.floor(150+105*(1-progress/0.4))},${alpha})`; ctx.beginPath(); ctx.arc(this.x,this.y,this.currentRadius*0.5,0,Math.PI*2); ctx.fill(); }
+        if (progress < 0.4) {
+            ctx.fillStyle = `rgba(255,255,${Math.floor(150+105*(1-progress/0.4))},${alpha})`;
+            ctx.beginPath();
+            ctx.arc(this.x,this.y,this.currentRadius*0.5,0,Math.PI*2);
+            ctx.fill();
+        }
+
+        // --- NEW: Render debris particles ---
+        this.particles.forEach(p => {
+            ctx.fillStyle = `rgba(200, 150, 50, ${p.alpha})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+        // --- END NEW ---
     }
 }
 
@@ -2399,7 +2480,6 @@ class ExtractionZoneEffect {
     }
 }
 
-// --- NEW: HelpTextEffect Class Definition ---
 class HelpTextEffect {
     constructor(parentUnit, gameInstance) {
         this.parentUnit = parentUnit;
@@ -2425,13 +2505,11 @@ class HelpTextEffect {
     update(deltaTime) {
         this.elapsedTime += deltaTime;
 
-        // Mark for deletion if parent unit is gone, rescued, or lifetime is up
         if (!this.parentUnit || !this.parentUnit.isAlive() || this.parentUnit.isRescued || this.elapsedTime >= this.lifetime) {
             this.isMarkedForDeletion = true;
             return;
         }
 
-        // Handle fade out
         if (this.elapsedTime > this.fadeOutStart) {
             const fadeDuration = this.lifetime - this.fadeOutStart;
             const timeIntoFade = this.elapsedTime - this.fadeOutStart;
@@ -2461,6 +2539,259 @@ class HelpTextEffect {
     }
 }
 
+// --- NEW EFFECT CLASSES ---
+
+class MuzzleFlashEffect {
+    constructor(x, y, scale = 1.0) {
+        this.x = x;
+        this.y = y;
+        this.scale = scale;
+        this.lifetime = 0.05; // Very short-lived
+        this.isMarkedForDeletion = false;
+        this.type = 'muzzle_flash';
+    }
+
+    update(deltaTime) {
+        this.lifetime -= deltaTime;
+        if (this.lifetime <= 0) {
+            this.isMarkedForDeletion = true;
+        }
+    }
+
+    render(ctx) {
+        const radius = 6 * this.scale;
+        const spikes = 5;
+        const rot = Math.PI / 2 * 3;
+        let x = 0;
+        let y = 0;
+        let step = Math.PI / spikes;
+
+        ctx.save();
+        ctx.translate(this.x, this.y);
+
+        ctx.strokeStyle = "rgba(255, 255, 204, 0.8)";
+        ctx.fillStyle = "rgba(255, 223, 100, 0.9)";
+        ctx.lineWidth = 1.5 * this.scale;
+        ctx.beginPath();
+        ctx.moveTo(x, y - radius);
+        for (let i = 0; i < spikes; i++) {
+            x = Math.cos(rot + step * i) * radius;
+            y = Math.sin(rot + step * i) * radius;
+            ctx.lineTo(x, y);
+            x = Math.cos(rot + step * i + step / 2) * (radius * 0.4);
+            y = Math.sin(rot + step * i + step / 2) * (radius * 0.4);
+            ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+        ctx.fill();
+
+        ctx.restore();
+    }
+}
+
+class BloodEffect {
+    constructor(x, y, angle) {
+        this.type = 'blood';
+        this.isMarkedForDeletion = false;
+        this.particles = [];
+        const particleCount = 7 + Math.floor(Math.random() * 5); // 7 to 11 particles
+
+        for (let i = 0; i < particleCount; i++) {
+            const speed = Math.random() * 80 + 40; // 40-120 speed
+            const spread = Math.PI / 3; // 60 degree spread
+            const particleAngle = angle + (Math.random() - 0.5) * spread;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(particleAngle) * speed,
+                vy: Math.sin(particleAngle) * speed,
+                lifetime: Math.random() * 0.4 + 0.2, // Live for 0.2 to 0.6 seconds
+                size: Math.random() * 2 + 1,
+                color: Math.random() > 0.3 ? 'rgba(180, 0, 0, 0.8)' : 'rgba(140, 0, 0, 0.7)'
+            });
+        }
+    }
+
+    update(deltaTime) {
+        let allDone = true;
+        this.particles.forEach(p => {
+            if (p.lifetime > 0) {
+                p.x += p.vx * deltaTime;
+                p.y += p.vy * deltaTime;
+                p.vx *= 0.9; // Air drag
+                p.vy *= 0.9;
+                p.lifetime -= deltaTime;
+                allDone = false;
+            }
+        });
+        if (allDone) {
+            this.isMarkedForDeletion = true;
+        }
+    }
+
+    render(ctx) {
+        this.particles.forEach(p => {
+            if (p.lifetime > 0) {
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+    }
+}
+
+class SparkEffect {
+    constructor(x, y) {
+        this.type = 'spark';
+        this.isMarkedForDeletion = false;
+        this.particles = [];
+        const particleCount = 4 + Math.floor(Math.random() * 4); // 4 to 7 particles
+
+        for (let i = 0; i < particleCount; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 120 + 60; // 60-180 speed
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed,
+                lifetime: Math.random() * 0.2 + 0.1, // Live for 0.1 to 0.3 seconds
+                len: Math.random() * 4 + 2
+            });
+        }
+    }
+
+    update(deltaTime) {
+        let allDone = true;
+        this.particles.forEach(p => {
+            if (p.lifetime > 0) {
+                p.x += p.vx * deltaTime;
+                p.y += p.vy * deltaTime;
+                p.lifetime -= deltaTime;
+                allDone = false;
+            }
+        });
+        if (allDone) {
+            this.isMarkedForDeletion = true;
+        }
+    }
+
+    render(ctx) {
+        ctx.strokeStyle = `rgba(255, 255, 220, 0.9)`;
+        ctx.lineWidth = 1.5;
+        this.particles.forEach(p => {
+            if (p.lifetime > 0) {
+                const tailX = p.x - p.vx * 0.05; // a short tail based on velocity
+                const tailY = p.y - p.vy * 0.05;
+                ctx.beginPath();
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(tailX, tailY);
+                ctx.stroke();
+            }
+        });
+    }
+}
+
+class WoodSplinterEffect {
+    constructor(x, y, impactAngle) {
+        this.type = 'wood_splinter';
+        this.isMarkedForDeletion = false;
+        this.particles = [];
+        const particleCount = 2 + Math.floor(Math.random() * 4); // 5 to 8 particles
+
+        for (let i = 0; i < particleCount; i++) {
+            const speed = Math.random() * 60 + 30; // Slower than sparks: 30-90 speed
+            const spread = Math.PI / 0.5; // Wider spread than blood
+            const particleAngle = impactAngle + (Math.random() - 0.5) * spread;
+            this.particles.push({
+                x: x,
+                y: y,
+                vx: Math.cos(particleAngle) * speed,
+                vy: Math.sin(particleAngle) * speed,
+                lifetime: Math.random() * 0.5 + 0.1, // Live for 0.3 to 0.8 seconds
+                angle: Math.random() * Math.PI * 2,
+                rotationSpeed: (Math.random() - 0.5) * 4,
+                width: Math.random() * 3 + 2,
+                height: Math.random() * 1 + 1,
+                color: Math.random() > 0.5 ? '#8B4513' : '#A0522D' // SaddleBrown or Sienna
+            });
+        }
+    }
+
+    update(deltaTime) {
+        let allDone = true;
+        this.particles.forEach(p => {
+            if (p.lifetime > 0) {
+                p.x += p.vx * deltaTime;
+                p.y += p.vy * deltaTime;
+                p.vy += 80 * deltaTime; // Apply a bit of gravity
+                p.vx *= 0.97; // Air drag
+                p.vy *= 0.97;
+                p.angle += p.rotationSpeed * deltaTime;
+                p.lifetime -= deltaTime;
+                allDone = false;
+            }
+        });
+        if (allDone) {
+            this.isMarkedForDeletion = true;
+        }
+    }
+
+    render(ctx) {
+        this.particles.forEach(p => {
+            if (p.lifetime > 0) {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.angle);
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.width / 2, -p.height / 2, p.width, p.height);
+                ctx.restore();
+            }
+        });
+    }
+}
+
+class LaserSightEffect {
+    constructor(shooter, target) {
+        this.type = 'laser_sight';
+        this.shooter = shooter;
+        this.target = target;
+        this.isMarkedForDeletion = false;
+        
+        this.config = CONFIG.VISUAL_EFFECTS.LASER_SIGHT || {};
+        this.startTime = performance.now();
+        this.duration = (CONFIG.AI.POSSUM_SNIPER?.SETUP_TIME_SECONDS || 1.5) * 1000; // Duration in ms
+    }
+
+    update(deltaTime) {
+        if (!this.shooter.isAlive() || !this.target.isAlive() || this.shooter.aiState !== 'AIMING') {
+            this.isMarkedForDeletion = true;
+        }
+    }
+
+    render(ctx) {
+        if (this.isMarkedForDeletion) return;
+        
+        const elapsed = performance.now() - this.startTime;
+        const progress = Math.min(elapsed / this.duration, 1.0);
+
+        // Intensity grows over time
+        const alpha = 0.1 + progress * 0.8;
+        const width = 0.5 + progress * 1.5;
+
+        ctx.save();
+        ctx.strokeStyle = `rgba(255, 0, 0, ${alpha})`;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(this.shooter.x, this.shooter.y);
+        ctx.lineTo(this.target.x, this.target.y);
+        ctx.stroke();
+        ctx.restore();
+    }
+}
 
 window.addEventListener('DOMContentLoaded', () => { 
     const game = new Game('gameCanvas'); 

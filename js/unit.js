@@ -283,7 +283,6 @@ class Unit {
     }
 
     _handleMovement(deltaTime) {
-        /* ... (Unchanged from previous complete version) ... */
         const originalX = this.x;
         const originalY = this.y;
         const currentTime = performance.now() / 1000; 
@@ -424,7 +423,10 @@ class Unit {
                 }
                 let canMoveY = false;
                 if (Math.abs(finalDeltaY) > 1e-5) {
+                    // --- MODIFICATION START: Corrected the Y-only check ---
+                    // It now correctly checks from the unit's CURRENT x position, not the potential future one.
                     const unitBodyShape_Y_Only = { type: 'circle', x: this.x, y: this.y + finalDeltaY, radius: collisionCheckRadius };
+                    // --- MODIFICATION END ---
                     let collisionY = false;
                     for (const obs of obstaclesForCollision) { 
                         const obsCS = this.game.level._getObstacleCollisionShape(obs);
@@ -715,7 +717,6 @@ class Unit {
     }
 
     _executeFire(pointX, pointY, fireAngle = null) {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) return;
         if (this.team === 'player' && this.isHoldingFire && !this.isPlayerDirectFiring) return; 
         if (this.isMoving && !this.canShootWhileMoving && !this.isPlayerDirectFiring) return;
@@ -724,6 +725,16 @@ class Unit {
         if (this.team === 'player' && this.accuracyBonus) { baseAccuracy += this.accuracyBonus; }
         const effectiveAccuracy = Math.min(1.0, Math.max(0.0, baseAccuracy));
         const angleForProjectile = fireAngle !== null ? fireAngle : Math.atan2(pointY - this.y, pointX - this.x);
+        
+        // --- NEW: Add Muzzle Flash ---
+        if (this.game && this.game.addVisualEffect) {
+            const muzzleOffset = this.size / 2 + 17; // Position it just outside the unit's radius
+            const muzzleX = this.x + Math.cos(angleForProjectile) * muzzleOffset;
+            const muzzleY = this.y + Math.sin(angleForProjectile) * muzzleOffset;
+            this.game.addVisualEffect('muzzle_flash', { x: muzzleX, y: muzzleY, scale: this.weapon.muzzleFlashScale });
+        }
+        // --- END NEW ---
+
         const projectile = this.game.getProjectileFromPool( this.x, this.y, this.x + Math.cos(angleForProjectile) * this.weapon.range,  this.y + Math.sin(angleForProjectile) * this.weapon.range, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this, effectiveAccuracy );
         this.game.addProjectile(projectile); 
         const baseCooldown = 1 / this.weapon.rof;
@@ -745,11 +756,22 @@ class Unit {
     }
 
     takeDamage(amount, attackerUnit = null) {
-        /* ... (Unchanged from previous complete version) ... */
         if (!this.isAlive()) return;
-        const prevHp = this.hp; this.hp -= amount; let died = false;
+
+        // --- NEW: Add Blood Splatter Effect ---
+        if (this.game && this.game.addVisualEffect && attackerUnit) {
+            const impactAngle = Math.atan2(this.y - attackerUnit.y, this.x - attackerUnit.x);
+            this.game.addVisualEffect('blood', { x: this.x, y: this.y, angle: impactAngle });
+        }
+        // --- END NEW ---
+
+        const prevHp = this.hp;
+        this.hp -= amount;
+        let died = false;
+        
         if (this.hp <= 0) {
-            this.hp = 0; died = true;
+            this.hp = 0;
+            died = true;
             if (attackerUnit && attackerUnit.team === 'player' && typeof attackerUnit.addXp === 'function') {
                 let killXp = CONFIG.XP_PER_KILL || 10;
                 if (this instanceof PossumHeavy) killXp += (CONFIG.XP_PER_HEAVY_KILL || 15);
@@ -758,6 +780,7 @@ class Unit {
             }
             this.die(); 
         }
+
         if (!died && this.team === 'enemy' && attackerUnit && attackerUnit.team === 'player') {
             let becameAware = false;
             const activeObstacles = this.game.level.obstacles.filter(o => !o.isDestroyed && o.blocksMovement);
@@ -770,7 +793,10 @@ class Unit {
                  this.propagateAlert(attackerUnit);
             }
         }
-        if (!died && this.game && this.game.ui && this.team === 'player') { this.game.ui.updateSquadPanel(); }
+
+        if (!died && this.game && this.game.ui && this.team === 'player') {
+            this.game.ui.updateSquadPanel();
+        }
     }
 
     propagateAlert(sourceOfAlertUnit = null) {
@@ -814,7 +840,6 @@ class Unit {
     }
 
     render(ctx) {
-        /* ... (Unchanged from previous complete version) ... */
         const kiaStyle = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.KIA_STYLE;
         const facingIndicatorStyle = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.FACING_INDICATOR;
         
@@ -824,6 +849,20 @@ class Unit {
         if (this.isPhasing) {
             ctx.globalAlpha = CONFIG.UNIT_VISUALS.UNIT_PHASING_OPACITY || 0.5;
         }
+
+        // --- MODIFIED: More robust check and calculation ---
+        if (this.isAlive() && this.game.isDebugVisualsActive && CONFIG.DEBUG_DRAW_UNIT_PATHING_BOUNDS) {
+            // Added a fallback of 0 for the buffer to prevent NaN errors if config is missing.
+            const pathingRadius = (this.size / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
+            ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
+            ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(0, 0, pathingRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+        }
+        // --- END MODIFIED ---
 
         if (!this.isAlive() && this.currentVisualState !== 'death') {
             this.currentVisualState = 'death';
@@ -856,12 +895,10 @@ class Unit {
                 drawOffsetY = -spriteHeight / 2;
             }
         } else { 
-            // --- MODIFIED: Generic dead sprite logic ---
             const deadSpriteConfigPath = this.deadSpritePathKey ? CONFIG[this.deadSpritePathKey] : null;
             const deadSpriteConfigFiles = this.deadSpriteFilesKey ? CONFIG[this.deadSpriteFilesKey] : null;
             const deadSpriteScaleValue = this.deadSpriteScaleKey ? CONFIG[this.deadSpriteScaleKey] : this.spriteScaleFactor;
             spriteScale = deadSpriteScaleValue !== undefined ? deadSpriteScaleValue : this.spriteScaleFactor;
-            // --- END MODIFIED ---
 
             if (!this.assignedDeadSpritePath && deadSpriteConfigPath && deadSpriteConfigFiles && deadSpriteConfigFiles.length > 0) {
                 const randomDeadFile = deadSpriteConfigFiles[Math.floor(Math.random() * deadSpriteConfigFiles.length)];

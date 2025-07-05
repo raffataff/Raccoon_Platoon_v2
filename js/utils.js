@@ -343,28 +343,88 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
 }
 
 function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
-    /* ... (Unchanged from previous complete version) ... */
     if (!rawPathGridCoords || rawPathGridCoords.length < 2 || !levelInstance) {
         return rawPathGridCoords ? rawPathGridCoords.map(p => levelInstance.gridToWorldCoords(p.x, p.y)) : [];
     }
+
+    // --- MODIFICATION START ---
+    // The key change is to use a "corridor" check instead of a simple Line of Sight check.
+    // This ensures there's enough room for the unit's entire body.
+    const pathingRadius = (unitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
+    const obstaclesForLOS = levelInstance.obstacles.filter(obs => obs.blocksMovement && !obs.isDestroyed);
+    // --- MODIFICATION END ---
+
     const smoothedPathWorldCoords = [];
     let currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[0].x, rawPathGridCoords[0].y);
     smoothedPathWorldCoords.push(currentAnchorWorld);
+    
     let i = 0;
-    while (i < rawPathGridCoords.length -1) {
-        let furthestVisibleIndex = i + 1;
-        for (let j = rawPathGridCoords.length - 1; j > i + 1; j--) {
+    while (i < rawPathGridCoords.length - 1) {
+        let furthestVisibleIndex = -1; // Initialize to -1 to indicate no valid shortcut found yet
+
+        // Start checking from the end of the path for the longest possible shortcut
+        for (let j = rawPathGridCoords.length - 1; j > i; j--) {
             const candidateWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[j].x, rawPathGridCoords[j].y);
-            // Note: hasLineOfSight will now use the spatial grid internally if gameLevelInstance.game.spatialGrid exists
-            const obstaclesForLOS = levelInstance.obstacles.filter(obs => obs.blocksMovement && !obs.isDestroyed); // Keep this for fallback or direct calls
-            if (hasLineOfSight(currentAnchorWorld.x, currentAnchorWorld.y, candidateWorld.x, candidateWorld.y, obstaclesForLOS, levelInstance)) {
+
+            // --- MODIFICATION START ---
+            // Calculate the perpendicular vector for the path segment to create offsets.
+            const dx = candidateWorld.x - currentAnchorWorld.x;
+            const dy = candidateWorld.y - currentAnchorWorld.y;
+            const len = Math.hypot(dx, dy);
+            
+            if (len < 1e-6) { // If points are the same, it's clear
                 furthestVisibleIndex = j;
                 break;
             }
+
+            const p_dx = -dy / len; // Perpendicular vector component
+            const p_dy = dx / len;  // Perpendicular vector component
+
+            // Check center line
+            const centerLOS = hasLineOfSight(currentAnchorWorld.x, currentAnchorWorld.y, candidateWorld.x, candidateWorld.y, obstaclesForLOS, levelInstance);
+            if (!centerLOS) continue; // If center is blocked, no need to check sides
+
+            // Check left "shoulder" of the path
+            const leftShoulderLOS = hasLineOfSight(
+                currentAnchorWorld.x + p_dx * pathingRadius,
+                currentAnchorWorld.y + p_dy * pathingRadius,
+                candidateWorld.x + p_dx * pathingRadius,
+                candidateWorld.y + p_dy * pathingRadius,
+                obstaclesForLOS,
+                levelInstance
+            );
+            if (!leftShoulderLOS) continue;
+
+            // Check right "shoulder" of the path
+            const rightShoulderLOS = hasLineOfSight(
+                currentAnchorWorld.x - p_dx * pathingRadius,
+                currentAnchorWorld.y - p_dy * pathingRadius,
+                candidateWorld.x - p_dx * pathingRadius,
+                candidateWorld.y - p_dy * pathingRadius,
+                obstaclesForLOS,
+                levelInstance
+            );
+
+            // Only if all three lines are clear is the path valid
+            if (centerLOS && leftShoulderLOS && rightShoulderLOS) {
+                furthestVisibleIndex = j;
+                break; // Found the furthest visible point, stop searching for this anchor
+            }
+            // --- MODIFICATION END ---
         }
-        currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[furthestVisibleIndex].x, rawPathGridCoords[furthestVisibleIndex].y);
-        smoothedPathWorldCoords.push(currentAnchorWorld);
-        i = furthestVisibleIndex;
+
+        if (furthestVisibleIndex !== -1) {
+            // A valid shortcut was found.
+            currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[furthestVisibleIndex].x, rawPathGridCoords[furthestVisibleIndex].y);
+            smoothedPathWorldCoords.push(currentAnchorWorld);
+            i = furthestVisibleIndex;
+        } else {
+            // No valid shortcut found from the current anchor.
+            // Just move to the very next node in the raw path and try again from there.
+            i++;
+            currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[i].x, rawPathGridCoords[i].y);
+            smoothedPathWorldCoords.push(currentAnchorWorld);
+        }
     }
     return smoothedPathWorldCoords;
 }
