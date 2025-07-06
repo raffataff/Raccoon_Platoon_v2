@@ -355,8 +355,22 @@ const CONFIG = {
             COLOR_START: 'rgba(255, 0, 0, 0.0)',
             COLOR_END: 'rgba(255, 0, 0, 0.7)',
             LINE_WIDTH: 2
+        },
+        PICKUP: {
+            LIFETIME: 1.7,
+            TEXT: "+{QTY}",
+            FONT: "bold 18px 'Consolas', 'Lucida Console', monospace",
+            VELOCITY_Y: -25,
+            ICON_Y_OFFSET: -10, // How far above the text the icon appears
+            ICON_SIZE: 24 // Size of the icon in pixels
         }
     },
+
+    UI_ASSETS: {
+        GRENADE_ICON: 'assets/images/ui/icons/grenade_icon.png',
+        HEALTH_ICON: 'assets/images/ui/icons/health_icon.png'
+    },
+
     UI_SETTINGS: {
         HEALTH_BAR: {
             WIDTH_MULTIPLIER: 3, HEIGHT: 4, Y_OFFSET_BASE: 10, BG_COLOR: '#333333',
@@ -516,7 +530,7 @@ const CONFIG = {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 20, isDecoration: false,
+            spawnWeight: 10, isDecoration: false,
             spriteScale: 0.5, 
             // sfxOnDestroy: 'BUSH_RUSTLE_DESTROY_SOUND' // Example
         },
@@ -593,7 +607,7 @@ const CONFIG = {
             spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
             spriteScale: 1.30, 
             spriteDestroyed: null,
-            collisionShape: { type: 'rectangle', offsetX: (w=>w*0.041), offsetY: (h=>h*0.175), width: (w=>w*0.852), height: (h=>h*0.2) },
+            collisionShape: { type: 'rectangle', offsetX: (w=>w*0.041), offsetY: (h=>h*0.155), width: (w=>w*0.852), height: (h=>h*0.2) },
             isDecoration: false
         },
         {
@@ -816,6 +830,7 @@ const CONFIG = {
         POST_MISSION_SUCCESS: "MISSION SUCCESSFUL!", POST_MISSION_FAILED: "MISSION FAILED!",
         POST_MISSION_SURVIVORS_NONE_VICTORY: "Mission accomplished, but no Raccoons survived.", POST_MISSION_SURVIVORS_NONE_DEFEAT: "All deployed Raccoons KIA.",
         POST_MISSION_FALLEN_NONE: "No casualties this mission.",
+        GAMEOVER_ALL_RECRUITS_KIA: "All Raccoons have been lost in action. The Platoon is no more. Operation Failed.",
         BUTTON_TEXT_NEXT_MISSION: "Next Mission", BUTTON_TEXT_RESTART_CAMPAIGN: "Restart Campaign", BUTTON_TEXT_START_PHASE_PREFIX: "Start ",
         BUTTON_TEXT_CAMPAIGN_COMPLETE: "View Final Stats", BUTTON_TEXT_RETRY_MISSION: "Retry Mission",
         MEMORIAL_NO_FALLEN: "No Raccoons have fallen... yet. Their legend awaits.", MEMORIAL_LABEL_NAME: "Name:", MEMORIAL_LABEL_RANK: "Rank Achieved:",

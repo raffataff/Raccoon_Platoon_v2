@@ -43,10 +43,14 @@ class UI {
         this.videoLoadingScreen = document.getElementById('videoLoadingScreen');
         this.loadingVideoPlayer = document.getElementById('loadingVideoPlayer');
         
+        this.gameOverMemorialButton = document.getElementById('gameOverMemorialButton'); // New button
+        this.gameOverNewCampaignButton = document.getElementById('gameOverNewCampaignButton');
+        
         this._addSoundToButton(this.newCampaignButton, () => {
             if (this.game) {
                 this.hideMainMenuScreen();
-                this.game.initializeNewCampaign();
+                // --- MODIFICATION: Explicitly start a new campaign ---
+                this.game.initializeNewCampaign(true);
                 this.game.start();
             }
         });
@@ -87,7 +91,8 @@ class UI {
             if (this.game) {
                 if (this.nextMissionButton.textContent === (this.uiText.BUTTON_TEXT_RESTART_CAMPAIGN || "Restart Campaign") ||
                     this.nextMissionButton.textContent === (this.uiText.BUTTON_TEXT_CAMPAIGN_COMPLETE || "View Final Stats") ) {
-                    this.game.initializeNewCampaign();
+                    // --- MODIFICATION: Explicitly restart the SAME campaign ---
+                    this.game.initializeNewCampaign(false);
                     this.game.start();
                 } else {
                     this.game.proceedToNextLogicalStep();
@@ -110,7 +115,12 @@ class UI {
             }
         });
         this._addSoundToButton(this.restartCampaignButton, () => {
-             if (this.game) { this.game.initializeNewCampaign(); this.game.start(); }
+             // --- MODIFICATION: Explicitly restart the SAME campaign ---
+             if (this.game) { this.game.initializeNewCampaign(false); this.game.start(); }
+        });
+        this._addSoundToButton(this.gameOverNewCampaignButton, () => {
+             // --- MODIFICATION: Explicitly start a NEW campaign ---
+             if (this.game) { this.game.initializeNewCampaign(true); this.game.start(); }
         });
         this._addSoundToButton(this.toggleFormationButton, () => {
             if (this.game && typeof this.game.toggleFormation === 'function') this.game.toggleFormation();
@@ -118,12 +128,18 @@ class UI {
         this._addSoundToButton(this.viewMemorialButton, () => this.showRecruitMemorialScreen());
         this._addSoundToButton(this.backFromMemorialButton, () => {
             this.hideRecruitMemorialScreen();
-            if (this.game && this.game.gameState === 'POST_MISSION_DEBRIEF' && this.postMissionScreen) {
+            if (this.game && (this.game.gameState === 'POST_MISSION_DEBRIEF' || this.game.gameState === 'GAME_OVER_NO_RECRUITS') && this.postMissionScreen.style.display === 'flex') {
+                 // Do nothing, stay on post-mission/game-over
+            } else if (this.game && this.game.gameState === 'GAME_OVER_NO_RECRUITS') {
+                this.showGameOverScreen(this.game.gameOverMessage || CONFIG.UI_TEXT_STRINGS.GAMEOVER_ALL_RECRUITS_KIA);
+            }
+            else if (this.game && this.game.gameState === 'POST_MISSION_DEBRIEF' && this.postMissionScreen) {
                  this.postMissionScreen.style.display = 'flex';
             } else if (this.game && this.game.gameState === 'MAIN_MENU' && this.mainMenuScreen) {
                  this.mainMenuScreen.style.display = 'flex';
             }
         });
+        this._addSoundToButton(this.gameOverMemorialButton, () => this.showRecruitMemorialScreen());
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game) {
             const initialSpacing = (this.game && this.game.formationSpacingMultiplier !== undefined) ? this.game.formationSpacingMultiplier : (CONFIG.INITIAL_FORMATION_SPACING || 3.5);
             this.formationSpacingSlider.value = initialSpacing.toString();
@@ -204,7 +220,11 @@ class UI {
             this.startMissionButton, this.retryMissionButton, this.nextMissionButton,
             this.resumeGameButton, this.restartMissionPauseButton, this.mainMenuPauseButton,
             this.restartCampaignButton, this.toggleFormationButton, this.viewMemorialButton,
-            this.backFromMemorialButton
+            this.backFromMemorialButton,
+            this.gameOverMemorialButton,
+            // --- MODIFICATION START ---
+            this.gameOverNewCampaignButton
+            // --- MODIFICATION END ---
         ];
 
         buttons.forEach(button => {
@@ -642,6 +662,27 @@ class UI {
         this.setCursor('default');
     }
 
+    showGameOverScreen(message, isCampaignVictory = false) {
+        if (!this.gameOverScreen) return;
+        if (this.gameOverTitle) {
+            this.gameOverTitle.textContent = isCampaignVictory ? (this.uiText.GAMEOVER_VICTORY_TITLE || "CAMPAIGN COMPLETE!") : (this.uiText.GAMEOVER_DEFEAT_TITLE || "GAME OVER");
+            if (isCampaignVictory) this.gameOverTitle.classList.add('victory');
+            else this.gameOverTitle.classList.remove('victory');
+        }
+        if (this.gameOverMessage) this.gameOverMessage.textContent = message;
+
+        // --- MODIFICATION START ---
+        if (this.gameOverMemorialButton && this.game) {
+            const hasFallen = this.game.fallenRaccoonsGlobal && this.game.fallenRaccoonsGlobal.length > 0;
+            this.gameOverMemorialButton.style.display = hasFallen ? 'inline-block' : 'none';
+        }
+        // --- MODIFICATION END ---
+
+        this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideRecruitMemorialScreen();
+        if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
+        this.gameOverScreen.style.display = 'flex'; this.setCursor('default');
+    }
+
     showRecruitMemorialScreen() {
         if (!this.recruitMemorialScreen || !this.game || !this.memorialEntriesList) return;
         this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen();
@@ -691,9 +732,12 @@ class UI {
         if (!this.pauseMenuScreen) return;
         this.pauseMenuScreen.style.display = 'flex';
         this.setCursor('default');
+        // --- MODIFICATION START ---
         if (this.restartMissionPauseButton && this.game) {
-            this.restartMissionPauseButton.disabled = !(this.game.getAvailableRecruits().length > 0 && this.game.currentMissionParams);
+            const canRestart = this.game.getAvailableRecruits().length > 0 && this.game.currentMissionParams;
+            this.restartMissionPauseButton.disabled = !canRestart;
         }
+        // --- MODIFICATION END ---
     }
 
     hidePauseMenuScreen() {

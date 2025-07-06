@@ -253,34 +253,47 @@ class Raccoon extends Unit {
             }
         }
     }
+    
     applyPickup(pickupObstacle) {
+        // --- MODIFICATION START ---
+        const pickupText = `+${pickupObstacle.pickupQuantity}`;
+        let pickupColor = 'white';
+        let pickupIcon = null;
+
         if (pickupObstacle.pickupType === 'grenade') {
             this.grenadeAmmo += pickupObstacle.pickupQuantity;
-            if (this.game && this.game.ui) {
-                this.game.ui.updateSquadPanel();
-            }
+            pickupColor = '#F0E68C'; // Khaki
+            pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.GRENADE_ICON];
         } else if (pickupObstacle.pickupType === 'health') { 
             if (this.hp < this.maxHp) {
                 this.hp += pickupObstacle.pickupQuantity;
                 if (this.hp > this.maxHp) {
                     this.hp = this.maxHp;
                 }
+                pickupColor = '#90EE90'; // LightGreen
+                pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.HEALTH_ICON];
                 console.log(`[${this.id}] picked up health. HP: ${this.hp}/${this.maxHp}`);
-                if (this.game && this.game.ui) {
-                    this.game.ui.updateSquadPanel(); 
-                }
+            } else {
+                // Don't show an effect if health is full and can't be picked up
+                return;
             }
         }
-    }
-    render(ctx) {
-        super.render(ctx);
-        const aimIndicatorCfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR;
-        if (this.isAlive() && this.isAimingGrenade && aimIndicatorCfg) {
-            ctx.strokeStyle = aimIndicatorCfg.COLOR || 'orange';
-            ctx.lineWidth = aimIndicatorCfg.LINE_WIDTH || 2;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size + (aimIndicatorCfg.RADIUS_OFFSET || 6), 0, Math.PI * 2);
-            ctx.stroke();
+        
+        // Trigger the visual effect
+        if (this.game.addVisualEffect) {
+            this.game.addVisualEffect('pickup', {
+                x: this.x,
+                y: this.y - this.size,
+                text: pickupText,
+                color: pickupColor,
+                icon: pickupIcon
+            });
         }
+        
+        // Update UI
+        if (this.game.ui) {
+            this.game.ui.updateSquadPanel();
+        }
+        // --- MODIFICATION END ---
     }
 }

@@ -115,10 +115,16 @@
         </div>
     </div>
 
-    <div id="gameOverScreen" class="ui-panel" style="display: none; width: 400px; text-align: center;">
+    <div id="gameOverScreen" class="ui-panel" style="display: none; width: 500px; text-align: center;">
         <h2 id="gameOverTitle">GAME OVER</h2>
         <p id="gameOverMessage">The Possum menace has prevailed...</p>
-        <button id="restartCampaignButton">Restart Campaign</button>
+        <!-- MODIFICATION START: Added a button container for better layout -->
+        <div class="main-menu-buttons" style="width: 80%; margin-top: 20px;">
+            <button id="restartCampaignButton">Restart Campaign</button>
+            <button id="gameOverNewCampaignButton">New Campaign</button>
+            <button id="gameOverMemorialButton" style="display: none;">Recruit Memorial</button>
+        </div>
+        <!-- MODIFICATION END -->
     </div>
 
     <div id="recruitMemorialScreen" class="ui-panel" style="display: none;">
@@ -164,6 +170,7 @@
     </div>
 
     <script src="js/ObjectPool.js"></script>
+    <script src="js/effects.js"></script>
     <script src="js/spatialGrid.js"></script>
     <script src="js/raccoonNames.js"></script>
     <script src="js/rng.js"></script>

@@ -1,14 +1,15 @@
 // js/campaignRules.js
 const CAMPAIGN_RULES = {
-    PLAYER_STARTING_SEED: Date.now(),
+    // PLAYER_STARTING_SEED: Date.now(),
     CAMPAIGN_LENGTH_PHASES_RANGE: [30, 100], // Campaign will have between 30 and 100 phases.
 
     // --- Base Values and Scaling ---
     BASE_PARAMETERS: {
-        worldSizeFactor:    { initial: 1.8,  perPhaseIncrement: 0.35, max: 5.0, randomnessFactor: 0.01 },
+        worldWidthFactor:     { initial: 1.8,  perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness 
+        worldHeightFactor:    { initial: 1.8,  perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
         enemyDensityFactor: { initial: 1.0,  perPhaseGrowthFactor: 0.4, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
-        heavyChance:        { initial: 0.2,  perPhaseGrowthFactor: 0.05, max: 0.5, randomnessFactor: 0.05 },
-        sniperChance:       { initial: 0.2,  perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
+        heavyChance:        { initial: 0.1,  perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05 },
+        sniperChance:       { initial: 0.05,  perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
         numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.2,  max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1,    perPhaseIncrement: 0.4,  max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue:{ initial: 1,    perPhaseIncrement: 0.3,  max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },

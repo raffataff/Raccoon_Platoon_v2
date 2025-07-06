@@ -354,9 +354,7 @@ class LevelGenerator {
             }
         }
         
-        // --- MODIFICATION START: Define a placement boundary for objectives to keep them out of the spawn zone ---
         const objectivePlacementMaxY = playerSpawnZone.y - 280; // 280px buffer
-        // --- MODIFICATION END ---
         
         missionObjectives.forEach(objective => {
             if (objective.type === 'DESTROY_TARGET' && objective.targetTypeKey && objective.totalToAchieve > 0) {
@@ -395,10 +393,8 @@ class LevelGenerator {
                         const targetHeight = targetImage ? targetImage.naturalHeight * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.height || 64);
 
                         for (let attempt = 0; attempt < (genConfig.OBSTACLES.PLACEMENT_MAX_ATTEMPTS || 15); attempt++) {
-                            // --- MODIFICATION START: Use the new Y boundary for objectives ---
                             targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
                             targetY = this.rng.nextFloat(playableMinY, objectivePlacementMaxY - targetHeight);
-                            // --- MODIFICATION END ---
                             
                             const tempTargetForShapeCheck = { 
                                 x:targetX, y:targetY, 
@@ -440,7 +436,19 @@ class LevelGenerator {
 
         const obsGenCfg = genConfig.OBSTACLES || {}; 
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
-        const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
+
+        // --- MODIFICATION START: Proportional Obstacle Calculation ---
+        const baseWorldWidth = CONFIG.BASE_WORLD_WIDTH || 1280;
+        const baseWorldHeight = CONFIG.BASE_WORLD_HEIGHT || 720;
+        const currentPlayableArea = playableWidth * playableHeight;
+        const basePlayableArea = baseWorldWidth * baseWorldHeight; 
+        const areaScaleFactor = (basePlayableArea > 0) ? (currentPlayableArea / basePlayableArea) : 1.0;
+        
+        const densityMultiplier = baseParams.worldSizeFactor || 1.0;
+
+        const numInternalObstacles = Math.floor(baseNumObstacles * areaScaleFactor * densityMultiplier) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
+        // --- MODIFICATION END ---
+        
         const placementMaxAttempts = obsGenCfg.PLACEMENT_MAX_ATTEMPTS || 15;
 
         for (let i = 0; i < numInternalObstacles; i++) {
@@ -539,10 +547,8 @@ class LevelGenerator {
         this.level.generateNavigationGrid(worldWidth, worldHeight);
         
         const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {}; 
-        // --- MODIFICATION START: Define enemy spawn boundary to keep them out of player zone ---
         const enemySpawnMinY = playableMinY;
         const enemySpawnMaxY = playerSpawnZone.y - (enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 100);
-        // --- MODIFICATION END ---
         
         const enemyDensityFactor = baseParams.enemyDensityFactor || 1.0; 
         const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
@@ -607,7 +613,6 @@ class LevelGenerator {
         const quadrantRows = enemySpawnCfg.QUADRANT_ROWS || 2;
         const quadrantEnemyCounts = Array(quadrantRows).fill(0).map(() => Array(quadrantCols).fill(0));
         
-        // --- MODIFICATION START: Use full playable area for quadrant calculations ---
         const quadrantWidth = playableWidth / quadrantCols;
         const quadrantHeight = playableHeight / quadrantRows;
 
@@ -638,7 +643,6 @@ class LevelGenerator {
                 }
             }
         }
-        // --- MODIFICATION END ---
 
         for (let g = 0; g < numberOfGroupsToAttempt && enemiesSpawnedCount < totalEnemiesToSpawnForThisMission; g++) {
             const smallGroupChance = enemySpawnCfg.SMALL_GROUP_CHANCE || 0.6; 
@@ -704,7 +708,6 @@ class LevelGenerator {
                     let memberX, memberY, isMemberSpawnClear; 
                     let memberPlacementAttempts = 0; const memberMaxAttempts = enemySpawnCfg.MEMBER_PLACEMENT_MAX_ATTEMPTS || 10;
                     
-                    // --- MODIFICATION START ---
                     let EnemyClass = PossumGrunt;
                     let currentEnemyUnitSize = CONFIG.POSSUM_GRUNT_SIZE;
 
@@ -720,7 +723,6 @@ class LevelGenerator {
                         EnemyClass = PossumHeavy;
                         currentEnemyUnitSize = CONFIG.POSSUM_HEAVY_SIZE;
                     }
-                    // --- MODIFICATION END ---
                     
                     const groupSpreadBase = enemySpawnCfg.GROUP_SPREAD_BASE || 30; const groupSpreadSizeMult = enemySpawnCfg.GROUP_SPREAD_SIZE_MULTIPLIER || 1.5; const groupSpread = groupSpreadBase + currentEnemyUnitSize * groupSpreadSizeMult;
                     do {
