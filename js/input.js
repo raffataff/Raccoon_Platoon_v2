@@ -15,6 +15,9 @@ class InputHandler {
         this.isCtrlDragSelecting = false;
         this.ctrlDragStartScreenX = 0;
         this.ctrlDragStartScreenY = 0;
+        
+        // Dev mode drag state for shootout spawn editing
+        this.isDraggingSpawnPoint = false;
 
 
         this.canvas.addEventListener('mousedown', (event) => this.handleMouseDown(event));
@@ -35,7 +38,7 @@ class InputHandler {
                 // Only execute right-click commands if in the 'RUNNING' state
                 if (this.game.gameState === 'RUNNING') {
                     if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
-                    if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false;}
+                    if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false; }
 
 
                     const rect = this.canvas.getBoundingClientRect();
@@ -44,8 +47,11 @@ class InputHandler {
 
                     const screenX = (event.clientX - rect.left) * scaleX;
                     const screenY = (event.clientY - rect.top) * scaleY;
-                    const worldX = screenX + this.game.cameraX;
-                    const worldY = screenY + this.game.cameraY;
+                    const zoom = this.game.cameraZoom || 1.0;
+                    const canvasWidth = this.canvas.width;
+                    const canvasHeight = this.canvas.height;
+                    const worldX = this.game.cameraX + (screenX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
+                    const worldY = this.game.cameraY + (screenY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
 
                     if (typeof this.game.handleRightClickCommand === 'function') {
                         this.game.handleRightClickCommand(worldX, worldY);
@@ -64,7 +70,7 @@ class InputHandler {
                         this.game.handleLMBFireActionEnd();
                         this.isLMBHoldFiringActionActive = false;
                     }
-                     this.updateMouseCursor();
+                    this.updateMouseCursor();
                 }
             } else if (event.key === 'Control' || event.key === 'Meta') {
                 if (!this.isCtrlPressed) {
@@ -77,16 +83,16 @@ class InputHandler {
                 }
             }
 
-            if (!this.game || this.game.gameState !== 'RUNNING') {
-                 if (event.key === 'Escape' && (this.game.gameState === 'PRE_MISSION_SELECT' || this.game.gameState === 'POST_MISSION_DEBRIEF' || this.game.gameState === 'RECRUIT_MEMORIAL')) {
+            if (!this.game || (this.game.gameState !== 'RUNNING' && this.game.gameState !== 'SHOOTOUT_PLAYING' && this.game.gameState !== 'SHOOTOUT_PAUSED' && this.game.gameState !== 'SHOOTOUT_PRE_GAME' && this.game.gameState !== 'SHOOTOUT_AMBUSH')) {
+                if (event.key === 'Escape' && (this.game.gameState === 'PRE_MISSION_SELECT' || this.game.gameState === 'POST_MISSION_DEBRIEF' || this.game.gameState === 'RECRUIT_MEMORIAL')) {
                     this.game.quitToMainMenu();
                 } else if (event.key === 'Escape' && this.game.gameState === 'PAUSED') {
-                     this.game.togglePause();
+                    this.game.togglePause();
                 }
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', ' ', 'escape', 'u', 'p', '1', '2', '3', '4'];
+            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', '1', '2', '3', '4'];
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -99,7 +105,7 @@ class InputHandler {
                 if (this.game.gameState === 'RUNNING') {
                     if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
                     if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false; }
-                    
+
                     const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade);
                     if (aimingRaccoon) {
                         aimingRaccoon.cancelGrenadeAim();
@@ -109,6 +115,9 @@ class InputHandler {
                         this.game.togglePause();
                     }
                     this.updateMouseCursor();
+                } else if (this.game.gameState === 'SHOOTOUT_PLAYING') {
+                    // Handle Escape in Shootout mode - pause the game
+                    this.game.toggleShootoutPause();
                 }
             }
 
@@ -117,7 +126,10 @@ class InputHandler {
                 this.game.selectAllPlayerUnits();
             }
             if ((event.key === 'f' || event.key === 'F') && !isInputFieldActive) {
-                 if (this.game.toggleFormation) this.game.toggleFormation();
+                if (this.game.toggleFormation) this.game.toggleFormation();
+            }
+            if ((event.key === 't' || event.key === 'T') && !isInputFieldActive) {
+                if (this.game.handleAutoBackupCommand) this.game.handleAutoBackupCommand();
             }
             if ((event.key === 'g' || event.key === 'G') && !isInputFieldActive) {
                 if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
@@ -128,18 +140,28 @@ class InputHandler {
                 if (this.game.ui) this.game.ui.updateSquadPanel();
                 this.updateMouseCursor();
             }
+            if ((event.key === 'r' || event.key === 'R') && !isInputFieldActive) {
+                // Manual reload for selected raccoons
+                if (this.game.selectedUnits) {
+                    this.game.selectedUnits.forEach(unit => {
+                        if (unit instanceof Raccoon && unit.isAlive() && !unit.isReloading && unit.ammo > 0 && unit.currentMagazine < unit.magazineSize) {
+                            unit.startReload();
+                        }
+                    });
+                }
+            }
             if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {
                 const rescuedHostages = this.game.hostageUnits.filter(h => h.isRescued && h.isAlive());
                 if (rescuedHostages.length > 0) {
                     const anyHostageFollowing = rescuedHostages.some(h => !h.isHoldingPosition);
-                    
-                    if (anyHostageFollowing) { 
+
+                    if (anyHostageFollowing) {
                         rescuedHostages.forEach(h => {
                             h.isHoldingPosition = true;
                             h.isMoving = false;
                             h.currentPath = [];
                         });
-                    } else { 
+                    } else {
                         rescuedHostages.forEach(h => {
                             h.isHoldingPosition = false;
                         });
@@ -153,26 +175,26 @@ class InputHandler {
                     console.log("'U' key pressed. Forcing phase out for all player-controlled units.");
                     playerUnits.forEach(unit => {
                         if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
-                           if (unit instanceof RaccoonHostage && !unit.isRescued) {
-                           } else {
+                            if (unit instanceof RaccoonHostage && !unit.isRescued) {
+                            } else {
                                 unit.forcePhaseOut(1.0);
-                           }
+                            }
                         }
                     });
                 }
             }
-            
+
             if ((event.key === 'p' || event.key === 'P') && !isInputFieldActive) {
                 if (this.game && typeof this.game.toggleDebugVisuals === 'function') {
                     this.game.toggleDebugVisuals();
                 }
             }
-            
+
             const keyNumber = parseInt(event.key, 10);
-            if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) { 
+            if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) {
                 if (this.game.deployedSquadRoster && this.game.deployedSquadRoster.length >= keyNumber) {
                     const targetUnit = this.game.deployedSquadRoster[keyNumber - 1];
-                    
+
                     if (targetUnit && targetUnit.isAlive()) {
                         if (this.game.selectedUnits) {
                             this.game.selectedUnits.forEach(unit => {
@@ -181,9 +203,9 @@ class InputHandler {
                                 }
                             });
                         }
-                        
+
                         this.game.selectedUnits = [targetUnit];
-                        
+
                         this.game.ui.updateSquadPanel();
                         this.updateMouseCursor();
                     }
@@ -197,7 +219,7 @@ class InputHandler {
             } else if (event.key === 'Control' || event.key === 'Meta') {
                 this.isCtrlPressed = false;
                 if (this.isCtrlDragSelecting) {
-                    if(this.game.draggedFarEnough) this.game.selectUnitsInCtrlDragRectangle();
+                    if (this.game.draggedFarEnough) this.game.selectUnitsInCtrlDragRectangle();
                     this.isCtrlDragSelecting = false;
                     this.game.isDragging = false;
                     this.game.draggedFarEnough = false;
@@ -219,8 +241,11 @@ class InputHandler {
         this.mousePos.screenY = mouseYRelative * scaleY;
 
         if (this.game && this.game.gameState === 'RUNNING') {
-            this.mousePos.worldX = this.mousePos.screenX + this.game.cameraX;
-            this.mousePos.worldY = this.mousePos.screenY + this.game.cameraY;
+            const zoom = this.game.cameraZoom || 1.0;
+            const canvasWidth = this.canvas.width;
+            const canvasHeight = this.canvas.height;
+            this.mousePos.worldX = this.game.cameraX + (this.mousePos.screenX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
+            this.mousePos.worldY = this.game.cameraY + (this.mousePos.screenY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
         } else {
             this.mousePos.worldX = this.mousePos.screenX;
             this.mousePos.worldY = this.mousePos.screenY;
@@ -230,14 +255,46 @@ class InputHandler {
 
     handleMouseDown(event) {
         /* ... (Unchanged from previous complete version) ... */
-        if (!this.game || this.game.gameState !== 'RUNNING') return;
-         event.preventDefault();
+        if (!this.game) return;
+        
+        // Handle Shootout Mode input (both PLAYING and PRE_GAME for dev mode)
+        if (this.game.gameState === 'SHOOTOUT_PLAYING' || this.game.gameState === 'SHOOTOUT_PRE_GAME' || this.game.gameState === 'SHOOTOUT_PAUSED' || this.game.gameState === 'SHOOTOUT_AMBUSH') {
+            event.preventDefault();
+            this._updateMousePositions(event);
+            
+            // Only handle mouse for PAUSED state - just return to not process mouse events while paused
+            if (this.game.gameState === 'SHOOTOUT_PAUSED') {
+                return;
+            }
+            
+            // Check if in dev mode for drag editing (works in both PRE_GAME and PLAYING states)
+            if (this.game.shootoutController && this.game.shootoutController.isDevMode) {
+                if (event.button === 0) { // Left Mouse Button
+                    const handled = this.game.shootoutController.handleDevModeMouseDown(
+                        this.mousePos.screenX, this.mousePos.screenY
+                    );
+                    if (handled) {
+                        this.isDraggingSpawnPoint = true;
+                        return;
+                    }
+                }
+            }
+            
+            // Handle fire in PLAYING and AMBUSH states
+            if ((this.game.gameState === 'SHOOTOUT_PLAYING' || this.game.gameState === 'SHOOTOUT_AMBUSH') && event.button === 0 && this.game.shootoutController) {
+                this.game.shootoutController.handleFire();
+            }
+            return;
+        }
+        
+        if (this.game.gameState !== 'RUNNING') return;
+        event.preventDefault();
         this._updateMousePositions(event);
 
         if (event.button === 0) { // Left Mouse Button
             this.isLeftMouseDown = true;
             this.lmbDownTime = performance.now();
-            this.isLMBHoldFiringActionActive = false; 
+            this.isLMBHoldFiringActionActive = false;
 
             const aimingRaccoons = this.game.selectedUnits ? this.game.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive()) : [];
             if (aimingRaccoons.length > 0) {
@@ -267,6 +324,25 @@ class InputHandler {
         if (!this.game) return;
         this._updateMousePositions(event);
 
+        // Handle Shootout Mode crosshair tracking (both PLAYING and PRE_GAME for dev mode)
+        if (this.game.gameState === 'SHOOTOUT_PLAYING' || this.game.gameState === 'SHOOTOUT_PRE_GAME' || this.game.gameState === 'SHOOTOUT_AMBUSH') {
+            // Handle dev mode dragging (works in both states)
+            if (this.game.shootoutController && this.game.shootoutController.isDevMode) {
+                if (this.isDraggingSpawnPoint) {
+                    this.game.shootoutController.handleDevModeMouseMove(
+                        this.mousePos.screenX, this.mousePos.screenY
+                    );
+                    return;
+                }
+            }
+            
+            // Update crosshair in PLAYING and AMBUSH states
+            if ((this.game.gameState === 'SHOOTOUT_PLAYING' || this.game.gameState === 'SHOOTOUT_AMBUSH') && this.game.shootoutController) {
+                this.game.shootoutController.handleMouseMove(this.mousePos.screenX, this.mousePos.screenY);
+            }
+            return;
+        }
+
         if (this.game.gameState === 'RUNNING') {
             const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
             if (aimingRaccoon) {
@@ -281,8 +357,8 @@ class InputHandler {
                 if (!this.isLMBHoldFiringActionActive && (performance.now() - this.lmbDownTime > this.TAP_THRESHOLD_MS)) {
                     this.isLMBHoldFiringActionActive = true;
                     this.game.updateLMBFireActionTarget(this.mousePos.worldX, this.mousePos.worldY);
-                } else if (this.isLMBHoldFiringActionActive) { 
-                     this.game.updateLMBFireActionTarget(this.mousePos.worldX, this.mousePos.worldY);
+                } else if (this.isLMBHoldFiringActionActive) {
+                    this.game.updateLMBFireActionTarget(this.mousePos.worldX, this.mousePos.worldY);
                 }
             }
         }
@@ -291,13 +367,24 @@ class InputHandler {
 
     handleMouseUp(event) {
         /* ... (Unchanged from previous complete version) ... */
-        if (!this.game || this.game.gameState !== 'RUNNING') return;
+        if (!this.game) return;
+        
+        // Handle dev mode dragging for shootout mode (both PLAYING and PRE_GAME states)
+        if ((this.game.gameState === 'SHOOTOUT_PLAYING' || this.game.gameState === 'SHOOTOUT_PRE_GAME' || this.game.gameState === 'SHOOTOUT_AMBUSH') && event.button === 0) {
+            if (this.isDraggingSpawnPoint && this.game.shootoutController) {
+                this.game.shootoutController.handleDevModeMouseUp();
+                this.isDraggingSpawnPoint = false;
+                return;
+            }
+        }
+        
+        if (this.game.gameState !== 'RUNNING') return;
 
         if (event.button === 0) { // Left Mouse Button
             const wasLMBDown = this.isLeftMouseDown;
-            this.isLeftMouseDown = false; 
+            this.isLeftMouseDown = false;
 
-            if (wasLMBDown) { 
+            if (wasLMBDown) {
                 const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
                 if (aimingRaccoon) {
                 } else if (this.isCtrlPressed && this.isCtrlDragSelecting) {
@@ -310,8 +397,8 @@ class InputHandler {
                 }
             }
             this.isLMBHoldFiringActionActive = false;
-            this.isCtrlDragSelecting = false; 
-            if(this.game.isDragging && !this.isCtrlPressed) { 
+            this.isCtrlDragSelecting = false;
+            if (this.game.isDragging && !this.isCtrlPressed) {
                 this.game.isDragging = false;
                 this.game.draggedFarEnough = false;
             }
@@ -328,9 +415,9 @@ class InputHandler {
                 this.isLMBHoldFiringActionActive = false;
             }
             if (this.isCtrlDragSelecting) {
-                 this.isCtrlDragSelecting = false;
-                 this.game.isDragging = false;
-                 this.game.draggedFarEnough = false;
+                this.isCtrlDragSelecting = false;
+                this.game.isDragging = false;
+                this.game.draggedFarEnough = false;
             }
             this.isLeftMouseDown = false;
         }
@@ -351,23 +438,23 @@ class InputHandler {
 
     updateMouseCursor() {
         /* ... (Unchanged from previous complete version) ... */
-        if (!this.game || !this.game.ui ) {
+        if (!this.game || !this.game.ui) {
             if (this.game && this.game.ui) this.game.ui.setCursor('default');
             return;
         }
         if (this.game.gameState !== 'RUNNING' && this.game.gameState !== 'PAUSED') {
-             this.game.ui.setCursor('default');
-             return;
+            this.game.ui.setCursor('default');
+            return;
         }
         if (this.game.gameState === 'PAUSED') {
-             this.game.ui.setCursor('default');
-             return;
+            this.game.ui.setCursor('default');
+            return;
         }
 
 
         const isAimingGrenade = this.game.selectedUnits && this.game.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
         if (isAimingGrenade) {
-            this.game.ui.setCursor('cell'); 
+            this.game.ui.setCursor('cell');
             return;
         }
 
@@ -378,7 +465,7 @@ class InputHandler {
             } else {
                 this.game.ui.setCursor('target-mode-default');
             }
-        } else if (this.isLeftMouseDown && !this.isCtrlPressed) { 
+        } else if (this.isLeftMouseDown && !this.isCtrlPressed) {
             this.game.ui.setCursor('attack');
         } else {
             this.game.ui.setCursor('default');

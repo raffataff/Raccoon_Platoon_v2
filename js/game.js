@@ -6,18 +6,23 @@ class Game {
             this.ctx = this.canvas.getContext('2d');
         } else {
             console.error("Fatal: Canvas element not found with ID:", canvasId);
-            return; 
+            return;
         }
 
         this.prerenderedBackgroundCanvas = document.createElement('canvas');
         this.prerenderedBackgroundCtx = this.prerenderedBackgroundCanvas.getContext('2d', { willReadFrequently: true });
+
+        // Night mission overlay canvas (offscreen)
+        this.isNightMission = false;
+        this.nightOverlayCanvas = document.createElement('canvas');
+        this.nightOverlayCtx = this.nightOverlayCanvas.getContext('2d');
 
         this.masterRoster = [];
         this.deployedSquadRoster = [];
         this.fallenRaccoonsGlobal = [];
         this.fallenRaccoonsThisMission = [];
         this.tempSelectedForDeployment = [];
-        this.lastDeployedSquadIds = []; 
+        this.lastDeployedSquadIds = [];
 
         this.gameObjects = [];
         this.enemyUnits = [];
@@ -26,12 +31,16 @@ class Game {
         this.visualEffects = [];
         this.preloadedImages = {};
         this.audioManager = new AudioManager();
+        this.musicManager = new MusicManager(this.audioManager);
+        if (CONFIG.AUDIO_MUSIC) {
+            this.musicManager.init(CONFIG.AUDIO_MUSIC);
+        }
 
-        this.spatialGrid = null; 
-        this.SPATIAL_GRID_CELL_SIZE = CONFIG.GRID_CELL_SIZE * 4; 
-                                                                 
-        this.projectilePool = new ObjectPool(Projectile, 50, this); 
-        this.grenadeProjectilePool = new ObjectPool(GrenadeProjectile, 10, this); 
+        this.spatialGrid = null;
+        this.SPATIAL_GRID_CELL_SIZE = CONFIG.GRID_CELL_SIZE * 4;
+
+        this.projectilePool = new ObjectPool(Projectile, 50, this);
+        this.grenadeProjectilePool = new ObjectPool(GrenadeProjectile, 10, this);
 
         this.isDragging = false;
         this.draggedFarEnough = false;
@@ -45,6 +54,7 @@ class Game {
         this.formationSpacingMultiplier = CONFIG.INITIAL_FORMATION_SPACING || 3.5;
 
         this.cameraX = 0; this.cameraY = 0;
+        this.cameraZoom = CONFIG.CAMERA_ZOOM || 1.0;
 
         this.level = new Level(this);
         this.inputHandler = new InputHandler(this.canvas, this);
@@ -52,21 +62,29 @@ class Game {
 
         this.campaignRules = CAMPAIGN_RULES;
         this.campaignSeed = null;
-        this.campaignSeedRNG = null; 
-        this.currentPhaseSeedRNG = null; 
-        this.currentMissionSeedRNG = null; 
-        this.currentMissionSeed = null; 
+        this.campaignSeedRNG = null;
+        this.currentPhaseSeedRNG = null;
+        this.currentMissionSeedRNG = null;
+        this.currentMissionSeed = null;
 
+        this.currentSaveSlot = -1; // -1 means new campaign/unsaved
         this.totalCampaignPhases = 0;
-        this.campaignStructure = []; 
+        this.campaignStructure = [];
 
         this.currentPhaseIndex = 0;
         this.currentMissionIndex = 0;
-        this.currentMissionParams = null; 
+        this.currentMissionParams = null;
         this.lastPlayedMusicKey = null;
 
         this.gameState = 'MAIN_MENU';
         this.previousGameState = null;
+
+        // Auto-save on page unload (for session persistence)
+        window.addEventListener('beforeunload', () => {
+            if (this.campaignSeed && this.gameState !== 'MAIN_MENU') {
+                SaveManager.autoSave(this);
+            }
+        });
 
         this.missionEndDelayTimer = -1;
         this.MISSION_END_DELAY_SECONDS = 3.0;
@@ -75,7 +93,7 @@ class Game {
 
         this.isGamePausedManually = false;
 
-        this.isObjectiveComplete = false; 
+        this.isObjectiveComplete = false;
         this.initialEnemyCount = 0;
         this.missionStartedAndPopulated = false;
         this.missionStartTime = 0;
@@ -86,10 +104,14 @@ class Game {
         this.fps = 0;
         this.frameCount = 0;
         this.lastFpsUpdateTime = 0;
-        this.fpsUpdateInterval = 1000; 
+        this.fpsUpdateInterval = 1000;
 
         // --- NEW: Master Debug Flag ---
-        this.isDebugVisualsActive = false; 
+        this.isDebugVisualsActive = false;
+        // --- END NEW ---
+
+        // --- NEW: Shootout Mode Controller ---
+        this.shootoutController = null;
         // --- END NEW ---
 
         this.resizeCanvas();
@@ -103,8 +125,12 @@ class Game {
             if (this.ui) {
                 this.ui.showMainMenuScreen();
             }
-            this.lastFpsUpdateTime = performance.now(); 
-            requestAnimationFrame(this.gameLoop); 
+            // Start main menu music after audio is loaded
+            if (this.musicManager) {
+                this.musicManager.onGameStateChange('MAIN_MENU');
+            }
+            this.lastFpsUpdateTime = performance.now();
+            requestAnimationFrame(this.gameLoop);
         })();
     }
 
@@ -128,7 +154,7 @@ class Game {
     _weightedRandomSelect(items, rngInstance) {
         if (!items || items.length === 0) return null;
         const totalWeight = items.reduce((sum, item) => sum + (item.weight || 1), 0);
-        if (totalWeight <= 0) { 
+        if (totalWeight <= 0) {
             if (items.length > 0) return rngInstance.pickFrom(items);
             return null;
         }
@@ -180,6 +206,141 @@ class Game {
                 }));
             }
         }
+        // Preload shootout enemy tilesheets (grunt and heavy)
+        if (CONFIG.SHOOTOUT_MODE && CONFIG.SHOOTOUT_MODE.ENEMY_TILESHEET) {
+            const path = CONFIG.SHOOTOUT_MODE.ENEMY_TILESHEET.PATH;
+            if (path && !this.preloadedImages[path]) {
+                console.log(`[Preload] Loading shootout enemy tilesheet: ${path}`);
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log(`[Preload] SUCCESS: Shootout enemy tilesheet loaded`);
+                        this.preloadedImages[path] = img;
+                        resolve();
+                    };
+                    img.onerror = (e) => {
+                        console.error(`[Preload FAILED - Misc] Shootout enemy tilesheet: '${path}'`, e);
+                        this.preloadedImages[path] = null;
+                        resolve();
+                    };
+                    img.src = path;
+                }));
+            } else if (path && this.preloadedImages[path]) {
+                console.log(`[Preload] Shootout enemy tilesheet already loaded: ${path}`);
+            }
+        }
+        // Preload shootout heavy enemy tilesheet
+        if (CONFIG.SHOOTOUT_MODE && CONFIG.SHOOTOUT_MODE.ENEMY_HEAVY_TILESHEET) {
+            const path = CONFIG.SHOOTOUT_MODE.ENEMY_HEAVY_TILESHEET.PATH;
+            if (path && !this.preloadedImages[path]) {
+                console.log(`[Preload] Loading shootout heavy enemy tilesheet: ${path}`);
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        console.log(`[Preload] SUCCESS: Shootout heavy enemy tilesheet loaded`);
+                        this.preloadedImages[path] = img;
+                        resolve();
+                    };
+                    img.onerror = (e) => {
+                        console.error(`[Preload FAILED - Misc] Shootout heavy enemy tilesheet: '${path}'`, e);
+                        this.preloadedImages[path] = null;
+                        resolve();
+                    };
+                    img.src = path;
+                }));
+            } else if (path && this.preloadedImages[path]) {
+                console.log(`[Preload] Shootout heavy enemy tilesheet already loaded: ${path}`);
+            }
+        }
+        // Preload shootout bullet mark sprites
+        if (CONFIG.SHOOTOUT_MODE && CONFIG.SHOOTOUT_MODE.BULLET_MARKS) {
+            const bulletMarksConfig = CONFIG.SHOOTOUT_MODE.BULLET_MARKS;
+            // Preload enemy hit sprite
+            if (bulletMarksConfig.ENEMY_HIT && bulletMarksConfig.ENEMY_HIT.PATH) {
+                const enemyHitPath = bulletMarksConfig.ENEMY_HIT.PATH;
+                if (!this.preloadedImages[enemyHitPath]) {
+                    console.log(`[Preload] Loading shootout bullet mark (enemy hit): ${enemyHitPath}`);
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            console.log(`[Preload] SUCCESS: Bullet mark (enemy hit) loaded`);
+                            this.preloadedImages[enemyHitPath] = img;
+                            resolve();
+                        };
+                        img.onerror = (e) => {
+                            console.error(`[Preload FAILED - Misc] Bullet mark (enemy hit): '${enemyHitPath}'`, e);
+                            this.preloadedImages[enemyHitPath] = null;
+                            resolve();
+                        };
+                        img.src = enemyHitPath;
+                    }));
+                }
+            }
+            // Preload environment hit sprite
+            if (bulletMarksConfig.ENVIRONMENT_HIT && bulletMarksConfig.ENVIRONMENT_HIT.PATH) {
+                const envHitPath = bulletMarksConfig.ENVIRONMENT_HIT.PATH;
+                if (!this.preloadedImages[envHitPath]) {
+                    console.log(`[Preload] Loading shootout bullet mark (environment hit): ${envHitPath}`);
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            console.log(`[Preload] SUCCESS: Bullet mark (environment hit) loaded`);
+                            this.preloadedImages[envHitPath] = img;
+                            resolve();
+                        };
+                        img.onerror = (e) => {
+                            console.error(`[Preload FAILED - Misc] Bullet mark (environment hit): '${envHitPath}'`, e);
+                            this.preloadedImages[envHitPath] = null;
+                            resolve();
+                        };
+                        img.src = envHitPath;
+                    }));
+                }
+            }
+        }
+        // Preload shootout bullet mark sprites
+        if (CONFIG.SHOOTOUT_MODE && CONFIG.SHOOTOUT_MODE.BULLET_MARKS) {
+            const bulletMarksConfig = CONFIG.SHOOTOUT_MODE.BULLET_MARKS;
+            // Preload enemy hit sprite
+            if (bulletMarksConfig.ENEMY_HIT && bulletMarksConfig.ENEMY_HIT.PATH) {
+                const enemyHitPath = bulletMarksConfig.ENEMY_HIT.PATH;
+                if (!this.preloadedImages[enemyHitPath]) {
+                    console.log(`[Preload] Loading shootout bullet mark (enemy hit): ${enemyHitPath}`);
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            console.log(`[Preload] SUCCESS: Bullet mark (enemy hit) loaded`);
+                            this.preloadedImages[enemyHitPath] = img;
+                            resolve();
+                        };
+                        img.onerror = (e) => {
+                            console.error(`[Preload FAILED - Misc] Bullet mark (enemy hit): '${enemyHitPath}'`, e);
+                            this.preloadedImages[enemyHitPath] = null;
+                            resolve();
+                        };
+                        img.src = enemyHitPath;
+                    }));
+                }
+            }
+            // Preload environment hit sprite
+            if (bulletMarksConfig.ENVIRONMENT_HIT && bulletMarksConfig.ENVIRONMENT_HIT.PATH) {
+                const envHitPath = bulletMarksConfig.ENVIRONMENT_HIT.PATH;
+                if (!this.preloadedImages[envHitPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            this.preloadedImages[envHitPath] = img;
+                            resolve();
+                        };
+                        img.onerror = (e) => {
+                            this.preloadedImages[envHitPath] = null;
+                            resolve();
+                        };
+                        img.src = envHitPath;
+                    }));
+                }
+            }
+        }
         const grenadeSpriteConfig = CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE;
         if (grenadeSpriteConfig && grenadeSpriteConfig.SPRITE_PATH) {
             const path = grenadeSpriteConfig.SPRITE_PATH;
@@ -196,7 +357,7 @@ class Game {
         if (ezConfig && ezConfig.SPRITE_PATH) {
             const path = ezConfig.SPRITE_PATH;
             if (!this.preloadedImages[path]) {
-                 imagePromises.push(new Promise((resolve) => {
+                imagePromises.push(new Promise((resolve) => {
                     const img = new Image();
                     img.onload = () => { this.preloadedImages[path] = img; resolve(); };
                     img.onerror = () => { console.warn(`[Preload FAILED - Misc] Extraction Zone: '${path}'`); this.preloadedImages[path] = null; resolve(); };
@@ -255,7 +416,49 @@ class Game {
             {
                 name: 'raccoon',
                 basePath: CONFIG.RACCOON_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']}, 
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'raccoon_private',
+                basePath: CONFIG.RACCOON_PRIVATE_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'raccoon_corporal',
+                basePath: CONFIG.RACCOON_CORPORAL_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'raccoon_sergeant',
+                basePath: CONFIG.RACCOON_SERGEANT_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'raccoon_elite',
+                basePath: CONFIG.RACCOON_ELITE_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'raccoon_ghost',
+                basePath: CONFIG.RACCOON_GHOST_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'raccoon_maverick',
+                basePath: CONFIG.RACCOON_MAVERICK_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
             },
@@ -267,14 +470,14 @@ class Game {
             {
                 name: 'possum_grunt',
                 basePath: CONFIG.POSSUM_GRUNT_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']}, 
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
             },
             {
                 name: 'possum_heavy',
                 basePath: CONFIG.POSSUM_HEAVY_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']}, 
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES
             },
@@ -288,37 +491,56 @@ class Game {
             {
                 name: 'possum_boss_1',
                 basePath: CONFIG.POSSUM_BOSS_1_SPRITE_PATH,
-                actions: { 
-                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']},
+                actions: {
+                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+                },
                 deadPath: CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_revolver',
+                basePath: CONFIG.POSSUM_REVOLVER_SPRITE_PATH,
+                actions: {
+                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+                },
+                deadPath: CONFIG.POSSUM_REVOLVER_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_REVOLVER_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_elite',
+                basePath: CONFIG.POSSUM_ELITE_SPRITE_PATH,
+                actions: {
+                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+                },
+                deadPath: CONFIG.POSSUM_ELITE_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_ELITE_DEAD_SPRITE_FILES
             }
         ];
 
         unitTypesToPreload.forEach(unitTypeConfig => {
             if (unitTypeConfig.basePath && unitTypeConfig.actions) {
-                for (const actionKey in unitTypeConfig.actions) { 
+                for (const actionKey in unitTypeConfig.actions) {
                     unitTypeConfig.actions[actionKey].forEach(dir => {
                         let filename;
                         if (unitTypeConfig.name === 'raccoon_hostage') {
-                             filename = `hostage_idle_${dir}.png`;
+                            filename = `hostage_idle_${dir}.png`;
                         } else {
-                             filename = `${unitTypeConfig.name}_${actionKey}_${dir}.png`;
+                            filename = `${unitTypeConfig.name}_${actionKey}_${dir}.png`;
                         }
                         const spriteKey = `${unitTypeConfig.name}_${actionKey}_${dir}`;
-                        const spritePath = `${unitTypeConfig.basePath}${actionKey}/${filename}`; 
+                        const spritePath = `${unitTypeConfig.basePath}${actionKey}/${filename}`;
 
-                        if (!this.preloadedImages[spriteKey]) { 
+                        if (!this.preloadedImages[spriteKey]) {
                             imagePromises.push(new Promise((resolve) => {
                                 const img = new Image();
-                                img.onload = () => { 
-                                    this.preloadedImages[spriteKey] = img;  
-                                    resolve(); 
+                                img.onload = () => {
+                                    this.preloadedImages[spriteKey] = img;
+                                    resolve();
                                 };
-                                img.onerror = () => { 
+                                img.onerror = () => {
                                     console.warn(`[Preload WARN - Unit] '${spritePath}'`);
-                                    this.preloadedImages[spriteKey] = null; 
-                                    resolve(); 
+                                    this.preloadedImages[spriteKey] = null;
+                                    resolve();
                                 };
                                 img.src = spritePath;
                             }));
@@ -328,18 +550,18 @@ class Game {
             }
             if (unitTypeConfig.deadPath && unitTypeConfig.deadFiles) {
                 unitTypeConfig.deadFiles.forEach(fileName => {
-                    const fullPath = unitTypeConfig.deadPath + fileName; 
+                    const fullPath = unitTypeConfig.deadPath + fileName;
                     if (!this.preloadedImages[fullPath]) {
-                         imagePromises.push(new Promise((resolve) => {
+                        imagePromises.push(new Promise((resolve) => {
                             const img = new Image();
-                            img.onload = () => { 
-                                this.preloadedImages[fullPath] = img; 
-                                resolve(); 
+                            img.onload = () => {
+                                this.preloadedImages[fullPath] = img;
+                                resolve();
                             };
-                            img.onerror = () => { 
+                            img.onerror = () => {
                                 console.warn(`[Preload WARN - Dead Unit] '${fullPath}'`);
-                                this.preloadedImages[fullPath] = null; 
-                                resolve(); 
+                                this.preloadedImages[fullPath] = null;
+                                resolve();
                             };
                             img.src = fullPath;
                         }));
@@ -354,13 +576,13 @@ class Game {
                 if (!this.preloadedImages[faceKey]) {
                     imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
-                        img.onload = () => { 
-                            this.preloadedImages[faceKey] = img; 
-                            resolve(); 
+                        img.onload = () => {
+                            this.preloadedImages[faceKey] = img;
+                            resolve();
                         };
-                        img.onerror = () => { 
-                            this.preloadedImages[faceKey] = null; 
-                            resolve(); 
+                        img.onerror = () => {
+                            this.preloadedImages[faceKey] = null;
+                            resolve();
                         };
                         img.src = faceKey;
                     }));
@@ -397,7 +619,7 @@ class Game {
                 const normalPath = hutPath + pair.normal;
                 const destroyedPath = hutPath + pair.destroyed;
                 if (pair.normal && !this.preloadedImages[normalPath]) {
-                     imagePromises.push(new Promise((resolve) => {
+                    imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
                         img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
@@ -405,7 +627,7 @@ class Game {
                     }));
                 }
                 if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                     imagePromises.push(new Promise((resolve) => {
+                    imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
                         img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
@@ -414,14 +636,14 @@ class Game {
                 }
             });
         }
-        
+
         if (CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES && CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH) {
             const towerPath = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH;
             CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES.forEach(pair => {
                 const normalPath = towerPath + pair.normal;
                 const destroyedPath = towerPath + pair.destroyed;
                 if (pair.normal && !this.preloadedImages[normalPath]) {
-                     imagePromises.push(new Promise((resolve) => {
+                    imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
                         img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
@@ -429,7 +651,7 @@ class Game {
                     }));
                 }
                 if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                     imagePromises.push(new Promise((resolve) => {
+                    imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
                         img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
@@ -442,20 +664,20 @@ class Game {
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
             if (
-                (def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) || 
-                (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) || 
-                (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) || 
-                (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) || 
-                (def.type === 'bush_large' && CONFIG.TROPICAL_BUSH_LARGE_FILES) || 
-                (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) || 
-                (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) || 
-                (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) || 
-                (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) || 
-                (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) || 
-                (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) || 
-                (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) || 
-                (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) || 
-                (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES) ) {
+                (def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) ||
+                (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) ||
+                (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) ||
+                (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) ||
+                (def.type === 'bush_large' && CONFIG.TROPICAL_BUSH_LARGE_FILES) ||
+                (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_32PX_FILES) ||
+                (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) ||
+                (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) ||
+                (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
+                (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ||
+                (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES)) {
                 handledByDedicatedList = true;
             }
 
@@ -464,7 +686,7 @@ class Game {
                 if (def.spriteNormal) spritesToLoadOnTemplate.push({ path: def.spriteNormal, key: def.spriteNormal });
             }
             if (def.spriteDestroyed) {
-                 spritesToLoadOnTemplate.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
+                spritesToLoadOnTemplate.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
             }
             spritesToLoadOnTemplate.forEach(spriteInfo => {
                 if (spriteInfo.path && !this.preloadedImages[spriteInfo.key]) {
@@ -477,18 +699,18 @@ class Game {
                 }
             });
         });
-        const listBasedSprites = [ 
-            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" }, 
-            { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" }, 
-            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" }, 
-            { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" }, 
-            { files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, name: "bush_large" }, 
-            { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" }, 
-            { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" }, 
-            { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" }, 
-            { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" }, 
-            { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" }, 
-            { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" }, 
+        const listBasedSprites = [
+            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
+            { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" },
+            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" },
+            { files: CONFIG.BUSH_SPRITES_32PX_FILES, path: CONFIG.BUSH_SPRITES_32PX_PATH, name: "bush32" },
+            { files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, name: "bush_large" },
+            { files: CONFIG.ROCK_SPRITES_32PX_FILES, path: CONFIG.ROCK_SPRITES_32PX_PATH, name: "rock32" },
+            { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" },
+            { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" },
+            { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" },
+            { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" },
+            { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" },
             { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }
         ];
 
@@ -520,8 +742,8 @@ class Game {
                 }
             }
             await this.audioManager.loadAllSounds(
-                (loaded, total, key, error) => {},
-                () => {}
+                (loaded, total, key, error) => { },
+                () => { }
             );
         } else {
         }
@@ -531,7 +753,7 @@ class Game {
         this.prerenderedBackgroundCanvas.width = worldWidth;
         this.prerenderedBackgroundCanvas.height = worldHeight;
         const ctx = this.prerenderedBackgroundCtx;
-        const localRng = new SeededRandom(seedForBackground); 
+        const localRng = new SeededRandom(seedForBackground);
 
         ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
         ctx.fillRect(0, 0, worldWidth, worldHeight);
@@ -544,13 +766,13 @@ class Game {
 
             for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
                 for (let x = -configuredTileSize * overlapFactor; x < worldWidth; x += stepX) {
-                    const randomSpriteName = localRng.pickFrom(CONFIG.GRASS_SPRITE_FILES); 
+                    const randomSpriteName = localRng.pickFrom(CONFIG.GRASS_SPRITE_FILES);
                     const spritePath = CONFIG.GRASS_SPRITE_PATH + randomSpriteName;
                     const grassImg = this.preloadedImages[spritePath];
 
                     if (grassImg) {
-                        const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5; 
-                        const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5; 
+                        const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                        const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
                         const drawX = x + offsetX;
                         const drawY = y + offsetY;
                         ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
@@ -569,8 +791,8 @@ class Game {
         }
         // --- MODIFICATION START ---
         if (this.getAvailableRecruits().length === 0 && this.masterRoster.length > 0) {
-            this.gameState = 'GAME_OVER_NO_RECRUITS'; 
-            if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.GAMEOVER_ALL_RECRUITS_KIA); 
+            this.gameState = 'GAME_OVER_NO_RECRUITS';
+            if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.GAMEOVER_ALL_RECRUITS_KIA);
             return;
         }
         // --- MODIFICATION END ---
@@ -580,6 +802,10 @@ class Game {
             if (this.ui && currentPhaseData && this.currentMissionParams) {
                 this.ui.showPreMissionScreen_RecruitSelect(currentPhaseData, this.currentMissionParams, this.getAvailableRecruits());
                 this.gameState = 'PRE_MISSION_SELECT';
+                // Continue menu music for pre-mission
+                if (this.musicManager) {
+                    this.musicManager.onGameStateChange('PRE_MISSION_SELECT');
+                }
             } else {
                 this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen();
             }
@@ -593,18 +819,23 @@ class Game {
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
             if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0) { alertMsg = CONFIG.UI_TEXT_STRINGS.NO_RECRUITS_SELECTED_ALERT || "Select at least one Raccoon for the mission!"; }
-            else if (selectedRecruitsForDeployment.length > maxSquadSize) { alertMsg = (CONFIG.UI_TEXT_STRINGS.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());}
+            else if (selectedRecruitsForDeployment.length > maxSquadSize) { alertMsg = (CONFIG.UI_TEXT_STRINGS.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()); }
             alert(alertMsg);
-            const currentPhaseDataForUI = this.campaignStructure[this.currentPhaseIndex] || 
-                                          { name: "Phase Error", introduction: "Could not load phase details."};
-            if (this.ui && currentPhaseDataForUI && this.currentMissionParams) { 
-                this.ui.showPreMissionScreen_RecruitSelect( currentPhaseDataForUI, this.currentMissionParams, this.getAvailableRecruits() ); 
+            const currentPhaseDataForUI = this.campaignStructure[this.currentPhaseIndex] ||
+                { name: "Phase Error", introduction: "Could not load phase details." };
+            if (this.ui && currentPhaseDataForUI && this.currentMissionParams) {
+                this.ui.showPreMissionScreen_RecruitSelect(currentPhaseDataForUI, this.currentMissionParams, this.getAvailableRecruits());
             }
             return;
         }
 
+        // Auto-save before starting mission (so we can retry from this point if needed)
+        SaveManager.autoSave(this);
+
+        // Show video and wait for it to start playing before starting the 6-second timer
+        let videoStartedPromise = Promise.resolve();
+        let videoPathToShow;
         if (this.ui) {
-            let videoPathToShow;
             if (this.currentMissionIndex === 0) {
                 const phaseStartVideoPaths = [
                     'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
@@ -617,13 +848,6 @@ class Game {
                 videoPathToShow = phaseStartVideoPaths[Math.floor(Math.random() * phaseStartVideoPaths.length)];
             } else {
                 const videoPaths = [
-                    'assets/video/raccoon_1.mp4',
-                    'assets/video/raccoon_2.mp4',
-                    'assets/video/raccoon_3.mp4',
-                    'assets/video/raccoon_4.mp4',
-                    'assets/video/raccoon_5.mp4',
-                    'assets/video/raccoon_6.mp4',
-                    'assets/video/raccoon_7.mp4',
                     'assets/video/raccoon_8.mp4',
                     'assets/video/raccoon_9.mp4',
                     'assets/video/raccoon_10.mp4',
@@ -637,9 +861,9 @@ class Game {
                 ];
                 videoPathToShow = videoPaths[Math.floor(Math.random() * videoPaths.length)];
             }
-            this.ui.showVideoLoadingScreen(videoPathToShow);
+            videoStartedPromise = this.ui.showVideoLoadingScreen(videoPathToShow);
         }
-        
+
         this.gameState = 'LOADING_MISSION';
 
         this.masterRoster.forEach(r => {
@@ -647,87 +871,95 @@ class Game {
             if (r.promotedThisMission) r.promotedThisMission = false;
         });
 
-        const minDisplayTimePromise = new Promise(resolve => 
+        // Wait for video to start playing BEFORE starting the 6-second timer
+        // This ensures the timer only counts during actual video playback, not during loading
+        await videoStartedPromise;
+
+        // --- START AMBIENT IMMEDIATELY WHEN VIDEO STARTS ---
+        // This ensures ambient plays during the video and carries over into the game
+        // Stop music but NOT ambient so it continues through video into gameplay
+        if (this.musicManager) {
+            this.musicManager.stopMusic();
+            const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+            const biomeConfig = CONFIG.AUDIO_MUSIC && CONFIG.AUDIO_MUSIC.BIOME_TRACKS ? CONFIG.AUDIO_MUSIC.BIOME_TRACKS[biome] : null;
+            if (biomeConfig && biomeConfig.ambient && biomeConfig.ambient.length > 0) {
+                const rng = this.currentMissionSeedRNG || new SeededRandom(Date.now());
+                const ambientTrack = rng.pickFrom(biomeConfig.ambient);
+                this.musicManager.playAmbient(ambientTrack, { fade: true, loop: true });
+            }
+        }
+        
+        const minDisplayTimePromise = new Promise(resolve =>
             setTimeout(resolve, CONFIG.MIN_LOADING_VIDEO_DURATION_MS || 5000)
         );
 
+        // Load assets (music now handled by MusicManager when mission starts)
         const loadingTasksPromise = (async () => {
             await this.preloadLevelAssets();
             await this.preloadUnitAssets();
             await this.preloadMiscAssets();
-
-            const musicSelectionRNG = this.currentMissionSeedRNG || this.campaignSeedRNG || new SeededRandom(Date.now());
-
-            this.audioManager.stopAllLoopingSounds();
-            const musicKeys = CONFIG.AUDIO_ASSETS.AMBIENT_MUSIC_TROPICAL_FOREST_KEYS;
-            if (musicKeys && musicKeys.length > 0) {
-                const randomMusicKey = musicSelectionRNG.pickFrom(musicKeys); 
-                if (this.audioManager.sounds[randomMusicKey] && this.audioManager.sounds[randomMusicKey].loaded) {
-                    this.audioManager.play(randomMusicKey, { loop: true, volume: CONFIG.AUDIO_ASSETS[randomMusicKey]?.defaultVolume || 0.35 });
-                    this.lastPlayedMusicKey = randomMusicKey;
-                } else {
-                    console.warn(`[Game] Ambience track '${randomMusicKey}' not loaded or found in audioManager.sounds. Check config and preloading.`);
-                }
-            } else {
-                console.warn("[Game] No AMBIENT_MUSIC_TROPICAL_FOREST_KEYS found in CONFIG.AUDIO_ASSETS or the array is empty.");
-            }
 
             this.deployedSquadRoster = selectedRecruitsForDeployment;
             this.lastDeployedSquadIds = this.deployedSquadRoster.map(r => r.id);
 
             this.deployedSquadRoster.forEach(r => {
                 r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-                if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0); 
+                if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0);
                 if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
-                if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0); 
+                if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0);
                 if (r.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 0);
                 r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false;
                 r.isPlayerDirectFiring = false;
-                r.isHoldingPosition = false; 
-                r.isHoldingFire = false;   
+                r.isHoldingPosition = false;
+                r.isHoldingFire = false;
+                r.ammo = r.maxAmmo;
+                r.currentMagazine = r.magazineSize;
+                r.reloadTimer = 0;
+                r.isReloading = false;
             });
 
-            this.isObjectiveComplete = false; 
+            this.isObjectiveComplete = false;
             this.missionStartedAndPopulated = false;
             this.fallenRaccoonsThisMission = [];
             this.missionStartTime = performance.now();
-            this.hostageUnits = []; 
+            this.hostageUnits = [];
 
-            // Calculate world dimensions using separate width and height factors
             let worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1280) * (this.currentMissionParams.baseParams.worldWidthFactor || 1);
             let worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 720) * (this.currentMissionParams.baseParams.worldHeightFactor || 1);
 
-            if (this.canvas && this.canvas.width && this.canvas.height) { 
+            if (this.canvas && this.canvas.width && this.canvas.height) {
                 worldWidth = Math.max(worldWidth, this.canvas.width);
                 worldHeight = Math.max(worldHeight, this.canvas.height);
-            } else { 
+            } else {
                 worldWidth = Math.max(worldWidth, CONFIG.MIN_CANVAS_WIDTH || 800);
                 worldHeight = Math.max(worldHeight, CONFIG.MIN_CANVAS_HEIGHT || 600);
             }
-            
-            CONFIG.WORLD_WIDTH = worldWidth; 
+
+            CONFIG.WORLD_WIDTH = worldWidth;
             CONFIG.WORLD_HEIGHT = worldHeight;
-            
+
+            // --- MODIFICATION START: Create the Spatial Grid BEFORE level generation ---
             if (this.spatialGrid) {
-                this.spatialGrid.clear(); 
+                this.spatialGrid.clear();
             }
-            this.spatialGrid = new SpatialGrid(worldWidth, worldHeight, this.SPATIAL_GRID_CELL_SIZE, this); 
+            this.spatialGrid = new SpatialGrid(worldWidth, worldHeight, this.SPATIAL_GRID_CELL_SIZE, this);
+            // --- MODIFICATION END ---
 
             const playerSpawnLocations = this.level.generateLevelAndGetPlayerSpawns(
-                worldWidth, worldHeight, 
-                this.currentMissionParams, 
-                this.deployedSquadRoster.length, 
+                worldWidth, worldHeight,
+                this.currentMissionParams,
+                this.deployedSquadRoster.length,
                 this.preloadedImages,
-                this.currentMissionSeed 
+                this.currentMissionSeed
             );
-            
-            this.generatePrerenderedBackground(worldWidth, worldHeight, this.currentMissionSeed); 
 
-            this.initialEnemyCount = this.enemyUnits.length; 
+            this.generatePrerenderedBackground(worldWidth, worldHeight, this.currentMissionSeed);
+
+            this.initialEnemyCount = this.enemyUnits.length;
             if (this.currentMissionParams && this.currentMissionParams.objectives) {
                 this.currentMissionParams.objectives.forEach(obj => {
                     if (obj.type === "EXTERMINATE") {
-                        obj.totalToAchieve = this.initialEnemyCount; 
+                        obj.totalToAchieve = this.initialEnemyCount;
                         obj.currentProgress = 0;
                     } else if (obj.type === "ASSASSINATION") {
                         if (!obj.targetUnitId && obj.targetDetails) {
@@ -752,22 +984,24 @@ class Game {
                 }
             }
 
+            // --- MODIFICATION: Grid is already created, so now we just add objects ---
             this.level.obstacles.forEach(obs => {
-                if (obs.blocksMovement || obs.providesCover || obs.isPickup || obs.type === 'extraction_zone') { 
+                if (obs.blocksMovement || obs.providesCover || obs.isPickup || obs.type === 'extraction_zone') {
                     this.spatialGrid.addObject(obs);
                 }
             });
             this.deployedSquadRoster.forEach(unit => this.spatialGrid.addObject(unit));
-            this.enemyUnits.forEach(unit => this.spatialGrid.addObject(unit)); 
-            this.hostageUnits.forEach(unit => this.spatialGrid.addObject(unit)); 
+            this.enemyUnits.forEach(unit => this.spatialGrid.addObject(unit));
+            this.hostageUnits.forEach(unit => this.spatialGrid.addObject(unit));
+            // --- MODIFICATION END ---
 
             this.deployedSquadRoster.forEach((raccoon, index) => {
-                if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this;}
+                if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this; }
                 else { console.warn(`No spawn location for Raccoon ${index}. Fallback.`); raccoon.x = 100 + index * (CONFIG.RACCOON_SIZE * 3); raccoon.y = (CONFIG.WORLD_HEIGHT || 600) / 2; }
             });
             this.selectedUnits = [...this.deployedSquadRoster];
-            this.gameObjects = []; 
-            this.visualEffects = []; 
+            this.gameObjects = [];
+            this.visualEffects = [];
 
             this.inputHandler.isCtrlDragSelecting = false;
             this.isDragging = false;
@@ -775,37 +1009,104 @@ class Game {
 
             if (this.deployedSquadRoster.length > 0) {
                 let sumX = 0, sumY = 0;
-                this.deployedSquadRoster.forEach(unit => { 
-                    sumX += unit.x; 
-                    sumY += unit.y; 
+                this.deployedSquadRoster.forEach(unit => {
+                    sumX += unit.x;
+                    sumY += unit.y;
                 });
                 const avgX = sumX / this.deployedSquadRoster.length;
                 const avgY = sumY / this.deployedSquadRoster.length;
-                
-                this.cameraX = avgX - (this.canvas.width / 2);
-                this.cameraY = avgY - (this.canvas.height / 2);
-                
-                this.clampCamera(); 
-            } else { 
-                this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width) / 2; 
-                this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height) / 2; 
-                this.clampCamera(); 
+                const zoom = this.cameraZoom || 1.0;
+
+                this.cameraX = avgX - (this.canvas.width / (2 * zoom));
+                this.cameraY = avgY - (this.canvas.height / (2 * zoom));
+
+                this.clampCamera();
+            } else {
+                const zoom = this.cameraZoom || 1.0;
+                this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width / zoom) / 2;
+                this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height / zoom) / 2;
+                this.clampCamera();
             }
         })();
-        
+
         await Promise.all([loadingTasksPromise, minDisplayTimePromise]);
 
-        this.gameState = 'RUNNING';
+        // --- Night Mission: set flag from generated params ---
+        this.isNightMission = !!(this.currentMissionParams?.baseParams?.isNightMission);
+
+        // Ambush integration: if we're in RUNNING state but have an active ambush, update shootout instead
+        if (this.shootoutController && this.shootoutController.isAmbushMode && this.shootoutController.isRoundActive) {
+            this.gameState = 'SHOOTOUT_AMBUSH';
+        } else {
+            this.gameState = 'RUNNING';
+        }
+        
+        // Start mission music
+        if (this.musicManager) {
+            const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+            
+            // Check if this is a boss mission (phase finale with a boss target)
+            const objectives = this.currentMissionParams?.objectives || [];
+            const isBossMission = objectives.some(obj => {
+                if (obj.type === 'ASSASSINATION' && obj.targetDetails) {
+                    const targetKey = obj.targetDetails.assassinationTypeKey;
+                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss';
+                }
+                return false;
+            });
+            
+            this.musicManager.onGameStateChange('RUNNING', { 
+                biome: biome, 
+                rng: this.currentMissionSeedRNG,
+                isBossMission: isBossMission
+            });
+        }
 
         if (this.ui) {
             this.ui.hideVideoLoadingScreen();
         }
 
-        if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); } 
+        // --- Trigger Start Ambush (after getting out of heli/loading) ---
+        // Trigger ambush after the loading screen is hidden (heli landing complete)
+        const game = this;
+        this.triggerStartAmbush(function(success) {
+            if (success) {
+                console.log('[Game] Start ambush completed successfully!');
+            } else if (success === false) {
+                console.log('[Game] No start ambush this time.');
+            }
+            
+            // Continue with normal mission start (moved inside callback)
+            game.missionStartedAndPopulated = true;
+            game.missionStartTime = performance.now();
+            game.isObjectiveComplete = false;
+            game.setNextBirdSpawnTimer();
+
+            if (game.ui) { game.ui.hidePreMissionScreen(); game.ui.showHUD(); game.ui.updateObjective(); game.ui.updateFormationButton(game.currentFormationType); }
+            if (game.ui) { game.ui.updateNightMissionBadge(); }
+            if (game.inputHandler) { game.inputHandler.isLMBHoldFiringActionActive = false; game.inputHandler.updateMouseCursor(); }
+
+            game.lastTime = performance.now();
+            game.setNextBirdSpawnTimer(game.level.rng);
+            game.missionEndDelayTimer = -1;
+            game.missionPendingOutcomeIsVictory = false;
+        });
+        
+        // If we're in an ambush, don't set missionStartedAndPopulated yet
+        if (!this.isInAmbush()) {
+            this.missionStartedAndPopulated = true;
+            this.missionStartTime = performance.now();
+            this.isObjectiveComplete = false;
+            this.setNextBirdSpawnTimer();
+        }
+
+        // NOTE: UI updates moved inside the triggerStartAmbush callback above
+        // to properly wait for ambush to complete before continuing
+        if (this.ui) { this.ui.updateNightMissionBadge(); }
         if (this.inputHandler) { this.inputHandler.isLMBHoldFiringActionActive = false; this.inputHandler.updateMouseCursor(); }
 
         this.lastTime = performance.now();
-        this.setNextBirdSpawnTimer(this.level.rng); 
+        this.setNextBirdSpawnTimer(this.level.rng);
         this.missionEndDelayTimer = -1;
         this.missionPendingOutcomeIsVictory = false;
     }
@@ -814,7 +1115,7 @@ class Game {
         if (this.currentMissionParams && this.currentMissionParams.objectives) {
             const exterminateObj = this.currentMissionParams.objectives.find(obj => obj.type === "EXTERMINATE");
             if (exterminateObj) {
-                if (exterminateObj.totalToAchieve === undefined) { 
+                if (exterminateObj.totalToAchieve === undefined) {
                     exterminateObj.totalToAchieve = 0;
                 }
                 exterminateObj.totalToAchieve += count;
@@ -832,7 +1133,7 @@ class Game {
                 unit.isPlayerDirectFiring = true;
                 unit.playerDirectFireTargetPos = { x: worldX, y: worldY };
                 const angle = Math.atan2(worldY - unit.y, worldX - unit.x);
-                unit._executeFire(worldX, worldY, angle); 
+                unit._executeFire(worldX, worldY, angle);
             }
         });
     }
@@ -860,7 +1161,7 @@ class Game {
         if (!this.selectedUnits || this.selectedUnits.length === 0 || !enemyUnit || !enemyUnit.isAlive()) return;
         this.selectedUnits.forEach(unit => {
             if (unit instanceof Raccoon && unit.isAlive()) {
-                unit.isPlayerDirectFiring = false; 
+                unit.isPlayerDirectFiring = false;
                 unit.setManualTarget(enemyUnit);
                 if (unit.isHoldingFire) {
                 }
@@ -874,7 +1175,7 @@ class Game {
 
         const aimingRaccoons = this.selectedUnits.filter(u => u instanceof Raccoon && u.isAimingGrenade && u.isAlive());
         if (aimingRaccoons.length > 0) {
-            const leadAimer = aimingRaccoons[0]; 
+            const leadAimer = aimingRaccoons[0];
 
             let clickedEnemy = null;
             if (this.enemyUnits) {
@@ -905,20 +1206,61 @@ class Game {
         if (this.inputHandler.isLMBHoldFiringActionActive) { this.handleLMBFireActionEnd(); this.inputHandler.isLMBHoldFiringActionActive = false; }
 
         let didCancelGrenade = false;
-        if (this.selectedUnits) this.selectedUnits.forEach(u => { if (u instanceof Raccoon && u.isAimingGrenade) { u.cancelGrenadeAim(); didCancelGrenade = true; }});
-        if(didCancelGrenade) { if(this.inputHandler) this.inputHandler.updateMouseCursor(); return; }
+        if (this.selectedUnits) this.selectedUnits.forEach(u => { if (u instanceof Raccoon && u.isAimingGrenade) { u.cancelGrenadeAim(); didCancelGrenade = true; } });
+        if (didCancelGrenade) { if (this.inputHandler) this.inputHandler.updateMouseCursor(); return; }
 
         if (this.selectedUnits && this.selectedUnits.length > 0) {
             const formationPoints = this.calculateFormationPoints(worldX, worldY, this.selectedUnits, this.currentFormationType);
             this.selectedUnits.forEach((unit, index) => {
                 if (unit.isAlive() && unit.team === 'player') {
-                    const targetPoint = formationPoints[index] || {x:worldX, y:worldY};
-                    unit.setMoveTarget(targetPoint.x, targetPoint.y); 
+                    const targetPoint = formationPoints[index] || { x: worldX, y: worldY };
+                    unit.setMoveTarget(targetPoint.x, targetPoint.y);
                 }
             });
         }
-        if(this.inputHandler) this.inputHandler.updateMouseCursor();
+        if (this.inputHandler) this.inputHandler.updateMouseCursor();
     }
+
+    handleAutoBackupCommand() {
+        if (this.gameState !== 'RUNNING') return;
+
+        // Teammates only (raccoons in squad)
+        const allLivingTeammates = this.deployedSquadRoster ? this.deployedSquadRoster.filter(unit => unit.isAlive()) : [];
+        if (allLivingTeammates.length === 0) return;
+
+        // Currently selected teammates
+        const selectedTeammates = this.selectedUnits ? this.selectedUnits.filter(u => u instanceof Raccoon && u.isAlive() && !(u instanceof RaccoonHostage)) : [];
+
+        if (selectedTeammates.length === 0) {
+            if (this.ui) this.ui.showToast("Select a squad member to call for backup", "info");
+            return;
+        }
+
+        const nonSelectedTeammates = allLivingTeammates.filter(u => !selectedTeammates.includes(u));
+
+        if (nonSelectedTeammates.length === 0) {
+            if (this.ui) this.ui.showToast("All teammates are already with you", "info");
+            return;
+        }
+
+        // Calculate centroid of selected teammates
+        let sumX = 0, sumY = 0;
+        selectedTeammates.forEach(u => { sumX += u.x; sumY += u.y; });
+        const centerX = sumX / selectedTeammates.length;
+        const centerY = sumY / selectedTeammates.length;
+
+        // Calculate formation positions for non-selected teammates around the selection centroid
+        const formationPoints = this.calculateFormationPoints(centerX, centerY, nonSelectedTeammates, this.currentFormationType);
+
+        nonSelectedTeammates.forEach((unit, index) => {
+            const targetPoint = formationPoints[index] || { x: centerX, y: centerY };
+            unit.setMoveTarget(targetPoint.x, targetPoint.y);
+        });
+
+        if (this.ui) this.ui.showToast("Backup requested!", "info");
+        if (this.audioManager) this.audioManager.play('UI_BUTTON_CLICK');
+    }
+
 
     togglePause() {
         if (this.gameState === 'RUNNING') {
@@ -930,11 +1272,40 @@ class Game {
                 this.inputHandler.isLMBHoldFiringActionActive = false;
             }
             if (this.ui) this.ui.showPauseMenuScreen();
+            // Mute music when paused
+            if (this.musicManager) {
+                this.musicManager.onGameStateChange('PAUSED');
+            }
         } else if (this.gameState === 'PAUSED' && this.isGamePausedManually) {
             this.gameState = this.previousGameState || 'RUNNING';
             this.isGamePausedManually = false;
             if (this.ui) this.ui.hidePauseMenuScreen();
-            this.lastTime = performance.now(); 
+            this.lastTime = performance.now();
+            // Resume music when unpaused
+            if (this.musicManager) {
+                this.musicManager.resumeFromPause();
+            }
+        }
+        if (this.inputHandler) this.inputHandler.updateMouseCursor();
+    }
+
+    toggleShootoutPause() {
+        if (this.gameState === 'SHOOTOUT_PLAYING') {
+            this.previousGameState = this.gameState;
+            this.gameState = 'SHOOTOUT_PAUSED';
+            if (this.ui) this.ui.showShootoutPauseMenuScreen();
+            // Mute music when paused
+            if (this.musicManager) {
+                this.musicManager.onGameStateChange('PAUSED');
+            }
+        } else if (this.gameState === 'SHOOTOUT_PAUSED') {
+            this.gameState = 'SHOOTOUT_PLAYING';
+            if (this.ui) this.ui.hideShootoutPauseMenuScreen();
+            this.lastTime = performance.now();
+            // Resume music when unpaused
+            if (this.musicManager) {
+                this.musicManager.resumeFromPause();
+            }
         }
         if (this.inputHandler) this.inputHandler.updateMouseCursor();
     }
@@ -956,10 +1327,14 @@ class Game {
                 const currentPhaseData = this.campaignStructure[this.currentPhaseIndex];
                 if (this.ui && currentPhaseData && this.currentMissionParams) {
                     this.gameState = 'PRE_MISSION_SELECT';
+                    // Continue menu music for pre-mission
+                    if (this.musicManager) {
+                        this.musicManager.onGameStateChange('PRE_MISSION_SELECT');
+                    }
                     this.ui.hideHUD();
                     this.ui.showPreMissionScreen_RecruitSelect(currentPhaseData, this.currentMissionParams, this.getAvailableRecruits());
                 } else {
-                     this.quitToMainMenu();
+                    this.quitToMainMenu();
                 }
             } else {
                 this.quitToMainMenu();
@@ -971,24 +1346,30 @@ class Game {
 
     quitToMainMenu() {
         this.audioManager.stopAllLoopingSounds();
+        if (this.musicManager) {
+            this.musicManager.stopAll();
+            this.musicManager.onGameStateChange('MAIN_MENU');
+        }
         this.lastPlayedMusicKey = null;
         this.gameState = 'MAIN_MENU';
         this.missionStartedAndPopulated = false;
+        this.isNightMission = false;
         if (this.inputHandler && this.inputHandler.isLMBHoldFiringActionActive) {
-             this.handleLMBFireActionEnd();
-             this.inputHandler.isLMBHoldFiringActionActive = false;
+            this.handleLMBFireActionEnd();
+            this.inputHandler.isLMBHoldFiringActionActive = false;
         }
         this.deployedSquadRoster = [];
         this.selectedUnits = [];
         this.enemyUnits = [];
-        this.hostageUnits = []; 
+        this.hostageUnits = [];
         this.gameObjects = [];
         this.visualEffects = [];
-        this.lastDeployedSquadIds = []; 
+        this.lastDeployedSquadIds = [];
         if (this.ui) {
             this.ui.hideHUD();
             this.ui.hidePostMissionScreen();
             this.ui.hidePauseMenuScreen();
+            this.ui.updateNightMissionBadge();
             this.ui.showMainMenuScreen();
         }
     }
@@ -1005,13 +1386,14 @@ class Game {
         this.tempSelectedForDeployment = [];
         this.hostageUnits = [];
         this.campaignStructure = [];
-        this.lastDeployedSquadIds = []; 
+        this.lastDeployedSquadIds = [];
 
         // --- MODIFICATION START: Seed generation logic ---
         if (isNew || !this.campaignSeed) {
             // Generate a brand new seed for a new campaign, or if one doesn't exist yet.
             this.campaignSeed = Date.now();
-        } 
+            console.log(`[Game] New campaign created with seed: ${this.campaignSeed}`);
+        }
         // If isNew is false, we intentionally do nothing, reusing the existing this.campaignSeed.
         // --- MODIFICATION END ---
 
@@ -1026,7 +1408,7 @@ class Game {
         let nextRaccoonIdNum = 1;
         const initialSize = CONFIG.INITIAL_ROSTER_SIZE || 0;
         let currentLivingNames = [];
-        const initialRosterRng = new SeededRandom(this.campaignSeed + 1); 
+        const initialRosterRng = new SeededRandom(this.campaignSeed + 1);
 
         for (let i = 0; i < initialSize; i++) {
             let faceImageFile = 'default_face.png';
@@ -1048,9 +1430,9 @@ class Game {
     }
 
     _generatePhaseStructure(phaseIdx) {
-        if (this.campaignStructure[phaseIdx]) return; 
+        if (this.campaignStructure[phaseIdx]) return;
 
-        const phaseSeed = this.campaignSeed + (phaseIdx * 1000); 
+        const phaseSeed = this.campaignSeed + (phaseIdx * 1000);
         this.currentPhaseSeedRNG = new SeededRandom(phaseSeed);
 
         const phaseRules = this.campaignRules.PHASE_GENERATION;
@@ -1083,7 +1465,7 @@ class Game {
         const mppRule = phaseRules.missionsPerPhase;
         const minMissions = Math.round(mppRule.baseRange[0] + (mppRule.incrementPerPhase * phaseIdx));
         const maxMissions = Math.round(mppRule.baseRange[1] + (mppRule.incrementPerPhase * phaseIdx));
-        
+
         const finalMinMissions = Math.min(minMissions, mppRule.maxRange[0]);
         const finalMaxMissions = Math.min(maxMissions, mppRule.maxRange[1]);
 
@@ -1101,7 +1483,18 @@ class Game {
     }
 
     getAvailableRecruits() {
-        return this.masterRoster.filter(r => r.isAlive());
+        return this.masterRoster.filter(r => {
+            // Handle both Raccoon instances (with isAlive method) and plain data objects
+            if (typeof r.isAlive === 'function') {
+                return r.isAlive();
+            }
+            // For plain data objects, check hp or isDead flag
+            return !r.isDead && (r.hp === undefined || r.hp > 0);
+        }).sort((a, b) => {
+            const xpA = a.xp || 0;
+            const xpB = b.xp || 0;
+            return xpB - xpA;
+        });
     }
 
     resizeCanvas() {
@@ -1114,20 +1507,25 @@ class Game {
     }
 
     clampCamera() {
-        const worldWidth = CONFIG.WORLD_WIDTH || 0; 
+        const worldWidth = CONFIG.WORLD_WIDTH || 0;
         const worldHeight = CONFIG.WORLD_HEIGHT || 0;
         const canvasWidth = this.canvas.width || 0;
         const canvasHeight = this.canvas.height || 0;
+        const zoom = this.cameraZoom || 1.0;
 
-        const maxX = Math.max(0, worldWidth - canvasWidth);
-        const maxY = Math.max(0, worldHeight - canvasHeight);
+        // When zoomed in, the visible viewport is smaller, so adjust max camera bounds
+        const visibleWidth = canvasWidth / zoom;
+        const visibleHeight = canvasHeight / zoom;
+
+        const maxX = Math.max(0, worldWidth - visibleWidth);
+        const maxY = Math.max(0, worldHeight - visibleHeight);
 
         this.cameraX = Math.max(0, Math.min(this.cameraX, maxX));
         this.cameraY = Math.max(0, Math.min(this.cameraY, maxY));
     }
-    
+
     _instantiateObjective(objDef, phaseIdx, isPrimary, forceSpecificTargetKey = null) {
-        const baseP = this.currentMissionParams.baseParams; 
+        const baseP = this.currentMissionParams.baseParams;
         const newObj = {
             type: objDef.type,
             id: `${objDef.type.toLowerCase()}_${this.currentMissionSeedRNG.nextInt(100, 999)}`,
@@ -1136,8 +1534,8 @@ class Game {
             isPrimary: isPrimary,
             isComplete: false,
             currentProgress: 0,
-            totalToAchieve: 0, 
-            statusText: "" 
+            totalToAchieve: 0,
+            statusText: ""
         };
 
         if (objDef.type === "DESTROY_TARGET") {
@@ -1154,30 +1552,30 @@ class Game {
             newObj.targetTypeKey = selectedTargetType.targetTypeKey;
             newObj.targetNameSingular = selectedTargetType.nameSingular;
             newObj.targetNamePlural = selectedTargetType.namePlural;
-            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numDestroyTargets)); 
+            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numDestroyTargets));
         } else if (objDef.type === "RESCUE_HOSTAGES") {
-            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numHostagesToSpawn)); 
+            newObj.totalToAchieve = Math.max(1, Math.round(baseP.numHostagesToSpawn));
             newObj.minToAchieveForCompletion = Math.max(1, Math.round(baseP.minHostagesToRescue));
             if (newObj.minToAchieveForCompletion > newObj.totalToAchieve) { // Sanity check
                 newObj.minToAchieveForCompletion = newObj.totalToAchieve;
             }
-            newObj.currentEvacuated = 0; 
+            newObj.currentEvacuated = 0;
         } else if (objDef.type === "EXTERMINATE") {
-            newObj.totalToAchieve = 0; 
+            newObj.totalToAchieve = 0;
         } else if (objDef.type === "ASSASSINATION") {
             let selectedTargetInfo = null;
-            if (forceSpecificTargetKey) { 
+            if (forceSpecificTargetKey) {
                 selectedTargetInfo = (this.campaignRules.ASSASSINATION_TARGET_POOL || []).find(t => t.assassinationTypeKey === forceSpecificTargetKey && t.unlocksPhase <= phaseIdx);
                 if (!selectedTargetInfo) {
-                     console.warn(`[Game] Forced assassination targetKey '${forceSpecificTargetKey}' not found or not unlocked for phase ${phaseIdx}.`);
+                    console.warn(`[Game] Forced assassination targetKey '${forceSpecificTargetKey}' not found or not unlocked for phase ${phaseIdx}.`);
                 }
             }
-            
-            if (!selectedTargetInfo) { 
+
+            if (!selectedTargetInfo) {
                 const availableTargets = (this.campaignRules.ASSASSINATION_TARGET_POOL || []).filter(t => t.unlocksPhase <= phaseIdx);
                 if (availableTargets.length === 0) {
                     console.warn(`[Game] No available assassination targets for phase ${phaseIdx}. Assassination objective cannot be created.`);
-                    return null; 
+                    return null;
                 }
                 selectedTargetInfo = this._weightedRandomSelect(availableTargets, this.currentMissionSeedRNG);
             }
@@ -1188,7 +1586,7 @@ class Game {
             }
 
             newObj.targetDetails = JSON.parse(JSON.stringify(selectedTargetInfo)); // Store a copy of target details
-            newObj.targetUnitId = null; 
+            newObj.targetUnitId = null;
             newObj.totalToAchieve = 1;
             newObj.currentProgress = 0;
         }
@@ -1196,27 +1594,27 @@ class Game {
     }
 
     _getObjectiveDescriptionForBriefing(objectiveInstance, baseParams) {
-        let desc = `Objective type ${objectiveInstance.type} not fully described.`; 
+        let desc = `Objective type ${objectiveInstance.type} not fully described.`;
         const uiTextStrings = CONFIG.UI_TEXT_STRINGS;
         const templateKey = objectiveInstance.descriptionTemplateKey;
-    
+
         if (templateKey && uiTextStrings[templateKey]) {
             let textToFormat = uiTextStrings[templateKey];
-            
+
             if (objectiveInstance.type === "ASSASSINATION" && objectiveInstance.targetDetails) {
-                 desc = `neutralize high-value target: ${objectiveInstance.targetDetails.callsign || objectiveInstance.targetDetails.name || "VIP"}`;
+                desc = `neutralize high-value target: ${objectiveInstance.targetDetails.callsign || objectiveInstance.targetDetails.name || "VIP"}`;
             } else {
-                desc = textToFormat.split(':')[0].trim(); 
-                 const templateData = {
+                desc = textToFormat.split(':')[0].trim();
+                const templateData = {
                     TARGET_NAME_PLURAL: objectiveInstance.targetNamePlural || "targets",
                     TARGET_NAME_SINGULAR: objectiveInstance.targetNameSingular || "target",
-                    TOTAL_SPAWNED: objectiveInstance.totalToAchieve, 
-                    MIN_TO_EVAC: objectiveInstance.minToAchieveForCompletion 
+                    TOTAL_SPAWNED: objectiveInstance.totalToAchieve,
+                    MIN_TO_EVAC: objectiveInstance.minToAchieveForCompletion
                 };
                 desc = this._fillTextTemplate(desc, templateData);
 
                 if (objectiveInstance.type === "DESTROY_TARGET" && objectiveInstance.totalToAchieve > 0) {
-                     desc += ` (${objectiveInstance.totalToAchieve})`;
+                    desc += ` (${objectiveInstance.totalToAchieve})`;
                 } else if (objectiveInstance.type === "RESCUE_HOSTAGES") {
                     desc += ` (${objectiveInstance.totalToAchieve} to find, min ${objectiveInstance.minToAchieveForCompletion} to evac)`;
                 }
@@ -1230,6 +1628,7 @@ class Game {
 
     generateAndSetCurrentMissionParams(phaseIdx, missionIdx) {
         const missionSpecificSeedValue = this.campaignSeed + (phaseIdx * 1000) + (missionIdx * 10);
+        console.log(`[Game] Generating mission P${phaseIdx}M${missionIdx} with seed: ${missionSpecificSeedValue} (campaignSeed: ${this.campaignSeed})`);
         this.currentMissionSeedRNG = new SeededRandom(missionSpecificSeedValue);
         this.currentMissionSeed = missionSpecificSeedValue;
 
@@ -1239,7 +1638,7 @@ class Game {
         const currentPhaseInfo = this.campaignStructure[phaseIdx];
         if (!currentPhaseInfo) { this.currentMissionParams = null; return false; }
 
-        this.currentMissionParams = { baseParams: {}, objectives: [] }; 
+        this.currentMissionParams = { baseParams: {}, objectives: [] };
         const baseP = this.currentMissionParams.baseParams;
         const objectivesArray = this.currentMissionParams.objectives;
         const baseParamsRules = this.campaignRules.BASE_PARAMETERS;
@@ -1250,8 +1649,8 @@ class Game {
             const rule = baseParamsRules[key];
             let value;
 
-            if (key === "numPrimaryObjectivesRange" || key === "numSecondaryObjectives") { 
-                value = rule; 
+            if (key === "numPrimaryObjectivesRange" || key === "numSecondaryObjectives") {
+                value = rule;
             } else {
                 // Check for unlock phase. If not unlocked, use the initial value (or 0 for chances).
                 if (rule.unlocksPhase !== undefined && phaseIdx < rule.unlocksPhase) {
@@ -1272,16 +1671,16 @@ class Game {
                         value = rule.initial;
                     }
                 }
-                
+
                 if (rule.max !== undefined) value = Math.min(value, rule.max);
-                
+
                 let randomnessRange = value * (rule.randomnessFactor || 0);
                 value += this.currentMissionSeedRNG.nextFloat(-randomnessRange, randomnessRange);
 
                 // Re-clamp after applying randomness
                 if (rule.max !== undefined) value = Math.min(value, rule.max);
                 if (rule.roundToInt) value = Math.round(value);
-                
+
                 // Final sanity check for non-negative values where it matters
                 if (key.toLowerCase().includes('num') || key.toLowerCase().includes('min') || key.toLowerCase().includes('chance')) {
                     value = Math.max(0, value);
@@ -1290,33 +1689,33 @@ class Game {
             baseP[key] = value;
         }
         // --- MODIFICATION END ---
-        
+
         const numPrimariesToSelect = this.currentMissionSeedRNG.nextInt(
-            baseP.numPrimaryObjectivesRange[0], 
+            baseP.numPrimaryObjectivesRange[0],
             baseP.numPrimaryObjectivesRange[1]
         );
-        
+
         const secObjRule = baseP.numSecondaryObjectives;
         const minSec = Math.round(secObjRule.baseRange[0] + (secObjRule.incrementPerPhase * phaseIdx));
         const maxSec = Math.round(secObjRule.baseRange[1] + (secObjRule.incrementPerPhase * phaseIdx));
-        
+
         const finalMinSec = Math.min(minSec, secObjRule.maxRange[0]);
         const finalMaxSec = Math.min(maxSec, secObjRule.maxRange[1]);
 
         const numSecondariesToSelect = this.currentMissionSeedRNG.nextInt(finalMinSec, finalMaxSec);
 
-        console.log(`[Game Gen] P${phaseIdx}M${missionIdx}: Selecting ${numPrimariesToSelect} Primaries, ${numSecondariesToSelect} Secondaries.`);
+       // console.log(`[Game Gen] P${phaseIdx}M${missionIdx}: Selecting ${numPrimariesToSelect} Primaries, ${numSecondariesToSelect} Secondaries.`);
 
-        const selectedObjectiveTypesThisMission = new Set(); 
+        const selectedObjectiveTypesThisMission = new Set();
 
         const isPhaseFinale = (missionIdx === currentPhaseInfo.missionsInPhase - 1);
         for (let i = 0; i < numPrimariesToSelect; i++) {
             let newPrimaryObjective = null;
-            if (isPhaseFinale && i === 0) { 
+            if (isPhaseFinale && i === 0) {
                 const assassinationObjDefSource = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "ASSASSINATION" && o.isPhaseFinaleCandidate);
                 if (assassinationObjDefSource && assassinationObjDefSource.unlocksPhase <= phaseIdx) {
                     const availableBosses = (this.campaignRules.ASSASSINATION_TARGET_POOL || [])
-                                            .filter(t => t.isBoss && t.unlocksPhase <= phaseIdx);
+                        .filter(t => t.isBoss && t.unlocksPhase <= phaseIdx);
                     let bossToSpawnKey = null;
                     if (availableBosses.length > 0) {
                         const chosenBossInfo = this._weightedRandomSelect(availableBosses, this.currentMissionSeedRNG);
@@ -1329,14 +1728,14 @@ class Game {
                         else console.warn(`[Game Gen] Phase Finale: Failed to instantiate ASSASSINATION for ${bossToSpawnKey}`);
                     } else { console.warn(`[Game Gen] Phase Finale: No BOSS target found for P${phaseIdx}.`); }
                 } else { console.warn(`[Game Gen] Phase Finale: ASSASSINATION obj def not found/unlocked for P${phaseIdx}.`); }
-            } 
-            
-            if (!newPrimaryObjective) { 
-                const availablePrimaries = this.campaignRules.OBJECTIVE_POOL.filter(o => 
-                    (o.isPrimary === undefined || o.isPrimary) && 
+            }
+
+            if (!newPrimaryObjective) {
+                const availablePrimaries = this.campaignRules.OBJECTIVE_POOL.filter(o =>
+                    (o.isPrimary === undefined || o.isPrimary) &&
                     o.unlocksPhase <= phaseIdx &&
-                    !selectedObjectiveTypesThisMission.has(o.type) && 
-                    !(isPhaseFinale && o.type === "ASSASSINATION" && o.isPhaseFinaleCandidate) 
+                    !selectedObjectiveTypesThisMission.has(o.type) &&
+                    !(isPhaseFinale && o.type === "ASSASSINATION" && o.isPhaseFinaleCandidate)
                 );
                 if (availablePrimaries.length > 0) {
                     const chosenPrimaryDef = this._weightedRandomSelect(availablePrimaries, this.currentMissionSeedRNG);
@@ -1351,7 +1750,7 @@ class Game {
             if (newPrimaryObjective) {
                 objectivesArray.push(newPrimaryObjective);
                 selectedObjectiveTypesThisMission.add(newPrimaryObjective.type);
-            } else if (i === 0) { 
+            } else if (i === 0) {
                 console.warn("[Game Gen] CRITICAL: Failed to select any primary objective. Defaulting to EXTERMINATE.");
                 const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
                 if (exterminateDef) {
@@ -1359,9 +1758,9 @@ class Game {
                     if (fallbackPrimary) {
                         objectivesArray.push(fallbackPrimary);
                         selectedObjectiveTypesThisMission.add(fallbackPrimary.type);
-                    } else { console.error("[Game Gen] CRITICAL: Fallback EXTERMINATE also failed!");}
-                } else { console.error("[Game Gen] CRITICAL: No EXTERMINATE definition for fallback!");}
-                break; 
+                    } else { console.error("[Game Gen] CRITICAL: Fallback EXTERMINATE also failed!"); }
+                } else { console.error("[Game Gen] CRITICAL: No EXTERMINATE definition for fallback!"); }
+                break;
             }
         }
 
@@ -1369,10 +1768,10 @@ class Game {
         for (let i = 0; i < numSecondariesToSelect; i++) {
             const availableSecondaries = this.campaignRules.OBJECTIVE_POOL.filter(o => {
                 if (o.unlocksPhase > phaseIdx) return false;
-                if (selectedObjectiveTypesThisMission.has(o.type) && (o.maxInstancesPerMission || 1) <= objectivesArray.filter(obj => obj.type === o.type).length) return false; 
-                
+                if (selectedObjectiveTypesThisMission.has(o.type) && (o.maxInstancesPerMission || 1) <= objectivesArray.filter(obj => obj.type === o.type).length) return false;
+
                 let canCoexist = true;
-                if (o.canCoexistWith) { 
+                if (o.canCoexistWith) {
                     for (const primaryType of primaryObjectiveTypes) {
                         if (!o.canCoexistWith.includes(primaryType)) {
                             canCoexist = false; break;
@@ -1385,7 +1784,7 @@ class Game {
                     if (primaryObj.isPrimary) {
                         const primaryDef = this.campaignRules.OBJECTIVE_POOL.find(def => def.type === primaryObj.type);
                         if (primaryDef && primaryDef.canCoexistWith && !primaryDef.canCoexistWith.includes(o.type)) {
-                            return false; 
+                            return false;
                         }
                     }
                 }
@@ -1398,18 +1797,17 @@ class Game {
                     const newSecondaryObjective = this._instantiateObjective(chosenSecondaryDef, phaseIdx, false);
                     if (newSecondaryObjective) {
                         objectivesArray.push(newSecondaryObjective);
-                        selectedObjectiveTypesThisMission.add(newSecondaryObjective.type); 
-                         console.log(`[Game Gen] Added Secondary: ${newSecondaryObjective.type}`);
+                        selectedObjectiveTypesThisMission.add(newSecondaryObjective.type);
                     } else {
                         console.warn(`[Game Gen] Failed to instantiate secondary: ${chosenSecondaryDef.type}`);
                     }
                 }
             } else {
                 console.log("[Game Gen] No more compatible secondary objectives to select.");
-                break; 
+                break;
             }
         }
-        
+
         const exterminateObjectiveExists = objectivesArray.some(obj => obj.type === "EXTERMINATE");
         if (!exterminateObjectiveExists) {
             console.log("[Game Gen] 'Exterminate' not selected. Forcing as a secondary objective.");
@@ -1425,7 +1823,7 @@ class Game {
                 console.error("[Game Gen] CRITICAL: Could not find EXTERMINATE definition for fallback!");
             }
         }
-        
+
         if (objectivesArray.length === 0) {
             console.warn("[Game Gen] No objectives selected at all. Adding default EXTERMINATE.");
             const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
@@ -1434,17 +1832,32 @@ class Game {
                 if (fallbackExterminate) objectivesArray.push(fallbackExterminate);
             }
         }
-        
-        const phaseBiome = currentPhaseInfo.biome; 
+
+        // For phase finales, add EXTRACTION objective if not already present
+        if (isPhaseFinale) {
+            const hasExtractionObj = objectivesArray.some(o => o.type === 'EXTRACTION');
+            if (!hasExtractionObj) {
+                const extractionObjDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTRACTION");
+                if (extractionObjDef) {
+                    const extractionObj = this._instantiateObjective(JSON.parse(JSON.stringify(extractionObjDef)), phaseIdx, false);
+                    if (extractionObj) {
+                        objectivesArray.push(extractionObj);
+                        console.log("[Game Gen] Phase Finale: Added EXTRACTION objective.");
+                    }
+                }
+            }
+        }
+
+        const phaseBiome = currentPhaseInfo.biome;
         const missionNameParts = this.campaignRules.MISSION_NAME_PARTS;
-        const biomeEntryForName = this.campaignRules.BIOME_POOL.find(b => b.name === phaseBiome) || {themeAdjectives: ["General"]};
+        const biomeEntryForName = this.campaignRules.BIOME_POOL.find(b => b.name === phaseBiome) || { themeAdjectives: ["General"] };
         const biomeThemeAdj = biomeEntryForName.themeAdjectives;
 
         let mNamePart1 = this.currentMissionSeedRNG.pickFrom(missionNameParts.ADJECTIVES);
         let mNamePart2 = this.currentMissionSeedRNG.pickFrom(biomeThemeAdj);
         let mNamePart3 = this.currentMissionSeedRNG.pickFrom(missionNameParts.NOUNS_GENERAL);
         if (this.currentMissionSeedRNG.chance(0.3)) {
-             mNamePart2 = this.currentMissionSeedRNG.pickFrom(missionNameParts.LOCATIONS_GENERAL);
+            mNamePart2 = this.currentMissionSeedRNG.pickFrom(missionNameParts.LOCATIONS_GENERAL);
         }
         baseP.name = `${mNamePart1} ${mNamePart2} ${mNamePart3}`;
 
@@ -1455,15 +1868,15 @@ class Game {
                 combinedObjectiveDescription = this._getObjectiveDescriptionForBriefing(primaryObjInstanceToDescribe, baseP) + ".";
             }
             objectivesArray.forEach(obj => {
-                if (!obj.isPrimary) { 
-                    if(primaryObjInstanceToDescribe && obj.type === primaryObjInstanceToDescribe.type && obj.type !== "DESTROY_TARGET") return; 
-                    if(primaryObjInstanceToDescribe && obj.type === "DESTROY_TARGET" && primaryObjInstanceToDescribe.type === "DESTROY_TARGET" && obj.targetTypeKey === primaryObjInstanceToDescribe.targetTypeKey) return; 
+                if (!obj.isPrimary) {
+                    if (primaryObjInstanceToDescribe && obj.type === primaryObjInstanceToDescribe.type && obj.type !== "DESTROY_TARGET") return;
+                    if (primaryObjInstanceToDescribe && obj.type === "DESTROY_TARGET" && primaryObjInstanceToDescribe.type === "DESTROY_TARGET" && obj.targetTypeKey === primaryObjInstanceToDescribe.targetTypeKey) return;
 
                     combinedObjectiveDescription += " Additionally, " + this._getObjectiveDescriptionForBriefing(obj, baseP).toLowerCase() + ".";
                 }
             });
         } else {
-            combinedObjectiveDescription = "secure the area"; 
+            combinedObjectiveDescription = "secure the area";
         }
 
         const briefingTemplate = this.currentMissionSeedRNG.pickFrom(this.campaignRules.MISSION_BRIEFING_TEMPLATES);
@@ -1481,7 +1894,26 @@ class Game {
         });
         baseP.biome = phaseBiome;
 
-        this.tempSelectedForDeployment = []; 
+        // --- Night Mission Roll ---
+        const nightCfg = CONFIG.NIGHT_MISSION;
+        const nightUnlocked = nightCfg && phaseIdx >= (nightCfg.UNLOCKS_PHASE !== undefined ? nightCfg.UNLOCKS_PHASE : 1);
+        baseP.isNightMission = nightUnlocked && this.currentMissionSeedRNG.chance(nightCfg.CHANCE || 0.3);
+
+        if (baseP.isNightMission && this.campaignRules.BRIEFING_PARTS.NIGHT_BRIEFING_PREFIXES) {
+            const prefix = this.currentMissionSeedRNG.pickFrom(this.campaignRules.BRIEFING_PARTS.NIGHT_BRIEFING_PREFIXES);
+            const suffix = this.currentMissionSeedRNG.pickFrom(this.campaignRules.BRIEFING_PARTS.NIGHT_BRIEFING_SUFFIXES);
+            baseP.briefing = `${prefix} ${baseP.briefing} ${suffix}`;
+            if (CONFIG.DEBUG_LOGGING) console.log('[Game Gen] Night mission selected for this mission.');
+        }
+
+        // --- Phase Finale Extraction Note ---
+        if (isPhaseFinale) {
+            const extractionNote = " Once all objectives are complete, proceed to the extraction zone for evac.";
+            baseP.briefing += extractionNote;
+            if (CONFIG.DEBUG_LOGGING) console.log('[Game Gen] Phase Finale: Added extraction note to briefing.');
+        }
+
+        this.tempSelectedForDeployment = [];
         return true;
     }
 
@@ -1492,9 +1924,9 @@ class Game {
                 this.fallenRaccoonsThisMission.push({ id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl });
             }
             if (!this.fallenRaccoonsGlobal.find(r => r.id === raccoon.id)) {
-                const phaseName = (this.campaignStructure[this.currentPhaseIndex]) 
-                                  ? this.campaignStructure[this.currentPhaseIndex].name 
-                                  : CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
+                const phaseName = (this.campaignStructure[this.currentPhaseIndex])
+                    ? this.campaignStructure[this.currentPhaseIndex].name
+                    : CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
                 this.fallenRaccoonsGlobal.push({
                     id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl,
                     missionDied: this.currentMissionParams.baseParams ? this.currentMissionParams.baseParams.name : (CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT),
@@ -1508,7 +1940,7 @@ class Game {
     addNewRecruitToMasterRoster() {
         const currentLivingNames = this.masterRoster.filter(r => r.isAlive()).map(r => r.name);
         let faceImageFile = 'default_face.png';
-        const rosterRng = this.campaignSeedRNG || new SeededRandom(Date.now()); 
+        const rosterRng = this.campaignSeedRNG || new SeededRandom(Date.now());
 
         if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGES.length > 0) {
             const livingFaceUrls = this.masterRoster.filter(r => r.isAlive()).map(r => r.faceImageUrl);
@@ -1523,7 +1955,7 @@ class Game {
         const faceImageUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
         const raccoonName = getRandomRaccoonName(currentLivingNames, rosterRng);
         currentLivingNames.push(raccoonName);
-        const newRecruitId = `RCN-MR${this.masterRoster.length + this.fallenRaccoonsGlobal.length + 1}-${rosterRng.nextInt(1000,9999)}`;
+        const newRecruitId = `RCN-MR${this.masterRoster.length + this.fallenRaccoonsGlobal.length + 1}-${rosterRng.nextInt(1000, 9999)}`;
         this.masterRoster.push(new Raccoon(0, 0, this, newRecruitId, faceImageUrl, raccoonName));
     }
 
@@ -1539,6 +1971,11 @@ class Game {
         this.missionPendingOutcomeIsVictory = isVictory;
         this.missionEndDelayTimer = this.MISSION_END_DELAY_SECONDS;
         this.gameState = isVictory ? 'MISSION_ENDING_VICTORY' : 'MISSION_ENDING_DEFEAT';
+        
+        // Play victory/defeat music
+        if (this.musicManager) {
+            this.musicManager.onGameStateChange(this.gameState);
+        }
 
         if (isVictory) {
             this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!";
@@ -1571,9 +2008,14 @@ class Game {
             }
         });
 
-        this.audioManager.stopAllLoopingSounds();
-        this.lastPlayedMusicKey = null;
+        // Don't stop the music - keep playing victory/defeat track
+        // this.audioManager.stopAllLoopingSounds();
+        // this.lastPlayedMusicKey = null;
         this.gameState = 'POST_MISSION_DEBRIEF';
+        
+        // Auto-save campaign progress after mission ends
+        SaveManager.autoSave(this);
+        
         this.missionEndMessage = "";
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
         let enemiesKilledThisMission = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
@@ -1588,7 +2030,7 @@ class Game {
             for (let i = 0; i < recruitsToAdd && this.masterRoster.length < maxRoster; i++) this.addNewRecruitToMasterRoster();
         }
 
-        let newlyRecruitedRaccoons = []; 
+        let newlyRecruitedRaccoons = [];
         const rescueObjective = this.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
         if (isVictory && rescueObjective) {
             if (this.hostageUnits) {
@@ -1598,7 +2040,7 @@ class Game {
                         let faceImageFile = 'default_face.png';
                         const availableFaceImages = CONFIG.RACCOON_FACE_IMAGES ? [...CONFIG.RACCOON_FACE_IMAGES] : [];
                         let chosenFaceUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
-                        const rosterRng = this.campaignSeedRNG || new SeededRandom(Date.now()); 
+                        const rosterRng = this.campaignSeedRNG || new SeededRandom(Date.now());
 
                         if (availableFaceImages.length > 0) {
                             let attempts = 0;
@@ -1621,17 +2063,18 @@ class Game {
                         newRecruit.xp = hostage.assignedXpOnRescue || 0;
                         newRecruit.isNewlyRescued = true;
                         newRecruit.applyRankBonuses(true);
+                        newRecruit.setRankBasedSprite();
                         newRecruit.updateXpToNextRank();
 
                         if (this.masterRoster.length < (CONFIG.MAX_TOTAL_ROSTER_SIZE || 20)) {
                             this.masterRoster.push(newRecruit);
-                            newlyRecruitedRaccoons.push(newRecruit); 
+                            newlyRecruitedRaccoons.push(newRecruit);
                         }
                     }
                 });
             }
         }
-        
+
         const currentPhaseData = this.campaignStructure[this.currentPhaseIndex] || { name: CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT, missionsInPhase: 0 };
         const isLastMissionInPhase = this.currentMissionIndex >= (currentPhaseData.missionsInPhase - 1);
         const isLastPhaseOfCampaign = this.currentPhaseIndex >= (this.totalCampaignPhases - 1);
@@ -1640,14 +2083,14 @@ class Game {
             isVictory: isVictory,
             phaseData: currentPhaseData,
             missionData: this.currentMissionParams.baseParams || { name: CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT },
-            objectives: this.currentMissionParams.objectives, 
+            objectives: this.currentMissionParams.objectives,
             survivingRaccoons: this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [],
             fallenRaccoons: this.fallenRaccoonsThisMission,
             enemiesKilled: enemiesKilledThisMission,
             timeTaken: missionDuration.toFixed(1),
             campaignComplete: (isVictory && isLastMissionInPhase && isLastPhaseOfCampaign),
-            newlyRecruitedRaccoons: newlyRecruitedRaccoons, 
-            hostagesRecruitedCount: newlyRecruitedRaccoons.length 
+            newlyRecruitedRaccoons: newlyRecruitedRaccoons,
+            hostagesRecruitedCount: newlyRecruitedRaccoons.length
         };
 
         if (this.ui) {
@@ -1671,15 +2114,15 @@ class Game {
         }
         // --- MODIFICATION END ---
         this.currentMissionIndex++;
-        
+
         const currentPhaseStructure = this.campaignStructure[this.currentPhaseIndex];
         if (!currentPhaseStructure) {
             this.gameState = 'MAIN_MENU'; if (this.ui) this.ui.showMainMenuScreen(); return;
         }
 
-        if (this.currentMissionIndex >= currentPhaseStructure.missionsInPhase) { 
+        if (this.currentMissionIndex >= currentPhaseStructure.missionsInPhase) {
             const phaseRules = this.campaignRules.PHASE_GENERATION;
-            const conclusionRNG = this.currentPhaseSeedRNG || this.campaignSeedRNG; 
+            const conclusionRNG = this.currentPhaseSeedRNG || this.campaignSeedRNG;
             const casualtyReport = conclusionRNG.pickFrom(phaseRules.CASUALTY_REPORTS_POOL);
             const outcomeAdjective = conclusionRNG.pickFrom(phaseRules.OUTCOME_ADJECTIVES_POOL);
             const outcomeVerb = conclusionRNG.pickFrom(phaseRules.OUTCOME_VERBS_POOL);
@@ -1692,7 +2135,7 @@ class Game {
                 outcomeAdjective: outcomeAdjective,
                 outcomeVerb: outcomeVerb
             });
-            
+
             this.currentPhaseIndex++;
             this.currentMissionIndex = 0;
             if (this.currentPhaseIndex >= this.totalCampaignPhases) {
@@ -1700,8 +2143,8 @@ class Game {
                 const finalDebriefData = {
                     isVictory: true, campaignComplete: true,
                     phaseData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_PHASE_NAME, introduction: "The final battle is won!" },
-                    missionData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_MISSION_NAME }, 
-                    objectives: [{type: "CAMPAIGN_WON", isComplete: true, descriptionTemplateKey:"OBJECTIVE_CAMPAIGN_WON_TEXT", isPrimary: true}],
+                    missionData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_MISSION_NAME },
+                    objectives: [{ type: "CAMPAIGN_WON", isComplete: true, descriptionTemplateKey: "OBJECTIVE_CAMPAIGN_WON_TEXT", isPrimary: true }],
                     survivingRaccoons: this.masterRoster.filter(r => r.isAlive()),
                     fallenRaccoons: this.fallenRaccoonsGlobal, enemiesKilled: "N/A", timeTaken: "N/A"
                 };
@@ -1721,6 +2164,10 @@ class Game {
             const nextPhaseData = this.campaignStructure[this.currentPhaseIndex];
             if (this.ui && nextPhaseData && this.currentMissionParams) {
                 this.gameState = 'PRE_MISSION_SELECT';
+                // Continue menu music for pre-mission
+                if (this.musicManager) {
+                    this.musicManager.onGameStateChange('PRE_MISSION_SELECT');
+                }
                 this.ui.showPreMissionScreen_RecruitSelect(nextPhaseData, this.currentMissionParams, this.getAvailableRecruits());
             } else {
                 if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.ERROR_PREPARING_NEXT_BRIEFING);
@@ -1736,7 +2183,7 @@ class Game {
         if (this.gameState !== 'RUNNING') return;
         this.currentFormationIndex = (this.currentFormationIndex + 1) % this.FORMATION_TYPES.length;
         this.currentFormationType = this.FORMATION_TYPES[this.currentFormationIndex];
-        if(this.ui) this.ui.updateFormationButton(this.currentFormationType);
+        if (this.ui) this.ui.updateFormationButton(this.currentFormationType);
     }
 
     setFormationSpacing(multiplier) {
@@ -1745,17 +2192,20 @@ class Game {
 
     selectUnitsInCtrlDragRectangle() {
         if (!this.draggedFarEnough || this.gameState !== 'RUNNING') return;
-        const worldDragStartX = this.dragStartX + this.cameraX;
-        const worldDragStartY = this.dragStartY + this.cameraY;
-        const worldDragCurrentX = this.dragCurrentX + this.cameraX;
-        const worldDragCurrentY = this.dragCurrentY + this.cameraY;
+        const zoom = this.cameraZoom || 1.0;
+        const canvasWidth = this.canvas.width;
+        const canvasHeight = this.canvas.height;
+        const worldDragStartX = this.cameraX + (this.dragStartX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
+        const worldDragStartY = this.cameraY + (this.dragStartY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
+        const worldDragCurrentX = this.cameraX + (this.dragCurrentX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
+        const worldDragCurrentY = this.cameraY + (this.dragCurrentY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
 
         const selectionRectX = Math.min(worldDragStartX, worldDragCurrentX);
         const selectionRectY = Math.min(worldDragStartY, worldDragCurrentY);
         const selectionRectWidth = Math.abs(worldDragCurrentX - worldDragStartX);
         const selectionRectHeight = Math.abs(worldDragCurrentY - worldDragStartY);
         let newlySelectedUnits = [];
-        if(this.deployedSquadRoster) this.deployedSquadRoster.forEach(unit => {
+        if (this.deployedSquadRoster) this.deployedSquadRoster.forEach(unit => {
             if (unit.isAlive() &&
                 unit.x >= selectionRectX && unit.x <= selectionRectX + selectionRectWidth &&
                 unit.y >= selectionRectY && unit.y <= selectionRectY + selectionRectHeight) {
@@ -1777,7 +2227,7 @@ class Game {
     deselectAllUnits() {
         if (this.selectedUnits.length === 0) return;
         let aimingCancelled = false;
-        if(this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit instanceof Raccoon && unit.isAimingGrenade) { unit.cancelGrenadeAim(); aimingCancelled = true; } });
+        if (this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit instanceof Raccoon && unit.isAimingGrenade) { unit.cancelGrenadeAim(); aimingCancelled = true; } });
         this.selectedUnits = [];
         if (!aimingCancelled && this.ui) this.ui.updateSquadPanel();
         if (this.inputHandler) this.inputHandler.updateMouseCursor(); else if (this.ui) this.ui.setCursor('default');
@@ -1796,7 +2246,7 @@ class Game {
         }
     }
 
-    addProjectile(projectile) { 
+    addProjectile(projectile) {
         this.gameObjects.push(projectile);
         if (this.spatialGrid && projectile) {
             this.spatialGrid.addObject(projectile);
@@ -1807,9 +2257,9 @@ class Game {
         if (this.gameState !== 'RUNNING' || !this.missionStartedAndPopulated || !this.currentMissionParams || !this.currentMissionParams.objectives) {
             return;
         }
-    
-        let allObjectivesNowComplete = true; 
-    
+
+        let allObjectivesNowComplete = true;
+
         if (this.currentMissionParams.objectives.length === 0) {
             allObjectivesNowComplete = this.enemyUnits.every(e => !e.isAlive());
         } else {
@@ -1817,30 +2267,86 @@ class Game {
                 if (obj.type === 'EXTERMINATE') {
                     obj.currentProgress = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
                     if (obj.totalToAchieve === undefined) obj.totalToAchieve = this.initialEnemyCount;
-                    
+
                     obj.isComplete = (obj.currentProgress >= obj.totalToAchieve);
 
-                } else if (!obj.isComplete) { 
+                } else if (!obj.isComplete) {
                     if (obj.type === 'DESTROY_TARGET') {
-                        obj.currentProgress = this.level.missionTargetObstacles ? 
-                                              this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed && t.objectiveId === obj.id).length : 0;
+                        obj.currentProgress = this.level.missionTargetObstacles ?
+                            this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed && t.objectiveId === obj.id).length : 0;
                         if (obj.currentProgress >= obj.totalToAchieve) {
                             obj.isComplete = true;
                         }
                     } else if (obj.type === 'RESCUE_HOSTAGES') {
-                        const rescuedAndAliveHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
-                        obj.currentProgress = rescuedAndAliveHostages.length; 
-                        obj.minToAchieveForCompletion = obj.minToAchieveForCompletion || 1; 
+                        const allHostages = this.hostageUnits || [];
+                        const livingHostages = allHostages.filter(h => h.isAlive());
+                        const deadHostages = allHostages.filter(h => !h.isAlive());
+                        const rescuedAndAliveHostages = allHostages.filter(h => h.isRescued && h.isAlive());
+
+                        // --- Dynamic objective adjustment for dead hostages ---
+                        // Store original values for reference (set once)
+                        if (obj._originalTotalToAchieve === undefined) {
+                            obj._originalTotalToAchieve = obj.totalToAchieve;
+                            obj._originalMinToAchieve = obj.minToAchieveForCompletion || 1;
+                        }
+                        // Adjust totals based on living hostages
+                        // Allow minToAchieveForCompletion to be 0 when all hostages are dead
+                        obj.totalToAchieve = livingHostages.length;
+                        obj.hostagesKilled = deadHostages.length;
+                        obj.minToAchieveForCompletion = Math.min(obj._originalMinToAchieve, livingHostages.length);
+                        obj.currentProgress = rescuedAndAliveHostages.length;
+
+                        // --- Extraction zone reveal logic ---
+                        // Reveal the zone once all LIVING hostages are rescued (dead hostages don't block reveal)
+                        // NOTE: If mission has EXTRACTION objective (phase finale), don't reveal here - let EXTRACTION objective handle it
+                        const hasExtractionObjective = this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
+                        if (!obj.extractionZoneRevealed && allHostages.length > 0 && !hasExtractionObjective) {
+                            const allLivingHostagesFreed = allHostages.every(h => !h.isAlive() || h.isRescued);
+                            if (allLivingHostagesFreed && obj.currentProgress >= obj.minToAchieveForCompletion) {
+                                obj.extractionZoneRevealed = true;
+                                // Un-hide all extraction zones and create their visual effects
+                                const extractionZoneObs = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
+                                extractionZoneObs.forEach(ezObs => {
+                                    ezObs.isHidden = false;
+                                    this.addVisualEffect('extraction_zone', { obstacle: ezObs });
+                                });
+                                // Update objective text to guide player
+                                if (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION) {
+                                    obj.displayText = CONFIG.UI_TEXT_STRINGS.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION;
+                                }
+                                if (this.ui) {
+                                    this.ui.updateObjective();
+                                    // Show popup notification for extraction available
+                                    const extractionMsg = CONFIG.UI_TEXT_STRINGS.EXTRACTION_ZONE_REVEALED || "Extraction Zone Revealed!";
+                                    this.ui.showToast(extractionMsg, 'success');
+                                }
+                                if (CONFIG.DEBUG_LOGGING) console.log('[Game] All hostages freed! Extraction zone revealed.');
+                            }
+                        }
+
+                        // If all hostages are dead and none were rescued, fail the mission (soft-lock prevention)
+                        if (livingHostages.length === 0 && obj.currentProgress === 0) {
+                            // No living hostages and none rescued — objective is unachievable
+                            // Mark as failed and trigger mission failure
+                            obj.statusText = "All hostages KIA - Objective Failed";
+                            obj.isComplete = false;
+                            // Force mission failure since primary objective cannot be completed
+                            if (this.gameState === 'RUNNING') {
+                                this.initiateMissionEnd(false);
+                            }
+                            return;
+                        }
+
                         let hostagesAtEvacCount = 0;
-                        let playerRaccoonInZone = false; 
+                        let playerRaccoonInZone = false;
                         const extractionZones = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
                         if (extractionZones.length > 0) {
-                             rescuedAndAliveHostages.forEach(hostage => {
+                            rescuedAndAliveHostages.forEach(hostage => {
                                 for (const zone of extractionZones) {
                                     if (hostage.x >= zone.x && hostage.x <= zone.x + zone.width &&
                                         hostage.y >= zone.y && hostage.y <= zone.y + zone.height) {
                                         hostagesAtEvacCount++;
-                                        break; 
+                                        break;
                                     }
                                 }
                             });
@@ -1859,17 +2365,17 @@ class Game {
                                 }
                             }
                         }
-                        obj.currentEvacuated = hostagesAtEvacCount; 
+                        obj.currentEvacuated = hostagesAtEvacCount;
                         let enemiesClearedForThisRescue = false;
                         const exterminateObjective = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE");
                         if (exterminateObjective) {
                             enemiesClearedForThisRescue = exterminateObjective.isComplete;
-                        } else { 
+                        } else {
                             enemiesClearedForThisRescue = this.enemyUnits.every(e => !e.isAlive());
                         }
-                        if (obj.currentProgress >= obj.minToAchieveForCompletion && 
+                        if (obj.currentProgress >= obj.minToAchieveForCompletion &&
                             hostagesAtEvacCount >= obj.minToAchieveForCompletion &&
-                            playerRaccoonInZone && 
+                            playerRaccoonInZone &&
                             enemiesClearedForThisRescue) {
                             obj.isComplete = true;
                         }
@@ -1883,30 +2389,84 @@ class Game {
                         }
                     }
                 }
-    
-                if (!obj.isComplete) {
-                    allObjectivesNowComplete = false; 
+
+                // EXTRACTION objective - always re-evaluate (handles hut spawns after extraction, re-entry after raccoon death)
+                if (obj.type === 'EXTRACTION') {
+                    const zoneStatus = this.checkRaccoonsInExtractionZone();
+                    obj.currentProgress = zoneStatus.anyInZone ? 1 : 0;
+                    obj.isComplete = zoneStatus.allInZone;
+
+                    // Reveal extraction zone when ALL OTHER objectives are complete
+                    // Don't include EXTRACTION itself in the check - circular dependency
+                    if (!obj.extractionZoneRevealed) {
+                        const otherObjectivesComplete = this.currentMissionParams.objectives
+                            .filter(o => o.type !== 'EXTRACTION')
+                            .every(o => o.isComplete);
+
+                        if (otherObjectivesComplete) {
+                            obj.extractionZoneRevealed = true;
+                            const extractionZoneObs = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
+                            extractionZoneObs.forEach(ezObs => {
+                                ezObs.isHidden = false;
+                                this.addVisualEffect('extraction_zone', { obstacle: ezObs });
+                            });
+                            // Update objective text to guide player
+                            if (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_PROCEED) {
+                                obj.displayText = CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_PROCEED;
+                            }
+                            if (this.ui) {
+                                this.ui.updateObjective();
+                                // Show popup notification for extraction available
+                                const extractionMsg = CONFIG.UI_TEXT_STRINGS.EXTRACTION_ZONE_REVEALED || "Extraction Zone Revealed!";
+                                this.ui.showToast(extractionMsg, 'success');
+                            }
+                            if (CONFIG.DEBUG_LOGGING) console.log('[Game] All objectives complete! Extraction zone revealed.');
+                        }
+                    }
                 }
-            }); 
+
+                if (!obj.isComplete) {
+                    allObjectivesNowComplete = false;
+                }
+            });
         }
-    
+
         const livingPlayerRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()).length : 0;
         if (livingPlayerRaccoons === 0 && this.deployedSquadRoster.length > 0) {
-            if (this.gameState === 'RUNNING') { 
-                this.initiateMissionEnd(false); 
+            if (this.gameState === 'RUNNING') {
+                this.initiateMissionEnd(false);
             }
-            return; 
+            return;
         }
-    
-        if (allObjectivesNowComplete && this.gameState === 'RUNNING') { 
-            this.initiateMissionEnd(true); 
+
+        if (allObjectivesNowComplete && this.gameState === 'RUNNING' && !this.isInAmbush()) {
+            // EXTRACTION objective already checks all raccoons are in zone before marking complete.
+            // Only phase finales have EXTRACTION objectives - check for extraction ambush on those missions.
+            const hasExtractionObjective = this.currentMissionParams && this.currentMissionParams.objectives &&
+                this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
+
+            if (hasExtractionObjective) {
+                // Phase finale - check for extraction ambush
+                const game = this;
+                this.triggerExtractionAmbush(function(success) {
+                    if (success) {
+                        console.log('[Game] Extraction ambush completed successfully!');
+                    } else if (success === false) {
+                        console.log('[Game] No extraction ambush this time.');
+                    }
+                    game.initiateMissionEnd(true);
+                });
+            } else {
+                // Not a phase finale - end mission immediately, no extraction ambush
+                this.initiateMissionEnd(true);
+            }
         }
     }
 
     spawnFlyingBirdFlock() {
-        if (!this.birdSpawnConfig || !this.preloadedImages[this.birdSpawnConfig.TILE_SHEET_PATH] || !(this.level && this.level.rng)) return; 
+        if (!this.birdSpawnConfig || !this.preloadedImages[this.birdSpawnConfig.TILE_SHEET_PATH] || !(this.level && this.level.rng)) return;
 
-        const rng = this.level.rng; 
+        const rng = this.level.rng;
         const direction = rng.chance(0.5) ? 1 : -1;
         const flockSize = rng.nextInt(this.birdSpawnConfig.FLOCK_SIZE_MIN, this.birdSpawnConfig.FLOCK_SIZE_MAX);
 
@@ -1936,6 +2496,37 @@ class Game {
             return;
         }
 
+        // Handle Shootout Mode (standalone)
+        if (this.gameState === 'SHOOTOUT_PLAYING') {
+            this.updateShootoutMode(deltaTime);
+            return;
+        }
+
+        // Handle Shootout Ambush (integrated with campaign)
+        if (this.gameState === 'SHOOTOUT_AMBUSH') {
+            this.updateShootoutMode(deltaTime);
+            // Check if ambush ended
+            if (this.shootoutController && !this.shootoutController.isRoundActive) {
+                // Ambush ended, return to RUNNING
+                this.gameState = 'RUNNING';
+                // Restore campaign music and ambient
+                if (this.musicManager) {
+                    const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+                    this.musicManager.onGameStateChange('RUNNING', {
+                        biome: biome,
+                        rng: this.currentMissionSeedRNG,
+                        isBossMission: this.currentMissionParams?.isBossMission || false
+                    });
+                }
+                // Hide shootout HUD and restore campaign HUD
+                if (this.ui) {
+                    this.ui.hideShootoutHud();
+                    this.ui.showHUD();
+                }
+            }
+            return;
+        }
+
         if (this.missionEndDelayTimer > 0) {
             this.missionEndDelayTimer -= deltaTime;
             if (this.missionEndDelayTimer <= 0) {
@@ -1955,7 +2546,7 @@ class Game {
             this.nextBirdSpawnTime -= deltaTime;
             if (this.nextBirdSpawnTime <= 0) {
                 this.spawnFlyingBirdFlock();
-                this.setNextBirdSpawnTimer(this.level.rng); 
+                this.setNextBirdSpawnTimer(this.level.rng);
             }
         }
 
@@ -1964,9 +2555,10 @@ class Game {
             this.selectedUnits.forEach(unit => { if (unit.isAlive()) { avgX += unit.x; avgY += unit.y; count++; } });
             if (count > 0) {
                 avgX /= count; avgY /= count;
-                let targetCameraX = avgX - this.canvas.width / 2; let targetCameraY = avgY - this.canvas.height / 2;
-                targetCameraX = Math.max(0, Math.min(targetCameraX, Math.max(0, (CONFIG.WORLD_WIDTH || 0) - this.canvas.width)));
-                targetCameraY = Math.max(0, Math.min(targetCameraY, Math.max(0, (CONFIG.WORLD_HEIGHT || 0) - this.canvas.height)));
+                const zoom = this.cameraZoom || 1.0;
+                let targetCameraX = avgX - this.canvas.width / (2 * zoom); let targetCameraY = avgY - this.canvas.height / (2 * zoom);
+                targetCameraX = Math.max(0, Math.min(targetCameraX, Math.max(0, (CONFIG.WORLD_WIDTH || 0) - this.canvas.width / zoom)));
+                targetCameraY = Math.max(0, Math.min(targetCameraY, Math.max(0, (CONFIG.WORLD_HEIGHT || 0) - this.canvas.height / zoom)));
                 this.cameraX += (targetCameraX - this.cameraX) * CONFIG.CAMERA_LERP_SPEED;
                 this.cameraY += (targetCameraY - this.cameraY) * CONFIG.CAMERA_LERP_SPEED;
                 if (Math.abs(this.cameraX - targetCameraX) < 0.5) this.cameraX = targetCameraX;
@@ -1985,7 +2577,7 @@ class Game {
                 const oldGridCells = unit._spatialGridCells ? new Set(unit._spatialGridCells) : null;
                 unit.update(deltaTime);
                 if (this.spatialGrid && (unit.isMoving || unit.isMarkedForDeletion || !unit.isAlive() || !oldGridCells || !unit._spatialGridCells || ![...oldGridCells].every(cell => unit._spatialGridCells.has(cell)))) {
-                     if (!unit.isAlive() || unit.isMarkedForDeletion) {
+                    if (!unit.isAlive() || unit.isMarkedForDeletion) {
                         this.spatialGrid.removeObject(unit);
                     } else {
                         this.spatialGrid.updateObject(unit);
@@ -1995,22 +2587,20 @@ class Game {
         });
 
         this.gameObjects = this.gameObjects.filter(obj => {
-            if(obj) {
-                if (obj instanceof Projectile || obj instanceof GrenadeProjectile || obj instanceof FlyingBird || this.gameState === 'RUNNING') { 
+            if (obj) {
+                if (obj instanceof Projectile || obj instanceof GrenadeProjectile || obj instanceof FlyingBird || this.gameState === 'RUNNING') {
                     obj.update(deltaTime);
-                    if (this.spatialGrid && (obj instanceof Projectile || obj instanceof GrenadeProjectile)) {
-                        if (obj.isMarkedForDeletion) {
+                    // --- OPTIMIZATION Phase 3: Don't add Projectiles to SpatialGrid ---
+                    // Nothing collides WITH projectiles (except maybe shields, if implemented later).
+                    // Projectiles query the grid themselves to hit Units/Obstacles.
+                    // This saves massive overhead of updating thousands of bullets in the grid cells.
+
+                    if (obj.isMarkedForDeletion && (obj instanceof Projectile || obj instanceof GrenadeProjectile)) {
+                        if (this.spatialGrid) {
+                            // Just in case it WAS in there (e.g. from older frames or logic), try remove once.
                             this.spatialGrid.removeObject(obj);
-                            if (obj instanceof Projectile) {
-                                this.projectilePool.release(obj);
-                            } else if (obj instanceof GrenadeProjectile) {
-                                this.grenadeProjectilePool.release(obj);
-                            }
-                        } else {
-                            this.spatialGrid.updateObject(obj);
                         }
-                    } else if (obj.isMarkedForDeletion && (obj instanceof Projectile || obj instanceof GrenadeProjectile)) {
-                         if (obj instanceof Projectile) {
+                        if (obj instanceof Projectile) {
                             this.projectilePool.release(obj);
                         } else if (obj instanceof GrenadeProjectile) {
                             this.grenadeProjectilePool.release(obj);
@@ -2022,14 +2612,14 @@ class Game {
         });
 
         this.visualEffects = this.visualEffects.filter(effect => {
-            if(effect) effect.update(deltaTime);
+            if (effect) effect.update(deltaTime);
             return effect && !effect.isMarkedForDeletion;
         });
-        
+
         this.hostageUnits = this.hostageUnits.filter(h => !h.isMarkedForDeletion);
 
         if (!this.missionStartedAndPopulated && this.gameState === 'RUNNING') {
-             this.missionStartedAndPopulated = true;
+            this.missionStartedAndPopulated = true;
         }
 
         if (this.gameState === 'RUNNING') {
@@ -2037,28 +2627,50 @@ class Game {
             if (this.level && typeof this.level.updateHutSpawning === 'function') {
                 this.level.updateHutSpawning(deltaTime);
             }
-            if (this.ui) { 
+            if (this.ui) {
                 this.ui.updateObjective();
             }
         }
     }
 
     render() {
-        if (!this.ctx) { 
+        if (!this.ctx) {
             console.warn("Game render called but this.ctx is not defined.");
             return;
         }
-        
-        this.ctx.globalAlpha = 1.0; 
-        this.ctx.globalCompositeOperation = 'source-over'; 
+
+        // Handle Shootout Mode rendering separately
+        if (this.gameState === 'SHOOTOUT_PRE_GAME') {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            // Render shootout controller for dev mode (shows spawn boxes)
+            if (this.shootoutController && this.shootoutController.isDevMode) {
+                this.shootoutController.render(this.ctx);
+            }
+            return;
+        }
+
+        if (this.gameState === 'SHOOTOUT_PLAYING' || this.gameState === 'SHOOTOUT_PAUSED' || this.gameState === 'SHOOTOUT_AMBUSH') {
+            // Clear and render shootout mode
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            if (this.shootoutController) {
+                this.shootoutController.render(this.ctx);
+            }
+            return;
+        }
+
+        this.ctx.globalAlpha = 1.0;
+        this.ctx.globalCompositeOperation = 'source-over';
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.ctx.save();
-        this.ctx.translate(-this.cameraX, -this.cameraY);
+        // Apply camera zoom - translate to center, scale, then translate by camera position
+        this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+        this.ctx.scale(this.cameraZoom, this.cameraZoom);
+        this.ctx.translate(-this.cameraX - this.canvas.width / (2 * this.cameraZoom), -this.cameraY - this.canvas.height / (2 * this.cameraZoom));
 
         if (this.prerenderedBackgroundCanvas && this.prerenderedBackgroundCanvas.width > 0 && this.prerenderedBackgroundCanvas.height > 0) {
             try { this.ctx.drawImage(this.prerenderedBackgroundCanvas, 0, 0); } catch (e) { }
         } else {
-            this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34'; 
+            this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
         }
 
@@ -2066,13 +2678,47 @@ class Game {
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
-        if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; let shouldSort = true; if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) { if(borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) { shouldSort = false; } } if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
+        if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { if (obstacle.isHidden) return; const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; let shouldSort = true; if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) { if (borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) { shouldSort = false; } } if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
-        sortableObjects.forEach((item, index) => { const obj = item.entity; if (!obj) { return; } try { if (item.isUnit) { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {  if (obj.isDestroyed && obj.imageDestroyed) { let renderWidth, renderHeight, drawX, drawY; if (obj.spriteDestroyedScale !== undefined && obj.spriteDestroyedScale !== null) { renderWidth = obj.imageDestroyed.naturalWidth * obj.spriteDestroyedScale; renderHeight = obj.imageDestroyed.naturalHeight * obj.spriteDestroyedScale; drawX = obj.x + (obj.width / 2) - (renderWidth / 2);  drawY = obj.y + obj.height - renderHeight;  } else { renderWidth = obj.width; renderHeight = obj.height; drawX = obj.x; drawY = obj.y; } if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight); } else if (!obj.isDestroyed && obj.imageNormal) { if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height); } else if ((!obj.isDecoration || !obj.imageNormal) && !obj.isDestroyed) { let obsColor = obj.color || '#555555'; this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height); } if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) { const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR; const hpBarHeight = healthBarStyle.HEIGHT || 4; const hpBarWidth = Math.min(obj.width * 0.7, 60);  const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4;  this.ctx.fillStyle = healthBarStyle.BG_COLOR ||'#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2); let fillColor = healthBarStyle.HP_COLOR_FULL ||'#0c0'; const hpPercent = obj.hp / obj.maxHp; if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) { fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000'; } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) { fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#CCCC00'; } this.ctx.fillStyle = fillColor; this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight); } } } catch (e) { } });
-        
+        sortableObjects.forEach((item, index) => {
+            const obj = item.entity; if (!obj) { return; } try {
+                if (item.isUnit) { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {
+                    // --- MODIFICATION START ---
+                    this.ctx.save();
+                    if (obj.isFlippedHorizontally) {
+                        this.ctx.translate(obj.x + obj.width / 2, 0);
+                        this.ctx.scale(-1, 1);
+                        this.ctx.translate(-(obj.x + obj.width / 2), 0);
+                    }
+
+                    if (obj.isDestroyed && obj.imageDestroyed) {
+                        let renderWidth, renderHeight, drawX, drawY;
+                        if (obj.spriteDestroyedScale !== undefined && obj.spriteDestroyedScale !== null) {
+                            renderWidth = obj.imageDestroyed.naturalWidth * obj.spriteDestroyedScale;
+                            renderHeight = obj.imageDestroyed.naturalHeight * obj.spriteDestroyedScale;
+                            drawX = obj.x + (obj.width / 2) - (renderWidth / 2);
+                            drawY = obj.y + obj.height - renderHeight;
+                        } else {
+                            renderWidth = obj.width; renderHeight = obj.height; drawX = obj.x; drawY = obj.y;
+                        }
+                        if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight);
+                    } else if (!obj.isDestroyed && obj.imageNormal) {
+                        if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
+                    } else if ((!obj.isDecoration || !obj.imageNormal) && !obj.isDestroyed) {
+                        let obsColor = obj.color || '#555555'; this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+                    }
+
+                    this.ctx.restore(); // Restore context after potential flip
+                    // --- MODIFICATION END ---
+
+                    if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) { const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR; const hpBarHeight = healthBarStyle.HEIGHT || 4; const hpBarWidth = Math.min(obj.width * 0.7, 60); const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4; this.ctx.fillStyle = healthBarStyle.BG_COLOR || '#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2); let fillColor = healthBarStyle.HP_COLOR_FULL || '#0c0'; const hpPercent = obj.hp / obj.maxHp; if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) { fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000'; } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) { fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#D09040'; } this.ctx.fillStyle = fillColor; this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight); }
+                }
+            } catch (e) { }
+        });
+
         if (this.isDebugVisualsActive) {
             this.ctx.save();
-            
+
             // Draw Nav Grid
             if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid) {
                 const navGrid = this.level.navGrid; const cellSize = this.level.gridCellSize;
@@ -2085,7 +2731,7 @@ class Game {
                     }
                 }
             }
-            
+
             // Draw Player Spawn Zones
             if (this.level) {
                 if (this.level.playerSpawnZone) {
@@ -2129,63 +2775,209 @@ class Game {
                     this.ctx.lineTo(maxX, lineY);
                     this.ctx.stroke();
                 }
-                
+
                 this.ctx.setLineDash([]);
             }
 
             // Draw Obstacle Collision Shapes
-            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShape = this.level._getObstacleCollisionShape(obstacle); if (!collisionShape) return; if (obstacle.isDestroyed && !obstacle.blocksMovement) {} else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); }  else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); }  else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } }); }
+            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShape = this.level._getObstacleCollisionShape(obstacle); if (!collisionShape) return; if (obstacle.isDestroyed && !obstacle.blocksMovement) { } else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); } else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); } else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } }); }
 
             // Draw Hut Spawner Info
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_SPAWN_AREAS) { this.level.renderHutSpawnAreas(this.ctx); }
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_HUT_STATUS_TEXT) { this.ctx.fillStyle = "white"; this.ctx.font = "10px Arial"; this.ctx.textAlign = "center"; (this.level.potentialSpawnerHuts || []).forEach(hut => { if (!hut.isDestroyed) { let status = "POTENTIAL"; if (hut.isActivelySpawning) { status = hut.unitsToSpawnThisBurst > 0 ? `BURST (${hut.unitsToSpawnThisBurst} left, next in ${hut.timeUntilNextUnitInBurst.toFixed(1)}s)` : `ACTIVE (CD: ${hut.spawnCooldownTimer.toFixed(1)}s)`; } this.ctx.fillText(status, hut.x + hut.width / 2, hut.y - 5); } }); }
-            
+
             // Draw Pathing Lines
-            if (this.selectedUnits && this.selectedUnits.length > 0) { 
-                this.ctx.strokeStyle = 'rgba(50, 150, 255, 0.7)'; 
-                this.ctx.fillStyle = 'rgba(50, 150, 255, 0.9)'; 
-                this.ctx.lineWidth = 3; 
-                this.ctx.setLineDash([3, 3]); 
-                this.selectedUnits.forEach(unit => { 
-                    if (unit.isMoving && unit.currentPath && unit.currentPath.length > 0) { 
-                        this.ctx.beginPath(); 
-                        this.ctx.moveTo(unit.x, unit.y); 
-                        this.ctx.lineTo(unit.currentPath[0].x, unit.currentPath[0].y); 
-                        for (let i = 0; i < unit.currentPath.length - 1; i++) { 
-                            this.ctx.lineTo(unit.currentPath[i+1].x, unit.currentPath[i+1].y); 
-                        } 
-                        this.ctx.stroke(); 
-                        unit.currentPath.forEach(node => { 
-                            this.ctx.beginPath(); 
-                            this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2); 
-                            this.ctx.fill(); 
-                        }); 
-                    } 
+            if (this.selectedUnits && this.selectedUnits.length > 0) {
+                this.ctx.strokeStyle = 'rgba(50, 150, 255, 0.7)';
+                this.ctx.fillStyle = 'rgba(50, 150, 255, 0.9)';
+                this.ctx.lineWidth = 3;
+                this.ctx.setLineDash([3, 3]);
+                this.selectedUnits.forEach(unit => {
+                    if (unit.isMoving && unit.currentPath && unit.currentPath.length > 0) {
+                        this.ctx.beginPath();
+                        this.ctx.moveTo(unit.x, unit.y);
+                        this.ctx.lineTo(unit.currentPath[0].x, unit.currentPath[0].y);
+                        for (let i = 0; i < unit.currentPath.length - 1; i++) {
+                            this.ctx.lineTo(unit.currentPath[i + 1].x, unit.currentPath[i + 1].y);
+                        }
+                        this.ctx.stroke();
+                        unit.currentPath.forEach(node => {
+                            this.ctx.beginPath();
+                            this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2);
+                            this.ctx.fill();
+                        });
+                    }
                 });
             }
 
             this.ctx.restore();
         }
-        
+
         this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function') { effect.render(this.ctx); } });
-        
-        if(this.selectedUnits) {  this.selectedUnits.forEach(unit => { if (unit && unit.isAlive() && unit.manualTarget && unit.manualTarget.isAlive() && !(unit instanceof Raccoon && unit.isAimingGrenade)) { this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.7)'; this.ctx.lineWidth = 1.5; this.ctx.setLineDash([4, 4]); this.ctx.beginPath(); this.ctx.moveTo(unit.x, unit.y); this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y); this.ctx.stroke(); this.ctx.setLineDash([]); } }); }
-        const aimingRaccoon = this.selectedUnits && this.selectedUnits.find(unit => unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive());
-        if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) { const worldMouseX = this.inputHandler.mousePos.worldX; const worldMouseY = this.inputHandler.mousePos.worldY; const throwDist = distance(aimingRaccoon.x, aimingRaccoon.y, worldMouseX, worldMouseY); this.ctx.fillStyle = 'rgba(255, 165, 0, 0.3)'; this.ctx.beginPath(); this.ctx.arc(worldMouseX, worldMouseY, CONFIG.RACCOON_GRENADE_AOE_RADIUS, 0, Math.PI * 2); this.ctx.fill(); this.ctx.strokeStyle = 'rgb(111, 0, 255)'; this.ctx.lineWidth = 3; this.ctx.beginPath(); this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y); if (throwDist > CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {  const angle = Math.atan2(worldMouseY - aimingRaccoon.y, worldMouseX - aimingRaccoon.x);  const cappedX = aimingRaccoon.x + Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX; const cappedY = aimingRaccoon.y + Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;  this.ctx.lineTo(cappedX, cappedY); this.ctx.stroke();  this.ctx.beginPath(); this.ctx.moveTo(cappedX, cappedY); this.ctx.setLineDash([5, 5]); this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); this.ctx.setLineDash([]);  } else { this.ctx.lineTo(worldMouseX, worldMouseY); this.ctx.stroke(); } }
-        if (this.isDragging && this.draggedFarEnough && this.inputHandler.isCtrlPressed) { const worldDragStartX = this.dragStartX + this.cameraX; const worldDragStartY = this.dragStartY + this.cameraY; const worldDragCurrentX = this.dragCurrentX + this.cameraX; const worldDragCurrentY = this.dragCurrentY + this.cameraY; this.ctx.strokeStyle = 'rgba(50, 205, 50, 0.7)'; this.ctx.lineWidth = 1; this.ctx.fillStyle = 'rgba(50, 205, 50, 0.15)'; const rectX = Math.min(worldDragStartX, worldDragCurrentX); const rectY = Math.min(worldDragStartY, worldDragCurrentY); const rectWidth = Math.abs(worldDragCurrentX - worldDragStartX); const rectHeight = Math.abs(worldDragCurrentY - worldDragStartY); this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight); this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight); }
 
-        if (this.isDebugVisualsActive && CONFIG.DEBUG_DRAW_SPATIAL_GRID && this.spatialGrid) { 
+        if (this.selectedUnits) {
+            this.selectedUnits.forEach((unit) => {
+                if (
+                    unit &&
+                    unit.isAlive() &&
+                    unit.manualTarget &&
+                    unit.manualTarget.isAlive() &&
+                    !(unit instanceof Raccoon && unit.isAimingGrenade)
+                ) {
+                    this.ctx.strokeStyle = "rgba(255, 0, 0, 0.7)";
+                    this.ctx.lineWidth = 3;
+                    this.ctx.setLineDash([4, 4]);
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(unit.x, unit.y);
+                    this.ctx.lineTo(unit.manualTarget.x, unit.manualTarget.y);
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
+                }
+            });
+        }
+        const aimingRaccoon =
+            this.selectedUnits &&
+            this.selectedUnits.find(
+                (unit) =>
+                    unit instanceof Raccoon && unit.isAimingGrenade && unit.isAlive()
+            );
+        if (aimingRaccoon && this.inputHandler && this.inputHandler.mousePos) {
+            const worldMouseX = this.inputHandler.mousePos.worldX;
+            const worldMouseY = this.inputHandler.mousePos.worldY;
+            const throwDist = distance(
+                aimingRaccoon.x,
+                aimingRaccoon.y,
+                worldMouseX,
+                worldMouseY
+            );
+            this.ctx.fillStyle = "rgba(255, 165, 0, 0.3)";
+            this.ctx.beginPath();
+            this.ctx.arc(
+                worldMouseX,
+                worldMouseY,
+                CONFIG.RACCOON_GRENADE_AOE_RADIUS,
+                0,
+                Math.PI * 2
+            );
+            this.ctx.fill();
+            this.ctx.strokeStyle = "rgb(111, 0, 255)";
+            this.ctx.lineWidth = 3;
+            this.ctx.beginPath();
+            this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
+            if (throwDist > CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
+                const angle = Math.atan2(
+                    worldMouseY - aimingRaccoon.y,
+                    worldMouseX - aimingRaccoon.x
+                );
+                const cappedX =
+                    aimingRaccoon.x +
+                    Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                const cappedY =
+                    aimingRaccoon.y +
+                    Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                this.ctx.lineTo(cappedX, cappedY);
+                this.ctx.stroke();
+                this.ctx.beginPath();
+                this.ctx.moveTo(cappedX, cappedY);
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.lineTo(worldMouseX, worldMouseY);
+                this.ctx.stroke();
+                this.ctx.setLineDash([]);
+            } else {
+                this.ctx.lineTo(worldMouseX, worldMouseY);
+                this.ctx.stroke();
+            }
+        }
+        if (
+            this.isDragging &&
+            this.draggedFarEnough &&
+            this.inputHandler.isCtrlPressed
+        ) {
+            const zoom = this.cameraZoom || 1.0;
+            const canvasWidth = this.canvas.width;
+            const canvasHeight = this.canvas.height;
+            const worldDragStartX = this.cameraX + (this.dragStartX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
+            const worldDragStartY = this.cameraY + (this.dragStartY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
+            const worldDragCurrentX = this.cameraX + (this.dragCurrentX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
+            const worldDragCurrentY = this.cameraY + (this.dragCurrentY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
+            this.ctx.strokeStyle = "rgba(50, 205, 50, 0.7)";
+            this.ctx.lineWidth = 1;
+            this.ctx.fillStyle = "rgba(50, 205, 50, 0.15)";
+            const rectX = Math.min(worldDragStartX, worldDragCurrentX);
+            const rectY = Math.min(worldDragStartY, worldDragCurrentY);
+            const rectWidth = Math.abs(worldDragCurrentX - worldDragStartX);
+            const rectHeight = Math.abs(worldDragCurrentY - worldDragStartY);
+            this.ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+            this.ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+        }
+
+        if (this.isDebugVisualsActive && CONFIG.DEBUG_DRAW_SPATIAL_GRID && this.spatialGrid) {
             this.spatialGrid.renderDebug(this.ctx, this.cameraX, this.cameraY);
         }
 
-        this.ctx.restore(); 
+        this.ctx.restore();
+
+        // --- Night Mission Darkness Overlay ---
+        if (this.isNightMission && CONFIG.NIGHT_MISSION &&
+            (this.gameState === 'RUNNING' || this.gameState === 'PAUSED' ||
+                this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT')) {
+            const nightCfg = CONFIG.NIGHT_MISSION;
+            const oc = this.nightOverlayCanvas;
+            const octx = this.nightOverlayCtx;
+            oc.width = this.canvas.width;
+            oc.height = this.canvas.height;
+
+            const visionUnits = [
+                ...(this.deployedSquadRoster || []),
+                ...(this.hostageUnits || []).filter(h => h.isRescued)
+            ];
+
+            // Pass 1: Fill with full darkness
+            octx.globalCompositeOperation = 'source-over';
+            octx.fillStyle = nightCfg.OVERLAY_COLOR;
+            octx.fillRect(0, 0, oc.width, oc.height);
+
+            // Pass 2: Cut vision holes (fully transparent inside each circle)
+            octx.globalCompositeOperation = 'destination-out';
+            const zoom = this.cameraZoom || 1.0;
+            visionUnits.forEach(unit => {
+                if (!unit || !unit.isAlive()) return;
+                // Convert world coordinates to screen coordinates with zoom
+                const sx = (unit.x - this.cameraX) * zoom;
+                const sy = (unit.y - this.cameraY) * zoom;
+                const r = nightCfg.PLAYER_VISION_RADIUS * zoom;
+                const soft = nightCfg.VISION_EDGE_SOFTNESS;
+                const innerR = Math.max(0, r - soft);
+                const grad = octx.createRadialGradient(sx, sy, innerR, sx, sy, r);
+                grad.addColorStop(0, 'rgba(0,0,0,1)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                octx.fillStyle = grad;
+                octx.beginPath();
+                octx.arc(sx, sy, r, 0, Math.PI * 2);
+                octx.fill();
+            });
+
+            // Pass 3: Paint the residual tint into the transparent (vision) areas only.
+            // destination-over draws BEHIND existing pixels, so it only fills where alpha=0
+            // (the erased vision holes). Overlapping holes are already merged into one
+            // transparent region, so the tint is applied uniformly — no stacking.
+            const tintOpacity = nightCfg.VISION_TINT_OPACITY !== undefined ? nightCfg.VISION_TINT_OPACITY : 0.45;
+            if (tintOpacity > 0) {
+                octx.globalCompositeOperation = 'destination-over';
+                octx.fillStyle = `rgba(0, 0, 20, ${tintOpacity})`;
+                octx.fillRect(0, 0, oc.width, oc.height);
+            }
+
+            octx.globalCompositeOperation = 'source-over';
+            this.ctx.drawImage(oc, 0, 0);
+        }
 
         if (this.gameState === 'RUNNING' || this.gameState === 'PAUSED' || this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') {
             this.ctx.font = "16px 'Consolas', 'Lucida Console', monospace";
-            this.ctx.fillStyle = "rgba(255, 255, 0, 0.9)"; 
+            this.ctx.fillStyle = "rgba(255, 255, 0, 0.9)";
             this.ctx.textAlign = "left";
-            this.ctx.fillText(`FPS: ${this.fps}`, 10, 20); 
+            this.ctx.fillText(`FPS: ${this.fps}`, 10, 20);
         }
 
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
@@ -2195,7 +2987,7 @@ class Game {
             this.ctx.shadowColor = "rgba(0,0,0,0.7)"; this.ctx.shadowBlur = 5; this.ctx.shadowOffsetX = 2; this.ctx.shadowOffsetY = 2;
             if (this.missionPendingOutcomeIsVictory) { this.ctx.fillStyle = "#4CAF50"; } else { this.ctx.fillStyle = "#F44336"; }
             this.ctx.fillText(this.missionEndMessage, textX, textY);
-            this.ctx.font = "24px 'Consolas', 'Lucida Console', monospace"; this.ctx.fillStyle = "#FFFFFF"; 
+            this.ctx.font = "24px 'Consolas', 'Lucida Console', monospace"; this.ctx.fillStyle = "#FFFFFF";
             const timeLeft = Math.ceil(Math.max(0, this.missionEndDelayTimer));
             this.ctx.fillText(`Continuing in ${timeLeft}s...`, textX, textY + 50);
             this.ctx.restore();
@@ -2211,10 +3003,10 @@ class Game {
         this.lastTime = now;
 
         deltaTime = Math.min(deltaTime, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
-        if (deltaTime <= 0) { 
-            deltaTime = 1 / 60; 
+        if (deltaTime <= 0) {
+            deltaTime = 1 / 60;
         }
-        
+
         this.frameCount++;
         if (now - this.lastFpsUpdateTime > this.fpsUpdateInterval) {
             this.fps = Math.round(this.frameCount / (this.fpsUpdateInterval / 1000));
@@ -2223,25 +3015,27 @@ class Game {
         }
 
         if (this.gameState === 'RUNNING' ||
-            this.gameState === 'PAUSED' || 
+            this.gameState === 'PAUSED' ||
             this.gameState === 'MISSION_ENDING_VICTORY' ||
-            this.gameState === 'MISSION_ENDING_DEFEAT') {
+            this.gameState === 'MISSION_ENDING_DEFEAT' ||
+            this.gameState === 'SHOOTOUT_PLAYING' ||
+            this.gameState === 'SHOOTOUT_AMBUSH') {
             try {
                 this.update(deltaTime);
             } catch (e) {
                 console.error("ERROR IN Game.update():", e);
-                this.gameState = 'ERROR_STATE'; 
+                this.gameState = 'ERROR_STATE';
             }
-        } 
-        
+        }
+
         try {
-            this.render(); 
+            this.render();
         } catch (e) {
-            console.error("ERROR IN Game.render():", e); 
+            console.error("ERROR IN Game.render():", e);
             this.gameState = 'ERROR_STATE';
         }
 
-        if (this.gameState !== 'ERROR_STATE') { 
+        if (this.gameState !== 'ERROR_STATE') {
             requestAnimationFrame(this.gameLoop);
         } else {
             console.error("Game in ERROR_STATE. Halting game loop.");
@@ -2279,10 +3073,10 @@ class Game {
                 for (let i = 0; i < numUnits; i++) {
                     const row = Math.floor(i / cols);
                     const col = i % cols;
-                    
+
                     const isLastRow = (row === numRows - 1);
                     const unitsInThisRow = (isLastRow && numUnits % cols !== 0) ? numUnits % cols : cols;
-                    
+
                     const totalWidth = (unitsInThisRow - 1) * spacing;
                     const startX = centerX - totalWidth / 2;
 
@@ -2306,7 +3100,7 @@ class Game {
 
                 const totalHeight = (rowsConfig.length - 1) * spacing;
                 const startY = centerY - totalHeight / 2;
-                
+
                 let unitIndex = 0;
                 for (let row = 0; row < rowsConfig.length; row++) {
                     const unitsInRow = rowsConfig[row];
@@ -2383,10 +3177,323 @@ class Game {
         }
         // --- MODIFICATION END ---
     }
+
+    // --- SHOOTOUT MODE METHODS ---
+    async startShootoutMode() {
+        // Initialize shootout controller
+        if (!this.shootoutController) {
+            this.shootoutController = new ShootoutController(this);
+            this.shootoutController.init();
+        }
+
+        // Preload unit assets (needed for possum_grunt sprites in Shootout mode)
+        await this.preloadUnitAssets();
+
+        // Set game state
+        this.previousGameState = this.gameState;
+        this.gameState = 'SHOOTOUT_PRE_GAME';
+        
+        // Play shootout music
+        if (this.musicManager) {
+            this.musicManager.onGameStateChange('SHOOTOUT_PRE_GAME');
+        }
+
+        // Show pre-game screen
+        if (this.ui) {
+            this.ui.showShootoutPreGameScreen();
+        }
+    }
+
+    startShootoutRound(useCustomPositions = false) {
+        if (!this.shootoutController) return;
+
+        // Clear any existing game objects
+        this.clearShootoutObjects();
+
+        // Set game state
+        this.gameState = 'SHOOTOUT_PLAYING';
+
+        // Start the round (with optional custom positions from dev mode)
+        this.shootoutController.startRound(useCustomPositions);
+
+        // Show HUD
+        if (this.ui) {
+            this.ui.showShootoutHud();
+        }
+    }
+
+    endShootoutRound() {
+        if (!this.shootoutController) return;
+
+        this.gameState = 'SHOOTOUT_GAME_OVER';
+        this.shootoutController.endRound();
+    }
+
+    exitShootoutMode() {
+        // Reset shootout controller
+        if (this.shootoutController) {
+            this.shootoutController.reset();
+            // Disable dev mode if active
+            if (this.shootoutController.isDevMode) {
+                this.shootoutController.disableDevMode();
+            }
+        }
+
+        // Clear shootout objects
+        this.clearShootoutObjects();
+
+        // Return to main menu
+        this.gameState = 'MAIN_MENU';
+        if (this.ui) {
+            this.ui.showMainMenuScreen();
+        }
+    }
+
+    returnToShootoutMenu() {
+        // Reset shootout controller
+        if (this.shootoutController) {
+            this.shootoutController.reset();
+            // Disable dev mode if active
+            if (this.shootoutController.isDevMode) {
+                this.shootoutController.disableDevMode();
+            }
+        }
+
+        // Clear shootout objects
+        this.clearShootoutObjects();
+
+        // Return to shootout pre-game state
+        this.gameState = 'SHOOTOUT_PRE_GAME';
+        if (this.ui) {
+            this.ui.showShootoutPreGameScreen();
+        }
+    }
+
+    clearShootoutObjects() {
+        // Clear any existing enemies from previous round
+        this.enemies = [];
+        this.enemyUnits = [];
+        this.projectiles = [];
+        this.visualEffects = [];
+    }
+
+    updateShootoutMode(deltaTime) {
+        if (!this.shootoutController) return;
+        this.shootoutController.update(deltaTime);
+        // Note: Projectiles are handled by ShootoutTarget's visual bullet system, not real projectiles
+    }
+
+    renderShootoutMode(ctx) {
+        if (!this.shootoutController) return;
+        this.shootoutController.render(ctx);
+    }
+    // --- END SHOOTOUT MODE METHODS ---
+
+    // --- SHOOTOUT AMBUSH INTEGRATION METHODS ---
+    
+    /**
+     * Initialize shootout controller for ambush mode
+     */
+    initShootoutForAmbush() {
+        if (!this.shootoutController) {
+            this.shootoutController = new ShootoutController(this);
+            this.shootoutController.init();
+        }
+    }
+
+    /**
+     * Check if an ambush should trigger based on random chance
+     * @param {string} type - 'START' or 'EXTRACTION'
+     * @returns {boolean}
+     */
+    shouldTriggerAmbush(type) {
+        const config = CONFIG.SHOOTOUT_MODE;
+        const chance = type === 'START' 
+            ? config.AMBUSH_START_CHANCE 
+            : config.AMBUSH_EXTRACTION_CHANCE;
+        
+        return Math.random() < chance;
+    }
+
+    /**
+     * Get a random background from ambush backgrounds
+     * @returns {string}
+     */
+    getRandomAmbushBackground() {
+        const backgrounds = CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS;
+        return backgrounds[Math.floor(Math.random() * backgrounds.length)];
+    }
+
+    /**
+     * Trigger a start-of-mission ambush
+     * @param {function} callback - Callback when ambush ends
+     */
+    triggerStartAmbush(callback) {
+        if (!this.shouldTriggerAmbush('START')) {
+            // No ambush, continue normally
+            if (callback) callback(false);
+            return;
+        }
+
+        console.log('[Game] START AMBUSH TRIGGERED!');
+        
+        // Set flag so mission doesn't start while ambush alert is showing
+        this.ambushTriggered = true;
+        
+        // Initialize shootout controller if needed
+        this.initShootoutForAmbush();
+        
+        // Get random background and night mode setting
+        const background = this.getRandomAmbushBackground();
+        const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
+        
+        // Store previous game state
+        this.previousGameState = this.gameState;
+        
+        // Pre-configure shootout with background BEFORE showing alert
+        // This loads the background image so it can be shown behind the alert
+        if (this.shootoutController) {
+            this.shootoutController.setBackground(background);
+            this.shootoutController.setNightMode(isNight);
+            // Set game state to SHOOTOUT_AMBUSH so we render the shootout background behind alert
+            this.gameState = 'SHOOTOUT_AMBUSH';
+            if (this.musicManager) this.musicManager.onGameStateChange('SHOOTOUT_AMBUSH');
+        }
+        
+        // Show ambush alert
+        console.log('[Game] Showing ambush alert, ui exists:', !!this.ui);
+        const game = this;
+        if (this.ui) {
+            console.log('[Game] Calling showShootoutAmbushAlert...');
+            this.ui.showShootoutAmbushAlert('START_AMBUSH', function() {
+                console.log('[Game] Ambush alert callback triggered!');
+                // Start the ambush
+                if (!game.shootoutController) {
+                    console.error('[Game] shootoutController is undefined!');
+                } else {
+                    console.log('[Game] Calling shootoutController.startAmbush...');
+                    game.shootoutController.startAmbush(background, isNight, function(result) {
+                        // Ambush ended
+                        console.log('[Game] Start ambush ended with result:', result);
+                        
+                        // Clear ambush triggered flag
+                        game.ambushTriggered = false;
+                        
+                        // Return to campaign mode
+                        if (callback) callback(result === 'VICTORY');
+                    });
+                }
+            });
+        }
+    }
+
+    /**
+     * Trigger an extraction ambush
+     * @param {function} callback - Callback when ambush ends
+     */
+    triggerExtractionAmbush(callback) {
+        if (!this.shouldTriggerAmbush('EXTRACTION')) {
+            // No ambush, continue normally
+            if (callback) callback(false);
+            return;
+        }
+
+        console.log('[Game] EXTRACTION AMBUSH TRIGGERED!');
+        
+        // Set flag so extraction doesn't proceed while ambush alert is showing
+        this.ambushTriggered = true;
+        
+        // Initialize shootout controller if needed
+        this.initShootoutForAmbush();
+        
+        // Get random background and night mode setting
+        const background = this.getRandomAmbushBackground();
+        const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
+        
+        // Store previous game state
+        this.previousGameState = this.gameState;
+
+        // Pre-configure shootout with background BEFORE showing alert
+        if (this.shootoutController) {
+            this.shootoutController.setBackground(background);
+            this.shootoutController.setNightMode(isNight);
+            // Set game state to SHOOTOUT_AMBUSH so we render the shootout background behind alert
+            this.gameState = 'SHOOTOUT_AMBUSH';
+            if (this.musicManager) this.musicManager.onGameStateChange('SHOOTOUT_AMBUSH');
+        }
+
+        // Show ambush alert
+        const game = this;
+        if (this.ui) {
+            this.ui.showShootoutAmbushAlert('EXTRACTION_AMBUSH', function() {
+                // Start the ambush
+                game.shootoutController.startAmbush(background, isNight, function(result) {
+                    // Ambush ended
+                    console.log('[Game] Extraction ambush ended with result:', result);
+                    
+                    // Clear ambush triggered flag
+                    game.ambushTriggered = false;
+                    
+                    // Return to campaign mode
+                    if (callback) callback(result === 'VICTORY');
+                });
+            });
+        }
+    }
+
+    /**
+     * Check if all living raccoons are in an extraction zone
+     * @returns {{ allInZone: boolean, anyInZone: boolean }}
+     */
+    checkRaccoonsInExtractionZone() {
+        const extractionZones = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
+        if (extractionZones.length === 0) return { allInZone: false, anyInZone: false };
+
+        const livingRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [];
+        if (livingRaccoons.length === 0) return { allInZone: false, anyInZone: false };
+
+        let allInZone = true;
+        let anyInZone = false;
+
+        for (const raccoon of livingRaccoons) {
+            let inZone = false;
+            for (const zone of extractionZones) {
+                if (raccoon.x >= zone.x && raccoon.x <= zone.x + zone.width &&
+                    raccoon.y >= zone.y && raccoon.y <= zone.y + zone.height) {
+                    inZone = true;
+                    anyInZone = true;
+                    break;
+                }
+            }
+            if (!inZone) {
+                allInZone = false;
+                break;
+            }
+        }
+        return { allInZone, anyInZone };
+    }
+
+    /**
+     * Check if we are currently in an ambush
+     * @returns {boolean}
+     */
+    isInAmbush() {
+        if (this.ambushTriggered) return true;
+        return this.shootoutController && this.shootoutController.isAmbushMode && this.shootoutController.isRoundActive;
+    }
+
+    /**
+     * Handle player death during ambush
+     */
+    handleAmbushDefeat() {
+        if (this.shootoutController && this.shootoutController.isAmbushMode) {
+            this.shootoutController.endAmbush('defeat');
+        }
+    }
 }
 
 
 
-window.addEventListener('DOMContentLoaded', () => { 
-    const game = new Game('gameCanvas'); 
+window.addEventListener('DOMContentLoaded', () => {
+    const game = new Game('gameCanvas');
 });

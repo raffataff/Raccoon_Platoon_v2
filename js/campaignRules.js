@@ -5,28 +5,28 @@ const CAMPAIGN_RULES = {
 
     // --- Base Values and Scaling ---
     BASE_PARAMETERS: {
-        worldWidthFactor:     { initial: 1.8,  perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness 
-        worldHeightFactor:    { initial: 1.8,  perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
-        enemyDensityFactor: { initial: 1.0,  perPhaseGrowthFactor: 0.4, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
-        heavyChance:        { initial: 0.1,  perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05 },
-        sniperChance:       { initial: 0.05,  perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
-        numDestroyTargets:  { initial: 1,    perPhaseIncrement: 0.2,  max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
-        numHostagesToSpawn: { initial: 1,    perPhaseIncrement: 0.4,  max: 5, roundToInt: true, randomnessFactor: 0.1 },
-        minHostagesToRescue:{ initial: 1,    perPhaseIncrement: 0.3,  max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
+        worldWidthFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness 
+        worldHeightFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
+        enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.3, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
+        heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
+        sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
+        numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
+        numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.4, max: 5, roundToInt: true, randomnessFactor: 0.1 },
+        minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
         numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
-        numSecondaryObjectives: { 
-            baseRange: [0, 1],          // At Phase 0, select between 0 and 1 secondary objectives.
-            incrementPerPhase: 0.4,     // Add 0.4 to both min and max of the range per phase.
+        numSecondaryObjectives: {
+            baseRange: [0, 0],          // At Phase 0, select between 0 and 1 secondary objectives.
+            incrementPerPhase: 0.5,     // Add 0.5 to both min and max of the range per phase.
             maxRange: [1, 6]            // The range will not exceed a max of [1, 4].
         },
     },
 
     // --- Pools of Options ---
     BIOME_POOL: [
-        { name: "TROPICAL",     weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
-        { name: "JUNKYARD",     weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
-        { name: "SWAMP",        weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
-        { name: "URBAN_DECAY",  weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
+        { name: "TROPICAL", weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
+        { name: "JUNKYARD", weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
+        { name: "SWAMP", weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
+        { name: "URBAN_DECAY", weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
     ],
 
     OBJECTIVE_POOL: [
@@ -43,20 +43,20 @@ const CAMPAIGN_RULES = {
         // isPhaseFinaleCandidate: (boolean, optional, default false) Can this objective be chosen for an end-of-phase mission?
         // isBossObjective: (boolean, optional, default false) Does this objective involve a boss? (For future use)
 
-        { 
-            type: "EXTERMINATE",      
+        {
+            type: "EXTERMINATE",
             weight: 5, // High weight if it can also be a standalone primary
-            unlocksPhase: 0, 
+            unlocksPhase: 0,
             descriptionTemplateKey: "OBJECTIVE_EXTERMINATE_TEXT", // e.g., "Eliminate Possums: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_ENEMIES_ELIMINATED",
             isPrimary: true, // Can be a primary objective on its own
             canCoexistWith: ["DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION"], // Can be secondary to these
-            maxInstancesPerMission: 1 
+            maxInstancesPerMission: 1
         },
-        { 
-            type: "DESTROY_TARGET",   
-            weight: 4, 
-            unlocksPhase: 1, 
+        {
+            type: "DESTROY_TARGET",
+            weight: 4,
+            unlocksPhase: 1,
             descriptionTemplateKey: "OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT", // e.g., "Destroy {targetNamePlural}: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_TARGET_TYPE_DESTROYED",
             isPrimary: true,
@@ -65,22 +65,22 @@ const CAMPAIGN_RULES = {
             // maxInstancesPerMission for "DESTROY_TARGET" itself might be high (e.g., 3) to allow
             // "Destroy Huts" AND "Destroy Towers" in one mission. The specific target types below
             // will have their own maxInstances.
-            maxInstancesPerMission: 5, // Max distinct "destroy X" objectives in one mission
+            maxInstancesPerMission: 3, // Max distinct "destroy X" objectives in one mission
             isPhaseFinaleCandidate: true
         },
-        { 
-            type: "RESCUE_HOSTAGES",  
-            weight: 3, 
-            unlocksPhase: 1, 
+        {
+            type: "RESCUE_HOSTAGES",
+            weight: 3,
+            unlocksPhase: 1,
             descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
             completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
             isPrimary: true,
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION"],
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "EXTRACTION"],
             maxInstancesPerMission: 1
         },
-        { 
-            type: "ASSASSINATION",    
-            weight: 2, // Keep this relatively low if it's mainly for phase finales
+        {
+            type: "ASSASSINATION",
+            weight: 1, // Keep this relatively low if it's mainly for phase finales
             unlocksPhase: 2, // Or 0 if you want non-boss assassinations earlier
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
@@ -90,6 +90,18 @@ const CAMPAIGN_RULES = {
             isPhaseFinaleCandidate: true, // GOOD!
             // isBossObjective: true // This can be inferred if the chosen target from ASSASSINATION_TARGET_POOL has isBoss: true
             // No need for targetTypeKey here, as that's for DESTROY_TARGET
+        },
+        // NEW: Extraction objective for phase finales
+        {
+            type: "EXTRACTION",
+            weight: 0, // Not randomly selected - always added for phase finales
+            unlocksPhase: 0,
+            descriptionTemplateKey: "OBJECTIVE_EXTRACTION_TEXT",
+            completionCondition: "ALL_RACCOONS_EXTRACTED",
+            isPrimary: false, // Added automatically, not counted as primary
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "RESCUE_HOSTAGES"],
+            maxInstancesPerMission: 1,
+            isPhaseFinaleOnly: true // Custom flag - only added for phase finales
         }
     ],
 
@@ -103,14 +115,14 @@ const CAMPAIGN_RULES = {
         //                         e.g., "Destroy 3 Possum Huts". The '3' comes from BASE_PARAMETERS.numDestroyTargets.
         //                         This maxInstancesPerMission here means you wouldn't have "Destroy Huts" and "Destroy More Huts"
         //                         as two separate line items on the objective list for the same mission.
-        { 
-            targetTypeKey: "possum_hut",                
+        {
+            targetTypeKey: "possum_hut",
             nameSingular: "Possum Hut", namePlural: "Possum Huts",
-            weight: 2, unlocksPhase: 1, 
+            weight: 2, unlocksPhase: 1,
             maxInstancesPerMission: 3 // Typically, one "Destroy Possum Huts" objective per mission.
         },
-        { 
-            targetTypeKey: "possum_relay_tower",       
+        {
+            targetTypeKey: "possum_relay_tower",
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
             weight: 1, unlocksPhase: 2,
             maxInstancesPerMission: 2
@@ -126,41 +138,41 @@ const CAMPAIGN_RULES = {
         // weight: Relative chance of this target being chosen.
         // unlocksPhase: The phase when this target becomes available.
         // isBoss: (boolean, optional, default false) Is this a boss-level target?
-        { 
+        {
             assassinationTypeKey: "possum_boss_1",
-            name: "General Whiskers", callsign: "Whiskers", 
-            description: "A cunning strategist known for his brutal tactics.", 
-            weight: 3, unlocksPhase: 1, isBoss: true 
+            name: "General Whiskers", callsign: "Whiskers",
+            description: "A cunning strategist known for his brutal tactics.",
+            weight: 3, unlocksPhase: 2, isBoss: true
         },
-        { 
+        {
+            assassinationTypeKey: "possum_revolver_boss",
+            name: "Six-Shooter Sid", callsign: "Sidewinder",
+            description: "A notoriously fast and mobile gunslinger.",
+            weight: 5, unlocksPhase: 3, isBoss: true
+        },
+        {
             assassinationTypeKey: "possum_boss_1",
-            name: "Commander Claws", callsign: "Claws", 
-            description: "A ruthless commander with a reputation for cruelty.", 
-            weight: 2, unlocksPhase: 2, isBoss: true 
+            name: "Lieutenant Paws", callsign: "Paws",
+            description: "A skilled tactician with a knack for ambushes.",
+            weight: 4, unlocksPhase: 4, isBoss: true
         },
-        { 
-            assassinationTypeKey: "possum_boss_1",
-            name: "Lieutenant Paws", callsign: "Paws", 
-            description: "A skilled tactician with a knack for ambushes.", 
-            weight: 4, unlocksPhase: 3, isBoss: true
+        {
+            assassinationTypeKey: "possum_revolver_boss",
+            name: "Captain Fuzzy", callsign: "Fuzzy",
+            description: "An experienced fighter with a history of leading successful raids.",
+            weight: 5, unlocksPhase: 5, isBoss: true
         },
-        { 
-            assassinationTypeKey: "possum_boss_1",
-            name: "Captain Fuzzy", callsign: "Fuzzy", 
-            description: "An experienced fighter with a history of leading successful raids.", 
-            weight: 5, unlocksPhase: 4, isBoss: true
-        },
-    
+
     ],
 
     // --- Phase Generation Text ---
     PHASE_GENERATION: {
-         missionsPerPhase: {
+        missionsPerPhase: {
             baseRange: [3, 4],          // At Phase 0, it will be exactly 3 missions.
             incrementPerPhase: 0.4,     // Add 0.5 to both min and max of the range per phase.
             maxRange: [4, 8]            // The range will not exceed a max of [4, 8].
         },
-        NAME_PARTS: { 
+        NAME_PARTS: {
             PREFIXES: ["Operation", "Task Force", "Project", "Campaign", "Initiative", "Directive", "Protocol", "Vanguard", "Spearhead", "Crusade"],
             DESCRIPTORS: ["Fury", "Dawn", "Viper", "Thunder", "Silence", "Ghost", "Resolve", "Echo", "Retribution", "Genesis", "Last Stand", "Steel Rain", "Broken Fang", "Avalanche", "Quake"]
         },
@@ -226,7 +238,7 @@ const CAMPAIGN_RULES = {
             SWAMP: ["murky", "fetid", "stagnant", "treacherous", "gator-infested", "mist-shrouded", "suffocating", "malarial"],
             URBAN_DECAY: ["ruined", "war-torn", "abandoned", "crumbling", "concrete", "ghost-ridden", "skeletal", "desolate"],
         },
-        LOCATION_NOUNS: { 
+        LOCATION_NOUNS: {
             TROPICAL: ["clearing", "thicket", "outpost", "logging camp", "riverbend", "hidden grove", "ancient ruin", "waterfall base"],
             JUNKYARD: ["scrap pile", "main yard", "crusher zone", "storage sector", "derelict maze", "vehicle graveyard", "collapsed overpass", "chemical spill"],
             SWAMP: ["bog", "mire", "flooded village", "gator nest", "hidden islet", "mangrove cluster", "sunken shrine", "rickety boardwalk"],
@@ -237,6 +249,24 @@ const CAMPAIGN_RULES = {
             "dug-in riflemen with overlapping fields of fire", "patrols with heavy support and possible spotters", "well-armed possums, likely veterans",
             "entrenched enemy positions with good cover", "multiple enemy squads coordinating their defense", "a strong defensive line, possibly with makeshift traps",
             "elite Possum units leading the charge", "a desperate last stand with whatever they can find"
+        ],
+        NIGHT_BRIEFING_PREFIXES: [
+            "Under cover of darkness,",
+            "Intel confirms a night window.",
+            "Command has authorized a nocturnal strike.",
+            "Satellite imagery is blind at night — you're going in dark.",
+            "Night vision is not available. Trust your instincts.",
+            "This one goes down after sundown.",
+            "Zero illumination. Zero backup.",
+        ],
+        NIGHT_BRIEFING_SUFFIXES: [
+            "Visibility will be severely limited. Stay tight.",
+            "Watch your flanks — the dark works both ways.",
+            "Move fast. The enemy knows these shadows too.",
+            "Stealth is your only advantage. Use it.",
+            "Expect the unexpected. Night changes everything.",
+            "Keep your squad close. Stragglers don't come back.",
+            "The darkness is your cover. Don't waste it.",
         ],
     }
 };

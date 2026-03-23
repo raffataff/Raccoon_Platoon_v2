@@ -5,7 +5,7 @@ class LevelGenerator {
         this.level = levelInstance;
         this.game = levelInstance.game;
         this.rng = null; // Will be set at the start of generation
-        
+
     }
 
     /**
@@ -16,7 +16,7 @@ class LevelGenerator {
      * @param {Array} extraKeepOutZones - Additional rectangular zones to avoid.
      * @returns {boolean} - True if the placement is invalid (collides), false otherwise.
      */
-    _isPlacementInvalid(newObstacleShape, newIsDecoration, existingObstacles, extraKeepOutZones = []) {
+    _isPlacementInvalid(newObstacleShape, newObstacleTemplate, existingObstacles, extraKeepOutZones = []) {
         // Check against extra keep-out zones first
         for (const zone of extraKeepOutZones) {
             if (this.level._rectOverlap(newObstacleShape, zone)) {
@@ -25,51 +25,71 @@ class LevelGenerator {
         }
 
         for (const existing of existingObstacles) {
-            if (newIsDecoration && existing.isDecoration) { 
+            if (newObstacleTemplate.isDecoration && existing.isDecoration) {
                 continue;
             }
-    
-            const existingShape = this.level._getObstacleCollisionShape(existing);
-            if (!existingShape) continue;
-    
+
+            let shapeToCheck = this.level._getObstacleCollisionShape(existing);
+            if (!shapeToCheck) continue;
+
+            // --- MODIFICATION START: Inflate shape for buffer check ---
+            const buffer = newObstacleTemplate.placementBuffer || 0;
+            // Apply buffer only if the new object and existing object are the same type
+            if (buffer > 0 && existing.type === newObstacleTemplate.type) {
+                let inflatedShape = { ...shapeToCheck };
+                if (inflatedShape.type === 'rectangle') {
+                    inflatedShape.x -= buffer;
+                    inflatedShape.y -= buffer;
+                    inflatedShape.width += buffer * 2;
+                    inflatedShape.height += buffer * 2;
+                } else if (inflatedShape.type === 'circle') {
+                    inflatedShape.radius += buffer;
+                } else if (inflatedShape.type === 'ellipse') {
+                    inflatedShape.radiusX += buffer;
+                    inflatedShape.radiusY += buffer;
+                }
+                shapeToCheck = inflatedShape;
+            }
+            // --- MODIFICATION END ---
+
             let collision = false;
             if (newObstacleShape.type === 'circle') {
-                if (existingShape.type === 'rectangle') collision = rectCircleOverlap(existingShape, newObstacleShape);
-                else if (existingShape.type === 'circle') collision = circleOverlap(existingShape, newObstacleShape);
-                else if (existingShape.type === 'ellipse') collision = circleEllipseOverlap(newObstacleShape, existingShape);
+                if (shapeToCheck.type === 'rectangle') collision = rectCircleOverlap(shapeToCheck, newObstacleShape);
+                else if (shapeToCheck.type === 'circle') collision = circleOverlap(shapeToCheck, newObstacleShape);
+                else if (shapeToCheck.type === 'ellipse') collision = circleEllipseOverlap(newObstacleShape, shapeToCheck);
             } else if (newObstacleShape.type === 'rectangle') {
-                if (existingShape.type === 'rectangle') collision = this.level._rectOverlap(existingShape, newObstacleShape);
-                else if (existingShape.type === 'circle') collision = rectCircleOverlap(newObstacleShape, existingShape);
-                else if (existingShape.type === 'ellipse') collision = rectEllipseOverlap(newObstacleShape, existingShape);
+                if (shapeToCheck.type === 'rectangle') collision = this.level._rectOverlap(shapeToCheck, newObstacleShape);
+                else if (shapeToCheck.type === 'circle') collision = rectCircleOverlap(newObstacleShape, shapeToCheck);
+                else if (shapeToCheck.type === 'ellipse') collision = rectEllipseOverlap(newObstacleShape, shapeToCheck);
             } else if (newObstacleShape.type === 'ellipse') {
-                if (existingShape.type === 'rectangle') collision = rectEllipseOverlap(existingShape, newObstacleShape);
-                else if (existingShape.type === 'circle') collision = circleEllipseOverlap(existingShape, newObstacleShape);
-                else if (existingShape.type === 'ellipse') {
+                if (shapeToCheck.type === 'rectangle') collision = rectEllipseOverlap(shapeToCheck, newObstacleShape);
+                else if (shapeToCheck.type === 'circle') collision = circleEllipseOverlap(shapeToCheck, newObstacleShape);
+                else if (shapeToCheck.type === 'ellipse') {
                     const r1 = { x: newObstacleShape.x - newObstacleShape.radiusX, y: newObstacleShape.y - newObstacleShape.radiusY, width: newObstacleShape.radiusX * 2, height: newObstacleShape.radiusY * 2 };
-                    const r2 = { x: existingShape.x - existingShape.radiusX, y: existingShape.y - existingShape.radiusY, width: existingShape.radiusX * 2, height: existingShape.radiusY * 2 };
+                    const r2 = { x: shapeToCheck.x - shapeToCheck.radiusX, y: shapeToCheck.y - shapeToCheck.radiusY, width: shapeToCheck.radiusX * 2, height: shapeToCheck.radiusY * 2 };
                     collision = this.level._rectOverlap(r1, r2);
                 }
             }
-            
+
             if (collision) {
-                if (newIsDecoration && !existing.isDecoration && !existing.blocksMovement && existing.providesCover) {
-                    continue; 
+                if (newObstacleTemplate.isDecoration && !existing.isDecoration && !existing.blocksMovement && existing.providesCover) {
+                    continue;
                 }
-                return true; 
+                return true;
             }
         }
         return false;
     }
-    
+
     _getRandomObstacleTemplate() {
         const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
-        
-        let totalWeight = 0; 
+
+        let totalWeight = 0;
         definitions.forEach(def => {
             let isCurrentMissionTargetType = false;
             if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
-                isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj =>
                     obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
                 );
             }
@@ -83,7 +103,7 @@ class LevelGenerator {
             const validDefs = definitions.filter(def => {
                 let isCurrentMissionTargetType = false;
                 if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
-                     isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                    isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj =>
                         obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
                     );
                 }
@@ -92,25 +112,25 @@ class LevelGenerator {
             if (validDefs.length > 0) return this.rng.pickFrom(validDefs);
             return null;
         }
-        
+
         let randomNum = this.rng.next() * totalWeight;
         for (const def of definitions) {
             let isCurrentMissionTargetType = false;
             if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
-                 isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj =>
                     obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
                 );
             }
             if (def.type === 'extraction_zone' || isCurrentMissionTargetType) continue;
 
-            randomNum -= (def.spawnWeight || 0); 
-            if (randomNum <= 0) return def; 
+            randomNum -= (def.spawnWeight || 0);
+            if (randomNum <= 0) return def;
         }
 
         const lastValidDefs = definitions.filter(def => {
             let isCurrentMissionTargetType = false;
             if (this.game && this.game.currentMissionParams && this.game.currentMissionParams.objectives) {
-                 isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj => 
+                isCurrentMissionTargetType = this.game.currentMissionParams.objectives.some(obj =>
                     obj.type === "DESTROY_TARGET" && obj.targetTypeKey === def.type
                 );
             }
@@ -118,8 +138,8 @@ class LevelGenerator {
         });
         return lastValidDefs.pop() || (lastValidDefs.length > 0 ? lastValidDefs[0] : null);
     }
-    
-    _spawnInitialGuardsForObject(parentObject, objectDefinition) {
+
+    _spawnInitialGuardsForObject(parentObject, objectDefinition, allSpawnedEnemies) {
         if (!objectDefinition.initialGuardPack || !objectDefinition.initialGuardPack.enabled) {
             return;
         }
@@ -130,21 +150,22 @@ class LevelGenerator {
 
         if (guardCount <= 0) return;
 
-        const parentCenterX = parentObject.x + (parentObject.width / 2);
-        const parentCenterY = parentObject.y + (parentObject.height / 2);
+        // --- MODIFICATION START: Correctly determine the center for both Obstacles and Units ---
+        const isUnit = parentObject.width === undefined; // Units have .size, not .width
+        const parentCenterX = isUnit ? parentObject.x : parentObject.x + parentObject.width / 2;
+        const parentCenterY = isUnit ? parentObject.y : parentObject.y + parentObject.height / 2;
+        // --- MODIFICATION END ---
+
         const spawnRadius = pack.spawnRadius || 60;
         const playableBounds = {
-             minX: (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) + (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
-             maxX: (CONFIG.WORLD_WIDTH || 0) - (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) - (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
-             minY: (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) + (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
-             maxY: (CONFIG.WORLD_HEIGHT || 0) - (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) - (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20)
+            minX: (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) + (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
+            maxX: (CONFIG.WORLD_WIDTH || 0) - (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) - (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
+            minY: (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) + (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
+            maxY: (CONFIG.WORLD_HEIGHT || 0) - (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) - (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20)
         };
-        
+
         let spawnedGuards = 0;
-        // --- MODIFICATION START: Keep track of guards spawned for THIS pack ---
-        const guardsInThisPack = [];
-        // --- MODIFICATION END ---
-        
+
         for (let i = 0; i < guardCount; i++) {
             const unitDef = this.game._weightedRandomSelect(pack.unitPool, this.rng);
             if (!unitDef) continue;
@@ -160,6 +181,9 @@ class LevelGenerator {
             } else if (unitDef.type === 'possum_sniper') {
                 GuardClass = PossumSniper;
                 guardSize = CONFIG.POSSUM_SNIPER_SIZE;
+            } else if (unitDef.type === 'possum_elite') {
+                GuardClass = PossumElite;
+                guardSize = CONFIG.POSSUM_ELITE_SIZE;
             } else {
                 continue;
             }
@@ -174,14 +198,12 @@ class LevelGenerator {
                 guardX = Math.max(playableBounds.minX + guardSize / 2, Math.min(guardX, playableBounds.maxX - guardSize / 2));
                 guardY = Math.max(playableBounds.minY + guardSize / 2, Math.min(guardY, playableBounds.maxY - guardSize / 2));
 
-                // --- MODIFICATION START: Pass the list of already-spawned guards in this pack ---
-                if (this.level.isSpawnPointClear(guardX, guardY, guardSize, this.level.obstacles, [...this.game.enemyUnits, ...guardsInThisPack])) {
+                if (this.level.isSpawnPointClear(guardX, guardY, guardSize, this.level.obstacles, allSpawnedEnemies)) {
                     const newGuard = new GuardClass(guardX, guardY, this.game);
-                    newGuard.guardPost = { x: guardX, y: guardY }; 
-                    
+                    newGuard.guardPost = { x: guardX, y: guardY };
+
                     this.game.enemyUnits.push(newGuard);
-                    guardsInThisPack.push(newGuard); // Add to our temporary list for the next check
-                    // --- MODIFICATION END ---
+                    allSpawnedEnemies.push(newGuard); // Add to the master list for this generation pass.
 
                     this.game.incrementObjectiveEnemyCount(1);
                     if (this.game.spatialGrid) {
@@ -197,24 +219,143 @@ class LevelGenerator {
     }
 
     /**
-     * The main entry point for generating a new level.
-     * This method orchestrates the entire process from clearing old data to placing units.
-     * @param {number} worldWidth - The total width of the game world.
-     * @param {number} worldHeight - The total height of the game world.
-     * @param {object} missionParamsContainer - Object containing mission details (baseParams, objectives).
-     * @param {number} numPlayerSpawnsNeeded - The number of player units to spawn.
-     * @param {object} preloadedAssetImages - A map of preloaded image assets.
-     * @param {number} missionSeed - The seed for the random number generator for this mission.
-     * @returns {Array<object>} - An array of player spawn locations {x, y}.
+     * Spawns a grenade crate near a relay tower target
+     * @param {number} targetX - X position of the target
+     * @param {number} targetY - Y position of the target
+     * @param {number} targetWidth - Width of the target
+     * @param {number} targetHeight - Height of the target
      */
+    _spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight) {
+        // Find the grenade crate template
+        const grenadeCrateDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === 'pickup_grenade_crate');
+        if (!grenadeCrateDef) {
+            console.warn("[Level Gen] Could not find pickup_grenade_crate definition");
+            return;
+        }
+
+        // Calculate spawn position - place crate to the right side of the target
+        const crateOffsetX = targetWidth / 2 + 40; // 40px to the right of the target
+        const crateOffsetY = 0;
+        const crateX = targetX + crateOffsetX;
+        const crateY = targetY + crateOffsetY;
+
+        // Check bounds
+        const playableMinX = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMaxX = (CONFIG.WORLD_WIDTH || 800) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMinY = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMaxY = (CONFIG.WORLD_HEIGHT || 600) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+
+        // Clamp to playable bounds
+        const finalCrateX = Math.max(playableMinX, Math.min(crateX, playableMaxX - 30));
+        const finalCrateY = Math.max(playableMinY, Math.min(crateY, playableMaxY - 30));
+
+        // Check if placement is valid
+        const crateShape = {
+            x: finalCrateX,
+            y: finalCrateY,
+            width: 30,
+            height: 30
+        };
+
+        if (this._isPlacementInvalid(crateShape, grenadeCrateDef, this.level.obstacles, [])) {
+            // Try left side instead
+            crateShape.x = targetX - targetWidth / 2 - 40;
+            if (this._isPlacementInvalid(crateShape, grenadeCrateDef, this.level.obstacles, [])) {
+                console.warn("[Level Gen] Could not place grenade crate near relay tower - no valid position found");
+                return;
+            }
+        }
+
+        // Create the grenade crate obstacle
+        const spritePath = grenadeCrateDef.spriteNormal;
+        const crateImage = this.preloadedAssetImages ? this.preloadedAssetImages[spritePath] : null;
+        
+        const grenadeCrate = {
+            x: crateShape.x,
+            y: crateShape.y,
+            width: crateImage ? crateImage.naturalWidth * (grenadeCrateDef.spriteScale || 1) : (grenadeCrateDef.width || 30),
+            height: crateImage ? crateImage.naturalHeight * (grenadeCrateDef.spriteScale || 1) : (grenadeCrateDef.height || 30),
+            type: grenadeCrateDef.type,
+            name: grenadeCrateDef.name,
+            color: grenadeCrateDef.color,
+            destructible: grenadeCrateDef.destructible,
+            hp: grenadeCrateDef.hp,
+            maxHp: grenadeCrateDef.maxHp,
+            isDestroyed: false,
+            blocksMovement: false,
+            providesCover: false,
+            pickupType: grenadeCrateDef.pickupType,
+            pickupQuantity: grenadeCrateDef.pickupQuantity,
+            isPickup: true,
+            isDecoration: false,
+            spriteNormalPath: spritePath,
+            imageNormal: crateImage,
+            spriteScale: grenadeCrateDef.spriteScale || 1.0,
+            collisionShape: grenadeCrateDef.collisionShape
+        };
+
+        this.level.obstacles.push(grenadeCrate);
+        if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned grenade crate at (${finalCrateX.toFixed(0)}, ${finalCrateY.toFixed(0)}) near relay tower`);
+    }
+
+    // --- NEW: Sanity check function to run at the end of generation ---
+    _finalizeEnemyPositions(allEnemies) {
+        if (!this.level.navGrid) {
+            console.error("[Level Gen] Cannot finalize enemy positions without a navGrid!");
+            return;
+        }
+
+        const navGrid = this.level.navGrid;
+        const gridW = this.level.gridWidth;
+        const gridH = this.level.gridHeight;
+
+        for (let i = allEnemies.length - 1; i >= 0; i--) {
+            const enemy = allEnemies[i];
+            const gridPos = this.level.worldToGridCoords(enemy.x, enemy.y);
+
+            // Check if the enemy is on a blocked cell
+            if (gridPos.x < 0 || gridPos.x >= gridW || gridPos.y < 0 || gridPos.y >= gridH || navGrid[gridPos.y][gridPos.x] === 1) {
+                let moved = false;
+                // Search for a nearby valid spot
+                for (let r = 1; r <= 5; r++) { // Search up to 5 cells away
+                    for (let dy = -r; dy <= r; dy++) {
+                        for (let dx = -r; dx <= r; dx++) {
+                            if (dx === 0 && dy === 0) continue;
+                            const newGridX = gridPos.x + dx;
+                            const newGridY = gridPos.y + dy;
+
+                            if (newGridX >= 0 && newGridX < gridW && newGridY >= 0 && newGridY < gridH && navGrid[newGridY][newGridX] === 0) {
+                                const newWorldPos = this.level.gridToWorldCoords(newGridX, newGridY);
+                                console.warn(`[Level Gen] Sanity Check: Moved invalid enemy ${enemy.id} from blocked cell to (${newWorldPos.x.toFixed(0)}, ${newWorldPos.y.toFixed(0)})`);
+                                enemy.x = newWorldPos.x;
+                                enemy.y = newWorldPos.y;
+                                moved = true;
+                                break;
+                            }
+                        }
+                        if (moved) break;
+                    }
+                    if (moved) break;
+                }
+
+                if (!moved) {
+                    console.error(`[Level Gen] CRITICAL: Could not find valid spawn for enemy ${enemy.id}. Removing from game to prevent an unwinnable state.`);
+                    this.game.enemyUnits = this.game.enemyUnits.filter(u => u.id !== enemy.id);
+                    allEnemies.splice(i, 1);
+                }
+            }
+        }
+    }
+
     generate(worldWidth, worldHeight, missionParamsContainer = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}, missionSeed) {
         this.rng = new SeededRandom(missionSeed);
+        this.preloadedAssetImages = preloadedAssetImages; // Store for access by helper methods
         this.level.rng = this.rng;
 
         this.level.obstacles = [];
-        this.level.potentialSpawnerHuts = []; 
+        this.level.potentialSpawnerHuts = [];
         this.level.activeSpawningHuts = [];
-        this.level.initialHostageCount = 0; 
+        this.level.initialHostageCount = 0;
         this.level.missionTargetObstacles = [];
         this.level.playerSpawnZone = null;
         this.level.effectivePlayerSpawnZone = null;
@@ -226,8 +367,10 @@ class LevelGenerator {
         if (this.game) {
             this.game.enemyUnits = [];
             this.game.gameObjects = [];
-            this.game.hostageUnits = []; 
+            this.game.hostageUnits = [];
         }
+
+        const allSpawnedEnemiesDuringGen = [];
 
         const missionObjectives = missionParamsContainer.objectives || [];
         const baseParams = missionParamsContainer.baseParams || {};
@@ -237,26 +380,26 @@ class LevelGenerator {
         const playableMaxX = worldWidth - (genConfig.BORDER_WIDTH || 30) - (genConfig.WORLD_MARGIN || 20);
         const playableMinY = (genConfig.BORDER_WIDTH || 30) + (genConfig.WORLD_MARGIN || 20);
         const playableMaxY = worldHeight - (genConfig.BORDER_WIDTH || 30) - (genConfig.WORLD_MARGIN || 20);
-        const playableWidth = Math.max(0, playableMaxX - playableMinX); 
+        const playableWidth = Math.max(0, playableMaxX - playableMinX);
         const playableHeight = Math.max(0, playableMaxY - playableMinY);
-        
+
         const extraKeepOutZones = [];
         const pSpawnCfg = genConfig.PLAYER_SPAWN_ZONE || {};
         const playerSpawnZoneWidth = Math.max(pSpawnCfg.MIN_WIDTH || 150, playableWidth * (pSpawnCfg.WIDTH_FACTOR || 0.20));
         const playerSpawnZoneHeight = Math.max(pSpawnCfg.MIN_HEIGHT || 100, playableHeight * (pSpawnCfg.HEIGHT_FACTOR || 0.20));
-        
+
         const playerSpawnZone = { x: playableMinX, y: playableMaxY - playerSpawnZoneHeight, width: playerSpawnZoneWidth, height: playerSpawnZoneHeight };
-        this.level.playerSpawnZone = playerSpawnZone; 
-        
+        this.level.playerSpawnZone = playerSpawnZone;
+
         const playerUnitSize = CONFIG.RACCOON_SIZE || 12;
         const spawnAreaWidth = playerSpawnZone.width * CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_PLACEMENT.PLAYER_SPAWN_AREA;
         const spawnAreaHeight = playerSpawnZone.height * CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_PLACEMENT.PLAYER_SPAWN_AREA;
-        const fixedPadding = 30; 
-        const effectiveSpawnZoneX = playerSpawnZone.x + fixedPadding; 
+        const fixedPadding = 30;
+        const effectiveSpawnZoneX = playerSpawnZone.x + fixedPadding;
         const effectiveSpawnZoneY = (playerSpawnZone.y + playerSpawnZone.height) - spawnAreaHeight - fixedPadding - 60;
-        const effectiveSpawnZoneWidth = spawnAreaWidth; 
+        const effectiveSpawnZoneWidth = spawnAreaWidth;
         const effectiveSpawnZoneHeight = spawnAreaHeight;
-        
+
         this.level.effectivePlayerSpawnZone = {
             x: effectiveSpawnZoneX,
             y: effectiveSpawnZoneY,
@@ -265,7 +408,7 @@ class LevelGenerator {
         };
 
         extraKeepOutZones.push(this.level.effectivePlayerSpawnZone);
-        
+
         const sideBorderWidth = genConfig.BORDER_WIDTH || 30;
         const sideBorderColor = genConfig.BORDER_COLOR || '#25221D';
         const borderObstacleTypeName = genConfig.BORDER_OBSTACLE_TYPE;
@@ -282,7 +425,7 @@ class LevelGenerator {
         if (borderObstacleTemplate) {
             if (borderObstacleTemplate.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES.length > 0) {
                 borderSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + this.rng.pickFrom(CONFIG.FENCE_BARBED_LONG_SPRITE_FILES);
-            } else if (borderObstacleTemplate.spriteNormal) { 
+            } else if (borderObstacleTemplate.spriteNormal) {
                 borderSpritePath = borderObstacleTemplate.spriteNormal;
             }
             if (borderSpritePath) borderSpriteImage = preloadedAssetImages[borderSpritePath];
@@ -301,25 +444,118 @@ class LevelGenerator {
             for (let i = 0; i < numSegments; i++) {
                 const segmentX = i * borderSegmentWidth;
                 const commonProps = {
-                    type: borderObstacleTemplate.type, name: borderObstacleTemplate.name, 
-                    destructible: borderObstacleTemplate.destructible || false, 
-                    hp: borderObstacleTemplate.hp || Infinity, maxHp: borderObstacleTemplate.maxHp || Infinity, 
+                    type: borderObstacleTemplate.type, name: borderObstacleTemplate.name,
+                    destructible: borderObstacleTemplate.destructible || false,
+                    hp: borderObstacleTemplate.hp || Infinity, maxHp: borderObstacleTemplate.maxHp || Infinity,
                     isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false,
                     spriteNormalPath: borderSpritePath, imageNormal: borderSpriteImage, spriteScale: borderSpriteScale,
                     collisionShape: borderObstacleTemplate.collisionShape ? JSON.parse(JSON.stringify(borderObstacleTemplate.collisionShape)) : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w => w, height: h => h }
                 };
-                this.level.obstacles.push({ ...commonProps, x: segmentX, y: 0, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Top)`});
-                this.level.obstacles.push({ ...commonProps, x: segmentX, y: worldHeight - topBottomBorderHeight, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Bottom)`});
+                this.level.obstacles.push({ ...commonProps, x: segmentX, y: 0, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Top)` });
+                this.level.obstacles.push({ ...commonProps, x: segmentX, y: worldHeight - topBottomBorderHeight, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Bottom)` });
             }
         } else {
-            this.level.obstacles.push({ x: 0, y: 0, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Top', color: sideBorderColor, destructible: false, hp: Infinity,maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
+            this.level.obstacles.push({ x: 0, y: 0, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Top', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
             this.level.obstacles.push({ x: 0, y: worldHeight - topBottomBorderHeight, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Bottom', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
         }
         this.level.obstacles.push({ x: 0, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Left', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
         this.level.obstacles.push({ x: worldWidth - sideBorderWidth, y: topBottomBorderHeight, width: sideBorderWidth, height: worldHeight - 2 * topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Right', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
 
+        const assassinationObjectiveInstance = missionObjectives.find(obj => obj.type === "ASSASSINATION");
+        if (assassinationObjectiveInstance && assassinationObjectiveInstance.targetDetails) {
+            const targetInfo = assassinationObjectiveInstance.targetDetails;
+
+            if (targetInfo.assassinationTypeKey === 'possum_boss_1') {
+                let bossX, bossY, bossSpawned = false;
+                const bossMaxAttempts = 50;
+                const bossArenaRadius = CONFIG.AI.POSSUM_BOSS_1.ARENA_RADIUS || 200;
+
+                const bossSpawnMinX = playableMinX + bossArenaRadius;
+                const bossSpawnMaxX = playableMaxX - bossArenaRadius;
+                const bossSpawnMinY = playableMinY + bossArenaRadius;
+                const bossSpawnMaxY = playableMinY + (playableHeight * 0.7) - bossArenaRadius;
+
+                for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
+                    bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
+                    bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
+
+                    const arenaZoneShape = { type: 'circle', x: bossX, y: bossY, radius: bossArenaRadius };
+                    if (!this._isPlacementInvalid(arenaZoneShape, { isDecoration: false }, this.level.obstacles, extraKeepOutZones)) {
+                        const boss = new PossumBoss1(bossX, bossY, this.game);
+                        this.game.enemyUnits.push(boss);
+                        allSpawnedEnemiesDuringGen.push(boss);
+                        if (this.game.spatialGrid) {
+                            this.game.spatialGrid.addObject(boss);
+                        }
+                        assassinationObjectiveInstance.targetUnitId = boss.id;
+                        bossSpawned = true;
+
+                        const bossDefinition = { initialGuardPack: (CONFIG.AI.POSSUM_BOSS_1 && CONFIG.AI.POSSUM_BOSS_1.initialGuardPack) ? CONFIG.AI.POSSUM_BOSS_1.initialGuardPack : { enabled: false } };
+                        this._spawnInitialGuardsForObject(boss, bossDefinition, allSpawnedEnemiesDuringGen);
+
+                        const arenaKeepOutRect = {
+                            x: bossX - bossArenaRadius,
+                            y: bossY - bossArenaRadius,
+                            width: bossArenaRadius * 2,
+                            height: bossArenaRadius * 2
+                        };
+                        extraKeepOutZones.push(arenaKeepOutRect);
+                        if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Boss arena reserved at (${arenaKeepOutRect.x.toFixed(0)}, ${arenaKeepOutRect.y.toFixed(0)})`);
+                        break;
+                    }
+                }
+                if (!bossSpawned) {
+                    console.warn(`[Level Gen] Could not find suitable spawn for Boss Target: ${targetInfo.name}.`);
+                }
+            } else if (targetInfo.assassinationTypeKey === 'possum_revolver_boss') {
+                let bossX, bossY, bossSpawned = false;
+                const bossMaxAttempts = 50;
+                const bossArenaRadius = 150;
+
+                const bossSpawnMinX = playableMinX + bossArenaRadius;
+                const bossSpawnMaxX = playableMaxX - bossArenaRadius;
+                const bossSpawnMinY = playableMinY + bossArenaRadius;
+                const bossSpawnMaxY = playableMinY + (playableHeight * 0.7) - bossArenaRadius;
+
+                for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
+                    bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
+                    bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
+
+                    const arenaZoneShape = { type: 'circle', x: bossX, y: bossY, radius: bossArenaRadius };
+                    if (!this._isPlacementInvalid(arenaZoneShape, { isDecoration: false }, this.level.obstacles, extraKeepOutZones)) {
+                        const boss = new PossumRevolver(bossX, bossY, this.game);
+                        this.game.enemyUnits.push(boss);
+                        allSpawnedEnemiesDuringGen.push(boss);
+                        if (this.game.spatialGrid) {
+                            this.game.spatialGrid.addObject(boss);
+                        }
+                        assassinationObjectiveInstance.targetUnitId = boss.id;
+                        bossSpawned = true;
+
+                        const bossDefinition = { initialGuardPack: (CONFIG.AI.POSSUM_REVOLVER && CONFIG.AI.POSSUM_REVOLVER.initialGuardPack) ? CONFIG.AI.POSSUM_REVOLVER.initialGuardPack : { enabled: false } };
+                        this._spawnInitialGuardsForObject(boss, bossDefinition, allSpawnedEnemiesDuringGen);
+
+                        const arenaKeepOutRect = {
+                            x: bossX - bossArenaRadius,
+                            y: bossY - bossArenaRadius,
+                            width: bossArenaRadius * 2,
+                            height: bossArenaRadius * 2
+                        };
+                        extraKeepOutZones.push(arenaKeepOutRect);
+                        break;
+                    }
+                }
+                if (!bossSpawned) {
+                    console.warn(`[Level Gen] Could not find suitable spawn for Revolver Boss Target: ${targetInfo.name}.`);
+                }
+            }
+        }
+
         const rescueObjectiveInstance = missionObjectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
-        if (rescueObjectiveInstance) {
+        const extractionObjectiveInstance = missionObjectives.find(obj => obj.type === 'EXTRACTION');
+        const needsExtractionZone = rescueObjectiveInstance || extractionObjectiveInstance;
+        
+        if (needsExtractionZone) {
             const ezConfig = genConfig.EXTRACTION_ZONE_SETTINGS || {};
             const ezObstacle = {
                 type: 'extraction_zone',
@@ -330,7 +566,8 @@ class LevelGenerator {
                 spriteScale: ezConfig.SPRITE_SCALE || 1.0,
                 blocksMovement: false, providesCover: false, destructible: false,
                 isDestroyed: false, isPickup: false, isDecoration: true,
-                hp: Infinity, maxHp: Infinity
+                hp: Infinity, maxHp: Infinity,
+                isHidden: true // Start hidden until all hostages are freed
             };
             ezObstacle.width = ezObstacle.imageNormal ? ezObstacle.imageNormal.naturalWidth * ezObstacle.spriteScale : (ezConfig.WIDTH || 100);
             ezObstacle.height = ezObstacle.imageNormal ? ezObstacle.imageNormal.naturalHeight * ezObstacle.spriteScale : (ezConfig.HEIGHT || 100);
@@ -340,30 +577,32 @@ class LevelGenerator {
                 ezObstacle.x = this.rng.nextFloat(playableMinX, playableMaxX - ezObstacle.width);
                 ezObstacle.y = this.rng.nextFloat(playableMinY, playableMaxY - ezObstacle.height);
                 const distToPlayerSpawn = distance(ezObstacle.x + ezObstacle.width / 2, ezObstacle.y + ezObstacle.height / 2, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2);
-                
+
                 if (distToPlayerSpawn >= (ezConfig.MIN_DISTANCE_FROM_PLAYER_SPAWN || 300) && !this.level._rectOverlap(ezObstacle, playerSpawnZone)) {
                     this.level.obstacles.push(ezObstacle);
-                    this.game.addVisualEffect('extraction_zone', { obstacle: ezObstacle });
+                    // NOTE: Visual effect is NOT created here. It will be created when the zone is revealed.
                     placedEZ = true;
                 }
             }
-            if (!placedEZ) { 
-                ezObstacle.x = playableMinX; ezObstacle.y = playableMinY; 
-                this.level.obstacles.push(ezObstacle); 
-                this.game.addVisualEffect('extraction_zone', { obstacle: ezObstacle });
+            if (!placedEZ) {
+                ezObstacle.x = playableMinX; ezObstacle.y = playableMinY;
+                this.level.obstacles.push(ezObstacle);
+                // NOTE: Visual effect is NOT created here.
             }
         }
-        
+
         const objectivePlacementMaxY = playerSpawnZone.y - 280; // 280px buffer
-        
+
         missionObjectives.forEach(objective => {
             if (objective.type === 'DESTROY_TARGET' && objective.targetTypeKey && objective.totalToAchieve > 0) {
                 const targetTemplateOriginal = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === objective.targetTypeKey);
-                
+
                 if (targetTemplateOriginal) {
+                    // --- BUG FIX: Update objective total to match actual spawns ---
+                    let successfulPlacements = 0;
                     for (let i = 0; i < objective.totalToAchieve; i++) {
                         let targetX, targetY, placedTarget = false;
-                        
+
                         let actualSpritePath = null;
                         let actualDestroyedSpritePath = null;
                         if (targetTemplateOriginal.type === 'possum_hut') {
@@ -375,35 +614,35 @@ class LevelGenerator {
                                 actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                             }
                         } else if (targetTemplateOriginal.type === 'possum_relay_tower') {
-                             const towerSpritePairs = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
-                             if (towerSpritePairs.length > 0) {
+                            const towerSpritePairs = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
+                            if (towerSpritePairs.length > 0) {
                                 const selectedPair = this.rng.pickFrom(towerSpritePairs);
                                 const pathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || '';
                                 actualSpritePath = pathBase + selectedPair.normal;
                                 actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
-                             }
+                            }
                         } else {
                             actualSpritePath = targetTemplateOriginal.spriteNormal || null;
                             actualDestroyedSpritePath = targetTemplateOriginal.spriteDestroyed || null;
                         }
-                        
+
                         let targetImage = actualSpritePath ? preloadedAssetImages[actualSpritePath] : null;
 
                         const targetWidth = targetImage ? targetImage.naturalWidth * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.width || 64);
                         const targetHeight = targetImage ? targetImage.naturalHeight * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.height || 64);
 
-                        for (let attempt = 0; attempt < (genConfig.OBSTACLES.PLACEMENT_MAX_ATTEMPTS || 15); attempt++) {
+                        for (let attempt = 0; attempt < 100; attempt++) {
                             targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
                             targetY = this.rng.nextFloat(playableMinY, objectivePlacementMaxY - targetHeight);
-                            
-                            const tempTargetForShapeCheck = { 
-                                x:targetX, y:targetY, 
-                                width:targetWidth, height:targetHeight, 
-                                collisionShape: targetTemplateOriginal.collisionShape 
+
+                            const tempTargetForShapeCheck = {
+                                x: targetX, y: targetY,
+                                width: targetWidth, height: targetHeight,
+                                collisionShape: targetTemplateOriginal.collisionShape
                             };
                             const collisionShapeForPlacementCheck = this.level._getObstacleCollisionShape(tempTargetForShapeCheck);
 
-                            if (!this._isPlacementInvalid(collisionShapeForPlacementCheck, targetTemplateOriginal.isDecoration, this.level.obstacles, extraKeepOutZones)) {
+                            if (!this._isPlacementInvalid(collisionShapeForPlacementCheck, targetTemplateOriginal, this.level.obstacles, extraKeepOutZones)) {
                                 const missionTargetObs = {
                                     x: targetX, y: targetY, width: targetWidth, height: targetHeight,
                                     type: targetTemplateOriginal.type, name: `${objective.targetNameSingular || targetTemplateOriginal.name || targetTemplateOriginal.type} (Objective)`,
@@ -411,44 +650,44 @@ class LevelGenerator {
                                     hp: targetTemplateOriginal.hp, maxHp: targetTemplateOriginal.maxHp, isDestroyed: false,
                                     blocksMovement: targetTemplateOriginal.blocksMovement, providesCover: targetTemplateOriginal.providesCover,
                                     isDecoration: targetTemplateOriginal.isDecoration,
-                                    spriteNormalPath: actualSpritePath, imageNormal: targetImage, 
+                                    spriteNormalPath: actualSpritePath, imageNormal: targetImage,
                                     spriteDestroyedPath: actualDestroyedSpritePath, imageDestroyed: actualDestroyedSpritePath ? preloadedAssetImages[actualDestroyedSpritePath] : null,
                                     spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
-                                    collisionShape: targetTemplateOriginal.collisionShape, 
+                                    collisionShape: targetTemplateOriginal.collisionShape,
                                     isMissionTarget: true, objectiveId: objective.id,
                                     isSpawner: targetTemplateOriginal.type === 'possum_hut',
                                     spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
-                                    delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0 
+                                    delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0
                                 };
                                 this.level.obstacles.push(missionTargetObs);
                                 this.level.missionTargetObstacles.push(missionTargetObs);
                                 if (missionTargetObs.isSpawner) this.level.potentialSpawnerHuts.push(missionTargetObs);
-                                this._spawnInitialGuardsForObject(missionTargetObs, targetTemplateOriginal);
+                                this._spawnInitialGuardsForObject(missionTargetObs, targetTemplateOriginal, allSpawnedEnemiesDuringGen);
+                                
+                                // Spawn grenade crate next to relay towers
+                                if (targetTemplateOriginal.type === 'possum_relay_tower') {
+                                    this._spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight);
+                                }
+                                
                                 placedTarget = true;
+                                successfulPlacements++;
                                 break;
                             }
                         }
                         if (!placedTarget) console.warn(`[Level Gen] Could not place mission target type ${objective.targetTypeKey}`);
                     }
+                    // Sync the objective total with what we actually managed to place
+                    if (successfulPlacements < objective.totalToAchieve) {
+                        console.warn(`[Level Gen] Adjusted objective ${objective.id} total from ${objective.totalToAchieve} to ${successfulPlacements} due to placement failures.`);
+                        objective.totalToAchieve = successfulPlacements;
+                    }
                 } else { console.warn(`[Level Gen] No template found for destroyTargetTypeKey: ${objective.targetTypeKey}`); }
             }
         });
 
-        const obsGenCfg = genConfig.OBSTACLES || {}; 
+        const obsGenCfg = genConfig.OBSTACLES || {};
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
-
-        // --- MODIFICATION START: Proportional Obstacle Calculation ---
-        const baseWorldWidth = CONFIG.BASE_WORLD_WIDTH || 1280;
-        const baseWorldHeight = CONFIG.BASE_WORLD_HEIGHT || 720;
-        const currentPlayableArea = playableWidth * playableHeight;
-        const basePlayableArea = baseWorldWidth * baseWorldHeight; 
-        const areaScaleFactor = (basePlayableArea > 0) ? (currentPlayableArea / basePlayableArea) : 1.0;
-        
-        const densityMultiplier = baseParams.worldSizeFactor || 1.0;
-
-        const numInternalObstacles = Math.floor(baseNumObstacles * areaScaleFactor * densityMultiplier) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
-        // --- MODIFICATION END ---
-        
+        const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
         const placementMaxAttempts = obsGenCfg.PLACEMENT_MAX_ATTEMPTS || 15;
 
         for (let i = 0; i < numInternalObstacles; i++) {
@@ -490,16 +729,16 @@ class LevelGenerator {
             else if (template.type === 'pickup_health') { filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || []; pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_fallen') { filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else { actualSpritePath = template.spriteNormal || null; }
-            
-            if (useRandomSpriteFromList) { 
+
+            if (useRandomSpriteFromList) {
                 if (filesArray.length > 0 && pathBase) {
-                    actualSpritePath = pathBase + this.rng.pickFrom(filesArray); 
-                } else { 
+                    actualSpritePath = pathBase + this.rng.pickFrom(filesArray);
+                } else {
                     if (CONFIG.DEBUG_LOGGING) console.warn(`[Level Gen] Obstacle type ${template.type} configured for list-based sprite but filesArray or pathBase is missing/empty.`);
                 }
             }
             actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
-            if(actualDestroyedSpritePath) actualDestroyedImageObject = preloadedAssetImages[actualDestroyedSpritePath] || null;
+            if (actualDestroyedSpritePath) actualDestroyedImageObject = preloadedAssetImages[actualDestroyedSpritePath] || null;
 
             if (template.isDecoration && template.type === 'decoration_grass') {
                 const grassConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.GRASS_CLUTTER) || {};
@@ -519,100 +758,69 @@ class LevelGenerator {
                 obsY = this.rng.nextFloat(playableMinY, playableMaxY - obsRenderHeight);
                 const tempObstacleForShape = { ...template, x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight };
                 const collisionCheckShape = this.level._getObstacleCollisionShape(tempObstacleForShape);
-                
-                if (!this._isPlacementInvalid(collisionCheckShape, template.isDecoration, this.level.obstacles, extraKeepOutZones)) {
+
+                const spawnZoneConfig = CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_ZONE || {};
+                const restrictedTypes = spawnZoneConfig.PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES || [];
+                const isRestrictedType = restrictedTypes.includes(template.type);
+
+                let overlapsOuterSpawnZone = false;
+                if (isRestrictedType) {
+                    if (collisionCheckShape.type === 'rectangle') {
+                        overlapsOuterSpawnZone = this.level._rectOverlap(collisionCheckShape, this.level.playerSpawnZone);
+                    } else if (collisionCheckShape.type === 'circle') {
+                        overlapsOuterSpawnZone = rectCircleOverlap(this.level.playerSpawnZone, collisionCheckShape);
+                    } else if (collisionCheckShape.type === 'ellipse') {
+                        overlapsOuterSpawnZone = rectEllipseOverlap(this.level.playerSpawnZone, collisionCheckShape);
+                    }
+                }
+
+                if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, extraKeepOutZones) && !(isRestrictedType && overlapsOuterSpawnZone)) {
                     const newObstacle = {
                         x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight, type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
                         blocksMovement: template.blocksMovement, providesCover: template.providesCover, pickupType: template.pickupType || null, pickupQuantity: template.pickupQuantity || 0,
-                        isPickup: !!template.pickupType, isDecoration: !!template.isDecoration, 
-                        spriteNormalPath: actualSpritePath, 
+                        isPickup: !!template.pickupType, isDecoration: !!template.isDecoration,
+                        spriteNormalPath: actualSpritePath,
                         spriteDestroyedPath: actualDestroyedSpritePath,
-                        imageNormal: actualImageObject, 
-                        imageDestroyed: actualDestroyedImageObject, 
+                        imageNormal: actualImageObject,
+                        imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
+                        isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false, // --- ADDED THIS LINE ---
                         collisionShape: template.collisionShape || null, isSpawner: template.type === 'possum_hut',
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
-                        delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0 
+                        delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0
                     };
                     this.level.obstacles.push(newObstacle);
                     if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
-                    this._spawnInitialGuardsForObject(newObstacle, template);
+                    this._spawnInitialGuardsForObject(newObstacle, template, allSpawnedEnemiesDuringGen);
                     placed = true;
                 }
                 attempts++;
             } while (!placed && attempts < placementMaxAttempts);
         }
-        
+
         this.level.generateNavigationGrid(worldWidth, worldHeight);
-        
-        const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {}; 
+
+        const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {};
         const enemySpawnMinY = playableMinY;
         const enemySpawnMaxY = playerSpawnZone.y - (enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 100);
-        
-        const enemyDensityFactor = baseParams.enemyDensityFactor || 1.0; 
+
+        const enemyDensityFactor = baseParams.enemyDensityFactor || 1.0;
         const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
-        const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5; 
+        const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5;
         const totalEnemiesToSpawn_InitialCalculation = Math.floor(baseNumEnemies * enemyDensityFactor) + this.rng.nextInt(0, Math.floor(randomAddMax * enemyDensityFactor));
-        let enemiesSpawnedCount = 0; 
-        const enemyGroups = []; 
-        let bossSpawned = false;
-        
-        const assassinationObjectiveInstance = missionObjectives.find(obj => obj.type === "ASSASSINATION");
-        if (assassinationObjectiveInstance && assassinationObjectiveInstance.targetDetails) {
-            const targetInfo = assassinationObjectiveInstance.targetDetails;
-            if (targetInfo.assassinationTypeKey === 'possum_boss_1') {
-                let bossX, bossY;
-                const bossMaxAttempts = 25; 
-                const bossSize = CONFIG.POSSUM_BOSS_1_SIZE * 5; 
-                const bossArenaRadius = CONFIG.POSSUM_BOSS_1_WEAPON_RANGE * 0.5;
-                
-                const bossSpawnMinX = playableMinX + bossArenaRadius;
-                const bossSpawnMaxX = playableMaxX - bossArenaRadius;
-                const bossSpawnMinY = playableMinY + bossArenaRadius;
-                const bossSpawnMaxY = playableMinY + (playableHeight * 0.5) - bossArenaRadius;
+        let enemiesSpawnedCount = allSpawnedEnemiesDuringGen.length;
+        const enemyGroups = [];
 
-                for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
-                    bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
-                    bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
-                    
-                    if (this.level.isSpawnPointClear(bossX, bossY, bossSize, this.level.obstacles, [])) {
-                        const boss = new PossumBoss1(bossX, bossY, this.game);
-                        this.game.enemyUnits.push(boss);
-                        assassinationObjectiveInstance.targetUnitId = boss.id;
-                        bossSpawned = true;
-                        enemiesSpawnedCount++;
-
-                        const bossDefinition = { initialGuardPack: (CONFIG.AI.POSSUM_BOSS_1 && CONFIG.AI.POSSUM_BOSS_1.initialGuardPack) ? CONFIG.AI.POSSUM_BOSS_1.initialGuardPack : {enabled: false} };
-                        this._spawnInitialGuardsForObject(boss, bossDefinition);
-
-                        const arenaZone = {
-                            x: bossX - bossArenaRadius,
-                            y: bossY - bossArenaRadius,
-                            width: bossArenaRadius * 2,
-                            height: bossArenaRadius * 2
-                        };
-                        extraKeepOutZones.push(arenaZone);
-                        if (CONFIG.DEBUG_LOGGING) console.log(`Boss arena created at (${arenaZone.x.toFixed(0)}, ${arenaZone.y.toFixed(0)})`);
-
-                        break;
-                    }
-                }
-                if (!bossSpawned) {
-                    console.warn(`[Level Gen] Could not find suitable spawn for Boss Target: ${targetInfo.name}.`);
-                }
-            }
-        }
-        
-        const totalEnemiesToSpawnForThisMission = totalEnemiesToSpawn_InitialCalculation; 
-        const avgEnemiesPerGroup = enemySpawnCfg.AVG_ENEMIES_PER_GROUP_ATTEMPT || 2.0; 
+        const totalEnemiesToSpawnForThisMission = totalEnemiesToSpawn_InitialCalculation;
+        const avgEnemiesPerGroup = enemySpawnCfg.AVG_ENEMIES_PER_GROUP_ATTEMPT || 2.0;
         const numberOfGroupsToAttempt = Math.ceil(Math.max(0, totalEnemiesToSpawnForThisMission - enemiesSpawnedCount) / Math.max(1, avgEnemiesPerGroup));
 
 
         const quadrantCols = enemySpawnCfg.QUADRANT_COLS || 3;
         const quadrantRows = enemySpawnCfg.QUADRANT_ROWS || 2;
         const quadrantEnemyCounts = Array(quadrantRows).fill(0).map(() => Array(quadrantCols).fill(0));
-        
+
         const quadrantWidth = playableWidth / quadrantCols;
         const quadrantHeight = playableHeight / quadrantRows;
 
@@ -645,16 +853,16 @@ class LevelGenerator {
         }
 
         for (let g = 0; g < numberOfGroupsToAttempt && enemiesSpawnedCount < totalEnemiesToSpawnForThisMission; g++) {
-            const smallGroupChance = enemySpawnCfg.SMALL_GROUP_CHANCE || 0.6; 
-            const smallGroupMin = enemySpawnCfg.SMALL_GROUP_SIZE_MIN || 1; 
+            const smallGroupChance = enemySpawnCfg.SMALL_GROUP_CHANCE || 0.6;
+            const smallGroupMin = enemySpawnCfg.SMALL_GROUP_SIZE_MIN || 1;
             const smallGroupMax = enemySpawnCfg.SMALL_GROUP_SIZE_MAX || 3;
-            let currentGroupSizeAttempt = this.rng.chance(smallGroupChance) ? this.rng.nextInt(smallGroupMin, smallGroupMax) : (smallGroupMax + this.rng.nextInt(0,1));
-            currentGroupSizeAttempt = Math.min(currentGroupSizeAttempt, totalEnemiesToSpawnForThisMission - enemiesSpawnedCount); 
+            let currentGroupSizeAttempt = this.rng.chance(smallGroupChance) ? this.rng.nextInt(smallGroupMin, smallGroupMax) : (smallGroupMax + this.rng.nextInt(0, 1));
+            currentGroupSizeAttempt = Math.min(currentGroupSizeAttempt, totalEnemiesToSpawnForThisMission - enemiesSpawnedCount);
             if (currentGroupSizeAttempt <= 0) continue;
-            let groupLeaderX, groupLeaderY, isLeaderSpawnClear; 
-            let leaderPlacementAttempts = 0; 
+            let groupLeaderX, groupLeaderY, isLeaderSpawnClear;
+            let leaderPlacementAttempts = 0;
             const leaderMaxAttempts = enemySpawnCfg.LEADER_PLACEMENT_MAX_ATTEMPTS || 20;
-            
+
             let targetQuadrantCol = -1, targetQuadrantRow = -1;
             if (enemySpawnCfg.QUADRANT_SPAWNING_ENABLED) {
                 let minCount = Infinity;
@@ -677,7 +885,7 @@ class LevelGenerator {
                     targetQuadrantCol = chosenQuadrant.col;
                 }
             }
-            
+
             for (let attempt = 0; attempt < leaderMaxAttempts; attempt++) {
                 if (targetQuadrantCol !== -1) {
                     const quadMinX = playableMinX + targetQuadrantCol * quadrantWidth;
@@ -689,13 +897,12 @@ class LevelGenerator {
                     groupLeaderY = this.rng.nextFloat(playableMinY, playableMaxY);
                 }
 
-                const leaderFootprint = {x: groupLeaderX - CONFIG.POSSUM_HEAVY_SIZE/2, y: groupLeaderY - CONFIG.POSSUM_HEAVY_SIZE/2, width: CONFIG.POSSUM_HEAVY_SIZE, height: CONFIG.POSSUM_HEAVY_SIZE};
+                const leaderFootprint = { x: groupLeaderX - CONFIG.POSSUM_HEAVY_SIZE / 2, y: groupLeaderY - CONFIG.POSSUM_HEAVY_SIZE / 2, width: CONFIG.POSSUM_HEAVY_SIZE, height: CONFIG.POSSUM_HEAVY_SIZE };
 
-                // This check now correctly prevents spawning in the effectivePlayerSpawnZone
-                if (this.level.isSpawnPointClear(groupLeaderX, groupLeaderY, CONFIG.POSSUM_HEAVY_SIZE, this.level.obstacles, this.game.enemyUnits) &&
-                    !this._isPlacementInvalid(leaderFootprint, false, [], extraKeepOutZones)) {
-                        isLeaderSpawnClear = true;
-                        break;
+                if (this.level.isSpawnPointClear(groupLeaderX, groupLeaderY, CONFIG.POSSUM_HEAVY_SIZE, this.level.obstacles, allSpawnedEnemiesDuringGen) &&
+                    !this._isPlacementInvalid(leaderFootprint, { isDecoration: false }, [], extraKeepOutZones)) {
+                    isLeaderSpawnClear = true;
+                    break;
                 }
             }
 
@@ -705,9 +912,9 @@ class LevelGenerator {
                 }
                 const currentGroupMembers = [];
                 for (let m = 0; m < currentGroupSizeAttempt && enemiesSpawnedCount < totalEnemiesToSpawnForThisMission; m++) {
-                    let memberX, memberY, isMemberSpawnClear; 
+                    let memberX, memberY, isMemberSpawnClear;
                     let memberPlacementAttempts = 0; const memberMaxAttempts = enemySpawnCfg.MEMBER_PLACEMENT_MAX_ATTEMPTS || 10;
-                    
+
                     let EnemyClass = PossumGrunt;
                     let currentEnemyUnitSize = CONFIG.POSSUM_GRUNT_SIZE;
 
@@ -715,7 +922,6 @@ class LevelGenerator {
                     const heavyChance = baseParams.heavyChance || 0.20;
                     const heavyLeaderBonus = enemySpawnCfg.HEAVY_CHANCE_GROUP_LEADER_BONUS || 0.1;
 
-                    // Determine unit type: Sniper > Heavy > Grunt
                     if (this.rng.chance(sniperChance)) {
                         EnemyClass = PossumSniper;
                         currentEnemyUnitSize = CONFIG.POSSUM_SNIPER_SIZE;
@@ -723,47 +929,48 @@ class LevelGenerator {
                         EnemyClass = PossumHeavy;
                         currentEnemyUnitSize = CONFIG.POSSUM_HEAVY_SIZE;
                     }
-                    
+
                     const groupSpreadBase = enemySpawnCfg.GROUP_SPREAD_BASE || 30; const groupSpreadSizeMult = enemySpawnCfg.GROUP_SPREAD_SIZE_MULTIPLIER || 1.5; const groupSpread = groupSpreadBase + currentEnemyUnitSize * groupSpreadSizeMult;
                     do {
                         memberX = (m === 0) ? groupLeaderX : groupLeaderX + this.rng.nextFloat(-groupSpread / 2, groupSpread / 2);
                         memberY = (m === 0) ? groupLeaderY : groupLeaderY + this.rng.nextFloat(-groupSpread / 2, groupSpread / 2);
-                        memberX = Math.max(playableMinX + currentEnemyUnitSize / 2, Math.min(memberX, playableMaxX - currentEnemyUnitSize / 2)); 
+                        memberX = Math.max(playableMinX + currentEnemyUnitSize / 2, Math.min(memberX, playableMaxX - currentEnemyUnitSize / 2));
                         memberY = Math.max(playableMinY + currentEnemyUnitSize / 2, Math.min(memberY, playableMaxY - currentEnemyUnitSize / 2));
-                        const memberFootprint = {x: memberX - currentEnemyUnitSize/2, y: memberY - currentEnemyUnitSize/2, width: currentEnemyUnitSize, height: currentEnemyUnitSize};
-                        isMemberSpawnClear = this.level.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.level.obstacles, this.game.enemyUnits.concat(currentGroupMembers)) && !this._isPlacementInvalid(memberFootprint, false, [], extraKeepOutZones); 
+                        const memberFootprint = { x: memberX - currentEnemyUnitSize / 2, y: memberY - currentEnemyUnitSize / 2, width: currentEnemyUnitSize, height: currentEnemyUnitSize };
+                        isMemberSpawnClear = this.level.isSpawnPointClear(memberX, memberY, currentEnemyUnitSize, this.level.obstacles, allSpawnedEnemiesDuringGen) && !this._isPlacementInvalid(memberFootprint, { isDecoration: false }, [], extraKeepOutZones);
                         memberPlacementAttempts++;
-                    } while(!isMemberSpawnClear && memberPlacementAttempts < memberMaxAttempts);
-                    
+                    } while (!isMemberSpawnClear && memberPlacementAttempts < memberMaxAttempts);
+
                     if (isMemberSpawnClear) {
                         const enemyUnit = new EnemyClass(memberX, memberY, this.game);
-                        if (this.game && this.game.enemyUnits) this.game.enemyUnits.push(enemyUnit); 
+                        if (this.game && this.game.enemyUnits) this.game.enemyUnits.push(enemyUnit);
+                        allSpawnedEnemiesDuringGen.push(enemyUnit);
                         currentGroupMembers.push(enemyUnit); enemiesSpawnedCount++;
                     }
                 }
-                if (currentGroupMembers.length > 0) enemyGroups.push(currentGroupMembers); 
+                if (currentGroupMembers.length > 0) enemyGroups.push(currentGroupMembers);
             }
         }
 
         if (rescueObjectiveInstance) {
             const hostageConf = CONFIG.HOSTAGE_SETTINGS || {};
-            const numHostagesToSpawn = rescueObjectiveInstance.totalToAchieve; 
+            const numHostagesToSpawn = rescueObjectiveInstance.totalToAchieve;
             this.level.initialHostageCount = numHostagesToSpawn;
             let spawnedHostageCount = 0;
             const hostageSize = CONFIG.RACCOON_SIZE || 12;
 
             if (hostageConf.SPAWN_AT_HUTS && numHostagesToSpawn > spawnedHostageCount) {
                 const eligibleHuts = this.level.obstacles.filter(hut => {
-                    if (hut.type !== 'possum_hut' || hut.isDestroyed) return false; 
+                    if (hut.type !== 'possum_hut' || hut.isDestroyed) return false;
                     const hutCenterX = hut.x + hut.width / 2; const hutCenterY = hut.y + hut.height / 2;
                     const distToPlayerSpawn = distance(hutCenterX, hutCenterY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2);
                     return distToPlayerSpawn > (hostageConf.MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE || 0);
                 });
                 this.rng.shuffleArray(eligibleHuts);
-                const hutHostageCounts = new Map(); 
+                const hutHostageCounts = new Map();
                 for (const hut of eligibleHuts) {
                     if (spawnedHostageCount >= numHostagesToSpawn) break;
-                    let currentHutHostageCount = hutHostageCounts.get(hut.name || hut.type + hut.x + hut.y) || 0; 
+                    let currentHutHostageCount = hutHostageCounts.get(hut.name || hut.type + hut.x + hut.y) || 0;
                     if (currentHutHostageCount >= (hostageConf.MAX_HOSTAGES_PER_HUT || 1)) continue;
                     let hostageX, hostageY, placed = false;
                     const hutCenterX = hut.x + hut.width / 2; const hutCenterY = hut.y + hut.height / 2;
@@ -780,7 +987,7 @@ class LevelGenerator {
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
                             hutHostageCounts.set(hut.name || hut.type + hut.x + hut.y, (currentHutHostageCount + 1));
                             const hutDef = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === hut.type);
-                            if(hutDef) this._spawnInitialGuardsForObject(hut, hutDef);
+                            if (hutDef) this._spawnInitialGuardsForObject(hut, hutDef, allSpawnedEnemiesDuringGen);
                             break;
                         }
                     }
@@ -798,24 +1005,24 @@ class LevelGenerator {
                             const angle = this.rng.nextFloat(0, 2 * Math.PI); const radius = this.rng.nextFloat(0, spawnNearRadius);
                             hostageX = groupLeader.x + Math.cos(angle) * radius; hostageY = groupLeader.y + Math.sin(angle) * radius;
                             hostageX = Math.max(playableMinX + hostageSize / 2, Math.min(hostageX, playableMaxX - hostageSize / 2)); hostageY = Math.max(playableMinY + hostageSize / 2, Math.min(hostageY, playableMaxY - hostageSize / 2));
-                            if (!this._isPlacementInvalid({ x: hostageX - hostageSize/2, y: hostageY - hostageSize/2, width: hostageSize, height: hostageSize }, false, [], extraKeepOutZones) && 
+                            if (!this._isPlacementInvalid({ x: hostageX - hostageSize / 2, y: hostageY - hostageSize / 2, width: hostageSize, height: hostageSize }, { isDecoration: false }, [], extraKeepOutZones) &&
                                 this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
                                 const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
-                                this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++; break; 
+                                this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++; break;
                             }
                         }
                     }
                 }
             }
-            if (spawnedHostageCount < numHostagesToSpawn) { 
-                for (let i = spawnedHostageCount; i < numHostagesToSpawn; i++) { 
+            if (spawnedHostageCount < numHostagesToSpawn) {
+                for (let i = spawnedHostageCount; i < numHostagesToSpawn; i++) {
                     let hostageX, hostageY, attempts = 0; const maxPlacementAttempts = 30; let placed = false;
                     do {
                         hostageX = this.rng.nextFloat(playableMinX, playableMaxX - hostageSize);
-                        hostageY = this.rng.nextFloat(playableMinY, playableMinY + (playableHeight * 0.6 - hostageSize)); 
+                        hostageY = this.rng.nextFloat(playableMinY, playableMinY + (playableHeight * 0.6 - hostageSize));
                         const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
-                        if (!this._isPlacementInvalid(tempHostageShapeForPlayerZone, false, [], extraKeepOutZones) && 
-                            distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width/2, playerSpawnZone.y + playerSpawnZone.height/2) > 150 && 
+                        if (!this._isPlacementInvalid(tempHostageShapeForPlayerZone, { isDecoration: false }, [], extraKeepOutZones) &&
+                            distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2) > 150 &&
                             this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
                             const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${i}`);
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
@@ -824,38 +1031,40 @@ class LevelGenerator {
                 }
             }
             if (rescueObjectiveInstance) {
-                rescueObjectiveInstance.totalToAchieve = spawnedHostageCount; 
+                rescueObjectiveInstance.totalToAchieve = spawnedHostageCount;
             }
         }
 
-        const playerSpawnLocations = []; 
-        const pSpawnPlaceCfg = genConfig.PLAYER_SPAWN_PLACEMENT || {}; 
-        
+        this._finalizeEnemyPositions(allSpawnedEnemiesDuringGen);
+
+        const playerSpawnLocations = [];
+        const pSpawnPlaceCfg = genConfig.PLAYER_SPAWN_PLACEMENT || {};
+
         for (let i = 0; i < numPlayerSpawnsNeeded; i++) {
             let spawnX, spawnY, isClear; let currentPlacementAttempts = 0; const maxPlayerSpawnAttempts = pSpawnPlaceCfg.MAX_ATTEMPTS || 30; let foundSpot = false;
             if (effectiveSpawnZoneWidth > playerUnitSize && effectiveSpawnZoneHeight > playerUnitSize) {
                 do {
                     spawnX = this.rng.nextFloat(effectiveSpawnZoneX, effectiveSpawnZoneX + effectiveSpawnZoneWidth);
                     spawnY = this.rng.nextFloat(effectiveSpawnZoneY, effectiveSpawnZoneY + effectiveSpawnZoneHeight);
-                    spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2)); 
+                    spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2));
                     spawnY = Math.max(playableMinY + playerUnitSize / 2, Math.min(spawnY, playableMaxY - playerUnitSize / 2));
                     isClear = this.level.isSpawnPointClear(spawnX, spawnY, playerUnitSize, this.level.obstacles, this.game.deployedSquadRoster || []);
-                    if (isClear) { playerSpawnLocations.push({ x: spawnX, y: spawnY }); foundSpot = true; break; } 
+                    if (isClear) { playerSpawnLocations.push({ x: spawnX, y: spawnY }); foundSpot = true; break; }
                     currentPlacementAttempts++;
                 } while (currentPlacementAttempts < maxPlayerSpawnAttempts);
             }
             if (!foundSpot) {
-                const fallbackSpacing = playerUnitSize * (pSpawnPlaceCfg.FALLBACK_SPACING_FACTOR || 2.0); 
+                const fallbackSpacing = playerUnitSize * (pSpawnPlaceCfg.FALLBACK_SPACING_FACTOR || 2.0);
                 const spotsPerRow = Math.max(1, Math.floor(effectiveSpawnZoneWidth / fallbackSpacing));
                 const row = Math.floor(i / spotsPerRow); const col = i % spotsPerRow;
-                spawnX = effectiveSpawnZoneX + (col * fallbackSpacing) + playerUnitSize / 2; 
+                spawnX = effectiveSpawnZoneX + (col * fallbackSpacing) + playerUnitSize / 2;
                 spawnY = effectiveSpawnZoneY + (row * fallbackSpacing) + playerUnitSize / 2;
-                spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2)); 
+                spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2));
                 spawnY = Math.max(playableMinY + playerUnitSize / 2, Math.min(spawnY, playableMaxY - playerUnitSize / 2));
-                if (spawnX > playerSpawnZone.x + playerSpawnZone.width - playerUnitSize / 2 || spawnY > playerSpawnZone.y + playerSpawnZone.height - playerUnitSize / 2 || spawnX < playerSpawnZone.x + playerUnitSize/2 || spawnY < playerSpawnZone.y + playerUnitSize/2 ) {
-                    spawnX = playableMinX + playerUnitSize + (i * playerUnitSize * 2.5); 
+                if (spawnX > playerSpawnZone.x + playerSpawnZone.width - playerUnitSize / 2 || spawnY > playerSpawnZone.y + playerSpawnZone.height - playerUnitSize / 2 || spawnX < playerSpawnZone.x + playerUnitSize / 2 || spawnY < playerSpawnZone.y + playerUnitSize / 2) {
+                    spawnX = playableMinX + playerUnitSize + (i * playerUnitSize * 2.5);
                     spawnY = playableMaxY - playerUnitSize;
-                    spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2)); 
+                    spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2));
                 }
                 playerSpawnLocations.push({ x: spawnX, y: spawnY });
             }

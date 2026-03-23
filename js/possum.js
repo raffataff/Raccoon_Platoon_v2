@@ -7,7 +7,7 @@ class PossumGrunt extends Unit {
         this.deadSpritePathKey = 'POSSUM_GRUNT_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_GRUNT_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_GRUNT_DEAD_SPRITE_SCALE';
-        
+
         this.weapon = WEAPONS.POSSUM_RIFLE;
         this.detectionRange = CONFIG.POSSUM_DETECTION_RANGE || 250;
         this.gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};
@@ -15,7 +15,7 @@ class PossumGrunt extends Unit {
         this.aiState = 'PATROLLING';
 
         this.patrolPoint1 = { x: x, y: y };
-        this.patrolPoint2 = this.generateSecondPatrolPoint( x, y, this.gruntAIConfig.PATROL_MIN_RADIUS || 80, this.gruntAIConfig.PATROL_MAX_RADIUS || 200 );
+        this.patrolPoint2 = this.generateSecondPatrolPoint(x, y, this.gruntAIConfig.PATROL_MIN_RADIUS || 80, this.gruntAIConfig.PATROL_MAX_RADIUS || 200);
         this.currentTargetPatrolPoint = this.patrolPoint2;
         this.patrolWaitTimer = 0;
         this.PATROL_WAIT_DURATION_BASE = this.gruntAIConfig.PATROL_WAIT_BASE || 1.5;
@@ -25,11 +25,13 @@ class PossumGrunt extends Unit {
         this.chaseDestination = null;
         this.timeSinceLastChaseDestUpdate = 0;
         this.CHASE_DESTINATION_REFRESH_INTERVAL = this.gruntAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
+        // --- OPTIMIZATION Phase 4: Throttle deviation updates ---
+        this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.gruntAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
         this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.gruntAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.GRID_CELL_SIZE) ** 2;
         this.ENGAGE_RANGE_BUFFER = this.gruntAIConfig.ENGAGE_RANGE_BUFFER || 10;
 
 
-        this.STUCK_RECOVERY_COOLDOWN_INTERNAL = this.gruntAIConfig.STUCK_RECOVERY_COOLDOWN_SHORT || 0.75;
+        this.STUCK_RECOVERY_COOLDOWN_INTERNAL = this.gruntAIConfig.STUCK_RECOVERY_COOLDOWN_SHORT || 1.5; // OPTIMIZATION Phase 2: Increased from 0.75 to 1.5
         this.GRUNT_MAX_STUCK_ATTEMPTS_BEFORE_DESPERATE = this.gruntAIConfig.MAX_CONSECUTIVE_STUCK_ATTEMPTS || 3;
         this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL = this.gruntAIConfig.DESPERATE_STUCK_MOVE_RADIUS_CELLS || 5;
 
@@ -88,65 +90,54 @@ class PossumGrunt extends Unit {
         if (this.aiState === 'ENGAGING_CHASING') {
             this.timeSinceLastChaseDestUpdate += deltaTime;
         }
-        this.aiLogic(deltaTime, this.game.deployedSquadRoster, this.game.level.obstacles);
-        super.update(deltaTime); // This will call the Unit.update which includes stuck frame counting
+        super.update(deltaTime);
     }
 
-    aiLogic(deltaTime, playerUnitsOnMap, obstacles) {
-        let currentTarget = this.manualTarget;
+    _handleEnemyCombat(deltaTime, obstacles) {
+        let currentTarget = this.manualTarget || this.autoTarget;
+        const playerUnitsOnMap = this.game.getLivingPlayerControlledUnits();
 
         if (this.actionTimer > 0) { return; }
 
-        // Target acquisition: Prioritize manualTarget, then autoTarget
         if (!currentTarget || !currentTarget.isAlive()) {
             this.manualTarget = null;
             this.findAutoTarget(playerUnitsOnMap, obstacles);
             currentTarget = this.autoTarget;
         }
 
+        // --- MODIFICATION START: Corrected state transition logic ---
         if (currentTarget && currentTarget.isAlive()) {
             this.manualTarget = currentTarget;
             const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
-            const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
+            let losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
+
+            // Night mission: stealth in darkness
+            if (losToTarget && this.game.isNightMission && currentTarget.team === 'player') {
+                if (!currentTarget.isIlluminated()) {
+                    // If target is in the dark, enemy can only see them if very close
+                    const darkDetectRadius = (CONFIG.NIGHT_MISSION && CONFIG.NIGHT_MISSION.NIGHT_DETECTION_RADIUS_IN_DARK) || 100;
+                    if (distToTarget > darkDetectRadius) {
+                        losToTarget = false;
+                    }
+                }
+            }
 
             if (this.aiState === 'PATROLLING' || this.aiState === 'SUSPICIOUS') {
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogic] Acquired target ${currentTarget.id}. Current state: ${this.aiState}. Dist: ${distToTarget.toFixed(0)}, LOS: ${losToTarget}`);
-                this.lastKnownPlayerPosition = null;
-                this.alertedByAlly = false;
                 this.propagateAlert(this.manualTarget);
             }
 
+            // This block now runs every frame, allowing the state to change dynamically.
             if (distToTarget <= (this.weapon.range - this.ENGAGE_RANGE_BUFFER) && losToTarget) {
-                if (this.aiState !== 'ENGAGING_SHOOTING') {
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogic] Target ${currentTarget.id} in range & LOS. Switching to ENGAGING_SHOOTING.`);
-                    this.aiState = 'ENGAGING_SHOOTING';
-                    if (this.isMoving && this.chaseDestination) {
-                        this.chaseDestination = null;
-                    }
-                }
+                this.aiState = 'ENGAGING_SHOOTING';
             } else {
-                if (this.aiState !== 'ENGAGING_CHASING') {
-                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogic] Target ${currentTarget.id} out of range/LOS. Switching to ENGAGING_CHASING.`);
-                    this.aiState = 'ENGAGING_CHASING';
-                    this.timeSinceLastChaseDestUpdate = this.CHASE_DESTINATION_REFRESH_INTERVAL;
-                    this.chaseDestination = null;
-                }
+                this.aiState = 'ENGAGING_CHASING';
             }
         } else {
             if (this.aiState === 'ENGAGING_CHASING' || this.aiState === 'ENGAGING_SHOOTING') {
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogic] Target lost. Reverting to PATROLLING/SUSPICIOUS from ${this.aiState}.`);
                 this.aiState = (this.lastKnownPlayerPosition) ? 'SUSPICIOUS' : 'PATROLLING';
-                if (this.aiState === 'PATROLLING' && (!this.isMoving || this.worldTargetX !== this.currentTargetPatrolPoint.x || this.worldTargetY !== this.currentTargetPatrolPoint.y)) {
-                    this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
-                } else if (this.aiState === 'SUSPICIOUS' && this.lastKnownPlayerPosition && (!this.isMoving || this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y)) {
-                    if(!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)){
-                        this.aiState = 'PATROLLING';
-                        this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
-                    }
-                }
             }
             this.manualTarget = null;
-            this.chaseDestination = null;
+            this.autoTarget = null; // Also clear auto-target
         }
 
 
@@ -160,7 +151,7 @@ class PossumGrunt extends Unit {
                     const arrivalTolerance = this.game.level.gridCellSize * 0.75;
                     if (!this.isMoving || (this.worldTargetX !== this.currentTargetPatrolPoint.x || this.worldTargetY !== this.currentTargetPatrolPoint.y)) {
                         if (distToCurrentPatrolPoint > arrivalTolerance) {
-                           this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+                            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                         }
                     }
                     if (!this.isMoving && distToCurrentPatrolPoint <= arrivalTolerance) {
@@ -177,12 +168,12 @@ class PossumGrunt extends Unit {
                     const distToLKP = distance(this.x, this.y, this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
                     const arrivalToleranceLKP = this.game.level.gridCellSize * 1.5;
                     if (!this.isMoving || (this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y)) {
-                         if (distToLKP > arrivalToleranceLKP) {
-                            if(!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)){
+                        if (distToLKP > arrivalToleranceLKP) {
+                            if (!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)) {
                                 this.aiState = 'PATROLLING'; // Fallback if can't path to LKP
                                 this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                             }
-                         }
+                        }
                     }
                     if (!this.isMoving && distToLKP <= arrivalToleranceLKP) {
                         this.lastKnownPlayerPosition = null;
@@ -199,17 +190,11 @@ class PossumGrunt extends Unit {
                 break;
 
             case 'ENGAGING_SHOOTING':
-                if (this.manualTarget && this.manualTarget.isAlive()) {
-                    if (distance(this.x, this.y, this.manualTarget.x, this.manualTarget.y) > 0.1) {
-                        const angleToTarget = Math.atan2(this.manualTarget.y - this.y, this.manualTarget.x - this.x);
-                        this.gunAimAngle = angleToTarget;
-                        if (!this.isMoving) {
-                            this.facingAngle = angleToTarget;
-                        }
-                    }
-                } else {
-                    this.aiState = 'PATROLLING';
+                if (this.isMoving) {
+                    this.isMoving = false;
+                    this.currentPath = [];
                 }
+                // Firing is now handled by the base Unit class. This state just ensures we stop moving.
                 break;
 
             case 'ENGAGING_CHASING':
@@ -221,16 +206,27 @@ class PossumGrunt extends Unit {
                         shouldUpdateChaseDest = true;
                     } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
                         shouldUpdateChaseDest = true;
-                    } else if (distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
+                    } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
+                        distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
                         shouldUpdateChaseDest = true;
                     } else if (!this.isMoving && distance(this.x, this.y, target.x, target.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
                         shouldUpdateChaseDest = true;
                     }
 
                     if (shouldUpdateChaseDest) {
-                        const predictionTime = this.gruntAIConfig.CHASE_PREDICTION_TIME_FACTOR || 0.25;
-                        let predictedX = target.x + target.currentVelocity.x * predictionTime;
-                        let predictedY = target.y + target.currentVelocity.y * predictionTime;
+                        const isNightInDark = this.game.isNightMission && !target.isIlluminated();
+
+                        let predictedX, predictedY;
+
+                        if (isNightInDark) {
+                            // If they are in the dark, stop predicting. Just head to where they are/were.
+                            predictedX = target.x;
+                            predictedY = target.y;
+                        } else {
+                            const predictionTime = this.gruntAIConfig.CHASE_PREDICTION_TIME_FACTOR || 0.25;
+                            predictedX = target.x + target.currentVelocity.x * predictionTime;
+                            predictedY = target.y + target.currentVelocity.y * predictionTime;
+                        }
 
                         predictedX = Math.max(this.size, Math.min(predictedX, CONFIG.WORLD_WIDTH - this.size));
                         predictedY = Math.max(this.size, Math.min(predictedY, CONFIG.WORLD_HEIGHT - this.size));
@@ -280,12 +276,12 @@ class PossumGrunt extends Unit {
             this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75;
             this.consecutiveStuckAttempts = 0;
             if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
-                 this.isMoving = true;
-                 if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
+                this.isMoving = true;
+                if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
                     const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
                     this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
                     this.currentPathNodeIndex = 0;
-                 }
+                }
             } else {
                 this.isMoving = false;
             }
@@ -304,7 +300,7 @@ class PossumGrunt extends Unit {
             } else {
                 this.aiState = 'PATROLLING';
                 this.patrolWaitTimer = 1.0;
-                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.error(`[${this.id} onStuck GRUNT] Desperate move failed.`);
+                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.error(`[${this.id} onStuck GRUNT] Desperate move failed.`);
             }
             this.consecutiveStuckAttempts = 0; // Reset grunt's own counter after desperate move
             return;
@@ -314,7 +310,7 @@ class PossumGrunt extends Unit {
             if (this.manualTarget && this.manualTarget.isAlive()) {
                 this.lastKnownPlayerPosition = { x: this.manualTarget.x, y: this.manualTarget.y };
                 this.aiState = 'SUSPICIOUS';
-                if(!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)){
+                if (!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)) {
                     this.aiState = 'PATROLLING';
                     this.setMoveTarget(this.patrolPoint1.x, this.patrolPoint1.y);
                 }
@@ -329,9 +325,9 @@ class PossumGrunt extends Unit {
             if (!this.setMoveTarget(otherPatrolPoint.x, otherPatrolPoint.y)) {
                 this.patrolPoint2 = this.generateSecondPatrolPoint(this.patrolPoint1.x, this.patrolPoint1.y, gruntAIConfig.PATROL_MIN_RADIUS, gruntAIConfig.PATROL_MAX_RADIUS, this.currentTargetPatrolPoint);
                 this.currentTargetPatrolPoint = this.patrolPoint2;
-                if(!this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y)){
-                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} onStuck GRUNT] Stuck patrolling, all recovery patrol points failed pathing.`);
-                     this._attemptDesperateMove();
+                if (!this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y)) {
+                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} onStuck GRUNT] Stuck patrolling, all recovery patrol points failed pathing.`);
+                    this._attemptDesperateMove();
                 }
             }
             this.patrolWaitTimer = 0.5;

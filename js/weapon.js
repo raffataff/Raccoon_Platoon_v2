@@ -23,6 +23,54 @@ const WEAPONS = {
         'RACCOON_MG_FIRE',
         1.0 // Standard muzzle flash size
     ),
+    RACCOON_PRIVATE_MG: new Weapon(
+        'Raccoon Private MG',
+        CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
+        CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON_PRIVATE,
+        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
+        'RACCOON_MG_FIRE',
+        1.0
+    ),
+    RACCOON_CORPORAL_MG: new Weapon(
+        'Raccoon Corporal MG',
+        CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
+        CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON_CORPORAL,
+        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
+        'RACCOON_MG_FIRE',
+        1.0
+    ),
+    RACCOON_SERGEANT_MG: new Weapon(
+        'Raccoon Sergeant MG',
+        CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
+        CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON_SERGEANT,
+        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
+        'RACCOON_MG_FIRE',
+        1.0
+    ),
+    RACCOON_ELITE_MG: new Weapon(
+        'Raccoon Elite MG',
+        CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
+        CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON_ELITE,
+        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
+        'RACCOON_MG_FIRE',
+        1.0
+    ),
+    RACCOON_GHOST_MG: new Weapon(
+        'Raccoon Ghost MG',
+        CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
+        CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON_GHOST,
+        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
+        'RACCOON_MG_FIRE',
+        1.0
+    ),
+    RACCOON_MAVERICK_MG: new Weapon(
+        'Raccoon Maverick MG',
+        CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
+        CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON_MAVERICK,
+        CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
+        'RACCOON_MG_FIRE',
+        1.0
+    ),
     POSSUM_RIFLE: new Weapon(
         'Possum Rifle',
         CONFIG.POSSUM_RIFLE_DAMAGE, CONFIG.POSSUM_RIFLE_ROF, CONFIG.POSSUM_RIFLE_RANGE,
@@ -59,6 +107,18 @@ const WEAPONS = {
         'POSSUM_HEAVY_MG_FIRE',
         1.3 // Boss's MG has a respectable flash
     ),
+    POSSUM_REVOLVER: new Weapon(
+        'Possum Revolver',
+        CONFIG.POSSUM_REVOLVER_WEAPON_DAMAGE,
+        CONFIG.POSSUM_REVOLVER_WEAPON_ROF,
+        CONFIG.POSSUM_REVOLVER_WEAPON_RANGE,
+        CONFIG.POSSUM_REVOLVER_WEAPON_PROJECTILE_SPEED,
+        CONFIG.PROJECTILE_COLOR_POSSUM_REVOLVER,
+        CONFIG.POSSUM_REVOLVER_WEAPON_ACCURACY,
+        CONFIG.POSSUM_REVOLVER_WEAPON_ACCURACY, // Same accuracy while moving
+        'POSSUM_RIFLE_FIRE', // Re-using grunt sound for now
+        1.1 // Muzzle flash scale
+    ),
     POSSUM_SNIPER_RIFLE: new Weapon(
         'Possum Sniper Rifle',
         CONFIG.POSSUM_SNIPER_RIFLE_DAMAGE,
@@ -70,6 +130,18 @@ const WEAPONS = {
         CONFIG.POSSUM_SNIPER_RIFLE_ACCURACY,
         'POSSUM_HEAVY_MG_FIRE', // Using the same sound as heavy MG for now
         1.2 // Muzzle flash scale
+    ),
+    POSSUM_ELITE_WEAPON: new Weapon(
+        'Possum Elite Rifle',
+        CONFIG.POSSUM_ELITE_WEAPON_DAMAGE,
+        CONFIG.POSSUM_ELITE_WEAPON_ROF,
+        CONFIG.POSSUM_ELITE_WEAPON_RANGE,
+        CONFIG.POSSUM_ELITE_WEAPON_PROJECTILE_SPEED,
+        CONFIG.POSSUM_ELITE_COLOR,
+        CONFIG.POSSUM_ELITE_WEAPON_ACCURACY_STATIONARY,
+        CONFIG.POSSUM_ELITE_WEAPON_ACCURACY_MOVING,
+        'POSSUM_RIFLE_FIRE',
+        1.0 // Muzzle flash scale
     )
 };
 
@@ -174,8 +246,14 @@ class Projectile {
                 
                 if (hitObstacle) {
                     if (obj.destructible) {
-                        if (obj.type === 'explosive_barrel' || obj.type === 'explosive_barrel_cluster' || obj.type === 'possum_hut') {
-                            this.game.level.damageObstacle(obj, this.damage, this.shooterUnit);
+                        if (obj.type === 'explosive_barrel' || obj.type === 'explosive_barrel_cluster' || obj.type === 'possum_hut' || obj.type === 'possum_relay_tower') {
+                            // Apply bullet damage multiplier if defined (e.g., relay towers take reduced damage)
+                            let actualBulletDamage = this.damage;
+                            const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obj.type);
+                            if (obstacleDef && obstacleDef.bulletDamageMultiplier !== undefined) {
+                                actualBulletDamage = this.damage * obstacleDef.bulletDamageMultiplier;
+                            }
+                            this.game.level.damageObstacle(obj, actualBulletDamage, this.shooterUnit);
                         }
                     }
                     if (obj.blocksMovement || obj.providesCover) {
@@ -195,6 +273,22 @@ class Projectile {
                         return;
                     }
                 }
+            }
+        }
+
+        // Special handling for shootout mode - check if enemy projectile hit player
+        if (!this.isMarkedForDeletion && 
+            this.shooterTeam === 'enemy' && 
+            this.game.shootoutController && 
+            this.game.shootoutController.isRoundActive) {
+            const playerPos = this.game.shootoutController.getPlayerPosition();
+            const distToPlayer = Math.hypot(this.x - playerPos.x, this.y - playerPos.y);
+            const playerHitboxSize = 60; // Size of player hit area in shootout mode (increased for better hit detection)
+            
+            if (distToPlayer < playerHitboxSize + this.size) {
+                this.game.shootoutController.takeDamage(this.damage);
+                this.isMarkedForDeletion = true;
+                return;
             }
         }
 

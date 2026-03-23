@@ -40,56 +40,44 @@ class PossumHeavy extends Unit {
         if (this.aiState === 'ENGAGING_CHASING_HEAVY') {
             this.timeSinceLastChaseDestUpdate += deltaTime;
         }
-        this.aiLogicHeavy(deltaTime, this.game.deployedSquadRoster, this.game.level.obstacles);
-        super.update(deltaTime); // This will call the Unit.update which includes stuck frame counting
+        super.update(deltaTime);
     }
 
-    aiLogicHeavy(deltaTime, playerUnitsOnMap, obstacles) {
+    _handleEnemyCombat(deltaTime, obstacles) {
         if (this.actionTimer > 0) { return; }
-
-        // --- MODIFIED: Reworked AI Logic for clarity and decisiveness ---
         
-        // 1. Target Acquisition
-        let currentTarget = this.manualTarget;
+        const playerUnitsOnMap = this.game.getLivingPlayerControlledUnits();
+        let currentTarget = this.manualTarget || this.autoTarget;
+
         if (!currentTarget || !currentTarget.isAlive()) {
             this.manualTarget = null;
             this.findAutoTarget(playerUnitsOnMap || [], obstacles);
             currentTarget = this.autoTarget;
         }
 
-        // If no target exists, revert to non-combat states.
+        // --- MODIFICATION START: Corrected state transition logic ---
         if (!currentTarget || !currentTarget.isAlive()) {
             if (this.aiState === 'ENGAGING_CHASING_HEAVY' || this.aiState === 'ENGAGING_SHOOTING_HEAVY') {
                 this.aiState = (this.lastKnownPlayerPosition) ? 'SUSPICIOUS' : 'GUARDING';
             }
             this.manualTarget = null;
-            this.chaseDestination = null;
+            this.autoTarget = null; // Also clear auto-target
         } else {
-            // We have a live target. Decide whether to shoot or chase.
             const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
             const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
 
-            // Behavioral Guard Clause: If in range and can see the target, STOP and SHOOT.
             if (distToTarget <= (this.weapon.range - this.ENGAGE_RANGE_BUFFER) && losToTarget) {
                 this.aiState = 'ENGAGING_SHOOTING_HEAVY';
-                if (this.isMoving) {
-                    this.isMoving = false;
-                    this.currentPath = [];
-                }
             } else {
-                // Otherwise, chase the target.
                 this.aiState = 'ENGAGING_CHASING_HEAVY';
             }
-             // Propagate alert to allies if we just became aware of the target.
             if (this.aiState !== 'GUARDING' && this.aiState !== 'SUSPICIOUS' && !this.alertedByAlly) {
                 this.propagateAlert(currentTarget);
             }
         }
 
-        // 2. Execute State-Specific Behavior
         switch (this.aiState) {
             case 'GUARDING':
-                /* ... (Unchanged logic) ... */
                 const atPostTolerance = this.heavyAIConfig.GUARD_POST_POSITION_TOLERANCE || this.game.level.gridCellSize / 2;
                 const distToGuardPostCurrent = distance(this.x, this.y, this.guardPost.x, this.guardPost.y);
 
@@ -107,7 +95,6 @@ class PossumHeavy extends Unit {
                 }
                 break;
             case 'SUSPICIOUS':
-                /* ... (Unchanged logic) ... */
                 if (this.lastKnownPlayerPosition) {
                     const distToLKP = distance(this.x, this.y, this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
                     const arrivalToleranceLKP = this.game.level.gridCellSize * 1.5;
@@ -136,8 +123,11 @@ class PossumHeavy extends Unit {
                 break;
 
             case 'ENGAGING_SHOOTING_HEAVY':
-                // The `update` function in unit.js now handles the actual firing and facing direction.
-                // This state's only job is to exist; no further logic is needed here.
+                if (this.isMoving) {
+                    this.isMoving = false;
+                    this.currentPath = [];
+                }
+                // Firing is now handled by the base Unit class.
                 break;
 
             case 'ENGAGING_CHASING_HEAVY':
@@ -192,8 +182,8 @@ class PossumHeavy extends Unit {
                 }
                 break;
         }
-        // --- END MODIFIED ---
     }
+
 
     onStuck(reason = 'unknown') {
         /* ... (Unchanged from previous complete version) ... */

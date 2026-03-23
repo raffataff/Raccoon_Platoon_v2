@@ -29,35 +29,32 @@ class PossumBoss1 extends Unit {
         
         this.guardPost = { x: x, y: y };
         
-        this.attackCooldown = 0;
+        // Use actionTimer for major cooldowns, attackCooldown for rate-of-fire.
+        this.actionTimer = 0; // Changed from attackCooldown
         
         this.xpValue = CONFIG.XP_FOR_BOSS_KILL || 250;
     }
 
     update(deltaTime) {
         if (!this.isAlive()) return;
-        if (this.attackCooldown > 0) this.attackCooldown -= deltaTime;
-        // The super.update() call will invoke _handleMovement and then our overridden _handleEnemyCombat
+        // We now handle actionTimer here, separate from the base unit's attackCooldown
+        if (this.actionTimer > 0) {
+            this.actionTimer -= deltaTime;
+        }
         super.update(deltaTime); 
     }
     
-    // --- MODIFIED: This is the correct override for the Unit's AI execution ---
     _handleEnemyCombat(deltaTime, obstacles) {
+        // Find a target if we don't have one
         let target = this.manualTarget || this.autoTarget;
-
-        // 1. ACQUIRE TARGET
         if (!target || !target.isAlive()) {
             this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);
             target = this.autoTarget;
-            if (!target) {
-                this.aiState = 'GUARDING';
-            } else {
-                this.aiState = 'ENGAGING'; 
-            }
         }
-        
-        // 2. EXECUTE STATE LOGIC
-        if (this.aiState === 'GUARDING') {
+
+        // If no target, return to guard post
+        if (!target) {
+            this.aiState = 'GUARDING';
             if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > 10) {
                 if (!this.isMoving) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
             } else {
@@ -66,44 +63,54 @@ class PossumBoss1 extends Unit {
             return;
         }
 
-        if (!target) {
-            this.aiState = 'GUARDING';
-            return;
-        }
-
+        // We have a target, lock on and evaluate
+        this.manualTarget = target;
         const dist = distance(this.x, this.y, target.x, target.y);
         const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
-        
-        // 3. REPOSITION IF NECESSARY
-        const needsToReposition = (dist < this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE) || !hasLOS || (dist > this.primaryWeapon.range && dist > this.secondaryWeapon.range);
-        if (needsToReposition) {
-            if (!this.isMoving) {
-                let targetX, targetY;
-                if (dist < this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE) {
-                    const angleAway = Math.atan2(this.y - target.y, this.x - target.x);
-                    targetX = this.x + Math.cos(angleAway) * 150;
-                    targetY = this.y + Math.sin(angleAway) * 150;
-                } else {
-                    targetX = target.x;
-                    targetY = target.y;
+        const currentWeapon = this.attackMode === 'GRENADE_VOLLEY' ? this.primaryWeapon : this.secondaryWeapon;
+
+        // AIM: Always aim if there is a target
+        this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
+        this.facingAngle = this.gunAimAngle;
+
+        // SHOOT: Check if we can shoot
+        if (hasLOS && dist <= currentWeapon.range) {
+            this.isMoving = false; // Stop moving if in range and LOS
+            this.currentPath = [];
+            this.aiState = 'ENGAGING_SHOOTING';
+
+            // Only fire if both major (actionTimer) and minor (attackCooldown) timers are ready
+            if (this.actionTimer <= 0 && this.attackCooldown <= 0) {
+                if (this.attackMode === 'GRENADE_VOLLEY') {
+                    this._executeGrenadeFire(target);
+                } else if (this.attackMode === 'MG_BURST') {
+                    this._executeFire(target.x, target.y);
                 }
-                this.setMoveTarget(targetX, targetY);
             }
-            return; // Exit to focus on moving
+            return; // We are in shooting logic, so we are done for this frame.
         }
-        
-        if (this.isMoving) {
-            this.isMoving = false;
-        }
-        
-        // 4. ATTACK IF IN POSITION AND OFF COOLDOWN
-        if (this.attackCooldown > 0) return;
-        
-        // Execute the current attack mode
-        if (this.attackMode === 'GRENADE_VOLLEY') {
-            this._executeGrenadeFire(target);
-        } else if (this.attackMode === 'MG_BURST') {
-            this._executeFire(target.x, target.y);
+
+        // MOVE: If we can't shoot, we need to move
+        this.aiState = 'ENGAGING_CHASING';
+        if (!this.isMoving) {
+            let targetX, targetY;
+            if (dist < this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE) {
+                // Too close, move away
+                const angleAway = Math.atan2(this.y - target.y, this.x - target.x);
+                targetX = this.x + Math.cos(angleAway) * 150;
+                targetY = this.y + Math.sin(angleAway) * 150;
+            } else {
+                // Too far, move closer
+                targetX = target.x;
+                targetY = target.y;
+            }
+            
+            if (!this.setMoveTarget(targetX, targetY)) {
+                // If we can't path, reset to guarding to avoid getting stuck
+                this.manualTarget = null;
+                this.autoTarget = null;
+                this.aiState = 'GUARDING';
+            }
         }
     }
     
@@ -132,12 +139,15 @@ class PossumBoss1 extends Unit {
         }
         
         this.volleyCount++;
+        // Use attackCooldown for delay BETWEEN shots in a volley
+        this.attackCooldown = this.bossAIConfig.GRENADE_COOLDOWN_BETWEEN_SHOTS || 0.6;
+
         if (this.volleyCount >= (this.bossAIConfig.GRENADES_PER_VOLLEY || 3)) {
             this.attackMode = 'MG_BURST';
             this.volleyCount = 0;
-            this.attackCooldown = (this.bossAIConfig.MG_COOLDOWN_AFTER_BURST || 2.5);
-        } else {
-            this.attackCooldown = this.bossAIConfig.GRENADE_COOLDOWN_BETWEEN_SHOTS || 0.6;
+            // Use actionTimer for the long delay AFTER the volley is complete
+            this.actionTimer = (this.bossAIConfig.MG_COOLDOWN_AFTER_BURST || 2.5);
+            this.weapon = this.secondaryWeapon;
         }
     }
 
@@ -166,18 +176,32 @@ class PossumBoss1 extends Unit {
             this.game.audioManager.play(this.secondaryWeapon.sfxFireKey);
         }
         
+        // Use attackCooldown for the rate of fire
         this.attackCooldown = 1 / this.secondaryWeapon.rof;
         this.burstCount++;
+
         if (this.burstCount >= (this.bossAIConfig.MG_BURST_SIZE || 5)) {
             this.attackMode = 'GRENADE_VOLLEY';
             this.burstCount = 0;
-            this.attackCooldown = (this.bossAIConfig.MG_COOLDOWN_AFTER_BURST || 2.5);
+            // Use actionTimer for the long delay AFTER the burst is complete
+            this.actionTimer = (this.bossAIConfig.MG_COOLDOWN_AFTER_BURST || 2.5);
+            this.weapon = this.primaryWeapon;
         }
     }
 
     die() {
         super.die();
         if(this.game) {
+            const explosionRadius = this.bossAIConfig.DEATH_EXPLOSION_RADIUS;
+            if (explosionRadius > 0) {
+                this.game.addVisualEffect('explosion', { x: this.x, y: this.y, radius: explosionRadius });
+            }
+
+            const sfxKey = this.bossAIConfig.DEATH_EXPLOSION_SFX;
+            if (sfxKey && this.game.audioManager) {
+                this.game.audioManager.play(sfxKey);
+            }
+
             const assassinateObjective = this.game.currentMissionParams?.objectives.find(obj => 
                 obj.type === "ASSASSINATION" && obj.targetUnitId === this.id
             );

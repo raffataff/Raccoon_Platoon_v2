@@ -41,24 +41,37 @@ class Level {
             const obsCurrentHeight = obstacle.height;
 
             if (shapeDef.type === 'rectangle') {
+                let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || 0);
+                let offsetY = typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || 0);
+                if (obstacle.isFlippedHorizontally) {
+                    offsetX = obsCurrentWidth - offsetX - (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
+                }
                 return {
                     type: 'rectangle',
-                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || 0)),
-                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || 0)),
+                    x: obstacle.x + offsetX,
+                    y: obstacle.y + offsetY,
                     width: (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth)),
                     height: (typeof shapeDef.height === 'function' ? shapeDef.height(obsCurrentWidth, obsCurrentHeight) : (shapeDef.height || obsCurrentHeight))
                 };
             } else if (shapeDef.type === 'circle') {
+                let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2);
+                if (obstacle.isFlippedHorizontally) {
+                    offsetX = obsCurrentWidth - offsetX;
+                }
                 return {
                     type: 'circle',
-                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2)),
+                    x: obstacle.x + offsetX,
                     y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
                     radius: (typeof shapeDef.radius === 'function' ? shapeDef.radius(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radius || Math.min(obsCurrentWidth, obsCurrentHeight) / 2))
                 };
             } else if (shapeDef.type === 'ellipse') {
+                let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2);
+                if (obstacle.isFlippedHorizontally) {
+                    offsetX = obsCurrentWidth - offsetX;
+                }
                 return {
                     type: 'ellipse',
-                    x: obstacle.x + (typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2)),
+                    x: obstacle.x + offsetX,
                     y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
                     radiusX: (typeof shapeDef.radiusX === 'function' ? shapeDef.radiusX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusX || obsCurrentWidth / 2)),
                     radiusY: (typeof shapeDef.radiusY === 'function' ? shapeDef.radiusY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusY || obsCurrentHeight / 2))
@@ -84,6 +97,12 @@ class Level {
         }
 
         for (const unit of existingUnits) {
+            // Defensive check: skip invalid units that don't have isAlive method
+            if (!unit || typeof unit.isAlive !== 'function') {
+                console.warn('isSpawnPointClear: Skipping invalid unit in existingUnits:', unit, 
+                    '- unit type:', unit?.constructor?.name, '- has hp:', unit?.hp, '- has x:', unit?.x);
+                continue;
+            }
             if (unit.isAlive()) {
                 const distSq = (x - unit.x) * (x - unit.x) + (y - unit.y) * (y - unit.y);
                 const minSeparationDist = (unitSize / 2 + unit.size / 2) + (this.hutSpawnConfig.MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN || 5); 
