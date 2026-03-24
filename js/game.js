@@ -3329,6 +3329,12 @@ class Game {
      * @param {function} callback - Callback when ambush ends
      */
     triggerStartAmbush(callback) {
+        // Only trigger start ambush on 1st mission of each phase
+        if (this.currentMissionIndex !== 0) {
+            if (callback) callback(false);
+            return;
+        }
+
         if (!this.shouldTriggerAmbush('START')) {
             // No ambush, continue normally
             if (callback) callback(false);

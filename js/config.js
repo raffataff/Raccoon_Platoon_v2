@@ -479,6 +479,12 @@ const CONFIG = {
                 combat: ['MUSIC_COMBAT_1'],
                 victory: 'MUSIC_VICTORY_DEFAULT',
                 defeat: 'MUSIC_DEFEAT'
+            },
+            SWAMP: {
+                ambient: ['AMBIENT_FOREST_1', 'AMBIENT_FOREST_2', 'AMBIENT_FOREST_3', 'AMBIENT_FOREST_4', 'AMBIENT_FOREST_5'],
+                combat: ['MUSIC_COMBAT_1'],
+                victory: 'MUSIC_VICTORY_DEFAULT',
+                defeat: 'MUSIC_DEFEAT'
             }
         },
         

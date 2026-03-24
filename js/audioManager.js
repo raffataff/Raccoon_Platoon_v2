@@ -9,12 +9,8 @@ class AudioManager {
         this.loadedCount = 0;
         this.totalCount = 0;
 
-        // --- NEW: For managing looping music ---
-        this.currentLoopingSound = {
-            key: null,
-            instance: null,
-            userVolume: 1.0 // Stores the volume set by playConfig for this specific track
-        };
+        // --- NEW: For managing looping music (supports multiple concurrent loops) ---
+        this.loopingSounds = new Map(); // Map<key, { instance: HTMLAudioElement, userVolume: number }>
         // ---
 
         console.log("[AudioManager] Initialized.");
@@ -109,11 +105,19 @@ class AudioManager {
         const finalEffectiveVolume = this.globalVolume * baseVolume * requestedVolume;
 
         if (playConfig.loop) {
-            // Stop any currently looping sound
-            if (this.currentLoopingSound.instance && this.currentLoopingSound.key !== key) {
-                this.currentLoopingSound.instance.pause();
-                this.currentLoopingSound.instance.currentTime = 0;
+            // Allow multiple concurrent looping sounds (music + ambient)
+            // Check if this specific key is already playing
+            if (this.loopingSounds.has(key)) {
+                // Already playing this key - just update volume and ensure it's playing
+                const existing = this.loopingSounds.get(key);
+                existing.instance.volume = this.isMuted ? 0 : finalEffectiveVolume;
+                existing.instance.play().catch(() => {});
+                existing.userVolume = requestedVolume;
+                return existing.instance;
             }
+            
+            // Stop any currently looping sound only if we need to manage a single slot
+            // But for multi-track support, we DON'T stop existing loops - we add this one
             
             // Use the master audio instance for looping
             masterAudio.loop = true;
@@ -123,9 +127,10 @@ class AudioManager {
                 // console.warn(`[AudioManager] Error playing looping sound ${key}:`, error);
             });
             
-            this.currentLoopingSound.key = key;
-            this.currentLoopingSound.instance = masterAudio;
-            this.currentLoopingSound.userVolume = requestedVolume; // Store the volume specifically requested for this track
+            this.loopingSounds.set(key, {
+                instance: masterAudio,
+                userVolume: requestedVolume
+            });
             return masterAudio;
 
         } else { // Play as a one-shot sound effect (cloned)
@@ -152,12 +157,13 @@ class AudioManager {
     stop(keyOrInstance) {
         if (typeof keyOrInstance === 'string') { // Key provided
             const key = keyOrInstance;
-            if (this.currentLoopingSound.key === key && this.currentLoopingSound.instance) {
-                this.currentLoopingSound.instance.pause();
-                this.currentLoopingSound.instance.currentTime = 0;
-                this.currentLoopingSound.key = null;
-                this.currentLoopingSound.instance = null;
-                this.currentLoopingSound.userVolume = 1.0;
+            if (this.loopingSounds.has(key)) {
+                const soundObj = this.loopingSounds.get(key);
+                if (soundObj && soundObj.instance) {
+                    soundObj.instance.pause();
+                    soundObj.instance.currentTime = 0;
+                }
+                this.loopingSounds.delete(key);
             } else if (this.sounds[key] && this.sounds[key].audio && !this.sounds[key].error) {
                 // This stops the master audio, primarily for SFX if needed,
                 // but cloned SFX instances won't be affected.
@@ -166,56 +172,62 @@ class AudioManager {
             }
         } else if (keyOrInstance instanceof HTMLAudioElement) { // Instance provided
             const instance = keyOrInstance;
-            instance.pause();
-            instance.currentTime = 0;
-            if (this.currentLoopingSound.instance === instance) {
-                this.currentLoopingSound.key = null;
-                this.currentLoopingSound.instance = null;
-                this.currentLoopingSound.userVolume = 1.0;
+            // Find which key this instance belongs to and remove it
+            for (const [key, soundObj] of this.loopingSounds) {
+                if (soundObj.instance === instance) {
+                    instance.pause();
+                    instance.currentTime = 0;
+                    this.loopingSounds.delete(key);
+                    break;
+                }
             }
         }
     }
 
     stopAllLoopingSounds() {
-        if (this.currentLoopingSound.instance) {
-            this.currentLoopingSound.instance.pause();
-            this.currentLoopingSound.instance.currentTime = 0;
-            console.log(`[AudioManager] Stopped looping track: ${this.currentLoopingSound.key}`);
+        for (const [key, soundObj] of this.loopingSounds) {
+            if (soundObj && soundObj.instance) {
+                soundObj.instance.pause();
+                soundObj.instance.currentTime = 0;
+            }
         }
-        this.currentLoopingSound.key = null;
-        this.currentLoopingSound.instance = null;
-        this.currentLoopingSound.userVolume = 1.0;
+        this.loopingSounds.clear();
+        console.log("[AudioManager] Stopped all looping sounds.");
     }
 
 
     setGlobalVolume(volume) {
         this.globalVolume = Math.max(0, Math.min(1, volume));
         
-        // Update volume of the currently playing looping sound
-        if (this.currentLoopingSound.instance && this.sounds[this.currentLoopingSound.key]) {
-            const soundData = this.sounds[this.currentLoopingSound.key];
-            const baseVolume = soundData.defaultVolume;
-            const userVolume = this.currentLoopingSound.userVolume; // Use the stored user-set volume for this track
-            this.currentLoopingSound.instance.volume = this.isMuted ? 0 : (this.globalVolume * baseVolume * userVolume);
+        // Update volume of all currently playing looping sounds
+        for (const [key, soundObj] of this.loopingSounds) {
+            if (soundObj.instance && this.sounds[key]) {
+                const soundData = this.sounds[key];
+                const baseVolume = soundData.defaultVolume;
+                const userVolume = soundObj.userVolume;
+                soundObj.instance.volume = this.isMuted ? 0 : (this.globalVolume * baseVolume * userVolume);
+            }
         }
         // SFX volumes are set at the time of play based on the globalVolume then.
     }
 
     toggleMute() {
         this.isMuted = !this.isMuted;
-        if (this.currentLoopingSound.instance && this.sounds[this.currentLoopingSound.key]) {
-            if (this.isMuted) {
-                this.currentLoopingSound.instance.volume = 0;
-                console.log("[AudioManager] Looping Music Muted.");
-            } else {
-                const soundData = this.sounds[this.currentLoopingSound.key];
+        
+        // Update volume for all looping sounds
+        for (const [key, soundObj] of this.loopingSounds) {
+            if (soundObj.instance && this.sounds[key]) {
+                const soundData = this.sounds[key];
                 const baseVolume = soundData.defaultVolume;
-                const userVolume = this.currentLoopingSound.userVolume;
-                this.currentLoopingSound.instance.volume = this.globalVolume * baseVolume * userVolume;
-                console.log("[AudioManager] Looping Music Unmuted.");
+                const userVolume = soundObj.userVolume;
+                soundObj.instance.volume = this.isMuted ? 0 : (this.globalVolume * baseVolume * userVolume);
             }
+        }
+        
+        if (this.isMuted) {
+            console.log("[AudioManager] Looping Music Muted.");
         } else {
-             console.log(this.isMuted ? "[AudioManager] Sounds Muted." : "[AudioManager] Sounds Unmuted.");
+            console.log("[AudioManager] Looping Music Unmuted.");
         }
         return this.isMuted;
     }

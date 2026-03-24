@@ -111,17 +111,17 @@ class MusicManager {
                 break;
                 
             case 'MISSION_ENDING_VICTORY':
-                // Play victory music, but don't stop ambient - continue it
+                // Play victory music, and stop ambient
                 const victoryTrack = this.getBiomeVictoryTrack() || stateTracks.VICTORY;
                 this.playMusic(victoryTrack, { fade: true, loop: false });
-                // Keep ambient playing
+                this.stopAmbient({ fade: true });
                 break;
                 
             case 'MISSION_ENDING_DEFEAT':
-                // Play defeat music, but don't stop ambient - continue it
+                // Play defeat music, and stop ambient
                 const defeatTrack = stateTracks.DEFEAT;
                 this.playMusic(defeatTrack, { fade: true, loop: false });
-                // Keep ambient playing
+                this.stopAmbient({ fade: true });
                 break;
                 
             case 'POST_MISSION_DEBRIEF':
@@ -202,12 +202,14 @@ class MusicManager {
             ambientTrack = rng.pickFrom(biomeConfig.ambient);
         }
         
-        // Play both layers
+        // Play music layer only - skip ambient if already playing from video
+        // This ensures ambient continues from video without restarting
         if (combatTrack) {
             this.playMusic(combatTrack, { fade: true, loop: true });
         }
         
-        if (ambientTrack) {
+        // Only start ambient if not already playing
+        if (!this.ambientLayer.isPlaying && ambientTrack) {
             this.playAmbient(ambientTrack, { fade: true, loop: true });
         }
     }
