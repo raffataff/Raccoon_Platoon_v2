@@ -205,7 +205,7 @@ class MusicManager {
         // Play music layer only - skip ambient if already playing from video
         // This ensures ambient continues from video without restarting
         if (combatTrack) {
-            this.playMusic(combatTrack, { fade: true, loop: true });
+            this.playMusic(combatTrack, { fade: true, loop: false });
         }
         
         // Only start ambient if not already playing

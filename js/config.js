@@ -7,7 +7,7 @@ const CONFIG = {
     MIN_CANVAS_HEIGHT: 720,
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
-    CAMERA_ZOOM: 1.05, // Fixed zoom level for campaign mode (1.0 = no zoom, higher = closer)
+    CAMERA_ZOOM: 1.1, // Fixed zoom level for campaign mode (1.0 = no zoom, higher = closer)
 
     // --- World Rendering ---
     WORLD_BASE_MUD_COLOR: '#483524', // A muddy brown color
@@ -448,7 +448,7 @@ const CONFIG = {
         MUSIC_COMBAT_1: { path: 'assets/audio/music/Broken Raccoon.mp3', defaultVolume: 0.3 },
         
         // Boss Music
-        MUSIC_BOSS_1: { path: 'assets/audio/music/boss_battle.mp3', defaultVolume: 0.7 },
+        MUSIC_BOSS_1: { path: 'assets/audio/music/boss_battle.mp3', defaultVolume: 0.6 },
         
         // Victory/Defeat
         MUSIC_VICTORY_DEFAULT: { path: 'assets/audio/music/Raccoon_Victory_mini.mp3', defaultVolume: 0.8 },
@@ -668,6 +668,10 @@ const CONFIG = {
     PALM_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
     PALM_TREE_FALLEN_SPRITE_FILES: ['palm_fallen_log_1.png'],
 
+    // Deciduous Trees
+    DECIDUOUS_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    DECIDUOUS_TREE_SINGLE_SPRITE_FILES: ['tree1_single.png'],
+
     // Possum Huts
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
     POSSUM_HUT_SPRITE_FILES: [
@@ -791,6 +795,17 @@ const CONFIG = {
             isDecoration: false,
             spriteScale: 1.2,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
+            canBeFlipped: true,
+        },
+        {
+            type: 'tree_deciduous_single', name: 'Deciduous Tree Single', color: '#228B22',
+            destructible: true, hp: 50, maxHp: 50,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 3, isDecoration: false,
+            spriteScale: 1.1,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.45), offsetY: (h => h * 0.99), radius: (w => w * 0.08) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
+            spriteDestroyedScale: 0.75,
             canBeFlipped: true,
         },
         {
