@@ -1954,102 +1954,131 @@ class UI {
         }
     }
 
+    // --- REUSABLE FULLSCREEN ALERT ---
+    showFullscreenAlert(options, callback) {
+        // options: { title, message, instruction, titleColor, borderColor, backgroundImage, autoDuration }
+        // callback: function to call when alert is dismissed
+        
+        const alertScreen = document.getElementById('fullscreenAlertScreen');
+        const alertBg = document.getElementById('fullscreenAlertBackground');
+        const alertContent = document.getElementById('fullscreenAlertContent');
+        const alertTitle = document.getElementById('alertTitle');
+        const alertMessage = document.getElementById('alertMessage');
+        const alertInstruction = document.getElementById('alertInstruction');
+        
+        if (!alertScreen) {
+            console.error('[UI] Fullscreen alert screen not found!');
+            setTimeout(callback, 500);
+            return;
+        }
+        
+        // Set content
+        alertTitle.textContent = options.title || 'ALERT!';
+        alertMessage.textContent = options.message || '';
+        alertInstruction.textContent = options.instruction || '';
+        
+        // Apply styling
+        if (options.titleColor) {
+            alertTitle.style.color = options.titleColor;
+        }
+        if (options.borderColor) {
+            alertContent.style.borderColor = options.borderColor;
+        }
+        
+        // Handle background
+        if (options.backgroundImage) {
+            alertBg.style.backgroundImage = `url(${options.backgroundImage})`;
+            alertBg.classList.remove('no-image');
+        } else {
+            alertBg.style.backgroundImage = 'none';
+            alertBg.classList.add('no-image');
+        }
+        
+        // Show alert
+        alertScreen.style.display = 'flex';
+        
+        // Store callback and timer reference
+        this._fullscreenAlertCallback = callback;
+        this._fullscreenAlertTimer = null;
+        
+        const dismissAlert = () => {
+            if (this._fullscreenAlertTimer) {
+                clearTimeout(this._fullscreenAlertTimer);
+                this._fullscreenAlertTimer = null;
+            }
+            alertScreen.style.display = 'none';
+            document.removeEventListener('click', clickHandler);
+            
+            if (this._fullscreenAlertCallback) {
+                this._fullscreenAlertCallback();
+                this._fullscreenAlertCallback = null;
+            }
+        };
+        
+        const clickHandler = () => {
+            dismissAlert();
+        };
+        
+        setTimeout(() => {
+            document.addEventListener('click', clickHandler);
+        }, 200);
+        
+        // Auto-dismiss after duration
+        const autoDuration = options.autoDuration || CONFIG.SHOOTOUT_MODE.AMBUSH_ALERT_DURATION || 3000;
+        this._fullscreenAlertTimer = setTimeout(() => {
+            dismissAlert();
+        }, autoDuration);
+    }
+
+    hideFullscreenAlert() {
+        const alertScreen = document.getElementById('fullscreenAlertScreen');
+        if (alertScreen) {
+            alertScreen.style.display = 'none';
+        }
+    }
+
     // --- SHOOTOUT AMBUSH UI METHODS ---
-    showShootoutAmbushAlert(scenarioType, callback) {
+    showShootoutAmbushAlert(scenarioType, callback, backgroundImage) {
         // scenarioType: 'START_AMBUSH' or 'EXTRACTION_AMBUSH'
         // callback: function to call when player clicks to start the ambush
+        // backgroundImage: optional image URL for background
         
-        console.log('[UI] showShootoutAmbushAlert called, scenarioType:', scenarioType);
+        console.log('[UI] showShootoutAmbushAlert called, scenarioType:', scenarioType, 'backgroundImage:', backgroundImage);
         
         // Get random message from config
         const messages = CONFIG.SHOOTOUT_MODE.AMBUSH_ALERT_MESSAGES[scenarioType];
         console.log('[UI] messages:', messages);
         const message = messages[Math.floor(Math.random() * messages.length)];
         
-        // Get alert screen elements
-        const alertScreen = document.getElementById('shootoutAmbushAlertScreen');
-        const alertTitle = document.getElementById('ambushAlertTitle');
-        const alertMessage = document.getElementById('ambushAlertMessage');
-        const alertInstruction = document.getElementById('ambushAlertInstruction');
-        
-        console.log('[UI] alertScreen:', alertScreen, 'alertTitle:', alertTitle);
-        
-        if (!alertScreen) {
-            console.error('[UI] Ambush alert screen not found!');
-            // Still call callback after a short delay
-            setTimeout(callback, 500);
-            return;
-        }
-        
-        // Set title based on scenario
+        // Set title and styling based on scenario
+        let title, titleColor, borderColor;
         if (scenarioType === 'START_AMBUSH') {
-            alertTitle.textContent = 'AMBUSH!';
-            alertTitle.style.color = '#ff4444';
+            title = 'AMBUSH!';
+            titleColor = '#ff4444';
+            borderColor = '#ff4444';
         } else {
-            alertTitle.textContent = 'EXTRACTION UNDER FIRE!';
-            alertTitle.style.color = '#ff8844';
+            title = 'EXTRACTION UNDER FIRE!';
+            titleColor = '#ff8844';
+            borderColor = '#ff8844';
         }
-        
-        // Set message
-        alertMessage.textContent = message;
-        
-        // Show the alert screen
-        console.log('[UI] Setting alert screen display to flex');
-        alertScreen.style.display = 'flex';
         
         // Hide pre mission screen when showing ambush alert
         this.hidePreMissionScreen();
         
-        console.log('[UI] Alert screen should now be visible');
-        
-        // Store callback and auto-transition timer reference
-        this._ambushStartCallback = callback;
-        this._ambushAutoTransitionTimer = null;
-        
-        // Function to start the ambush (called by click or auto-timer)
-        const startAmbush = (skippedAutoTransition = false) => {
-            // Clear the auto-transition timer if it exists
-            if (this._ambushAutoTransitionTimer) {
-                clearTimeout(this._ambushAutoTransitionTimer);
-                this._ambushAutoTransitionTimer = null;
-            }
-            
-            console.log('[UI] Ambush start triggered, skippedAutoTransition:', skippedAutoTransition);
-            alertScreen.style.display = 'none';
-            document.removeEventListener('click', clickHandler);
-            
-            if (this._ambushStartCallback) {
-                this._ambushStartCallback();
-                this._ambushStartCallback = null;
-            }
-        };
-        
-        // Click handler (optional - player can click to skip wait)
-        const clickHandler = () => {
-            console.log('[UI] Ambush click handler triggered!');
-            startAmbush(true);
-        };
-        
-        // Small delay before adding click handler to prevent accidental triggers
-        setTimeout(() => {
-            console.log('[UI] Adding click listener for ambush...');
-            document.addEventListener('click', clickHandler);
-        }, 200);
-        
-        // Auto-transition after 3 seconds (CONFIG.SHOOTOUT_MODE.AMBUSH_ALERT_DURATION)
-        const autoTransitionDelay = CONFIG.SHOOTOUT_MODE.AMBUSH_ALERT_DURATION || 3000;
-        console.log('[UI] Setting auto-transition timer for', autoTransitionDelay, 'ms');
-        this._ambushAutoTransitionTimer = setTimeout(() => {
-            console.log('[UI] Auto-transition timer triggered!');
-            startAmbush(true);
-        }, autoTransitionDelay);
+        // Use the reusable fullscreen alert
+        this.showFullscreenAlert({
+            title: title,
+            message: message,
+            instruction: 'Click anywhere to continue...',
+            titleColor: titleColor,
+            borderColor: borderColor,
+            backgroundImage: backgroundImage,
+            autoDuration: CONFIG.SHOOTOUT_MODE.AMBUSH_ALERT_DURATION || 3000
+        }, callback);
     }
 
     hideShootoutAmbushAlert() {
-        const alertScreen = document.getElementById('shootoutAmbushAlertScreen');
-        if (alertScreen) {
-            alertScreen.style.display = 'none';
-        }
+        this.hideFullscreenAlert();
     }
 
     showShootoutAmbushResult(result, callback) {
@@ -2072,16 +2101,14 @@ class UI {
         }
         
         // Set title and colors based on result
-        if (result === 'VICTORY') {
-            resultTitle.textContent = 'AREA CLEAR!';
-            resultTitle.style.color = '#44ff44';
-            resultScreen.style.border = '3px solid #44ff44';
-            resultScreen.style.background = 'rgba(10, 20, 10, 0.95)';
+        if (result === 'VICTORY' || result === 'TIME_UP') {
+            resultTitle.textContent = result === 'TIME_UP' ? 'SURVIVED!' : 'AREA CLEAR!';
+            resultScreen.classList.remove('defeat');
+            resultScreen.classList.add('victory');
         } else {
             resultTitle.textContent = 'MISSION FAILED';
-            resultTitle.style.color = '#ff4444';
-            resultScreen.style.border = '3px solid #ff4444';
-            resultScreen.style.background = 'rgba(20, 10, 10, 0.95)';
+            resultScreen.classList.remove('victory');
+            resultScreen.classList.add('defeat');
         }
         
         // Set message

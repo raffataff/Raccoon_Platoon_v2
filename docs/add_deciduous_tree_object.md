@@ -17,8 +17,8 @@ Add new sprite configuration and obstacle definition:
 
 **Sprite Configuration (around line 670):**
 ```javascript
-DECIDUOUS_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-DECIDUOUS_TREE_SINGLE_SPRITE_FILES: ['tree1_single.png'],
+DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES: ['tree1_single.png'],
 ```
 
 **Obstacle Definition (after tree_palm_fallen, around line 795):**
@@ -44,13 +44,13 @@ Three modifications required:
 **a) Sprite loading check (around line 677):**
 Add condition:
 ```javascript
-(def.type === 'tree_deciduous_single' && CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_FILES) ||
+(def.type === 'tree_deciduous_single' && CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES) ||
 ```
 
 **b) listBasedSprites array (around line 713):**
 Add entry:
 ```javascript
-{ files: CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_PATH, name: "deciduous_single" },
+{ files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, name: "deciduous_single" },
 ```
 
 **c) Depth sorting logic (around line 2681):**
@@ -63,7 +63,7 @@ obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || 
 
 Add sprite selection handler (around line 730, after tree_palm_fallen):
 ```javascript
-else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
 ```
 
 ## Testing

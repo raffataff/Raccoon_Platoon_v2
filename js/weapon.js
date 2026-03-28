@@ -157,7 +157,7 @@ class Projectile {
         this.reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy);
     }
 
-    reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy) {
+    reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy, bulletLifetimeBonus = 0) {
         this.x = startX;
         this.y = startY;
         this.damage = damage;
@@ -191,7 +191,8 @@ class Projectile {
         this.velocityY = (dy / dist) * this.speed;
 
         this.isMarkedForDeletion = false;
-        this.lifetime = bulletConfig.LIFETIME || 1.5;
+        const baseLifetime = bulletConfig.LIFETIME || 1.5;
+        this.lifetime = baseLifetime + (bulletLifetimeBonus || 0);
         
         // Ensure spatial grid cells are cleared if it's being reused
         if (this._spatialGridCells) this._spatialGridCells.clear();

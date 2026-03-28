@@ -202,7 +202,7 @@ const CONFIG = {
     POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.55,
     POSSUM_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite/dead/',
     POSSUM_ELITE_DEAD_SPRITE_FILES: ['possum_elite_dead1.png', 'possum_elite_dead2.png'],
-    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.5,
+    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.2,
 
     // --- Units: General & AI ---
     UNIT_VISUALS: {
@@ -327,7 +327,7 @@ const CONFIG = {
     },
 
     // --- Projectiles & Weapons ---
-    PROJECTILE_SIZE: 2,
+    PROJECTILE_SIZE: 3,
     PROJECTILE_COLOR_RACCOON: '#FFFF00',
     PROJECTILE_COLOR_RACCOON_PRIVATE: '#FFFF00',
     PROJECTILE_COLOR_RACCOON_CORPORAL: '#00FF88',
@@ -346,7 +346,7 @@ const CONFIG = {
 
     PROJECTILES: {
         BULLET: {
-            LIFETIME: 1.2,
+            LIFETIME: 0.9,
             MAX_SPREAD_ANGLE_RADIANS: Math.PI / 6,
             DESPAWN_WORLD_BUFFER: 50
         },
@@ -389,12 +389,12 @@ const CONFIG = {
     XP_PER_KILL: 10,
     XP_FOR_HEAVY_KILL: 25,
     RANK_THRESHOLDS: [
-        { rankName: "Recruit", xpNeeded: 0, statBoosts: {} },
-        { rankName: "Private", xpNeeded: 300, statBoosts: { maxHpBonus: 10 } },
-        { rankName: "Corporal", xpNeeded: 600, statBoosts: { maxHpBonus: 20, accuracyBonus: 0.05 } },
-        { rankName: "Sergeant", xpNeeded: 1200, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.1 } },
-        { rankName: "Elite", xpNeeded: 2400, statBoosts: { maxHpBonus: 50, accuracyBonus: 0.2 } },
-        { rankName: "Ghost", xpNeeded: 4800, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.4 } }
+        { rankName: "Recruit", xpNeeded: 0, statBoosts: {}, nightVisionRadius: 180 },
+        { rankName: "Private", xpNeeded: 300, statBoosts: { maxHpBonus: 10, bulletLifetimeBonus: 0.2 }, nightVisionRadius: 200 },
+        { rankName: "Corporal", xpNeeded: 600, statBoosts: { maxHpBonus: 20, accuracyBonus: 0.05, bulletLifetimeBonus: 0.4 }, nightVisionRadius: 220 },
+        { rankName: "Sergeant", xpNeeded: 1200, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.1, bulletLifetimeBonus: 0.6 }, nightVisionRadius: 250 },
+        { rankName: "Elite", xpNeeded: 2400, statBoosts: { maxHpBonus: 50, accuracyBonus: 0.2, bulletLifetimeBonus: 1.0 }, nightVisionRadius: 290 },
+        { rankName: "Ghost", xpNeeded: 4800, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.4, bulletLifetimeBonus: 1.2 }, nightVisionRadius: 350 }
     ],
     MAX_RANK_NAME: "Ghost",
     GRENADE_BONUS_CORPORAL: 1,
@@ -435,9 +435,9 @@ const CONFIG = {
             'AMBIENT_FOREST_5'
         ],
         // Destruction SFX
-        POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.4, pitchVariation: 0.1 }, // Example: unique sound
-        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.05, pitchVariation: 0.2 }, // Example: unique sound
-        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.05, pitchVariation: 0.15 }, // Example for cluster
+        POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.5, pitchVariation: 0.1 }, // Example: unique sound
+        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.1, pitchVariation: 0.2 }, // Example: unique sound
+        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.15, pitchVariation: 0.15 }, // Example for cluster
         // Add more SFX keys as needed, e.g., TREE_FALL_SOUND, FENCE_BREAK_SOUND
         
         // --- MUSIC TRACKS ---
@@ -597,6 +597,18 @@ const CONFIG = {
             GRASS_CLUTTER: {
                 MIN_SCALE: 1.1,
                 MAX_SCALE: 1.5
+            },
+            TREES: {
+                MIN_SCALE: 0.8,
+                MAX_SCALE: 1.
+            },
+            BUSHES: {
+                MIN_SCALE: 0.8,
+                MAX_SCALE: 1.
+            },
+            ROCKS: {
+                MIN_SCALE: 0.7,
+                MAX_SCALE: 1.
             }
         },
         EXTRACTION_ZONE_SETTINGS: {
@@ -655,22 +667,37 @@ const CONFIG = {
     ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/64/',
     ROCK_SPRITES_64PX_FILES: ['rock_large_tropical_1.png', 'rock_large_tropical_2.png', 'rock_large_tropical_3.png', 'rock_large_tropical_4.png', 'rock_large_tropical_5.png', 'rock_large_tropical_6.png'],
 
-    // Trees
-    PALM_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    PALM_TREE_SINGLE_SPRITE_FILES: ['palm1_curvy_single.png', 'palm1_single.png', 'palm1_medium_single.png',],
+    // Palm Trees
+    // 1
+    PALM_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/fullSize/',
+    PALM_TREE_SINGLE_SPRITE_FILES: ['palm1_single_1.png', 'palm1_single_2.png', 'palm1_single_3.png', ],
 
-    PALM_TREE_DOUBLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    PALM_TREE_DOUBLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/fullSize/',
     PALM_TREE_DOUBLE_SPRITE_FILES: ['palm1_double.png'],
 
-    PALM_TREE_TRIPLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    PALM_TREE_TRIPLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/fullSize/',
     PALM_TREE_TRIPLE_SPRITE_FILES: ['palm1_triple.png'],
 
+    // 2
+    PALM_TREE2_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    PALM_TREE2_SINGLE_SPRITE_FILES: ['palm2_single_1.png', 'palm2_single_2.png', 'palm2_single_3.png'],
+
+    PALM_TREE2_DOUBLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    PALM_TREE2_DOUBLE_SPRITE_FILES: ['palm2_double_1.png', 'palm2_double_2.png', 'palm2_double_3.png'],
+
+    PALM_TREE2_TRIPLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    PALM_TREE2_TRIPLE_SPRITE_FILES: ['palm2_triple_1.png'],
+
+    // Fallen Palm Trees (logs)
     PALM_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
     PALM_TREE_FALLEN_SPRITE_FILES: ['palm_fallen_log_1.png'],
 
     // Deciduous Trees
-    DECIDUOUS_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    DECIDUOUS_TREE_SINGLE_SPRITE_FILES: ['tree1_single.png'],
+    DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES: ['tree2_single_tall.png'],
+
+    TREE4_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    TREE4_SINGLE_SPRITE_FILES: ['tree4_single_large_1.png', 'tree4_single_large_2.png', 'tree4_single_large_3.png'],
 
     // Possum Huts
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
@@ -740,7 +767,7 @@ const CONFIG = {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: false,
+            spawnWeight: 1, isDecoration: false,
             spriteScale: 1,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 0.64), radiusX: (w => w * 0.43), radiusY: (h => h * 0.29) },
             canBeFlipped: true,
@@ -749,7 +776,7 @@ const CONFIG = {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.3, isDecoration: false,
+            spawnWeight: 0.7, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: (h => h * 0.29) },
             canBeFlipped: true,
@@ -759,8 +786,8 @@ const CONFIG = {
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.98), radius: (w => w * 0.08) },
+            spriteScale: 0.5,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.39), offsetY: (h => h * 1.25), radius: (w => w * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75,
             canBeFlipped: true,
@@ -769,9 +796,9 @@ const CONFIG = {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.2,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.97), radiusX: (w => w * 0.17), radiusY: (h => h * 0.05) },
+            spawnWeight: 4, isDecoration: false,
+            spriteScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.25), radiusX: (w => w * 0.17), radiusY: (h => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75,
             canBeFlipped: true,
@@ -780,13 +807,49 @@ const CONFIG = {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
-            spriteScale: 1.2,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.95), radiusX: (w => w * 0.2), radiusY: (h => h * 0.10) },
+            spawnWeight: 2, isDecoration: false,
+            spriteScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.3), radiusX: (w => w * 0.2), radiusY: (h => h * 0.10) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75,
             canBeFlipped: true,
         },
+        // 2
+        {
+            type: 'tree_palm2_single', name: 'Palm Tree 2 Single', color: '#005522',
+            destructible: true, hp: 50, maxHp: 50,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 4, isDecoration: false,
+            spriteScale: 0.3,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
+            spriteDestroyedScale: 0.75,
+            canBeFlipped: true,
+        },
+        {
+            type: 'tree_palm2_double', name: 'Palm Tree 2 Double', color: '#005522',
+            destructible: true, hp: 75, maxHp: 75,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 3, isDecoration: false,
+            spriteScale: 0.3,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
+            spriteDestroyedScale: 0.75,
+            canBeFlipped: true,
+        },
+        {
+            type: 'tree_palm2_triple', name: 'Palm Tree 2 Triple', color: '#005522',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 1, isDecoration: false,
+            spriteScale: 0.4,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
+            spriteDestroyedScale: 0.75,
+            canBeFlipped: true,
+        },
+        
+        // Fallen palm trees
         {
             type: 'tree_palm_fallen', name: 'Fallen Palm Tree', color: '#005522',
             destructible: false, hp: 100, maxHp: 100,
@@ -797,17 +860,34 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
             canBeFlipped: true,
         },
+        
+        // Deciduous Trees
         {
             type: 'tree_deciduous_single', name: 'Deciduous Tree Single', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
-            spriteScale: 1.1,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.45), offsetY: (h => h * 0.99), radius: (w => w * 0.08) },
+            spawnWeight: 2, isDecoration: false,
+            spriteScale: 0.25,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.93), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75,
             canBeFlipped: true,
         },
+
+        
+        {
+            type: 'tree4_deciduous_single', name: 'Deciduous Tree Large', color: '#228B22',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 2, isDecoration: false,
+            spriteScale: 0.4,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
+            spriteDestroyedScale: 0.75,
+            canBeFlipped: true,
+        },
+
+        // Forest patches
         {
             type: 'forest_patch_dense_1',
             name: 'Dense Forest Patch',
@@ -1278,9 +1358,9 @@ const CONFIG = {
 
         // --- Ambush Integration Settings ---
         // Chance (0-1) that an ambush will trigger when getting out of the heli at mission start
-        AMBUSH_START_CHANCE: 0.3,
+        AMBUSH_START_CHANCE: 0.5,
         // Chance (0-1) that an ambush will trigger when evacuating
-        AMBUSH_EXTRACTION_CHANCE: 0.3,
+        AMBUSH_EXTRACTION_CHANCE: 0.5,
         // Duration (ms) to show the ambush alert before auto-transitioning
         AMBUSH_ALERT_DURATION: 3000,
         // Game mode to use for ambushes: 'TIME_ATTACK' or 'ELIMINATION' (fallback if random selection disabled)
@@ -1291,6 +1371,7 @@ const CONFIG = {
         AMBUSH_ELIMINATION_COUNT: 15,
         AMBUSH_NIGHT_MODE_ENABLED: true,
         AMBUSH_BACKGROUNDS: ['JUNGLE_AMBUSH', 'JUNGLE_ATTACK', 'JUNGLE_RUINS', 'JUNGLE_RUINS_2'],
+        AMBUSH_UNLOCKS_PHASE: 2,
 
         // Ambush alert messages for different scenarios
         AMBUSH_ALERT_MESSAGES: {
@@ -1334,8 +1415,10 @@ const CONFIG = {
                 "Fall back!"
             ],
             TIME_UP: [
-                "Time's up! Fall back!",
-                "Too slow! Withdraw!"
+                "Time's up! You survived!",
+                "Survived the ambush!",
+                "You held the line!",
+                "Reinforcements arrived! Hold position!"
             ]
         }
     }

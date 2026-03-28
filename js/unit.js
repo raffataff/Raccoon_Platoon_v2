@@ -96,6 +96,12 @@ class Unit {
         this.repathCooldown = 0;
     }
 
+    getNightVisionRadius(unit) {
+        if (!unit || !unit.rank) return CONFIG.NIGHT_MISSION.PLAYER_VISION_RADIUS || 220;
+        const rankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === unit.rank);
+        return (rankData && rankData.nightVisionRadius) || CONFIG.NIGHT_MISSION.PLAYER_VISION_RADIUS || 220;
+    }
+
     isIlluminated() {
         if (!this.game || !this.game.isNightMission) return true;
 
@@ -105,12 +111,10 @@ class Unit {
             ...(this.game.hostageUnits || []).filter(h => h && h.isRescued)
         ];
 
-        const nightCfg = CONFIG.NIGHT_MISSION || {};
-        const visionRadius = nightCfg.PLAYER_VISION_RADIUS || 220;
-        const visionRadiusSq = visionRadius * visionRadius;
-
         for (const provider of visionProviders) {
             if (!provider || !provider.isAlive()) continue;
+            const visionRadius = this.getNightVisionRadius(provider);
+            const visionRadiusSq = visionRadius * visionRadius;
             const dx = this.x - provider.x;
             const dy = this.y - provider.y;
             if (dx * dx + dy * dy <= visionRadiusSq) return true;

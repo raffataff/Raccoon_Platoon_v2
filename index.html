@@ -144,17 +144,26 @@
         <!-- MODIFICATION END -->
     </div>
 
-    <!-- Shootout Ambush Alert Screen -->
-    <div id="shootoutAmbushAlertScreen" class="ui-panel" style="display: none; width: 600px; text-align: center; border: 3px solid #ff4444; background: rgba(20, 10, 5, 0.95); position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 200;">
-        <h2 id="ambushAlertTitle" style="color: #ff4444; font-size: 36px; margin-bottom: 10px; text-shadow: 2px 2px 4px #000;">AMBUSH!</h2>
-        <p id="ambushAlertMessage" style="color: #ffaa44; font-size: 20px; margin: 20px 0; text-shadow: 1px 1px 2px #000;">Enemies spotted! Clear the area!</p>
-        <p id="ambushAlertInstruction" style="color: #cccccc; font-size: 16px; margin: 20px 0;"></p>
+    <!-- Full-Screen Reusable Alert Screen -->
+    <div id="fullscreenAlertScreen" class="fullscreen-alert" style="display: none;">
+        <div id="fullscreenAlertBackground" class="fullscreen-alert-bg"></div>
+        <div id="fullscreenAlertContent" class="fullscreen-alert-content">
+            <h2 id="alertTitle" class="alert-title">ALERT!</h2>
+            <p id="alertMessage" class="alert-message">Message goes here</p>
+            <p id="alertInstruction" class="alert-instruction"></p>
+        </div>
     </div>
 
     <!-- Shootout Ambush Result Screen -->
-    <div id="shootoutAmbushResultScreen" class="ui-panel" style="display: none; width: 500px; text-align: center; border: 3px solid #44ff44; background: rgba(10, 20, 10, 0.95);">
-        <h2 id="ambushResultTitle" style="color: #44ff44; font-size: 32px; margin-bottom: 10px; text-shadow: 2px 2px 4px #000;">AREA CLEAR!</h2>
-        <p id="ambushResultMessage" style="color: #aaffaa; font-size: 18px; margin: 20px 0; text-shadow: 1px 1px 2px #000;">All hostiles eliminated!</p>
+    <div id="shootoutAmbushResultScreen" class="ambush-result-screen" style="display: none;">
+        <div class="result-content">
+            <div class="corner-decor top-left"></div>
+            <div class="corner-decor top-right"></div>
+            <div class="corner-decor bottom-left"></div>
+            <div class="corner-decor bottom-right"></div>
+            <h2 id="ambushResultTitle">AREA CLEAR!</h2>
+            <p id="ambushResultMessage">All hostiles eliminated!</p>
+        </div>
     </div>
 
     <div id="recruitMemorialScreen" class="ui-panel" style="display: none;">

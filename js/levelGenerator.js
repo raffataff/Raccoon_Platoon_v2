@@ -728,7 +728,11 @@ class LevelGenerator {
             else if (template.type === 'tree_palm_triple') { filesArray = CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'pickup_health') { filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || []; pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_fallen') { filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm2_single') { filesArray = CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm2_double') { filesArray = CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm2_triple') { filesArray = CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree4_deciduous_single') { filesArray = CONFIG.TREE4_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE4_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {
@@ -746,6 +750,27 @@ class LevelGenerator {
                 normalSpriteScale = this.rng.nextFloat(grassConfig.MIN_SCALE || 0.8, grassConfig.MAX_SCALE || 1.2);
                 obsRenderWidth = actualImageObject ? actualImageObject.naturalWidth * normalSpriteScale : (template.width || 16) * normalSpriteScale;
                 obsRenderHeight = actualImageObject ? actualImageObject.naturalHeight * normalSpriteScale : (template.height || 16) * normalSpriteScale;
+            } else if (template.type.startsWith('tree_')) {
+                const treeConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.TREES) || {};
+                const baseScale = template.spriteScale || 1.0;
+                const variation = this.rng.nextFloat(treeConfig.MIN_SCALE || 0.8, treeConfig.MAX_SCALE || 1.2);
+                normalSpriteScale = baseScale * variation;
+                obsRenderWidth = actualImageObject ? actualImageObject.naturalWidth * normalSpriteScale : (template.width || 32) * normalSpriteScale;
+                obsRenderHeight = actualImageObject ? actualImageObject.naturalHeight * normalSpriteScale : (template.height || 32) * normalSpriteScale;
+            } else if (template.type === 'bush_medium' || template.type === 'bush_large') {
+                const bushConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.BUSHES) || {};
+                const baseScale = template.spriteScale || 1.0;
+                const variation = this.rng.nextFloat(bushConfig.MIN_SCALE || 0.9, bushConfig.MAX_SCALE || 1.1);
+                normalSpriteScale = baseScale * variation;
+                obsRenderWidth = actualImageObject ? actualImageObject.naturalWidth * normalSpriteScale : (template.width || 32) * normalSpriteScale;
+                obsRenderHeight = actualImageObject ? actualImageObject.naturalHeight * normalSpriteScale : (template.height || 32) * normalSpriteScale;
+            } else if (template.type === 'rock_medium' || template.type === 'rock_large') {
+                const rockConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.ROCKS) || {};
+                const baseScale = template.spriteScale || 1.0;
+                const variation = this.rng.nextFloat(rockConfig.MIN_SCALE || 0.85, rockConfig.MAX_SCALE || 1.15);
+                normalSpriteScale = baseScale * variation;
+                obsRenderWidth = actualImageObject ? actualImageObject.naturalWidth * normalSpriteScale : (template.width || 32) * normalSpriteScale;
+                obsRenderHeight = actualImageObject ? actualImageObject.naturalHeight * normalSpriteScale : (template.height || 32) * normalSpriteScale;
             } else if (actualImageObject && template.spriteScale !== undefined) {
                 obsRenderWidth = actualImageObject.naturalWidth * template.spriteScale; obsRenderHeight = actualImageObject.naturalHeight * template.spriteScale; normalSpriteScale = template.spriteScale;
             } else if (template.width !== undefined && template.height !== undefined) {

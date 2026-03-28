@@ -1920,7 +1920,229 @@ input[type="range"]::-moz-range-thumb {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    /* This is key: scales the video to cover the screen without stretching */
+}
+
+/* --- Full-Screen Reusable Alert --- */
+.fullscreen-alert {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.fullscreen-alert-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #12100e;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.95;
+}
+
+.fullscreen-alert-bg.no-image {
+    background-color: #12100e;
+    background-image: none;
+}
+
+.fullscreen-alert-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    max-width: 800px;
+    padding: 40px 60px;
+    border: 3px solid #ff4444;
+    background: rgba(20, 10, 5, 0.9);
+    border-radius: 8px;
+}
+
+.alert-title {
+    color: #ff4444;
+    font-size: 48px;
+    margin-bottom: 20px;
+    text-shadow: 2px 2px 4px #000;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+}
+
+.alert-message {
+    color: #ffaa44;
+    font-size: 24px;
+    margin: 30px 0;
+    text-shadow: 1px 1px 2px #000;
+    line-height: 1.5;
+}
+
+.alert-instruction {
+    color: #cccccc;
+    font-size: 16px;
+    margin-top: 20px;
+    opacity: 0.8;
+}
+
+/* --- Full-Screen Shootout Ambush Result Screen --- */
+.ambush-result-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 300;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, rgba(20, 40, 20, 0.98) 0%, rgba(5, 15, 5, 0.98) 100%);
+    border: none;
+}
+
+.ambush-result-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: 
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(68, 255, 68, 0.03) 2px,
+            rgba(68, 255, 68, 0.03) 4px
+        );
+    pointer-events: none;
+    animation: scanMove 4s linear infinite;
+}
+
+@keyframes scanMove {
+    0% { background-position: 0 0; }
+    100% { background-position: 0 100px; }
+}
+
+.ambush-result-screen .result-content {
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    padding: 60px 80px;
+    border: 4px solid #44ff44;
+    background: rgba(10, 20, 10, 0.95);
+    box-shadow: 
+        0 0 60px rgba(68, 255, 68, 0.4),
+        inset 0 0 40px rgba(68, 255, 68, 0.1);
+    animation: victoryPulse 1.5s ease-out;
+}
+
+@keyframes victoryPulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.ambush-result-screen h2#ambushResultTitle {
+    color: #44ff44;
+    font-size: 64px;
+    margin-bottom: 20px;
+    text-shadow: 
+        0 0 20px rgba(68, 255, 68, 0.8),
+        2px 2px 4px #000;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-family: var(--font-header);
+}
+
+.ambush-result-screen p#ambushResultMessage {
+    color: #aaffaa;
+    font-size: 28px;
+    margin: 30px 0;
+    text-shadow: 1px 1px 2px #000;
+    line-height: 1.5;
+}
+
+.ambush-result-screen .corner-decor {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-color: #44ff44;
+    border-style: solid;
+    pointer-events: none;
+}
+
+.ambush-result-screen .corner-decor.top-left {
+    top: -2px;
+    left: -2px;
+    border-width: 4px 0 0 4px;
+}
+
+.ambush-result-screen .corner-decor.top-right {
+    top: -2px;
+    right: -2px;
+    border-width: 4px 4px 0 0;
+}
+
+.ambush-result-screen .corner-decor.bottom-left {
+    bottom: -2px;
+    left: -2px;
+    border-width: 0 0 4px 4px;
+}
+
+.ambush-result-screen .corner-decor.bottom-right {
+    bottom: -2px;
+    right: -2px;
+    border-width: 0 4px 4px 0;
+}
+
+/* Defeat state */
+.ambush-result-screen.defeat {
+    background: radial-gradient(ellipse at center, rgba(40, 20, 20, 0.98) 0%, rgba(15, 5, 5, 0.98) 100%);
+}
+
+.ambush-result-screen.defeat::before {
+    background: 
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(255, 68, 68, 0.03) 2px,
+            rgba(255, 68, 68, 0.03) 4px
+        );
+}
+
+.ambush-result-screen.defeat .result-content {
+    border-color: #ff4444;
+    background: rgba(20, 10, 10, 0.95);
+    box-shadow: 
+        0 0 60px rgba(255, 68, 68, 0.4),
+        inset 0 0 40px rgba(255, 68, 68, 0.1);
+}
+
+.ambush-result-screen.defeat h2#ambushResultTitle {
+    color: #ff4444;
+    text-shadow: 
+        0 0 20px rgba(255, 68, 68, 0.8),
+        2px 2px 4px #000;
+}
+
+.ambush-result-screen.defeat p#ambushResultMessage {
+    color: #ffaaaa;
+}
+
+.ambush-result-screen.defeat .corner-decor {
+    border-color: #ff4444;
 }
 
 /* --- Save/Load Modal Styles --- */

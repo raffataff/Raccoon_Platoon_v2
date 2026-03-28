@@ -141,7 +141,14 @@ class Game {
 
     getProjectileFromPool(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy) {
         const projectile = this.projectilePool.acquire();
-        projectile.reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy);
+        let bulletLifetimeBonus = 0;
+        if (shooterUnit && shooterUnit.team === 'player' && shooterUnit.rank) {
+            const rankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === shooterUnit.rank);
+            if (rankData && rankData.statBoosts && rankData.statBoosts.bulletLifetimeBonus) {
+                bulletLifetimeBonus = rankData.statBoosts.bulletLifetimeBonus;
+            }
+        }
+        projectile.reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy, bulletLifetimeBonus);
         return projectile;
     }
 
@@ -675,7 +682,11 @@ class Game {
                 (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) ||
                 (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) ||
                 (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) ||
-                (def.type === 'tree_deciduous_single' && CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm2_single' && CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm2_double' && CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES) ||
+                (def.type === 'tree_palm2_triple' && CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES) ||
+                (def.type === 'tree_deciduous_single' && CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES) ||
+                (def.type === 'tree4_deciduous_single' && CONFIG.TREE4_SINGLE_SPRITE_FILES) ||
                 (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
                 (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ||
                 (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES)) {
@@ -712,7 +723,11 @@ class Game {
             { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" },
             { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" },
             { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" },
-            { files: CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE_SINGLE_SPRITE_PATH, name: "deciduous_single" },
+            { files: CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_SINGLE_SPRITE_PATH, name: "palm2_single" },
+            { files: CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_DOUBLE_SPRITE_PATH, name: "palm2_double" },
+            { files: CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH, name: "palm2_triple" },
+            { files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, name: "deciduous_single" },
+            { files: CONFIG.TREE4_SINGLE_SPRITE_FILES, path: CONFIG.TREE4_SINGLE_SPRITE_PATH, name: "tree4_deciduous_single" },
             { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }
         ];
 
@@ -1033,6 +1048,10 @@ class Game {
 
         await Promise.all([loadingTasksPromise, minDisplayTimePromise]);
 
+        // --- QUICK AMBUSH CHECK (during video, before it ends) ---
+        // Determine if ambush will trigger - synchronous check
+        const willTriggerAmbush = this.checkForAmbush();
+
         // --- Night Mission: set flag from generated params ---
         this.isNightMission = !!(this.currentMissionParams?.baseParams?.isNightMission);
 
@@ -1068,42 +1087,30 @@ class Game {
             this.ui.hideVideoLoadingScreen();
         }
 
-        // --- Trigger Start Ambush (after getting out of heli/loading) ---
-        // Trigger ambush after the loading screen is hidden (heli landing complete)
-        const game = this;
-        this.triggerStartAmbush(function(success) {
-            if (success) {
-                console.log('[Game] Start ambush completed successfully!');
-            } else if (success === false) {
-                console.log('[Game] No start ambush this time.');
-            }
-            
-            // Continue with normal mission start (moved inside callback)
-            game.missionStartedAndPopulated = true;
-            game.missionStartTime = performance.now();
-            game.isObjectiveComplete = false;
-            game.setNextBirdSpawnTimer();
-
-            if (game.ui) { game.ui.hidePreMissionScreen(); game.ui.showHUD(); game.ui.updateObjective(); game.ui.updateFormationButton(game.currentFormationType); }
-            if (game.ui) { game.ui.updateNightMissionBadge(); }
-            if (game.inputHandler) { game.inputHandler.isLMBHoldFiringActionActive = false; game.inputHandler.updateMouseCursor(); }
-
-            game.lastTime = performance.now();
-            game.setNextBirdSpawnTimer(game.level.rng);
-            game.missionEndDelayTimer = -1;
-            game.missionPendingOutcomeIsVictory = false;
-        });
-        
-        // If we're in an ambush, don't set missionStartedAndPopulated yet
-        if (!this.isInAmbush()) {
-            this.missionStartedAndPopulated = true;
-            this.missionStartTime = performance.now();
-            this.isObjectiveComplete = false;
-            this.setNextBirdSpawnTimer();
+        // --- Handle Ambush After Video Ends ---
+        if (willTriggerAmbush) {
+            // Show ambush alert, then start mission after alert is dismissed
+            const game = this;
+            this.executeStartAmbush(function(success) {
+                // Ambush completed, continue with mission setup
+                game.finishMissionStart();
+            });
+        } else {
+            // No ambush - proceed directly to mission
+            this.finishMissionStart();
         }
+    }
 
-        // NOTE: UI updates moved inside the triggerStartAmbush callback above
-        // to properly wait for ambush to complete before continuing
+    /**
+     * Finish mission startup (called after video and optional ambush)
+     */
+    finishMissionStart() {
+        this.missionStartedAndPopulated = true;
+        this.missionStartTime = performance.now();
+        this.isObjectiveComplete = false;
+        this.setNextBirdSpawnTimer();
+
+        if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); }
         if (this.ui) { this.ui.updateNightMissionBadge(); }
         if (this.inputHandler) { this.inputHandler.isLMBHoldFiringActionActive = false; this.inputHandler.updateMouseCursor(); }
 
@@ -1111,6 +1118,91 @@ class Game {
         this.setNextBirdSpawnTimer(this.level.rng);
         this.missionEndDelayTimer = -1;
         this.missionPendingOutcomeIsVictory = false;
+    }
+
+    /**
+     * Quick synchronous check if ambush should trigger
+     * @returns {boolean}
+     */
+    checkForAmbush() {
+        // Only trigger start ambush on 1st mission of each phase
+        if (this.currentMissionIndex !== 0) {
+            return false;
+        }
+        return this.shouldTriggerAmbush('START');
+    }
+
+    /**
+     * Execute the ambush - show alert and run shootout
+     * @param {function} callback - Called when ambush ends
+     */
+    executeStartAmbush(callback) {
+        console.log('[Game] START AMBUSH TRIGGERED!');
+        
+        // Set flag so mission doesn't start while ambush alert is showing
+        this.ambushTriggered = true;
+        
+        // Initialize shootout controller if needed
+        this.initShootoutForAmbush();
+        
+        // Get random background and night mode setting
+        const background = this.getRandomAmbushBackground();
+        const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
+        
+        // Store previous game state
+        this.previousGameState = this.gameState;
+        
+        // Pre-configure shootout with background BEFORE showing alert
+        if (this.shootoutController) {
+            this.shootoutController.setBackground(background);
+            this.shootoutController.setNightMode(isNight);
+            this.gameState = 'SHOOTOUT_AMBUSH';
+            if (this.musicManager) this.musicManager.onGameStateChange('SHOOTOUT_AMBUSH');
+        }
+        
+        // Show ambush alert
+        const game = this;
+        const backgroundImagePath = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[background]?.IMAGE;
+        if (this.ui) {
+            this.ui.showShootoutAmbushAlert('START_AMBUSH', function() {
+                // Start the ambush
+                game.shootoutController.startAmbush(background, isNight, function(result) {
+                    // Ambush ended
+                    console.log('[Game] Start ambush ended with result:', result);
+                    
+                    // Clear ambush triggered flag
+                    game.ambushTriggered = false;
+                    
+                    // Return to running state
+                    game.gameState = 'RUNNING';
+                    if (game.musicManager) game.musicManager.onGameStateChange('RUNNING');
+                    
+                    if (callback) callback(result === 'VICTORY');
+                });
+            }, backgroundImagePath);
+        } else {
+            // No UI - just run ambush immediately
+            this.shootoutController.startAmbush(background, isNight, function(result) {
+                game.ambushTriggered = false;
+                game.gameState = 'RUNNING';
+                if (callback) callback(result === 'VICTORY');
+            });
+        }
+    }
+
+    /**
+     * Legacy method - kept for backward compatibility with extraction ambush
+     * @param {function} callback - Callback when ambush ends
+     */
+    triggerStartAmbush(callback) {
+        this.executeStartAmbush(callback);
+    }
+
+    /**
+     * Continue with normal mission flow (extraction phase)
+     */
+    continueAfterVideoOrAmbush() {
+        // This is a stub - the actual continuation logic is now in finishMissionStart()
     }
 
     incrementObjectiveEnemyCount(count = 1) {
@@ -2680,7 +2772,14 @@ class Game {
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
-        if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { if (obstacle.isHidden) return; const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; let shouldSort = true; if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) { if (borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) { shouldSort = false; } } if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
+        if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { if (obstacle.isHidden) return; const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; let shouldSort = true; if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) { if (borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) { shouldSort = false; } } if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
+        this.gameObjects.forEach(obj => {
+            if (this.isProjectileOrBird(obj) && typeof obj.y === 'number') {
+                sortableObjects.push({ entity: obj, sortY: obj.y, isUnit: true });
+            } else if (obj && typeof obj.render === 'function') {
+                obj.render(this.ctx);
+            }
+        });
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
         sortableObjects.forEach((item, index) => {
             const obj = item.entity; if (!obj) { return; } try {
@@ -2815,7 +2914,6 @@ class Game {
             this.ctx.restore();
         }
 
-        this.gameObjects.forEach(obj => { if (obj && typeof obj.render === 'function') { obj.render(this.ctx); } });
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function') { effect.render(this.ctx); } });
 
         if (this.selectedUnits) {
@@ -2945,10 +3043,11 @@ class Game {
             const zoom = this.cameraZoom || 1.0;
             visionUnits.forEach(unit => {
                 if (!unit || !unit.isAlive()) return;
-                // Convert world coordinates to screen coordinates with zoom
                 const sx = (unit.x - this.cameraX) * zoom;
                 const sy = (unit.y - this.cameraY) * zoom;
-                const r = nightCfg.PLAYER_VISION_RADIUS * zoom;
+                const rankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === unit.rank);
+                const baseRadius = (rankData && rankData.nightVisionRadius) || nightCfg.PLAYER_VISION_RADIUS || 220;
+                const r = baseRadius * zoom;
                 const soft = nightCfg.VISION_EDGE_SOFTNESS;
                 const innerR = Math.max(0, r - soft);
                 const grad = octx.createRadialGradient(sx, sy, innerR, sx, sy, r);
@@ -3309,6 +3408,9 @@ class Game {
      * @returns {boolean}
      */
     shouldTriggerAmbush(type) {
+        if (this.currentPhaseIndex < CONFIG.SHOOTOUT_MODE.AMBUSH_UNLOCKS_PHASE) {
+            return false;
+        }
         const config = CONFIG.SHOOTOUT_MODE;
         const chance = type === 'START' 
             ? config.AMBUSH_START_CHANCE 
@@ -3371,6 +3473,7 @@ class Game {
         // Show ambush alert
         console.log('[Game] Showing ambush alert, ui exists:', !!this.ui);
         const game = this;
+        const backgroundImagePath = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[background]?.IMAGE;
         if (this.ui) {
             console.log('[Game] Calling showShootoutAmbushAlert...');
             this.ui.showShootoutAmbushAlert('START_AMBUSH', function() {
@@ -3391,7 +3494,7 @@ class Game {
                         if (callback) callback(result === 'VICTORY');
                     });
                 }
-            });
+            }, backgroundImagePath);
         }
     }
 
@@ -3432,6 +3535,7 @@ class Game {
 
         // Show ambush alert
         const game = this;
+        const backgroundImagePath = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[background]?.IMAGE;
         if (this.ui) {
             this.ui.showShootoutAmbushAlert('EXTRACTION_AMBUSH', function() {
                 // Start the ambush
@@ -3445,7 +3549,7 @@ class Game {
                     // Return to campaign mode
                     if (callback) callback(result === 'VICTORY');
                 });
-            });
+            }, backgroundImagePath);
         }
     }
 
@@ -3497,6 +3601,10 @@ class Game {
         if (this.shootoutController && this.shootoutController.isAmbushMode) {
             this.shootoutController.endAmbush('defeat');
         }
+    }
+
+    isProjectileOrBird(obj) {
+        return obj && (obj instanceof Projectile || obj instanceof GrenadeProjectile || obj instanceof FlyingBird);
     }
 }
 
