@@ -7,7 +7,7 @@ const CAMPAIGN_RULES = {
     BASE_PARAMETERS: {
         worldWidthFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness 
         worldHeightFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
-        enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.3, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
+        enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.1, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
         sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
         numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance

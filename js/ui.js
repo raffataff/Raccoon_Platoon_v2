@@ -1751,9 +1751,23 @@ class UI {
 
         const { isVictory, phaseData, missionData, objectives,
             survivingRaccoons, fallenRaccoons, enemiesKilled,
-            timeTaken, campaignComplete, newlyRecruitedRaccoons } = debriefData;
+            timeTaken, campaignComplete, newlyRecruitedRaccoons,
+            ambushResult, ambushesSurvived } = debriefData;
 
         if (this.missionOutcomeText) this.missionOutcomeText.textContent = isVictory ? (this.uiText.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!") : (this.uiText.POST_MISSION_FAILED || "MISSION FAILED!");
+
+        // Add ambush result to objectives display (check ambushResult directly, not isVictory)
+        if (ambushResult || (ambushesSurvived && ambushesSurvived.length > 0)) {
+            const ambushXp = (CONFIG.XP_PER_AMBUSH_SURVIVED || 100) * (ambushesSurvived ? ambushesSurvived.length : 0);
+            const isAmbushSuccess = ambushResult === 'VICTORY';
+            const ambushObjectiveText = isAmbushSuccess 
+                ? `AMBUSH SURVIVED (+${ambushXp} XP)`
+                : 'AMBUSH FAILED - Mission Compromised!';
+            const ambushLi = document.createElement('li');
+            ambushLi.innerHTML = `<span class="obj-text">${ambushObjectiveText}</span><span class="obj-status">${isAmbushSuccess ? 'SURVIVED' : 'FAILED'}</span>`;
+            ambushLi.classList.add(isAmbushSuccess ? 'completed' : 'failed');
+            if (objectiveListEl) objectiveListEl.appendChild(ambushLi);
+        }
 
         const postMissionInfoEl = document.getElementById('postMissionInfo');
         if (postMissionInfoEl && phaseData && missionData) {

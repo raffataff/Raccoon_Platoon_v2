@@ -114,6 +114,13 @@ class Game {
         this.shootoutController = null;
         // --- END NEW ---
 
+        // --- Ambush Success/Failure Tracking ---
+        this.currentAmbushType = null;           // 'START' or 'EXTRACTION'
+        this.ambushResult = null;                // 'VICTORY' or 'DEFEAT'
+        this.takenHostageRaccoonId = null;        // ID of captured raccoon from failed ambush
+        this.ambushesSurvivedThisMission = [];   // Track: ['START', 'EXTRACTION']
+        // --- END Ambush Tracking ---
+
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
 
@@ -1109,6 +1116,12 @@ class Game {
         this.missionStartTime = performance.now();
         this.isObjectiveComplete = false;
         this.setNextBirdSpawnTimer();
+        
+        // Reset ambush state for new mission
+        this.currentAmbushType = null;
+        this.ambushResult = null;
+        this.ambushesSurvivedThisMission = [];
+        // Don't reset takenHostageRaccoonId here - it's needed for objective generation
 
         if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); }
         if (this.ui) { this.ui.updateNightMissionBadge(); }
@@ -1170,12 +1183,8 @@ class Game {
                     // Ambush ended
                     console.log('[Game] Start ambush ended with result:', result);
                     
-                    // Clear ambush triggered flag
-                    game.ambushTriggered = false;
-                    
-                    // Return to running state
-                    game.gameState = 'RUNNING';
-                    if (game.musicManager) game.musicManager.onGameStateChange('RUNNING');
+                    // Handle ambush result (START type)
+                    game.handleAmbushResult('START', result);
                     
                     if (callback) callback(result === 'VICTORY');
                 });
@@ -1183,8 +1192,7 @@ class Game {
         } else {
             // No UI - just run ambush immediately
             this.shootoutController.startAmbush(background, isNight, function(result) {
-                game.ambushTriggered = false;
-                game.gameState = 'RUNNING';
+                game.handleAmbushResult('START', result);
                 if (callback) callback(result === 'VICTORY');
             });
         }
@@ -1196,6 +1204,119 @@ class Game {
      */
     triggerStartAmbush(callback) {
         this.executeStartAmbush(callback);
+    }
+
+    /**
+     * Handle the result of an ambush encounter
+     * @param {string} ambushType - 'START' or 'EXTRACTION'
+     * @param {string} result - 'VICTORY', 'TIME_UP', or 'DEFEAT'
+     */
+    handleAmbushResult(ambushType, result) {
+        // Clear ambush triggered flag
+        this.ambushTriggered = false;
+        
+        // Store the type
+        this.currentAmbushType = ambushType;
+        this.ambushResult = result;
+        
+        if (result === 'VICTORY') {
+            // Ambush survived - track it
+            this.ambushesSurvivedThisMission.push(ambushType);
+            console.log(`[Game] Ambush ${ambushType} SURVIVED!`);
+            
+            if (ambushType === 'START') {
+                // START ambush: return to RUNNING and restore campaign music
+                this.gameState = 'RUNNING';
+                if (this.musicManager) {
+                    const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+                    this.musicManager.onGameStateChange('RUNNING', {
+                        biome: biome,
+                        rng: this.currentMissionSeedRNG,
+                        isBossMission: this.currentMissionParams?.isBossMission || false
+                    });
+                }
+            } else {
+                // EXTRACTION ambush: go directly to victory (don't pause in RUNNING)
+                this.initiateMissionEnd(true);
+            }
+        } else {
+            // Ambush failed - handle capture and casualties
+            console.log(`[Game] Ambush ${ambushType} FAILED! Handling consequences...`);
+            this.handleAmbushDefeat(ambushType);
+        }
+    }
+
+    /**
+     * Handle ambush defeat - capture highest rank, kill others, fail mission
+     * @param {string} ambushType - 'START' or 'EXTRACTION'
+     */
+    handleAmbushDefeat(ambushType) {
+        // Combine deployed squad + rescued hostages for victim selection
+        const allAvailable = [];
+        
+        // Add living deployed raccoons
+        if (this.deployedSquadRoster) {
+            this.deployedSquadRoster.forEach(r => {
+                if (r.isAlive()) {
+                    allAvailable.push({ raccoon: r, source: 'deployed' });
+                }
+            });
+        }
+        
+        // Add rescued hostages
+        if (this.hostageUnits) {
+            this.hostageUnits.forEach(h => {
+                if (h.isRescued && h.isAlive()) {
+                    allAvailable.push({ raccoon: h, source: 'hostage' });
+                }
+            });
+        }
+        
+        // Find highest rank
+        const rankPriority = { 'Ghost': 5, 'Elite': 4, 'Sergeant': 3, 'Corporal': 2, 'Private': 1, 'Recruit': 0 };
+        allAvailable.sort((a, b) => {
+            const rankA = rankPriority[a.raccoon.rank] || 0;
+            const rankB = rankPriority[b.raccoon.rank] || 0;
+            return rankB - rankA;
+        });
+        
+        if (allAvailable.length > 0) {
+            // Highest rank is captured
+            const captured = allAvailable[0];
+            this.takenHostageRaccoonId = captured.raccoon.id;
+            console.log(`[Game] ${captured.raccoon.name} (${captured.raccoon.rank}) CAPTURED!`);
+            
+            // Remove captured from deployed squad
+            if (captured.source === 'deployed') {
+                // Mark as not alive (removed from squad)
+                captured.raccoon.hp = 0;
+            } else {
+                // Mark rescued hostage as killed
+                captured.raccoon.hp = 0;
+            }
+        }
+        
+        // All other deployed raccoons are KIA
+        if (this.deployedSquadRoster) {
+            this.deployedSquadRoster.forEach(r => {
+                if (r.isAlive() && r.id !== this.takenHostageRaccoonId) {
+                    r.hp = 0; // Kill them
+                    this.fallenRaccoonsThisMission.push(r);
+                }
+            });
+        }
+        
+        // All rescued hostages are KIA too
+        if (this.hostageUnits) {
+            this.hostageUnits.forEach(h => {
+                if (h.isRescued && h.isAlive() && h.id !== this.takenHostageRaccoonId) {
+                    h.hp = 0;
+                }
+            });
+        }
+        
+        // Trigger mission failure directly - don't change to RUNNING music first
+        this.initiateMissionEnd(false);
     }
 
     /**
@@ -2008,6 +2129,31 @@ class Game {
         }
 
         this.tempSelectedForDeployment = [];
+        
+        // --- Check for taken hostage from failed ambush ---
+        if (this.takenHostageRaccoonId) {
+            // Find the captured raccoon's name
+            const takenRaccoon = this.masterRoster.find(r => r.id === this.takenHostageRaccoonId);
+            const takenRaccoonName = takenRaccoon ? takenRaccoon.name : 'Unknown';
+            
+            // Add RESCUE_TAKEN_HOSTAGE as a primary objective
+            const rescueTakenObjective = {
+                type: 'RESCUE_TAKEN_HOSTAGE',
+                targetRaccoonId: this.takenHostageRaccoonId,
+                targetRaccoonName: takenRaccoonName,
+                isPrimary: true,
+                totalToAchieve: 1,
+                minToAchieveForCompletion: 1,
+                description: `Rescue ${takenRaccoonName} from captivity`
+            };
+            
+            objectivesArray.push(rescueTakenObjective);
+            console.log(`[Game Gen] Added RESCUE_TAKEN_HOSTAGE objective for ${takenRaccoonName}`);
+            
+            // Clear the taken hostage ID since it's now an objective
+            this.takenHostageRaccoonId = null;
+        }
+        
         return true;
     }
 
@@ -2119,6 +2265,13 @@ class Game {
             if (survivalXp > 0 && this.deployedSquadRoster) {
                 this.deployedSquadRoster.forEach(r => { if (r.isAlive()) r.addXp(survivalXp); });
             }
+            // Ambush survival bonus XP
+            const ambushXpBonus = CONFIG.XP_PER_AMBUSH_SURVIVED || 100;
+            if (this.ambushesSurvivedThisMission.length > 0 && this.deployedSquadRoster) {
+                const totalAmbushXp = ambushXpBonus * this.ambushesSurvivedThisMission.length;
+                this.deployedSquadRoster.forEach(r => { if (r.isAlive()) r.addXp(totalAmbushXp); });
+                console.log(`[Game] Ambush survival bonus: +${totalAmbushXp} XP (${this.ambushesSurvivedThisMission.length} ambush(es))`);
+            }
             const recruitsToAdd = CONFIG.NEW_RECRUITS_PER_MISSION_WIN || 0;
             const maxRoster = CONFIG.MAX_TOTAL_ROSTER_SIZE || Infinity;
             for (let i = 0; i < recruitsToAdd && this.masterRoster.length < maxRoster; i++) this.addNewRecruitToMasterRoster();
@@ -2184,7 +2337,10 @@ class Game {
             timeTaken: missionDuration.toFixed(1),
             campaignComplete: (isVictory && isLastMissionInPhase && isLastPhaseOfCampaign),
             newlyRecruitedRaccoons: newlyRecruitedRaccoons,
-            hostagesRecruitedCount: newlyRecruitedRaccoons.length
+            hostagesRecruitedCount: newlyRecruitedRaccoons.length,
+            // Ambush result info
+            ambushResult: this.ambushResult,
+            ambushesSurvived: this.ambushesSurvivedThisMission
         };
 
         if (this.ui) {
@@ -2481,6 +2637,14 @@ class Game {
                                 obj.currentProgress = 1;
                             }
                         }
+                    } else if (obj.type === 'RESCUE_TAKEN_HOSTAGE') {
+                        // Find the captured raccoon in hostage units
+                        const targetHostage = this.hostageUnits?.find(h => h.originalRaccoonId === obj.targetRaccoonId || h.id === obj.targetRaccoonId);
+                        if (targetHostage && targetHostage.isRescued && targetHostage.isAlive()) {
+                            obj.isComplete = true;
+                            obj.currentProgress = 1;
+                            console.log(`[Game] RESCUE_TAKEN_HOSTAGE completed: ${obj.targetRaccoonName} rescued!`);
+                        }
                     }
                 }
 
@@ -2543,12 +2707,14 @@ class Game {
                 // Phase finale - check for extraction ambush
                 const game = this;
                 this.triggerExtractionAmbush(function(success) {
-                    if (success) {
-                        console.log('[Game] Extraction ambush completed successfully!');
-                    } else if (success === false) {
+                    // Only call mission end if it wasn't already called by handleAmbushDefeat
+                    // If ambush failed, handleAmbushDefeat already called initiateMissionEnd(false)
+                    // If no ambush triggered (success === false), we need to end with victory
+                    if (success === false) {
                         console.log('[Game] No extraction ambush this time.');
+                        game.initiateMissionEnd(true);
                     }
-                    game.initiateMissionEnd(true);
+                    // If success is true, handleAmbushResult already handled things (or will be handled by the callback in triggerExtractionAmbush)
                 });
             } else {
                 // Not a phase finale - end mission immediately, no extraction ambush
@@ -2601,17 +2767,11 @@ class Game {
             this.updateShootoutMode(deltaTime);
             // Check if ambush ended
             if (this.shootoutController && !this.shootoutController.isRoundActive) {
-                // Ambush ended, return to RUNNING
+                // Ambush ended - just set state to RUNNING and restore HUD
+                // DON'T change music here - handleAmbushResult handles music based on victory/defeat
                 this.gameState = 'RUNNING';
-                // Restore campaign music and ambient
-                if (this.musicManager) {
-                    const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
-                    this.musicManager.onGameStateChange('RUNNING', {
-                        biome: biome,
-                        rng: this.currentMissionSeedRNG,
-                        isBossMission: this.currentMissionParams?.isBossMission || false
-                    });
-                }
+                // Clear ambush triggered flag - critical for mission completion check
+                this.ambushTriggered = false;
                 // Hide shootout HUD and restore campaign HUD
                 if (this.ui) {
                     this.ui.hideShootoutHud();
@@ -3543,8 +3703,8 @@ class Game {
                     // Ambush ended
                     console.log('[Game] Extraction ambush ended with result:', result);
                     
-                    // Clear ambush triggered flag
-                    game.ambushTriggered = false;
+                    // Handle ambush result (EXTRACTION type)
+                    game.handleAmbushResult('EXTRACTION', result);
                     
                     // Return to campaign mode
                     if (callback) callback(result === 'VICTORY');

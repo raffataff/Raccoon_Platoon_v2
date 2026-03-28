@@ -552,8 +552,9 @@ class LevelGenerator {
         }
 
         const rescueObjectiveInstance = missionObjectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
+        const rescueTakenObjectiveInstance = missionObjectives.find(obj => obj.type === 'RESCUE_TAKEN_HOSTAGE');
         const extractionObjectiveInstance = missionObjectives.find(obj => obj.type === 'EXTRACTION');
-        const needsExtractionZone = rescueObjectiveInstance || extractionObjectiveInstance;
+        const needsExtractionZone = rescueObjectiveInstance || rescueTakenObjectiveInstance || extractionObjectiveInstance;
         
         if (needsExtractionZone) {
             const ezConfig = genConfig.EXTRACTION_ZONE_SETTINGS || {};
@@ -1006,8 +1007,9 @@ class LevelGenerator {
                     for (let attempt = 0; attempt < (hostageConf.HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT || 15); attempt++) {
                         hostageX = idealHostageX + this.rng.nextFloat(-10, 10) * (attempt * 0.1);
                         hostageY = idealHostageY + this.rng.nextFloat(-10, 10) * (attempt * 0.1);
-                        hostageX = Math.max(playableMinX + hostageSize / 2, Math.min(hostageX, playableMaxX - hostageSize / 2));
-                        hostageY = Math.max(playableMinY + hostageSize / 2, Math.min(hostageY, playableMaxY - hostageSize / 2));
+                        const buffer = hostageConf.HOSTAGE_SPAWN_BUFFER || 20;
+                        hostageX = Math.max(playableMinX + buffer + hostageSize / 2, Math.min(hostageX, playableMaxX - buffer - hostageSize / 2));
+                        hostageY = Math.max(playableMinY + buffer + hostageSize / 2, Math.min(hostageY, playableMaxY - buffer - hostageSize / 2));
                         if (this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
                             const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
@@ -1030,7 +1032,8 @@ class LevelGenerator {
                         for (let attempt = 0; attempt < placementAttempts; attempt++) {
                             const angle = this.rng.nextFloat(0, 2 * Math.PI); const radius = this.rng.nextFloat(0, spawnNearRadius);
                             hostageX = groupLeader.x + Math.cos(angle) * radius; hostageY = groupLeader.y + Math.sin(angle) * radius;
-                            hostageX = Math.max(playableMinX + hostageSize / 2, Math.min(hostageX, playableMaxX - hostageSize / 2)); hostageY = Math.max(playableMinY + hostageSize / 2, Math.min(hostageY, playableMaxY - hostageSize / 2));
+                            const buffer = hostageConf.HOSTAGE_SPAWN_BUFFER || 20;
+                            hostageX = Math.max(playableMinX + buffer + hostageSize / 2, Math.min(hostageX, playableMaxX - buffer - hostageSize / 2)); hostageY = Math.max(playableMinY + buffer + hostageSize / 2, Math.min(hostageY, playableMaxY - buffer - hostageSize / 2));
                             if (!this._isPlacementInvalid({ x: hostageX - hostageSize / 2, y: hostageY - hostageSize / 2, width: hostageSize, height: hostageSize }, { isDecoration: false }, [], extraKeepOutZones) &&
                                 this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
                                 const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
@@ -1043,9 +1046,10 @@ class LevelGenerator {
             if (spawnedHostageCount < numHostagesToSpawn) {
                 for (let i = spawnedHostageCount; i < numHostagesToSpawn; i++) {
                     let hostageX, hostageY, attempts = 0; const maxPlacementAttempts = 30; let placed = false;
+                    const buffer = hostageConf.HOSTAGE_SPAWN_BUFFER || 20;
                     do {
-                        hostageX = this.rng.nextFloat(playableMinX, playableMaxX - hostageSize);
-                        hostageY = this.rng.nextFloat(playableMinY, playableMinY + (playableHeight * 0.6 - hostageSize));
+                        hostageX = this.rng.nextFloat(playableMinX + buffer, playableMaxX - buffer - hostageSize);
+                        hostageY = this.rng.nextFloat(playableMinY + buffer, playableMinY + (playableHeight * 0.6 - buffer - hostageSize));
                         const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
                         if (!this._isPlacementInvalid(tempHostageShapeForPlayerZone, { isDecoration: false }, [], extraKeepOutZones) &&
                             distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2) > 150 &&
