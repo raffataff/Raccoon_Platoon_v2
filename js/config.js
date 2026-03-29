@@ -11,8 +11,22 @@ const CONFIG = {
 
     // --- World Rendering ---
     WORLD_BASE_MUD_COLOR: '#483524', // A muddy brown color
+    WORLD_BASE_DIRT_COLOR: '#5C4033', // A lighter dirt color for bare patches
     WORLD_GRASS_TILE_SIZE: 48,     // Approximate width/height of your grass tile sprites
     WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.35, // e.g., 0.25 means tiles can overlap by up to 25% of their size
+    WORLD_GRASS_SKIP_CHANCE: 0.01, // Probability (0-1) to start skipping grass and show dirt/mud
+    WORLD_GRASS_SKIP_MIN: 1,       // Minimum consecutive grass tiles to skip
+    WORLD_GRASS_SKIP_MAX: 6,       // Maximum consecutive grass tiles to skip
+
+    // Mud patch sprites (used when grass is skipped)
+    MUD_SPRITE_PATH: 'assets/images/objects/biomes/tropical/mud/',
+    MUD_SPRITE_FILES: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'],
+
+    // Perlin noise settings for mud patch generation
+    WORLD_MUD_NOISE_SCALE_X: 0.1,  // Lower = larger blobs
+    WORLD_MUD_NOISE_SCALE_Y: 0.1,  // Lower = larger blobs
+    WORLD_MUD_NOISE_THRESHOLD: 0.25, // Higher = fewer/smaller patches
+    WORLD_MUD_NOISE_OCTAVES: 6,     // More octaves = more detail
     // Iteration step will be TILE_SIZE * (1 - OVERLAP_FACTOR)
     // VIDEO SETTINGS
     MIN_LOADING_VIDEO_DURATION_MS: 6000,
@@ -758,8 +772,8 @@ const CONFIG = {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 10, isDecoration: false,
-            spriteScale: 0.5,
+            spawnWeight: 7, isDecoration: false,
+            spriteScale: 0.6,
             canBeFlipped: true,
         },
 
@@ -776,8 +790,8 @@ const CONFIG = {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.7, isDecoration: false,
-            spriteScale: 0.5,
+            spawnWeight: 1, isDecoration: false,
+            spriteScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: (h => h * 0.29) },
             canBeFlipped: true,
         },
@@ -866,8 +880,8 @@ const CONFIG = {
             type: 'tree_deciduous_single', name: 'Deciduous Tree Single', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.25,
+            spawnWeight: 1, isDecoration: false,
+            spriteScale: 0.3,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.93), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
             spriteDestroyedScale: 0.75,
@@ -879,7 +893,7 @@ const CONFIG = {
             type: 'tree4_deciduous_single', name: 'Deciduous Tree Large', color: '#228B22',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 1, isDecoration: false,
             spriteScale: 0.4,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_1.png',
@@ -913,7 +927,7 @@ const CONFIG = {
             spawnWeight: 1,
             explosionDamage: 50, explosionAoeRadius: 80,
             spriteNormal: 'assets/images/objects/barrels/barrel_red.png',
-            spriteScale: 0.08,
+            spriteScale: 0.1,
             spriteDestroyed: 'assets/images/objects/barrels/barrel_red_destroyed.png',
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.066), width: (w => w * 0.7), height: (h => h * 0.86) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_DESTROYED',
@@ -926,7 +940,7 @@ const CONFIG = {
             spawnWeight: 1,
             explosionDamage: 90, explosionAoeRadius: 120,
             spriteNormal: 'assets/images/objects/barrels/barrel_cluster.png',
-            spriteScale: 0.08,
+            spriteScale: 0.1,
             spriteDestroyed: 'assets/images/objects/barrels/barrel_cluster_destroyed.png',
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.03), offsetY: (h => h * 0.05), width: (w => w * 0.7), height: (h => h * 0.7) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_CLUSTER_DESTROYED',
@@ -936,7 +950,7 @@ const CONFIG = {
             type: 'pickup_grenade_crate', name: 'Grenade Crate', color: '#006400',
             destructible: true, hp: 1, maxHp: 1,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 1,
+            spawnWeight: 1.5,
             pickupType: 'grenade', pickupQuantity: 2,
             spriteNormal: 'assets/images/objects/crates/crate_full.png',
             spriteScale: 0.15,
@@ -949,7 +963,7 @@ const CONFIG = {
             type: 'pickup_health', name: 'Health Crate', color: '#FF69B4',
             destructible: true, hp: 1, maxHp: 1,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 1,
+            spawnWeight: 1.5,
             pickupType: 'health', pickupQuantity: 30,
             spriteScale: 0.25,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84) },
@@ -992,7 +1006,7 @@ const CONFIG = {
             canBeFlipped: false, // Towers have a clear orientation
             initialGuardPack: {
                 enabled: true,
-                countRange: [1, 3], // Fewer, but tougher guards
+                countRange: [1, 4], // Fewer, but tougher guards
                 countPerPhaseBonus: 0.1,
                 spawnRadius: 100,
                 unitPool: [
@@ -1039,14 +1053,14 @@ const CONFIG = {
             MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 1,
             SPAWN_COOLDOWN_MIN_SECONDS: 30,
             SPAWN_COOLDOWN_MAX_SECONDS: 120,
-            UNITS_PER_SPAWN_MIN: 2,
-            UNITS_PER_SPAWN_MAX: 6,
-            TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.1,
-            TIME_BETWEEN_UNITS_IN_BURST_MAX: 0.9,
+            UNITS_PER_SPAWN_MIN: 1,
+            UNITS_PER_SPAWN_MAX: 3,
+            TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.3,
+            TIME_BETWEEN_UNITS_IN_BURST_MAX: 1.9,
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.25,
             INITIAL_SPAWN_DELAY_SECONDS_MIN: 0,
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 2,
-            PLAYER_PROXIMITY_TRIGGER_RADIUS: 400,
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 300,
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3,
             SPAWN_AREA_WIDTH: 40,
@@ -1056,7 +1070,7 @@ const CONFIG = {
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
             MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5,
             INITIAL_MOVE_OUT_DISTANCE: 25,
-            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.1, // Max delay for spawn after hut is shot
+            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.6, // Max delay for spawn after hut is shot
             MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 2.0,     // Min time before another shot can trigger a spawn
             UNITS_TO_SPAWN_ON_DAMAGE: 2,                 // How many units spawn when hut is shot
             SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 10, // Cooldown for regular spawning after a damage-spawn
@@ -1083,7 +1097,7 @@ const CONFIG = {
         MAX_HOSTAGES_PER_MISSION: 3,
         MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,
         SPAWN_WITH_ENEMY_GROUPS: true,
-        SPAWN_NEAR_CAPTORS_RADIUS: 40,
+        SPAWN_NEAR_CAPTORS_RADIUS: 60,
         MIN_CAPTORS_GROUP_SIZE: 1,
         HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 10,
         SPAWN_AT_HUTS: true,
@@ -1117,7 +1131,7 @@ const CONFIG = {
             FLOCK_SPACING_Y: 20,
             SPAWN_INTERVAL_MIN_SECONDS: 20,
             SPAWN_INTERVAL_MAX_SECONDS: 60,
-            SCALE: 0.4,
+            SCALE: 0.45,
         }
     },
 

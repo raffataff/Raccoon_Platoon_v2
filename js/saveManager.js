@@ -262,11 +262,52 @@ class SaveManager {
 
             console.log(`[SaveManager] Auto-loading campaign (seed: ${saveData.data.campaignSeed}, phase: ${saveData.data.currentPhaseIndex}, mission: ${saveData.data.currentMissionIndex})`);
             this._deserializeGameState(game, saveData.data);
+
+            // Find the matching save slot (by campaign seed) or use most recent/empty slot
+            game.currentSaveSlot = this._findSlotForCampaign(game.campaignSeed);
             return true;
         } catch (error) {
-            console.error('[SaveManager] Auto-load failed:', error);
+            console.error('[AutoLoad] Auto-load failed:', error);
             return false;
         }
+    }
+
+    /**
+     * Find a save slot for a campaign (by seed) or fallback to empty/most recent slot
+     * @param {number} campaignSeed - The campaign seed
+     * @returns {number} Slot index to use
+     * @private
+     */
+    static _findSlotForCampaign(campaignSeed) {
+        const saves = this._getAllSaves();
+
+        // First, look for a slot with matching campaign seed
+        for (let i = 0; i < this.MAX_SLOTS; i++) {
+            if (saves[i] && saves[i].data && saves[i].data.campaignSeed === campaignSeed) {
+                console.log(`[SaveManager] Found matching slot ${i} for seed ${campaignSeed}`);
+                return i;
+            }
+        }
+
+        // No match found - find first empty slot
+        for (let i = 0; i < this.MAX_SLOTS; i++) {
+            if (!saves[i]) {
+                console.log(`[SaveManager] Using empty slot ${i} for continued campaign`);
+                return i;
+            }
+        }
+
+        // All slots full - use most recent slot
+        let mostRecentIdx = 0;
+        let mostRecentTime = 0;
+        for (let i = 0; i < this.MAX_SLOTS; i++) {
+            if (saves[i] && saves[i].timestamp > mostRecentTime) {
+                mostRecentTime = saves[i].timestamp;
+                mostRecentIdx = i;
+            }
+        }
+        console.log(`[SaveManager] All slots full, using most recent slot ${mostRecentIdx} for continued campaign`);
+        return mostRecentIdx;
     }
 
     /**

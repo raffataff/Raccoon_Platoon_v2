@@ -735,7 +735,8 @@ class Game {
             { files: CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH, name: "palm2_triple" },
             { files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, name: "deciduous_single" },
             { files: CONFIG.TREE4_SINGLE_SPRITE_FILES, path: CONFIG.TREE4_SINGLE_SPRITE_PATH, name: "tree4_deciduous_single" },
-            { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" }
+            { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" },
+            { files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, name: "mud" }
         ];
 
         listBasedSprites.forEach(spriteSet => {
@@ -788,23 +789,71 @@ class Game {
             const stepX = configuredTileSize * (1 - overlapFactor + 0.1);
             const stepY = configuredTileSize * (1 - overlapFactor);
 
-            for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
-                for (let x = -configuredTileSize * overlapFactor; x < worldWidth; x += stepX) {
-                    const randomSpriteName = localRng.pickFrom(CONFIG.GRASS_SPRITE_FILES);
-                    const spritePath = CONFIG.GRASS_SPRITE_PATH + randomSpriteName;
-                    const grassImg = this.preloadedImages[spritePath];
+            const skipChance = CONFIG.WORLD_GRASS_SKIP_CHANCE || 0.0;
+            const skipMin = CONFIG.WORLD_GRASS_SKIP_MIN || 1;
+            const skipMax = CONFIG.WORLD_GRASS_SKIP_MAX || 1;
 
-                    if (grassImg) {
-                        const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                        const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                        const drawX = x + offsetX;
-                        const drawY = y + offsetY;
-                        ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
+            const mudSpritePath = CONFIG.MUD_SPRITE_PATH || '';
+            const mudSpriteFiles = CONFIG.MUD_SPRITE_FILES || [];
+            const hasMudSprites = mudSpriteFiles.length > 0;
+
+            const noiseScaleX = (CONFIG.WORLD_MUD_NOISE_SCALE_X || 0.05);
+            const noiseScaleY = (CONFIG.WORLD_MUD_NOISE_SCALE_Y || 0.05);
+            const noiseThreshold = (CONFIG.WORLD_MUD_NOISE_THRESHOLD || 0.3);
+            const noiseOctaves = (CONFIG.WORLD_MUD_NOISE_OCTAVES || 4);
+
+            for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
+                const rowOffset = (Math.floor((y + configuredTileSize * overlapFactor) / stepY) % 2 === 1) ? stepX / 2 : 0;
+                for (let x = -configuredTileSize * overlapFactor; x < worldWidth; x += stepX) {
+                    const effectiveX = x + rowOffset;
+
+                    const noiseValue = (skipChance > 0) ? localRng.fbm(effectiveX * noiseScaleX, y * noiseScaleY, noiseOctaves, 2, 0.5) : 0;
+                    const isMudTile = skipChance > 0 && noiseValue > noiseThreshold;
+
+                    if (isMudTile) {
+                        if (hasMudSprites) {
+                            const randomMudSprite = localRng.pickFrom(mudSpriteFiles);
+                            const mudSpriteFullPath = mudSpritePath + randomMudSprite;
+                            const mudImg = this.preloadedImages[mudSpriteFullPath];
+                            if (mudImg) {
+                                const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                                const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                                const rotation = localRng.nextFloat(0, Math.PI * 2);
+                                const drawX = effectiveX + offsetX;
+                                const drawY = y + offsetY;
+                                const centerX = drawX + configuredTileSize / 2;
+                                const centerY = drawY + configuredTileSize / 2;
+                                ctx.save();
+                                ctx.translate(centerX, centerY);
+                                ctx.rotate(rotation);
+                                ctx.drawImage(mudImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
+                                ctx.restore();
+                            } else {
+                                ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+                                ctx.fillRect(effectiveX, y, configuredTileSize, configuredTileSize);
+                            }
+                        } else {
+                            ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+                            ctx.fillRect(effectiveX, y, configuredTileSize, configuredTileSize);
+                        }
+                    } else {
+                            const randomSpriteName = localRng.pickFrom(CONFIG.GRASS_SPRITE_FILES);
+                            const spritePath = CONFIG.GRASS_SPRITE_PATH + randomSpriteName;
+                            const grassImg = this.preloadedImages[spritePath];
+
+                            if (grassImg) {
+                                const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                                const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                                const drawX = effectiveX + offsetX;
+                                const drawY = y + offsetY;
+                                ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
+                            }
+                        }
                     }
                 }
             }
         }
-    }
+    
 
     start() {
         if (!this.masterRoster || this.masterRoster.length === 0) {
@@ -2842,7 +2891,7 @@ class Game {
 
         this.gameObjects = this.gameObjects.filter(obj => {
             if (obj) {
-                if (obj instanceof Projectile || obj instanceof GrenadeProjectile || obj instanceof FlyingBird || this.gameState === 'RUNNING') {
+                if (obj instanceof Projectile || obj instanceof GrenadeProjectile || this.gameState === 'RUNNING') {
                     obj.update(deltaTime);
                     // --- OPTIMIZATION Phase 3: Don't add Projectiles to SpatialGrid ---
                     // Nothing collides WITH projectiles (except maybe shields, if implemented later).
@@ -3764,7 +3813,7 @@ class Game {
     }
 
     isProjectileOrBird(obj) {
-        return obj && (obj instanceof Projectile || obj instanceof GrenadeProjectile || obj instanceof FlyingBird);
+        return obj && (obj instanceof Projectile || obj instanceof GrenadeProjectile);
     }
 }
 
