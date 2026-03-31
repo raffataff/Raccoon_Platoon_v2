@@ -729,11 +729,16 @@ class LevelGenerator {
             else if (template.type === 'tree_palm_triple') { filesArray = CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'pickup_health') { filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || []; pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_fallen') { filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_palm2_fallen') { filesArray = CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_deciduous_fallen') { filesArray = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm2_single') { filesArray = CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm2_double') { filesArray = CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm2_triple') { filesArray = CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree4_deciduous_single') { filesArray = CONFIG.TREE4_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE4_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree5_deciduous_single') { filesArray = CONFIG.TREE5_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE5_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'palm_bush_small') { filesArray = CONFIG.PALM_BUSH_SMALL_FILES || []; pathBase = CONFIG.PALM_BUSH_SMALL_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'palm_bush_large') { filesArray = CONFIG.PALM_BUSH_LARGE_FILES || []; pathBase = CONFIG.PALM_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
             else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {

@@ -9,7 +9,8 @@ const CAMPAIGN_RULES = {
         worldHeightFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
         enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.1, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
-        sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
+        sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.03, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
+        eliteChance: { initial: 0.05, perPhaseGrowthFactor: 0.03, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
         numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.4, max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
@@ -81,7 +82,7 @@ const CAMPAIGN_RULES = {
         {
             type: "ASSASSINATION",
             weight: 1, // Keep this relatively low if it's mainly for phase finales
-            unlocksPhase: 2, // Or 0 if you want non-boss assassinations earlier
+            unlocksPhase: 4, // Or 0 if you want non-boss assassinations earlier
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
             isPrimary: true,
@@ -142,13 +143,13 @@ const CAMPAIGN_RULES = {
             assassinationTypeKey: "possum_boss_1",
             name: "General Whiskers", callsign: "Whiskers",
             description: "A cunning strategist known for his brutal tactics.",
-            weight: 3, unlocksPhase: 2, isBoss: true
+            weight: 3, unlocksPhase: 6, isBoss: true
         },
         {
             assassinationTypeKey: "possum_revolver_boss",
             name: "Six-Shooter Sid", callsign: "Sidewinder",
             description: "A notoriously fast and mobile gunslinger.",
-            weight: 5, unlocksPhase: 3, isBoss: true
+            weight: 5, unlocksPhase: 4, isBoss: true
         },
         {
             assassinationTypeKey: "possum_boss_1",

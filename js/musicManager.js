@@ -136,8 +136,11 @@ class MusicManager {
             case 'SHOOTOUT_PRE_GAME':
             case 'SHOOTOUT_PLAYING':
             case 'SHOOTOUT_AMBUSH':
-                const shootoutTrack = stateTracks.SHOOTOUT_PLAYING;
+                console.log(`[MusicManager] SHOOTOUT state handling, musicLayer.key: ${this.musicLayer.key}, musicLayer.isPlaying: ${this.musicLayer.isPlaying}`);
+                const shootoutTrack = stateTracks.SHOOTOUT_AMBUSH || stateTracks.SHOOTOUT_PLAYING;
+                console.log(`[MusicManager] shootoutTrack: ${shootoutTrack}`);
                 if (this.musicLayer.key !== shootoutTrack) {
+                    console.log(`[MusicManager] Playing shootout music: ${shootoutTrack}`);
                     this.playMusic(shootoutTrack, { fade: true, loop: true });
                 }
                 this.stopAmbient();
@@ -170,7 +173,7 @@ class MusicManager {
         }
         
         const isBossMission = params.isBossMission || false;
-        console.log(`[MusicManager] startMissionMusic called, biome: ${this.currentBiome}, isBossMission: ${isBossMission}`);
+        console.log(`[MusicManager] startMissionMusic called, biome: ${this.currentBiome}, isBossMission: ${isBossMission}, ambientLayer.isPlaying: ${this.ambientLayer.isPlaying}`);
         
         // Always use TROPICAL biome (only biome implemented in game)
         const biome = 'TROPICAL';
@@ -209,7 +212,9 @@ class MusicManager {
         }
         
         // Only start ambient if not already playing
+        console.log(`[MusicManager] Checking ambient: isPlaying=${this.ambientLayer.isPlaying}, hasTrack=${!!ambientTrack}`);
         if (!this.ambientLayer.isPlaying && ambientTrack) {
+            console.log(`[MusicManager] Restarting ambient: ${ambientTrack}`);
             this.playAmbient(ambientTrack, { fade: true, loop: true });
         }
     }

@@ -1655,93 +1655,127 @@ class UI {
         this.setCursor('default');
     }
 
-    // --- MODIFIED: Rewritten to use the new card generator ---
+    // --- NEW: Create unit card with vertical layout (face, details, sprite) ---
     _createPostMissionRecruitCard(recruit, type) {
-        const card = document.createElement('li');
-        card.className = 'post-mission-recruit-card';
+        const card = document.createElement('div');
+        card.className = 'unit-card';
 
+        // Face Section
+        const faceSection = document.createElement('div');
+        faceSection.className = 'unit-card-face-section';
+        
         const faceDiv = document.createElement('div');
-        faceDiv.className = 'recruit-face';
+        faceDiv.className = 'card-face';
         faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
-        card.appendChild(faceDiv);
+        faceSection.appendChild(faceDiv);
+        card.appendChild(faceSection);
 
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'recruit-info';
+        // Details Section
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'unit-card-details';
 
         const nameDiv = document.createElement('div');
-        nameDiv.className = 'recruit-name';
+        nameDiv.className = 'card-name';
         nameDiv.textContent = recruit.name;
-        infoDiv.appendChild(nameDiv);
+        detailsDiv.appendChild(nameDiv);
 
-        const rankLineDiv = document.createElement('div');
-        rankLineDiv.className = 'recruit-rank-line';
+        // Rank and XP
+        if (type === 'fallen') {
+            const rankDiv = document.createElement('div');
+            rankDiv.className = 'card-rank';
+            rankDiv.textContent = recruit.rank || 'Recruit';
+            detailsDiv.appendChild(rankDiv);
 
-        const xpLineDiv = document.createElement('div');
-        xpLineDiv.className = 'recruit-xp-line';
-
-        // --- MODIFIED: More robust HTML generation for rank line ---
-        if (type === 'survivor' && recruit.promotedThisMission) {
+            const xpDiv = document.createElement('div');
+            xpDiv.className = 'card-status kia';
+            xpDiv.textContent = 'KIA';
+            detailsDiv.appendChild(xpDiv);
+        } else if (type === 'survivor' && recruit.promotedThisMission) {
             card.classList.add('is-promoted');
             const rankConfig = CONFIG.RANK_THRESHOLDS;
             const currentRankIndex = rankConfig.findIndex(r => r.rankName === recruit.rank);
             const prevRank = currentRankIndex > 0 ? rankConfig[currentRankIndex - 1].rankName : "Recruit";
 
-            // Build the string dynamically to avoid ghost elements
-            rankLineDiv.innerHTML = `
-                <span class="rank-text-old">${prevRank}</span>
-                <span class="rank-arrow">▶</span>
-                <span class="rank-text-new">${recruit.rank}</span>
-                <span class="promotion-indicator">PROMOTED!</span>`;
+            const rankDiv = document.createElement('div');
+            rankDiv.className = 'card-rank';
+            rankDiv.innerHTML = `<span class="rank-text-old">${prevRank}</span> <span class="rank-arrow">▶</span> <span class="rank-text-new">${recruit.rank}</span>`;
+            detailsDiv.appendChild(rankDiv);
 
-            xpLineDiv.textContent = `XP: ${recruit.xp}`;
+            const xpDiv = document.createElement('div');
+            xpDiv.className = 'card-xp';
+            xpDiv.textContent = `XP: ${recruit.xp}`;
+            detailsDiv.appendChild(xpDiv);
 
-        } else if (type === 'fallen') {
-            rankLineDiv.innerHTML = `<span class="rank-text">${recruit.rank || 'Recruit'}</span>`;
-            xpLineDiv.innerHTML = `<span class="status-kia-text">KIA</span>`;
-        } else { // Survivor (not promoted) or New Recruit
-            // This now only generates the single rank text, fixing the alignment
-            rankLineDiv.innerHTML = `<span class="rank-text">${recruit.rank}</span>`;
-            xpLineDiv.textContent = `XP: ${recruit.xp}`;
+            const promoDiv = document.createElement('div');
+            promoDiv.className = 'card-status promoted';
+            promoDiv.textContent = 'PROMOTED!';
+            detailsDiv.appendChild(promoDiv);
+        } else {
+            const rankDiv = document.createElement('div');
+            rankDiv.className = 'card-rank';
+            rankDiv.textContent = recruit.rank || 'Recruit';
+            detailsDiv.appendChild(rankDiv);
+
+            const xpDiv = document.createElement('div');
+            xpDiv.className = 'card-xp';
+            xpDiv.textContent = `XP: ${recruit.xp}`;
+            detailsDiv.appendChild(xpDiv);
         }
-        // --- END MODIFIED ---
 
-        infoDiv.appendChild(rankLineDiv);
-        infoDiv.appendChild(xpLineDiv);
+        card.appendChild(detailsDiv);
 
-        card.appendChild(infoDiv);
+        // Sprite Section
+        const spriteSection = document.createElement('div');
+        spriteSection.className = 'unit-card-sprite-section';
 
-        const rankIconContainer = document.createElement('div');
-        rankIconContainer.className = 'rank-icon-container';
-        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
-        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        const spriteDiv = document.createElement('div');
+        spriteDiv.className = 'card-sprite';
 
-        if (rankIconConfig && rankIconPath) {
-            if (type === 'survivor' && recruit.promotedThisMission) {
-                const rankConfig = CONFIG.RANK_THRESHOLDS;
-                const currentRankIndex = rankConfig.findIndex(r => r.rankName === recruit.rank);
-                const prevRankName = currentRankIndex > 0 ? rankConfig[currentRankIndex - 1].rankName : null;
+        // Build sprite URLs based on rank
+        const spriteBaseName = recruit.spriteBaseName || 'raccoon';
+        const spritePath = this._getSpritePathForRank(recruit.rank);
+        const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+        
+        // Store sprite URLs in CSS custom properties for animation
+        directions.forEach(dir => {
+            const spriteKey = `${spriteBaseName}_idle_${dir}`;
+            const spriteUrl = this.game?.preloadedImages?.[spriteKey] 
+                ? this.game.preloadedImages[spriteKey].src 
+                : `${spritePath}idle/${spriteBaseName}_idle_${dir}.png`;
+            spriteDiv.style.setProperty(`--sprite-${dir}`, `url('${spriteUrl}')`);
+        });
 
-                if (prevRankName && rankIconConfig[prevRankName]) {
-                    const oldRankIcon = document.createElement('div');
-                    oldRankIcon.className = 'rank-icon old-rank';
-                    oldRankIcon.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[prevRankName]}')`;
-                    rankIconContainer.appendChild(oldRankIcon);
-                }
-            }
-            if (rankIconConfig[recruit.rank]) {
-                const newRankIcon = document.createElement('div');
-                newRankIcon.className = 'rank-icon new-rank';
-                newRankIcon.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
-                rankIconContainer.appendChild(newRankIcon);
-            }
+        // For fallen units, use dead sprite
+        if (type === 'fallen') {
+            const deadPath = CONFIG.RACCOON_DEAD_SPRITE_PATH || 'assets/images/units/raccoon/dead/';
+            const deadFiles = CONFIG.RACCOON_DEAD_SPRITE_FILES || ['raccoon_dead.png'];
+            const deadSpriteUrl = deadPath + deadFiles[0];
+            directions.forEach(dir => {
+                spriteDiv.style.setProperty(`--sprite-${dir}`, `url('${deadSpriteUrl}')`);
+            });
         }
-        card.appendChild(rankIconContainer);
+
+        spriteSection.appendChild(spriteDiv);
+        card.appendChild(spriteSection);
 
         if (type === 'fallen') {
             card.classList.add('fallen');
         }
 
         return card;
+    }
+
+    // Helper to get sprite path based on rank
+    _getSpritePathForRank(rank) {
+        const rankPaths = {
+            'Private': CONFIG.RACCOON_PRIVATE_SPRITE_PATH || 'assets/images/units/raccoon/private/',
+            'Corporal': CONFIG.RACCOON_CORPORAL_SPRITE_PATH || 'assets/images/units/raccoon/corporal/',
+            'Sergeant': CONFIG.RACCOON_SERGEANT_SPRITE_PATH || 'assets/images/units/raccoon/sergeant/',
+            'Elite': CONFIG.RACCOON_ELITE_SPRITE_PATH || 'assets/images/units/raccoon/elite/',
+            'Ghost': CONFIG.RACCOON_GHOST_SPRITE_PATH || 'assets/images/units/raccoon/ghost/',
+            'Maverick': CONFIG.RACCOON_MAVERICK_SPRITE_PATH || 'assets/images/units/raccoon/maverick/'
+        };
+        return rankPaths[rank] || CONFIG.RACCOON_SPRITE_PATH || 'assets/images/units/raccoon/recruit/';
     }
 
     showPostMissionScreen_Debrief(debriefData) {
@@ -1753,6 +1787,8 @@ class UI {
             survivingRaccoons, fallenRaccoons, enemiesKilled,
             timeTaken, campaignComplete, newlyRecruitedRaccoons,
             ambushResult, ambushesSurvived } = debriefData;
+
+        const objectiveListEl = document.getElementById('objectiveStatusList');
 
         if (this.missionOutcomeText) this.missionOutcomeText.textContent = isVictory ? (this.uiText.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!") : (this.uiText.POST_MISSION_FAILED || "MISSION FAILED!");
 
@@ -1776,7 +1812,6 @@ class UI {
             postMissionInfoEl.textContent = `${phaseData.name} | ${missionData.name} | (${phaseNumText} - ${missionNumText})`;
         }
 
-        const objectiveListEl = document.getElementById('objectiveStatusList');
         const statTimeTakenEl = document.getElementById('statTimeTaken');
         const statEnemiesKilledEl = document.getElementById('statEnemiesKilled');
         const statHostagesRecruitedEl = document.getElementById('statHostagesRecruited');
@@ -1813,7 +1848,7 @@ class UI {
                 fallenRaccoons.forEach(r => rosterStatusListEl.appendChild(this._createPostMissionRecruitCard(r, 'fallen')));
             }
             if (survivingRaccoons.length === 0 && fallenRaccoons.length === 0) {
-                rosterStatusListEl.innerHTML = `<li class="no-entry">${isVictory ? (this.uiText.POST_MISSION_SURVIVORS_NONE_VICTORY || "Mission accomplished, but no Raccoons survived.") : (this.uiText.POST_MISSION_SURVIVORS_NONE_DEFEAT || "All deployed Raccoons KIA.")}</li>`;
+                rosterStatusListEl.innerHTML = `<div class="no-entry">${isVictory ? (this.uiText.POST_MISSION_SURVIVORS_NONE_VICTORY || "Mission accomplished, but no Raccoons survived.") : (this.uiText.POST_MISSION_SURVIVORS_NONE_DEFEAT || "All deployed Raccoons KIA.")}</div>`;
             }
         }
 

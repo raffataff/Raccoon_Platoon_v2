@@ -272,13 +272,18 @@ class ShootoutController {
         this.isAmbushMode = true;
         this.ambushCallback = callback;
 
-        // Configure background
-        if (backgroundKey) {
+        // Only set background/night if not already configured (prevents double initialization)
+        if (backgroundKey && this.currentBackgroundKey !== backgroundKey) {
             console.log('[Shootout] Calling setBackground...');
             this.setBackground(backgroundKey);
         }
-        console.log('[Shootout] Calling setNightMode...');
-        this.setNightMode(isNight);
+        if (isNight !== this.isNightMode) {
+            console.log('[Shootout] Calling setNightMode...');
+            this.setNightMode(isNight);
+        }
+
+        // Set game state (music already started in executeStartAmbush)
+        this.game.gameState = 'SHOOTOUT_AMBUSH';
 
         // Randomly choose between TIME_ATTACK and ELIMINATION for ambush
         const ambushTimeAttackChance = CONFIG.SHOOTOUT_MODE.AMBUSH_TIME_ATTACK_CHANCE !== undefined 
@@ -344,9 +349,6 @@ class ShootoutController {
             this.game.ui.showShootoutHud();
         }
 
-        // Switch game state to ambush mode so the game loop handles it correctly
-        this.game.gameState = 'SHOOTOUT_AMBUSH';
-
         console.log(`[Shootout] Ambush started! Mode: ${this.gameMode}, Night: ${isNight}, Background: ${this.currentBackgroundKey}`);
     }
 
@@ -357,9 +359,12 @@ class ShootoutController {
     endAmbush(reason = 'clear') {
         if (!this.isAmbushMode) return;
 
+        console.log('[Shootout] endAmbush called, reason:', reason);
+        
         const callback = this.ambushCallback;
         
-        // Clear ambush mode
+        // Flag that this is an ambush end (checked in endRound before clearing isAmbushMode)
+        this._endingAmbush = true;
         this.isAmbushMode = false;
         this.ambushCallback = null;
 
@@ -368,6 +373,34 @@ class ShootoutController {
     }
 
     endRound(reason = 'time', callback = null) {
+        console.log('[Shootout] endRound called, reason:', reason, 'isAmbushMode:', this.isAmbushMode, '_endingAmbush:', this._endingAmbush);
+        
+        // Handle ambush mode differently - use _endingAmbush flag since isAmbushMode is cleared by endAmbush
+        if (this._endingAmbush) {
+            this._endingAmbush = false;
+            console.log('[Shootout] Processing ambush result...');
+            
+            // Campaign ambushes: only 'health' (death) is defeat, all other outcomes are VICTORY
+            let result = (reason === 'health') ? 'DEFEAT' : 'VICTORY';
+            
+            // Clear round state so update() doesn't run again
+            this.isRoundActive = false;
+            this.game.canvas.style.cursor = 'default';
+
+            // Show ambush result and call callback
+            console.log('[Shootout] Showing ambush result, callback exists:', !!callback);
+            if (this.game.ui) {
+                this.game.ui.showShootoutAmbushResult(result, () => {
+                    console.log('[Shootout] Ambush result UI dismissed, calling callback with:', result);
+                    if (callback) callback(result);
+                    else console.log('[Shootout] WARNING: callback was null!');
+                });
+            } else if (callback) {
+                callback(result);
+            }
+            return;
+        }
+        
         this.isRoundActive = false;
         this.game.canvas.style.cursor = 'default';
 
@@ -378,7 +411,7 @@ class ShootoutController {
         const finalScore = this.calculateEnhancedScore();
 
         // Check for high score (only for non-ambush mode)
-        const isNewHighScore = !this.isAmbushMode && finalScore > (this.highScores[this.gameMode] || 0);
+        const isNewHighScore = !this._endingAmbush && finalScore > (this.highScores[this.gameMode] || 0);
         if (isNewHighScore) {
             this.highScores[this.gameMode] = finalScore;
             this.saveHighScores();
@@ -389,29 +422,6 @@ class ShootoutController {
         this.fallingDroplets = [];
         this.bullets = [];
         this.bulletMarks = [];
-
-        // Handle ambush mode differently - show result and call callback
-        if (this.isAmbushMode) {
-            // Determine result based on reason
-            let result;
-            if (reason === 'clear') {
-                result = 'VICTORY';
-            } else if (reason === 'time') {
-                result = 'TIME_UP';
-            } else {
-                result = 'DEFEAT';
-            }
-
-            // Show ambush result and call callback
-            if (this.game.ui) {
-                this.game.ui.showShootoutAmbushResult(result, () => {
-                    if (callback) callback(result);
-                });
-            } else if (callback) {
-                callback(result);
-            }
-            return;
-        }
 
         // Calculate time bonus based on mode
         let timeBonus = 0;
@@ -471,6 +481,8 @@ class ShootoutController {
     }
 
     update(deltaTime) {
+        // Don't update if ambush is ending (prevents double endRound)
+        if (this._endingAmbush) return;
         if (!this.isRoundActive) return;
 
         // Track elapsed time for both modes (used for Elimination scoring)
@@ -481,12 +493,20 @@ class ShootoutController {
             this.timeRemaining -= deltaTime;
             if (this.timeRemaining <= 0) {
                 this.timeRemaining = 0;
-                this.endRound('time');
+                if (this.isAmbushMode) {
+                    this.endAmbush('time');
+                } else {
+                    this.endRound('time');
+                }
                 return;
             }
         } else if (this.gameMode === CONFIG.SHOOTOUT_MODE.MODES.ELIMINATION) {
             if (this.targetsKilled >= this.eliminationGoal) {
-                this.endRound('clear');
+                if (this.isAmbushMode) {
+                    this.endAmbush('clear');
+                } else {
+                    this.endRound('clear');
+                }
                 return;
             }
         }
@@ -1032,7 +1052,11 @@ class ShootoutController {
         if (this.playerHealth <= 0) {
             this.playerHealth = 0;
             this.isPlayerAlive = false;
-            this.endRound('health');
+            if (this.isAmbushMode) {
+                this.endAmbush('health');
+            } else {
+                this.endRound('health');
+            }
         }
 
         this.updateUI();

@@ -1351,123 +1351,187 @@ input[type="range"]::-moz-range-thumb {
     letter-spacing: 1px;
 }
 
-/* --- Post-Mission Screen REDESIGN --- */
-/* --- Post-Mission Screen REDESIGN --- */
+/* ===========================================
+   POST-MISSION SCREEN STYLING
+   =========================================== */
+
+/* --- CSS Custom Properties (Tweak these!) --- */
+:root {
+    /* Container */
+    --pm-padding: 20px 40px;
+    --pm-gap: 20px;
+    --pm-bg-overlay: rgba(18, 16, 14, 0.97);
+    
+    /* Layout Columns */
+    --pm-left-col-flex: 1.5;
+    --pm-right-col-flex: 3.5;
+    
+    /* Card Grid */
+    --pm-card-gap: 12px;
+    --pm-cards-per-row: 4;
+    
+    /* Unit Card Dimensions */
+    --pm-card-width: 260px;
+    --pm-card-min-height: 380px;
+    --pm-card-face-size: 100px;
+    --pm-card-face-section-height: 120px;
+    --pm-card-sprite-height: 160px;
+    
+    /* Colors */
+    --pm-card-bg: #312E2B;
+    --pm-card-border: #403B30;
+    --pm-card-bg-dark: #1a1815;
+    --pm-card-bg-details: rgba(0, 0, 0, 0.2);
+    --pm-fallen-bg: #2a2525;
+    --pm-fallen-border: #5a3a3a;
+    
+    /* Card Details (Row Layout) */
+    --pm-details-bg: rgba(0, 0, 0, 0.2);
+    --pm-details-gap: 15px;
+    --pm-details-padding: 10px 12px;
+    
+    /* Typography */
+    --pm-title-size: 2.2rem;
+    --pm-subtitle-size: 1rem;
+    --pm-name-size: 1.2em;
+    --pm-rank-size: 1em;
+    --pm-xp-size: 0.9em;
+    --pm-status-size: 1.1em;
+    --pm-name-color: #53f068;
+    --pm-rank-color: #C8C6B8;
+    --pm-xp-color: #A8A498;
+    
+    /* Stats Grid (Column Layout) */
+    --pm-stats-gap: 5px;
+    --pm-stats-bg: rgba(0, 0, 0, 0.15);
+    --pm-stats-border: #4F4A3F;
+    --pm-stats-label-color: #A8A498;
+    --pm-stats-value-color: #E8E4D8;
+    
+    /* Animation */
+    --pm-sprite-rotation-duration: 12s;
+}
+
+/* --- Screen Container --- */
 #postMissionScreen {
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 95vw;
-    height: 95vh;
-    max-width: 1400px;
-    padding: 30px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    padding: var(--pm-padding);
+    box-sizing: border-box;
     display: none;
     flex-direction: column;
     z-index: 100;
     background:
-        linear-gradient(rgba(18, 16, 14, 0.95), rgba(18, 16, 14, 0.95)),
+        linear-gradient(var(--pm-bg-overlay), var(--pm-bg-overlay)),
         repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1) 10px, rgba(0, 0, 0, 0.2) 10px, rgba(0, 0, 0, 0.2) 20px);
-    border: 2px solid var(--panel-border);
-    clip-path: polygon(0 0,
-            100% 0,
-            100% calc(100% - 20px),
-            calc(100% - 20px) 100%,
-            0 100%);
 }
 
+/* --- Header --- */
 #postMissionScreen h2#missionOutcome {
     text-align: center;
     font-family: var(--font-header);
-    font-size: 3.5em;
-    margin-bottom: 20px;
-    padding-bottom: 20px;
+    font-size: var(--pm-title-size);
+    margin: 0 0 10px 0;
+    padding-bottom: 15px;
     border-bottom: 1px dashed var(--brand-secondary);
     color: var(--brand-primary);
     text-transform: uppercase;
     text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
     letter-spacing: 2px;
+    flex-shrink: 0;
 }
 
 #postMissionScreen p#postMissionInfo {
-    font-size: 1.2em;
+    font-size: var(--pm-subtitle-size);
     color: #A8A498;
-    margin-bottom: 20px;
+    margin: 0 0 15px 0;
     text-align: center;
     text-transform: uppercase;
     letter-spacing: 1px;
+    flex-shrink: 0;
 }
 
+/* --- Content Layout --- */
 .post-mission-content-wrapper {
     display: flex;
-    flex-grow: 1;
-    gap: 20px;
-    overflow: hidden;
+    flex: 1;
+    gap: var(--pm-gap);
+    min-height: 0;
     padding: 10px;
     background-color: rgba(0, 0, 0, 0.1);
-    border: 1px solid #403B30;
+    border: 1px solid var(--pm-card-border);
     border-radius: 3px;
+    overflow: hidden;
 }
 
-/* --- MODIFIED: Renamed columns for clarity --- */
 .post-mission-column-left {
-    flex: 2;
+    flex: var(--pm-left-col-flex);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .post-mission-column-right {
-    flex: 3;
+    flex: var(--pm-right-col-flex);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 15px;
+    min-height: 0;
+    overflow: hidden;
 }
 
-/* --- END MODIFIED --- */
-
+/* --- Sections --- */
 .post-mission-section {
     background-color: rgba(10, 10, 5, 0.2);
-    padding: 20px;
+    padding: 15px;
     border-radius: 3px;
     border: 1px solid #302D2A;
     text-align: left;
     margin: 0;
     display: flex;
     flex-direction: column;
+    min-height: 0;
     overflow: hidden;
 }
 
-/* --- MODIFIED: New Section Names --- */
 #rosterStatusContainer,
 #newRecruitsContainer {
-    flex-grow: 1;
+    flex: 1;
+    min-height: 0;
 }
-
-/* --- END MODIFIED --- */
 
 .post-mission-section h4 {
     margin-top: 0;
-    margin-bottom: 15px;
-    font-size: 1.5em;
+    margin-bottom: 10px;
+    font-size: 1.1em;
     color: #C8C6B8;
     border-bottom: 1px solid #4F4A3F;
-    padding-bottom: 10px;
+    padding-bottom: 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    flex-shrink: 0;
 }
 
+/* --- Objectives List --- */
 #objectiveStatusList {
     list-style: none;
     padding: 0;
     margin: 0;
+    flex: 1;
+    overflow-y: auto;
 }
 
 #objectiveStatusList li {
     display: flex;
     justify-content: space-between;
-    padding: 8px 4px;
+    padding: 6px 4px;
     text-transform: capitalize;
-    font-size: 1.3em;
+    font-size: 1.1em;
 }
 
 #objectiveStatusList li.completed .obj-status {
@@ -1484,162 +1548,219 @@ input[type="range"]::-moz-range-thumb {
     color: #B0A090;
 }
 
+/* --- Mission Stats Grid (Column Layout) --- */
+#missionStatsContainer {
+    padding: 12px;
+    background-color: var(--pm-stats-bg);
+    border: 1px solid var(--pm-stats-border);
+    border-radius: 3px;
+}
+
 #missionStatsGrid {
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: 12px 15px;
-    font-size: 1.3em;
+    gap: 8px 15px;
+    font-size: 1.1em;
 }
 
-#missionStatsGrid p {
-    margin: 0;
-}
-
-#missionStatsGrid p:nth-child(odd) {
-    color: #A8A498;
-}
-
+#missionStatsGrid p { margin: 0; }
+#missionStatsGrid p:nth-child(odd) { color: var(--pm-stats-label-color); }
 #missionStatsGrid p:nth-child(even) {
     font-weight: bold;
-    color: #E8E4D8;
+    color: var(--pm-stats-value-color);
     text-align: right;
 }
 
-/* --- MODIFIED: Roster List Styling --- */
+/* --- Unit Cards Container --- */
 #rosterStatusList,
 #newRecruitsList {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-    overflow-y: auto;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    flex-wrap: wrap;
+    gap: var(--pm-card-gap);
+    padding: 0;
+    margin: 0;
+    flex: 1;
+    overflow-y: auto;
+    align-content: flex-start;
 }
 
-.post-mission-recruit-card {
+.unit-cards-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--pm-card-gap);
+    width: 100%;
+    align-content: flex-start;
+}
+
+/* --- Unit Card Base --- */
+.unit-card {
+    width: var(--pm-card-width);
+    min-height: var(--pm-card-min-height);
+    background-color: var(--pm-card-bg);
+    border: 1px solid var(--pm-card-border);
+    border-radius: 4px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.unit-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* --- Face Section --- */
+.unit-card-face-section {
+    width: 100%;
+    height: var(--pm-card-face-section-height);
+    background-color: var(--pm-card-bg-dark);
     display: flex;
     align-items: center;
-    background-color: #312E2B;
-    border: 1px solid #403B30;
-    border-radius: 3px;
-    padding: 3px;
-    position: relative;
-    overflow: hidden;
+    justify-content: center;
+    border-bottom: 1px solid var(--pm-card-border);
+    flex-shrink: 0;
 }
 
-.post-mission-recruit-card .recruit-face {
-    width: 96px;
-    height: 96px;
+.unit-card .card-face {
+    width: var(--pm-card-face-size);
+    height: var(--pm-card-face-size);
     background-size: cover;
     background-position: center;
-    border-radius: 3px;
-    border: 1px solid #222;
-    flex-shrink: 0;
-    margin-right: 15px;
+    border-radius: 50%;
+    border: 2px solid #555;
     filter: none !important;
     -webkit-filter: none !important;
-    image-rendering: auto;
-    -webkit-image-rendering: auto;
-    -moz-image-rendering: auto;
-    -ms-image-rendering: auto;
 }
 
-.post-mission-recruit-card .recruit-info {
-    flex-grow: 1;
+/* --- Details Section (Row Layout) --- */
+.unit-card-details {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.post-mission-recruit-card .recruit-name {
-    font-size: 1.4em;
-    font-weight: bold;
-    color: #E8E4D8;
-}
-
-.recruit-rank-line,
-.recruit-xp-line {
-    font-size: 1.1em;
-    color: #A8A498;
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-}
-
-.is-promoted .rank-text-old {
-    text-decoration: line-through;
-    opacity: 0.7;
-    animation: fade-out-anim 0.8s forwards 0.5s;
-}
-
-.is-promoted .rank-arrow {
-    opacity: 0;
-    color: #ffd700;
-    animation: fade-in-anim 0.4s forwards 0.7s;
-}
-
-.is-promoted .rank-text-new {
-    color: #ffd700;
-    font-weight: bold;
-    opacity: 0;
-    animation: fade-in-anim 0.4s forwards 0.9s;
-}
-
-.promotion-indicator {
-    color: #ffd700;
-    font-weight: bold;
-    font-style: italic;
-    text-shadow: 1px 1px 2px #000;
-    opacity: 0;
-    animation: fade-in-anim 0.4s forwards 1.1s;
-}
-
-.status-kia-text {
-    color: #ff6e6e;
-    font-size: 1.5em;
-    font-style: italic;
-    font-weight: bold;
-}
-
-.post-mission-recruit-card .rank-icon-container {
-    width: 48px;
-    height: 48px;
-    margin-left: auto;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: var(--pm-details-gap);
+    padding: var(--pm-details-padding);
+    background-color: var(--pm-details-bg);
+    border-bottom: 1px solid var(--pm-card-border);
     flex-shrink: 0;
-    position: relative;
 }
 
-.post-mission-recruit-card .rank-icon {
+.unit-card .card-name {
+    width: 100%;
+    font-size: var(--pm-name-size);
+    font-weight: bold;
+    color: var(--pm-name-color);
+    text-align: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.unit-card .card-rank {
+    font-size: var(--pm-rank-size);
+    color: var(--pm-rank-color);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.unit-card .card-xp {
+    font-size: var(--pm-xp-size);
+    color: var(--pm-xp-color);
+}
+
+.unit-card .card-status {
+    font-size: var(--pm-status-size);
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.unit-card .card-status.kia {
+    color: #ff6e6e;
+    font-style: italic;
+}
+
+.unit-card .card-status.promoted {
+    color: #ffd700;
+    animation: pm-pulse-gold 1s ease-in-out infinite;
+}
+
+/* --- Sprite Section --- */
+.unit-card-sprite-section {
+    flex: 1;
+    min-height: var(--pm-card-sprite-height);
+    background-color: var(--pm-card-bg-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.unit-card-sprite-section::before {
+    content: '';
     position: absolute;
     top: 0;
     left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(ellipse at center bottom, rgba(50, 80, 50, 0.3) 0%, transparent 70%),
+        linear-gradient(to top, rgba(0, 0, 0, 0.4) 0%, transparent 40%);
+    pointer-events: none;
+}
+
+.unit-card .card-sprite {
     width: 100%;
     height: 100%;
     background-size: contain;
-    background-position: center;
+    background-position: center bottom;
     background-repeat: no-repeat;
+    image-rendering: auto;
+    -webkit-image-rendering: auto;
+    animation: pm-sprite-rotate var(--pm-sprite-rotation-duration) steps(1) infinite;
 }
 
-.is-promoted .rank-icon.old-rank {
-    animation: fall-off-anim 0.5s ease-in forwards;
+/* --- Fallen Unit Styles --- */
+.unit-card.fallen {
+    background-color: var(--pm-fallen-bg);
+    border-color: var(--pm-fallen-border);
 }
 
-.is-promoted .rank-icon.new-rank {
-    opacity: 0;
-    animation: slide-in-bounce-anim 0.8s cubic-bezier(0.5, 0.2, 0.3, 1.5) forwards 0.5s;
+.unit-card.fallen .card-face {
+    filter: grayscale(80%) brightness(0.7) !important;
+    -webkit-filter: grayscale(80%) brightness(0.7) !important;
 }
 
-.post-mission-recruit-card.fallen {
-    background-color: #443232;
-    border-color: #6e4e4e;
+.unit-card.fallen .card-sprite {
+    animation: none;
+    filter: grayscale(100%) brightness(0.5);
+    -webkit-filter: grayscale(100%) brightness(0.5);
 }
 
-.post-mission-recruit-card.fallen .recruit-face {
-    filter: grayscale(80%) brightness(0.8);
+/* --- Promotion Styles --- */
+.unit-card.is-promoted .rank-text-old {
+    text-decoration: line-through;
+    opacity: 0.7;
 }
 
+.unit-card.is-promoted .rank-arrow {
+    color: #ffd700;
+    animation: fade-in-anim 0.4s forwards;
+}
+
+.unit-card.is-promoted .rank-text-new {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+/* --- No Entry Message --- */
 .no-entry {
+    width: 100%;
     text-align: center;
     font-style: italic;
     color: #888;
@@ -1647,19 +1768,37 @@ input[type="range"]::-moz-range-thumb {
     font-size: 1.2em;
 }
 
+/* --- Buttons --- */
 .post-mission-buttons {
-    margin-top: auto;
-    padding-top: 20px;
+    padding: 15px 0 5px 0;
     display: flex;
     justify-content: center;
     gap: 15px;
     border-top: 2px groove #4F4A3F;
+    flex-shrink: 0;
 }
 
 #postMissionScreen button {
-    padding: 12px 25px;
-    min-width: 180px;
-    font-size: 1.1em;
+    padding: 10px 20px;
+    min-width: 150px;
+    font-size: 1em;
+}
+
+/* --- Animations --- */
+@keyframes pm-sprite-rotate {
+    0% { background-image: var(--sprite-n); }
+    12.5% { background-image: var(--sprite-ne); }
+    25% { background-image: var(--sprite-e); }
+    37.5% { background-image: var(--sprite-se); }
+    50% { background-image: var(--sprite-s); }
+    62.5% { background-image: var(--sprite-sw); }
+    75% { background-image: var(--sprite-w); }
+    87.5% { background-image: var(--sprite-nw); }
+}
+
+@keyframes pm-pulse-gold {
+    0%, 100% { opacity: 1; text-shadow: 0 0 5px rgba(255, 215, 0, 0.5); }
+    50% { opacity: 0.8; text-shadow: 0 0 15px rgba(255, 215, 0, 0.8); }
 }
 
 /* Animation Keyframes */
@@ -1914,6 +2053,26 @@ input[type="range"]::-moz-range-thumb {
 #videoLoadingScreen.visible {
     opacity: 1;
     pointer-events: auto;
+}
+
+#videoLoadingScreen.visible::before,
+#videoLoadingScreen.visible::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 10%;
+    background-color: #000;
+    z-index: 1;
+    pointer-events: none;
+}
+
+#videoLoadingScreen.visible::before {
+    top: 0;
+}
+
+#videoLoadingScreen.visible::after {
+    bottom: 0;
 }
 
 #loadingVideoPlayer {

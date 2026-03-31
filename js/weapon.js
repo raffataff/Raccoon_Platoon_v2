@@ -1,6 +1,6 @@
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
-                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null, muzzleFlashScale = 1.0) { // Added muzzleFlashScale
+                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null, muzzleFlashScale = 1.0, bulletLifetime = 0.7) {
         this.name = name;
         this.damage = damage;
         this.rof = rof;
@@ -10,7 +10,8 @@ class Weapon {
         this.accuracyStationary = accuracyStationary;
         this.accuracyMoving = accuracyMoving;
         this.sfxFireKey = sfxFireKey;
-        this.muzzleFlashScale = muzzleFlashScale; // Store the new property
+        this.muzzleFlashScale = muzzleFlashScale;
+        this.bulletLifetime = bulletLifetime;
     }
 }
 
@@ -77,7 +78,8 @@ const WEAPONS = {
         CONFIG.POSSUM_RIFLE_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM,
         CONFIG.POSSUM_RIFLE_ACCURACY_STATIONARY, CONFIG.POSSUM_RIFLE_ACCURACY_MOVING,
         'POSSUM_RIFLE_FIRE',
-        0.9 // Slightly smaller flash
+        0.9, // Slightly smaller flash
+        CONFIG.POSSUM_RIFLE_BULLET_LIFETIME
     ),
     POSSUM_HEAVY_WEAPON: new Weapon(
         'Possum Heavy MG',
@@ -85,7 +87,8 @@ const WEAPONS = {
         CONFIG.POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM_HEAVY,
         CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY, CONFIG.POSSUM_HEAVY_WEAPON_ACCURACY_MOVING,
         'POSSUM_HEAVY_MG_FIRE',
-        1.5 // Larger muzzle flash
+        1.5, // Larger muzzle flash
+        CONFIG.POSSUM_HEAVY_WEAPON_BULLET_LIFETIME
     ),
     POSSUM_BOSS_1_WEAPON: new Weapon(
         'Possum Boss 1 Grenade Launcher',
@@ -93,7 +96,8 @@ const WEAPONS = {
         CONFIG.POSSUM_BOSS_1_WEAPON_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_POSSUM_BOSS_1,
         CONFIG.POSSUM_BOSS_1_WEAPON_ACCURACY_STATIONARY, CONFIG.POSSUM_BOSS_1_WEAPON_ACCURACY_MOVING,
         'POSSUM_BOSS_1_WEAPON_FIRE',
-        1.8 // Large grenade launcher flash
+        1.8, // Large grenade launcher flash
+        CONFIG.POSSUM_BOSS_1_WEAPON_BULLET_LIFETIME
     ),
     POSSUM_BOSS_1_SECONDARY: new Weapon(
         'Possum Boss 1 Heavy Repeater',
@@ -105,7 +109,8 @@ const WEAPONS = {
         CONFIG.POSSUM_BOSS_1_SECONDARY_WEAPON.ACCURACY_STATIONARY,
         CONFIG.POSSUM_BOSS_1_SECONDARY_WEAPON.ACCURACY_MOVING,
         'POSSUM_HEAVY_MG_FIRE',
-        1.3 // Boss's MG has a respectable flash
+        1.3, // Boss's MG has a respectable flash
+        CONFIG.POSSUM_BOSS_1_WEAPON_BULLET_LIFETIME
     ),
     POSSUM_REVOLVER: new Weapon(
         'Possum Revolver',
@@ -117,7 +122,8 @@ const WEAPONS = {
         CONFIG.POSSUM_REVOLVER_WEAPON_ACCURACY,
         CONFIG.POSSUM_REVOLVER_WEAPON_ACCURACY, // Same accuracy while moving
         'POSSUM_RIFLE_FIRE', // Re-using grunt sound for now
-        1.1 // Muzzle flash scale
+        1.1, // Muzzle flash scale
+        CONFIG.POSSUM_REVOLVER_WEAPON_BULLET_LIFETIME
     ),
     POSSUM_SNIPER_RIFLE: new Weapon(
         'Possum Sniper Rifle',
@@ -129,7 +135,8 @@ const WEAPONS = {
         CONFIG.POSSUM_SNIPER_RIFLE_ACCURACY, // Same accuracy for stationary and moving
         CONFIG.POSSUM_SNIPER_RIFLE_ACCURACY,
         'POSSUM_HEAVY_MG_FIRE', // Using the same sound as heavy MG for now
-        1.2 // Muzzle flash scale
+        1.2, // Muzzle flash scale
+        CONFIG.POSSUM_SNIPER_RIFLE_BULLET_LIFETIME
     ),
     POSSUM_ELITE_WEAPON: new Weapon(
         'Possum Elite Rifle',
@@ -141,7 +148,8 @@ const WEAPONS = {
         CONFIG.POSSUM_ELITE_WEAPON_ACCURACY_STATIONARY,
         CONFIG.POSSUM_ELITE_WEAPON_ACCURACY_MOVING,
         'POSSUM_RIFLE_FIRE',
-        1.0 // Muzzle flash scale
+        1.0, // Muzzle flash scale
+        CONFIG.POSSUM_ELITE_WEAPON_BULLET_LIFETIME
     )
 };
 

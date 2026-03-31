@@ -89,6 +89,7 @@ class Game {
         this.missionEndDelayTimer = -1;
         this.MISSION_END_DELAY_SECONDS = 3.0;
         this.missionPendingOutcomeIsVictory = false;
+        this.missionEndInitiated = false;
         this.missionEndMessage = "";
 
         this.isGamePausedManually = false;
@@ -154,6 +155,8 @@ class Game {
             if (rankData && rankData.statBoosts && rankData.statBoosts.bulletLifetimeBonus) {
                 bulletLifetimeBonus = rankData.statBoosts.bulletLifetimeBonus;
             }
+        } else if (shooterUnit && shooterUnit.weapon && shooterUnit.weapon.bulletLifetime) {
+            bulletLifetimeBonus = shooterUnit.weapon.bulletLifetime - CONFIG.PROJECTILES.BULLET.LIFETIME;
         }
         projectile.reset(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy, bulletLifetimeBonus);
         return projectile;
@@ -689,11 +692,16 @@ class Game {
                 (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) ||
                 (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) ||
                 (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) ||
+                (def.type === 'tree_palm2_fallen' && CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES) ||
+                (def.type === 'tree_deciduous_fallen' && CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES) ||
                 (def.type === 'tree_palm2_single' && CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES) ||
                 (def.type === 'tree_palm2_double' && CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES) ||
                 (def.type === 'tree_palm2_triple' && CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES) ||
                 (def.type === 'tree_deciduous_single' && CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES) ||
                 (def.type === 'tree4_deciduous_single' && CONFIG.TREE4_SINGLE_SPRITE_FILES) ||
+                (def.type === 'tree5_deciduous_single' && CONFIG.TREE5_SINGLE_SPRITE_FILES) ||
+                (def.type === 'palm_bush_small' && CONFIG.PALM_BUSH_SMALL_FILES) ||
+                (def.type === 'palm_bush_large' && CONFIG.PALM_BUSH_LARGE_FILES) ||
                 (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
                 (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ||
                 (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES)) {
@@ -735,6 +743,9 @@ class Game {
             { files: CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH, name: "palm2_triple" },
             { files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, name: "deciduous_single" },
             { files: CONFIG.TREE4_SINGLE_SPRITE_FILES, path: CONFIG.TREE4_SINGLE_SPRITE_PATH, name: "tree4_deciduous_single" },
+            { files: CONFIG.TREE5_SINGLE_SPRITE_FILES, path: CONFIG.TREE5_SINGLE_SPRITE_PATH, name: "tree5_deciduous_single" },
+            { files: CONFIG.PALM_BUSH_SMALL_FILES, path: CONFIG.PALM_BUSH_SMALL_PATH, name: "palm_bush_small" },
+            { files: CONFIG.PALM_BUSH_LARGE_FILES, path: CONFIG.PALM_BUSH_LARGE_PATH, name: "palm_bush_large" },
             { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" },
             { files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, name: "mud" }
         ];
@@ -912,11 +923,12 @@ class Game {
             if (this.currentMissionIndex === 0) {
                 const phaseStartVideoPaths = [
                     'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
-                    'assets/video/landing/Helicopter_Landing_1.mp4',
-                    'assets/video/landing/Helicopter_Landing_2.mp4',
-                    'assets/video/landing/Helicopter_Landing_3.mp4',
-                    'assets/video/landing/Helicopter_Landing_4.mp4',
-                    'assets/video/landing/Helicopter_Landing_5.mp4',
+                //    'assets/video/landing/Helicopter_Landing_1.mp4',
+                //    'assets/video/landing/Helicopter_Landing_2.mp4',
+                //    'assets/video/landing/Helicopter_Landing_3.mp4',
+                //    'assets/video/landing/Helicopter_Landing_4.mp4',
+                //    'assets/video/landing/Helicopter_Landing_5.mp4',
+                    'assets/video/landing/Helicopter_Landing_6.mp4',
                 ];
                 videoPathToShow = phaseStartVideoPaths[Math.floor(Math.random() * phaseStartVideoPaths.length)];
             } else {
@@ -1106,7 +1118,7 @@ class Game {
 
         // --- QUICK AMBUSH CHECK (during video, before it ends) ---
         // Determine if ambush will trigger - synchronous check
-        const willTriggerAmbush = this.checkForAmbush();
+        const willTriggerAmbush = this.shouldTriggerAmbush('START');
 
         // --- Night Mission: set flag from generated params ---
         this.isNightMission = !!(this.currentMissionParams?.baseParams?.isNightMission);
@@ -1118,27 +1130,8 @@ class Game {
             this.gameState = 'RUNNING';
         }
         
-        // Start mission music
-        if (this.musicManager) {
-            const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
-            
-            // Check if this is a boss mission (phase finale with a boss target)
-            const objectives = this.currentMissionParams?.objectives || [];
-            const isBossMission = objectives.some(obj => {
-                if (obj.type === 'ASSASSINATION' && obj.targetDetails) {
-                    const targetKey = obj.targetDetails.assassinationTypeKey;
-                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss';
-                }
-                return false;
-            });
-            
-            this.musicManager.onGameStateChange('RUNNING', { 
-                biome: biome, 
-                rng: this.currentMissionSeedRNG,
-                isBossMission: isBossMission
-            });
-        }
-
+        // Music will be started in finishMissionStart (after any ambush)
+        
         if (this.ui) {
             this.ui.hideVideoLoadingScreen();
         }
@@ -1172,6 +1165,24 @@ class Game {
         this.ambushesSurvivedThisMission = [];
         // Don't reset takenHostageRaccoonId here - it's needed for objective generation
 
+        // Start campaign music now that mission is fully started (after any ambush)
+        if (this.musicManager) {
+            const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+            const objectives = this.currentMissionParams?.objectives || [];
+            const isBossMission = objectives.some(obj => {
+                if (obj.type === 'ASSASSINATION' && obj.targetDetails) {
+                    const targetKey = obj.targetDetails.assassinationTypeKey;
+                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss';
+                }
+                return false;
+            });
+            this.musicManager.onGameStateChange('RUNNING', { 
+                biome: biome, 
+                rng: this.currentMissionSeedRNG,
+                isBossMission: isBossMission
+            });
+        }
+
         if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); }
         if (this.ui) { this.ui.updateNightMissionBadge(); }
         if (this.inputHandler) { this.inputHandler.isLMBHoldFiringActionActive = false; this.inputHandler.updateMouseCursor(); }
@@ -1180,18 +1191,7 @@ class Game {
         this.setNextBirdSpawnTimer(this.level.rng);
         this.missionEndDelayTimer = -1;
         this.missionPendingOutcomeIsVictory = false;
-    }
-
-    /**
-     * Quick synchronous check if ambush should trigger
-     * @returns {boolean}
-     */
-    checkForAmbush() {
-        // Only trigger start ambush on 1st mission of each phase
-        if (this.currentMissionIndex !== 0) {
-            return false;
-        }
-        return this.shouldTriggerAmbush('START');
+        this.missionEndInitiated = false;
     }
 
     /**
@@ -1214,12 +1214,14 @@ class Game {
         // Store previous game state
         this.previousGameState = this.gameState;
         
-        // Pre-configure shootout with background BEFORE showing alert
+        // Pre-configure shootout with background and start music BEFORE showing alert
         if (this.shootoutController) {
             this.shootoutController.setBackground(background);
             this.shootoutController.setNightMode(isNight);
-            this.gameState = 'SHOOTOUT_AMBUSH';
-            if (this.musicManager) this.musicManager.onGameStateChange('SHOOTOUT_AMBUSH');
+            if (this.musicManager) {
+                this.musicManager.stopMusic();
+                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { loop: true });
+            }
         }
         
         // Show ambush alert
@@ -1274,18 +1276,15 @@ class Game {
             console.log(`[Game] Ambush ${ambushType} SURVIVED!`);
             
             if (ambushType === 'START') {
-                // START ambush: return to RUNNING and restore campaign music
+                // START ambush: return to RUNNING (music handled by finishMissionStart)
                 this.gameState = 'RUNNING';
-                if (this.musicManager) {
-                    const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
-                    this.musicManager.onGameStateChange('RUNNING', {
-                        biome: biome,
-                        rng: this.currentMissionSeedRNG,
-                        isBossMission: this.currentMissionParams?.isBossMission || false
-                    });
-                }
+                console.log('[Game] Ambush ended, campaign will start music in finishMissionStart');
             } else {
-                // EXTRACTION ambush: go directly to victory (don't pause in RUNNING)
+                // EXTRACTION ambush: go directly to victory
+                // CRITICAL: Reset missionEndInitiated flag that was set BEFORE the ambush started
+                // This flag was set at line 2767 to prevent re-triggering during the ambush,
+                // but now we need to allow initiateMissionEnd to proceed
+                this.missionEndInitiated = false;
                 this.initiateMissionEnd(true);
             }
         } else {
@@ -1799,7 +1798,8 @@ class Game {
             isComplete: false,
             currentProgress: 0,
             totalToAchieve: 0,
-            statusText: ""
+            statusText: "",
+            extractionZoneRevealed: false
         };
 
         if (objDef.type === "DESTROY_TARGET") {
@@ -2252,6 +2252,12 @@ class Game {
         if (this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT' || this.gameState === 'POST_MISSION_DEBRIEF') {
             return;
         }
+        
+        if (this.missionEndInitiated) {
+            return;
+        }
+        this.missionEndInitiated = true;
+        
         if (this.inputHandler.isLMBHoldFiringActionActive) {
             this.handleLMBFireActionEnd();
             this.inputHandler.isLMBHoldFiringActionActive = false;
@@ -2261,11 +2267,11 @@ class Game {
         this.missionEndDelayTimer = this.MISSION_END_DELAY_SECONDS;
         this.gameState = isVictory ? 'MISSION_ENDING_VICTORY' : 'MISSION_ENDING_DEFEAT';
         
-        // Play victory/defeat music
+        // Notify music manager to play victory/defeat music
         if (this.musicManager) {
             this.musicManager.onGameStateChange(this.gameState);
         }
-
+        
         if (isVictory) {
             this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.POST_MISSION_SUCCESS || "MISSION SUCCESSFUL!";
         } else {
@@ -2673,10 +2679,16 @@ class Game {
                             enemiesClearedForThisRescue = this.enemyUnits.every(e => !e.isAlive());
                         }
                         if (obj.currentProgress >= obj.minToAchieveForCompletion &&
-                            hostagesAtEvacCount >= obj.minToAchieveForCompletion &&
-                            playerRaccoonInZone &&
                             enemiesClearedForThisRescue) {
                             obj.isComplete = true;
+                            if (CONFIG.DEBUG_LOGGING) console.log('[Game] RESCUE_HOSTAGES objective complete (hostages rescued + enemies cleared).');
+                        }
+                        if (!obj.isComplete && hasExtractionObjective) {
+                            const allHostagesRescued = obj.currentProgress >= obj.minToAchieveForCompletion;
+                            if (allHostagesRescued) {
+                                obj.isComplete = true;
+                                if (CONFIG.DEBUG_LOGGING) console.log('[Game] RESCUE_HOSTAGES complete (with EXTRACTION objective present). EXTRACTION can now reveal zone.');
+                            }
                         }
                     } else if (obj.type === 'ASSASSINATION') {
                         if (obj.targetUnitId) {
@@ -2693,6 +2705,10 @@ class Game {
                             obj.isComplete = true;
                             obj.currentProgress = 1;
                             console.log(`[Game] RESCUE_TAKEN_HOSTAGE completed: ${obj.targetRaccoonName} rescued!`);
+                        }
+                        if (!obj.isComplete && hasExtractionObjective && obj.currentProgress >= 1) {
+                            obj.isComplete = true;
+                            if (CONFIG.DEBUG_LOGGING) console.log('[Game] RESCUE_TAKEN_HOSTAGE complete (with EXTRACTION objective present).');
                         }
                     }
                 }
@@ -2727,7 +2743,6 @@ class Game {
                                 const extractionMsg = CONFIG.UI_TEXT_STRINGS.EXTRACTION_ZONE_REVEALED || "Extraction Zone Revealed!";
                                 this.ui.showToast(extractionMsg, 'success');
                             }
-                            if (CONFIG.DEBUG_LOGGING) console.log('[Game] All objectives complete! Extraction zone revealed.');
                         }
                     }
                 }
@@ -2747,23 +2762,23 @@ class Game {
         }
 
         if (allObjectivesNowComplete && this.gameState === 'RUNNING' && !this.isInAmbush()) {
-            // EXTRACTION objective already checks all raccoons are in zone before marking complete.
-            // Only phase finales have EXTRACTION objectives - check for extraction ambush on those missions.
             const hasExtractionObjective = this.currentMissionParams && this.currentMissionParams.objectives &&
                 this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
 
-            if (hasExtractionObjective) {
+            // Prevent re-triggering extraction ambush after shootout ends
+            if (this.missionEndInitiated) {
+                return;
+            }
+
+            if (hasExtractionObjective && !this.missionEndInitiated) {
                 // Phase finale - check for extraction ambush
+                // Set missionEndInitiated BEFORE triggering ambush so the check doesn't re-run while ambush is active
+                this.missionEndInitiated = true;
                 const game = this;
                 this.triggerExtractionAmbush(function(success) {
-                    // Only call mission end if it wasn't already called by handleAmbushDefeat
-                    // If ambush failed, handleAmbushDefeat already called initiateMissionEnd(false)
-                    // If no ambush triggered (success === false), we need to end with victory
                     if (success === false) {
-                        console.log('[Game] No extraction ambush this time.');
                         game.initiateMissionEnd(true);
                     }
-                    // If success is true, handleAmbushResult already handled things (or will be handled by the callback in triggerExtractionAmbush)
                 });
             } else {
                 // Not a phase finale - end mission immediately, no extraction ambush
@@ -2818,6 +2833,7 @@ class Game {
             if (this.shootoutController && !this.shootoutController.isRoundActive) {
                 // Ambush ended - just set state to RUNNING and restore HUD
                 // DON'T change music here - handleAmbushResult handles music based on victory/defeat
+                console.log('[Game] SHOOTOUT_AMBUSH ended, setting gameState=RUNNING, missionEndInitiated=' + this.missionEndInitiated);
                 this.gameState = 'RUNNING';
                 // Clear ambush triggered flag - critical for mission completion check
                 this.ambushTriggered = false;
@@ -2825,6 +2841,11 @@ class Game {
                 if (this.ui) {
                     this.ui.hideShootoutHud();
                     this.ui.showHUD();
+                }
+                // Stop shootout music and fade out (victory/defeat music handled by initiateMissionEnd)
+                // Don't restart mission music here - if mission is ending, initiateMissionEnd will handle music
+                if (this.musicManager) {
+                    this.musicManager.stopMusic({ fade: true });
                 }
             }
             return;
@@ -2981,7 +3002,18 @@ class Game {
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
         if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
-        if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { if (obstacle.isHidden) return; const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; let shouldSort = true; if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) { if (borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) { shouldSort = false; } } if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
+                    // --- MODIFICATION START: Fix extraction zone not being drawn after isHidden=false ---
+            // Added check for isHidden to allow extraction zones to appear when revealed
+            if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { 
+                if (obstacle.isHidden) return;
+                const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; 
+                let shouldSort = true; 
+                if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) { 
+                    if (borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) { 
+                        shouldSort = false; 
+                    } 
+                } 
+                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
         this.gameObjects.forEach(obj => {
             if (this.isProjectileOrBird(obj) && typeof obj.y === 'number') {
                 sortableObjects.push({ entity: obj, sortY: obj.y, isUnit: true });
@@ -3014,6 +3046,18 @@ class Game {
                         if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight);
                     } else if (!obj.isDestroyed && obj.imageNormal) {
                         if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
+                    } else if (obj.type === 'extraction_zone') {
+                        // Debug: extraction zone fallback draw
+                    //    console.log('[Game] Drawing extraction zone fallback: isHidden=' + obj.isHidden + ', isDecoration=' + obj.isDecoration + ', imageNormal=' + obj.imageNormal);
+                        let obsColor = obj.color || '#3C78FF'; 
+                        this.ctx.fillStyle = obsColor; 
+                        this.ctx.globalAlpha = 0.35;
+                        this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
+                        this.ctx.globalAlpha = 1.0;
+                        // Draw border
+                        this.ctx.strokeStyle = '#00FFD4';
+                        this.ctx.lineWidth = 3;
+                        this.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
                     } else if ((!obj.isDecoration || !obj.imageNormal) && !obj.isDestroyed) {
                         let obsColor = obj.color || '#555555'; this.ctx.fillStyle = obsColor; this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                     }
@@ -3617,6 +3661,10 @@ class Game {
      * @returns {boolean}
      */
     shouldTriggerAmbush(type) {
+        // Only trigger START ambush on 1st mission of each phase
+        if (type === 'START' && this.currentMissionIndex !== 0) {
+            return false;
+        }
         if (this.currentPhaseIndex < CONFIG.SHOOTOUT_MODE.AMBUSH_UNLOCKS_PHASE) {
             return false;
         }
@@ -3635,76 +3683,6 @@ class Game {
     getRandomAmbushBackground() {
         const backgrounds = CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS;
         return backgrounds[Math.floor(Math.random() * backgrounds.length)];
-    }
-
-    /**
-     * Trigger a start-of-mission ambush
-     * @param {function} callback - Callback when ambush ends
-     */
-    triggerStartAmbush(callback) {
-        // Only trigger start ambush on 1st mission of each phase
-        if (this.currentMissionIndex !== 0) {
-            if (callback) callback(false);
-            return;
-        }
-
-        if (!this.shouldTriggerAmbush('START')) {
-            // No ambush, continue normally
-            if (callback) callback(false);
-            return;
-        }
-
-        console.log('[Game] START AMBUSH TRIGGERED!');
-        
-        // Set flag so mission doesn't start while ambush alert is showing
-        this.ambushTriggered = true;
-        
-        // Initialize shootout controller if needed
-        this.initShootoutForAmbush();
-        
-        // Get random background and night mode setting
-        const background = this.getRandomAmbushBackground();
-        const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
-        
-        // Store previous game state
-        this.previousGameState = this.gameState;
-        
-        // Pre-configure shootout with background BEFORE showing alert
-        // This loads the background image so it can be shown behind the alert
-        if (this.shootoutController) {
-            this.shootoutController.setBackground(background);
-            this.shootoutController.setNightMode(isNight);
-            // Set game state to SHOOTOUT_AMBUSH so we render the shootout background behind alert
-            this.gameState = 'SHOOTOUT_AMBUSH';
-            if (this.musicManager) this.musicManager.onGameStateChange('SHOOTOUT_AMBUSH');
-        }
-        
-        // Show ambush alert
-        console.log('[Game] Showing ambush alert, ui exists:', !!this.ui);
-        const game = this;
-        const backgroundImagePath = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[background]?.IMAGE;
-        if (this.ui) {
-            console.log('[Game] Calling showShootoutAmbushAlert...');
-            this.ui.showShootoutAmbushAlert('START_AMBUSH', function() {
-                console.log('[Game] Ambush alert callback triggered!');
-                // Start the ambush
-                if (!game.shootoutController) {
-                    console.error('[Game] shootoutController is undefined!');
-                } else {
-                    console.log('[Game] Calling shootoutController.startAmbush...');
-                    game.shootoutController.startAmbush(background, isNight, function(result) {
-                        // Ambush ended
-                        console.log('[Game] Start ambush ended with result:', result);
-                        
-                        // Clear ambush triggered flag
-                        game.ambushTriggered = false;
-                        
-                        // Return to campaign mode
-                        if (callback) callback(result === 'VICTORY');
-                    });
-                }
-            }, backgroundImagePath);
-        }
     }
 
     /**
@@ -3733,13 +3711,17 @@ class Game {
         // Store previous game state
         this.previousGameState = this.gameState;
 
-        // Pre-configure shootout with background BEFORE showing alert
+        // Pre-configure shootout with background and music BEFORE showing alert
         if (this.shootoutController) {
             this.shootoutController.setBackground(background);
             this.shootoutController.setNightMode(isNight);
             // Set game state to SHOOTOUT_AMBUSH so we render the shootout background behind alert
             this.gameState = 'SHOOTOUT_AMBUSH';
-            if (this.musicManager) this.musicManager.onGameStateChange('SHOOTOUT_AMBUSH');
+            // Fade out campaign music and start ambush music
+            if (this.musicManager) {
+                this.musicManager.stopMusic({ fade: true });
+                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { loop: true });
+            }
         }
 
         // Show ambush alert
