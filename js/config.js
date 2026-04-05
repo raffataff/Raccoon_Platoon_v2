@@ -14,7 +14,7 @@ const CONFIG = {
     WORLD_BASE_DIRT_COLOR: '#5C4033', // A lighter dirt color for bare patches
     WORLD_GRASS_TILE_SIZE: 48,     // Approximate width/height of your grass tile sprites
     WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.35, // e.g., 0.25 means tiles can overlap by up to 25% of their size
-    WORLD_GRASS_SKIP_CHANCE: 0.01, // Probability (0-1) to start skipping grass and show dirt/mud
+    WORLD_GRASS_SKIP_CHANCE: 0.05, // Probability (0-1) to start skipping grass and show dirt/mud
     WORLD_GRASS_SKIP_MIN: 3,       // Minimum consecutive grass tiles to skip
     WORLD_GRASS_SKIP_MAX: 12,       // Maximum consecutive grass tiles to skip
 
@@ -23,9 +23,9 @@ const CONFIG = {
     MUD_SPRITE_FILES: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'],
 
     // Perlin noise settings for mud patch generation
-    WORLD_MUD_NOISE_SCALE_X: 0.1,  // Lower = larger blobs
-    WORLD_MUD_NOISE_SCALE_Y: 0.1,  // Lower = larger blobs
-    WORLD_MUD_NOISE_THRESHOLD: 0.3, // Higher = fewer/smaller patches
+    WORLD_MUD_NOISE_SCALE_X: 0.05,  // Lower = larger blobs
+    WORLD_MUD_NOISE_SCALE_Y: 0.05,  // Lower = larger blobs
+    WORLD_MUD_NOISE_THRESHOLD: 0.5, // Higher = fewer/smaller patches
     WORLD_MUD_NOISE_OCTAVES: 2,     // More octaves = more detail
     // Iteration step will be TILE_SIZE * (1 - OVERLAP_FACTOR)
     // VIDEO SETTINGS
@@ -947,7 +947,7 @@ const CONFIG = {
             type: 'tree4_deciduous_single', name: 'Deciduous Tree Large', color: '#228B22',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.4,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',

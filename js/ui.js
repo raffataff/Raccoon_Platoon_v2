@@ -25,6 +25,7 @@ class UI {
         this.leftHudPanel = document.getElementById('left-hud-panel');
         this.squadPanel = document.getElementById('hud-squad');
         this.objectiveTextContainer = document.getElementById('objectiveTextContainer');
+        this.objectivesPanel = document.getElementById('hud-objective');
         this.missionOutcomeText = document.getElementById('missionOutcome');
         this.preMissionPhaseTitle = document.getElementById('preMissionPhaseTitle');
         this.preMissionTitle = document.getElementById('preMissionTitle');
@@ -495,6 +496,23 @@ class UI {
             }
         });
         // --- END SHOOTOUT MODE UI ELEMENTS ---
+
+        // Prevent context menu on HUD elements during campaign gameplay
+        if (this.leftHudPanel) {
+            this.leftHudPanel.addEventListener('contextmenu', (event) => {
+                if (this.game && this.game.campaignSeed && this.game.gameState === 'RUNNING') {
+                    event.preventDefault();
+                }
+            });
+        }
+
+        if (this.objectivesPanel) {
+            this.objectivesPanel.addEventListener('contextmenu', (event) => {
+                if (this.game && this.game.campaignSeed && this.game.gameState === 'RUNNING') {
+                    event.preventDefault();
+                }
+            });
+        }
     }
 
     showVideoLoadingScreen(videoPath) {
@@ -1660,7 +1678,45 @@ class UI {
         const card = document.createElement('div');
         card.className = 'unit-card';
 
-        // Face Section
+        // Sprite Section (top)
+        const spriteSection = document.createElement('div');
+        spriteSection.className = 'unit-card-sprite-section';
+
+        const spriteDiv = document.createElement('div');
+        spriteDiv.className = 'card-sprite';
+
+        // Build sprite URLs based on rank
+        const spriteBaseName = recruit.spriteBaseName || 'raccoon';
+        const spritePath = this._getSpritePathForRank(recruit.rank);
+        const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+        
+        // Store sprite URLs in CSS custom properties for animation
+        directions.forEach(dir => {
+            const spriteKey = `${spriteBaseName}_idle_${dir}`;
+            const spriteUrl = this.game?.preloadedImages?.[spriteKey] 
+                ? this.game.preloadedImages[spriteKey].src 
+                : `${spritePath}idle/${spriteBaseName}_idle_${dir}.png`;
+            spriteDiv.style.setProperty(`--sprite-${dir}`, `url('${spriteUrl}')`);
+        });
+
+        // For fallen units, use dead sprite
+        if (type === 'fallen') {
+            const deadPath = CONFIG.RACCOON_DEAD_SPRITE_PATH || 'assets/images/units/raccoon/dead/';
+            const deadFiles = CONFIG.RACCOON_DEAD_SPRITE_FILES || ['raccoon_dead.png'];
+            const deadSpriteUrl = deadPath + deadFiles[0];
+            directions.forEach(dir => {
+                spriteDiv.style.setProperty(`--sprite-${dir}`, `url('${deadSpriteUrl}')`);
+            });
+        }
+
+        spriteSection.appendChild(spriteDiv);
+        card.appendChild(spriteSection);
+
+        // Info Row (Face left, Details right)
+        const infoRow = document.createElement('div');
+        infoRow.className = 'unit-card-info-row';
+
+        // Face Section (left)
         const faceSection = document.createElement('div');
         faceSection.className = 'unit-card-face-section';
         
@@ -1668,9 +1724,9 @@ class UI {
         faceDiv.className = 'card-face';
         faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
         faceSection.appendChild(faceDiv);
-        card.appendChild(faceSection);
+        infoRow.appendChild(faceSection);
 
-        // Details Section
+        // Details Section (right)
         const detailsDiv = document.createElement('div');
         detailsDiv.className = 'unit-card-details';
 
@@ -1722,41 +1778,8 @@ class UI {
             detailsDiv.appendChild(xpDiv);
         }
 
-        card.appendChild(detailsDiv);
-
-        // Sprite Section
-        const spriteSection = document.createElement('div');
-        spriteSection.className = 'unit-card-sprite-section';
-
-        const spriteDiv = document.createElement('div');
-        spriteDiv.className = 'card-sprite';
-
-        // Build sprite URLs based on rank
-        const spriteBaseName = recruit.spriteBaseName || 'raccoon';
-        const spritePath = this._getSpritePathForRank(recruit.rank);
-        const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
-        
-        // Store sprite URLs in CSS custom properties for animation
-        directions.forEach(dir => {
-            const spriteKey = `${spriteBaseName}_idle_${dir}`;
-            const spriteUrl = this.game?.preloadedImages?.[spriteKey] 
-                ? this.game.preloadedImages[spriteKey].src 
-                : `${spritePath}idle/${spriteBaseName}_idle_${dir}.png`;
-            spriteDiv.style.setProperty(`--sprite-${dir}`, `url('${spriteUrl}')`);
-        });
-
-        // For fallen units, use dead sprite
-        if (type === 'fallen') {
-            const deadPath = CONFIG.RACCOON_DEAD_SPRITE_PATH || 'assets/images/units/raccoon/dead/';
-            const deadFiles = CONFIG.RACCOON_DEAD_SPRITE_FILES || ['raccoon_dead.png'];
-            const deadSpriteUrl = deadPath + deadFiles[0];
-            directions.forEach(dir => {
-                spriteDiv.style.setProperty(`--sprite-${dir}`, `url('${deadSpriteUrl}')`);
-            });
-        }
-
-        spriteSection.appendChild(spriteDiv);
-        card.appendChild(spriteSection);
+        infoRow.appendChild(detailsDiv);
+        card.appendChild(infoRow);
 
         if (type === 'fallen') {
             card.classList.add('fallen');

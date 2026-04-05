@@ -149,9 +149,16 @@ class Level {
             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
 
             const treeFallSettings = CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS;
-            const isTree = obstacle.type.startsWith('tree_palm_');
-            if (isTree && treeFallSettings?.ENABLED && this.rng.chance(treeFallSettings.FALL_CHANCE)) {
-                this._spawnFallenTree(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            const isPalmTree = obstacle.type.startsWith('tree_palm');
+            const isDeciduousTree = obstacle.type.startsWith('tree_deciduous');
+            if ((isPalmTree || isDeciduousTree) && treeFallSettings?.ENABLED && this.rng.chance(treeFallSettings.FALL_CHANCE)) {
+                let fallenLogType = 'tree_palm_fallen';
+                if (obstacle.type.startsWith('tree_palm2_')) {
+                    fallenLogType = 'tree_palm2_fallen';
+                } else if (obstacle.type.startsWith('tree_deciduous')) {
+                    fallenLogType = 'tree_deciduous_fallen';
+                }
+                this._spawnFallenTree(obstacle.x, obstacle.y, obstacle.width, obstacle.height, fallenLogType);
             }
 
             if (obstacleDef && obstacleDef.sfxOnDestroy && this.game && this.game.audioManager) {
@@ -213,16 +220,29 @@ class Level {
         }
     }
 
-    _spawnFallenTree(stumpX, stumpY, stumpWidth, stumpHeight) {
+    _spawnFallenTree(stumpX, stumpY, stumpWidth, stumpHeight, fallenLogType = 'tree_palm_fallen') {
         const fallSettings = CONFIG.LEVEL_GENERATION.TREE_FALL_SETTINGS;
-        const fallenLogTemplate = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === 'tree_palm_fallen');
+        const fallenLogTemplate = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === fallenLogType);
         if (!fallenLogTemplate) {
-            console.warn("Could not find 'tree_palm_fallen' obstacle definition to spawn.");
+            console.warn(`Could not find '${fallenLogType}' obstacle definition to spawn.`);
             return;
         }
 
-        let filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || [];
-        let pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || '';
+        let filesArray, pathBase;
+        switch (fallenLogType) {
+            case 'tree_palm2_fallen':
+                filesArray = CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES || [];
+                pathBase = CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH || '';
+                break;
+            case 'tree_deciduous_fallen':
+                filesArray = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES || [];
+                pathBase = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH || '';
+                break;
+            default:
+                filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || [];
+                pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || '';
+                break;
+        }
         let actualSpritePath = (filesArray.length > 0 && pathBase) ? pathBase + this.rng.pickFrom(filesArray) : null;
         let logImage = actualSpritePath ? this.game.preloadedImages[actualSpritePath] : null;
 
