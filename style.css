@@ -2139,6 +2139,27 @@ input[type="range"]::-moz-range-thumb {
     opacity: 0.8;
 }
 
+.alert-timer {
+    width: 100%;
+    height: 4px;
+    background-color: #ff4444;
+    margin-top: 20px;
+    display: none;
+}
+
+.alert-timer.timer-active {
+    animation: timer-shrink var(--timer-duration, 3s) linear forwards;
+}
+
+@keyframes timer-shrink {
+    from {
+        width: 100%;
+    }
+    to {
+        width: 0%;
+    }
+}
+
 /* --- Full-Screen Shootout Ambush Result Screen --- */
 .ambush-result-screen {
     position: fixed;

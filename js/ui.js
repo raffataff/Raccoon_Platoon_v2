@@ -2037,6 +2037,7 @@ class UI {
         const alertTitle = document.getElementById('alertTitle');
         const alertMessage = document.getElementById('alertMessage');
         const alertInstruction = document.getElementById('alertInstruction');
+        const alertTimer = document.getElementById('alertTimer');
         
         if (!alertScreen) {
             console.error('[UI] Fullscreen alert screen not found!');
@@ -2048,7 +2049,17 @@ class UI {
         alertTitle.textContent = options.title || 'ALERT!';
         alertMessage.textContent = options.message || '';
         alertInstruction.textContent = options.instruction || '';
-        
+
+        // Handle timer
+        if (options.autoDuration) {
+            alertTimer.style.display = 'block';
+            alertTimer.style.setProperty('--timer-duration', `${options.autoDuration}ms`);
+            alertTimer.classList.remove('timer-active');
+        } else {
+            alertTimer.style.display = 'none';
+            alertTimer.classList.remove('timer-active');
+        }
+
         // Apply styling
         if (options.titleColor) {
             alertTitle.style.color = options.titleColor;
@@ -2068,7 +2079,12 @@ class UI {
         
         // Show alert
         alertScreen.style.display = 'flex';
-        
+
+        // Start timer animation if auto duration
+        if (options.autoDuration) {
+            setTimeout(() => alertTimer.classList.add('timer-active'), 10);
+        }
+
         // Store callback and timer reference
         this._fullscreenAlertCallback = callback;
         this._fullscreenAlertTimer = null;
@@ -2080,7 +2096,11 @@ class UI {
             }
             alertScreen.style.display = 'none';
             document.removeEventListener('click', clickHandler);
-            
+
+            // Reset timer
+            alertTimer.classList.remove('timer-active');
+            alertTimer.style.display = 'none';
+
             if (this._fullscreenAlertCallback) {
                 this._fullscreenAlertCallback();
                 this._fullscreenAlertCallback = null;
@@ -2141,7 +2161,6 @@ class UI {
         this.showFullscreenAlert({
             title: title,
             message: message,
-            instruction: 'Click anywhere to continue...',
             titleColor: titleColor,
             borderColor: borderColor,
             backgroundImage: backgroundImage,

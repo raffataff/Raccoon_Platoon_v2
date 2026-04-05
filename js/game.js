@@ -1220,9 +1220,9 @@ class Game {
         if (this.shootoutController) {
             this.shootoutController.setBackground(background);
             this.shootoutController.setNightMode(isNight);
+            // Crossfade from campaign music to ambush music
             if (this.musicManager) {
-                this.musicManager.stopMusic();
-                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { loop: true });
+                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { fade: true, loop: true });
             }
         }
         
@@ -2869,9 +2869,10 @@ class Game {
                 }
                 // Stop shootout music and fade out (victory/defeat music handled by initiateMissionEnd)
                 // Don't restart mission music here - if mission is ending, initiateMissionEnd will handle music
-                if (this.musicManager) {
-                    this.musicManager.stopMusic({ fade: true });
-                }
+            // Crossfade from campaign music to ambush music
+            if (this.musicManager) {
+                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { fade: true, loop: true });
+            }
             }
             return;
         }
@@ -3742,10 +3743,9 @@ class Game {
             this.shootoutController.setNightMode(isNight);
             // Set game state to SHOOTOUT_AMBUSH so we render the shootout background behind alert
             this.gameState = 'SHOOTOUT_AMBUSH';
-            // Fade out campaign music and start ambush music
+            // Crossfade from campaign music to ambush music
             if (this.musicManager) {
-                this.musicManager.stopMusic({ fade: true });
-                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { loop: true });
+                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { fade: true, loop: true });
             }
         }
 
