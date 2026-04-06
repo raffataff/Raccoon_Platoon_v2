@@ -99,8 +99,8 @@ class Level {
         for (const unit of existingUnits) {
             // Defensive check: skip invalid units that don't have isAlive method
             if (!unit || typeof unit.isAlive !== 'function') {
-                console.warn('isSpawnPointClear: Skipping invalid unit in existingUnits:', unit, 
-                    '- unit type:', unit?.constructor?.name, '- has hp:', unit?.hp, '- has x:', unit?.x);
+//                console.warn('isSpawnPointClear: Skipping invalid unit in existingUnits:', unit,
+//                    '- unit type:', unit?.constructor?.name, '- has hp:', unit?.hp, '- has x:', unit?.x);
                 continue;
             }
             if (unit.isAlive()) {
@@ -224,7 +224,7 @@ class Level {
         const fallSettings = CONFIG.LEVEL_GENERATION.TREE_FALL_SETTINGS;
         const fallenLogTemplate = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === fallenLogType);
         if (!fallenLogTemplate) {
-            console.warn(`Could not find '${fallenLogType}' obstacle definition to spawn.`);
+//            console.warn(`Could not find '${fallenLogType}' obstacle definition to spawn.`);
             return;
         }
 
@@ -247,7 +247,7 @@ class Level {
         let logImage = actualSpritePath ? this.game.preloadedImages[actualSpritePath] : null;
 
         if (!logImage) {
-            console.warn("Preloaded image for fallen tree not found.");
+//            console.warn("Preloaded image for fallen tree not found.");
             return;
         }
         
@@ -293,7 +293,7 @@ class Level {
             }
         }
         if (!placed) {
-            console.log("Could not find a valid placement for fallen tree log.");
+//            console.log("Could not find a valid placement for fallen tree log.");
         }
     }
 
@@ -431,7 +431,7 @@ class Level {
 
     getNavigationGrid() {
         if (!this.navGrid) {
-            console.warn("[Level] Navigation grid requested but not yet generated!");
+//            console.warn("[Level] Navigation grid requested but not yet generated!");
             if (CONFIG.WORLD_WIDTH && CONFIG.WORLD_HEIGHT) {
                 this.generateNavigationGrid(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
             } else {

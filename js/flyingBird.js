@@ -26,7 +26,7 @@ class FlyingBird {
         this.isMarkedForDeletion = false;
 
         if (!this.image) {
-            console.warn("Flying bird tilesheet not loaded!");
+//            console.warn("Flying bird tilesheet not loaded!");
             this.isMarkedForDeletion = true; // Cannot render without image
         }
     }

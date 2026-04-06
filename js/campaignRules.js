@@ -1,12 +1,12 @@
 // js/campaignRules.js
 const CAMPAIGN_RULES = {
     // PLAYER_STARTING_SEED: Date.now(),
-    CAMPAIGN_LENGTH_PHASES_RANGE: [30, 100], // Campaign will have between 30 and 100 phases.
+    CAMPAIGN_LENGTH_PHASES_RANGE: [20, 50], // Campaign will have between 20 and 50 phases.
 
     // --- Base Values and Scaling ---
     BASE_PARAMETERS: {
-        worldWidthFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness 
-        worldHeightFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
+        worldWidthFactor: { initial: 1.0, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness 
+        worldHeightFactor: { initial: 1.0, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
         enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.2, max: 5.0, randomnessFactor: 0.15 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
         sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },

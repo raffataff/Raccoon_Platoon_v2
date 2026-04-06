@@ -31,8 +31,17 @@ class RaccoonHostage extends Raccoon {
         this.minTimeBetweenRepath = 0.25; 
         this.lastRepathTime = 0;          
 
-        const possibleRanks = hostageConfig.POSSIBLE_RANKS_ON_RESCUE || [{ rankName: "Recruit", xpNeeded: 0 }];
-        const randomRankEntry = possibleRanks[Math.floor(Math.random() * possibleRanks.length)];
+        const possibleRanks = hostageConfig.POSSIBLE_RANKS_ON_RESCUE || [{ rankName: "Recruit", xpNeeded: 0, weight: 1 }];
+        const totalWeight = possibleRanks.reduce((sum, r) => sum + (r.weight || 1), 0);
+        let randomVal = Math.random() * totalWeight;
+        let randomRankEntry = possibleRanks[0];
+        for (const rank of possibleRanks) {
+            randomVal -= (rank.weight || 1);
+            if (randomVal <= 0) {
+                randomRankEntry = rank;
+                break;
+            }
+        }
         this.assignedRankOnRescue = randomRankEntry.rankName;
         this.assignedXpOnRescue = randomRankEntry.xpNeeded !== undefined ? randomRankEntry.xpNeeded : 0;
 
@@ -202,7 +211,7 @@ class RaccoonHostage extends Raccoon {
         this.spriteBaseName = 'raccoon_hostage'; 
         this.currentVisualState = 'idle';
 
-        console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);
+//        console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);
 
         if (this.game.ui && typeof this.game.ui.updateHostageStatus === 'function') {
             this.game.ui.updateHostageStatus(this, true);

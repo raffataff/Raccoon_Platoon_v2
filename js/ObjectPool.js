@@ -12,7 +12,7 @@ class ObjectPool {
             const obj = this._createObject();
             this.pool.push(obj);
         }
-        console.log(`[ObjectPool] Initialized for ${ObjectClass.name} with ${initialSize} objects.`);
+//        console.log(`[ObjectPool] Initialized for ${ObjectClass.name} with ${initialSize} objects.`);
     }
 
     _createObject() {
@@ -46,7 +46,7 @@ class ObjectPool {
             obj = this.pool.pop();
         } else {
             // Pool is empty, create a new one (consider logging this if it happens often)
-            console.warn(`[ObjectPool] Pool for ${this.ObjectClass.name} empty. Creating new object.`);
+//            console.warn(`[ObjectPool] Pool for ${this.ObjectClass.name} empty. Creating new object.`);
             obj = this._createObject();
         }
         obj.isActiveInPool = true;
@@ -66,7 +66,7 @@ class ObjectPool {
         } else if (obj && obj._pooled && !obj.isActiveInPool) {
             // Already released, do nothing or log warning.
         } else if (obj) {
-            console.warn(`[ObjectPool] Attempted to release non-pooled or unknown state object:`, obj);
+//            console.warn(`[ObjectPool] Attempted to release non-pooled or unknown state object:`, obj);
         }
     }
 

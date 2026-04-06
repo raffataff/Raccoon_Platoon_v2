@@ -31,7 +31,7 @@ class MusicManager {
         // Configuration (will be set from CONFIG.AUDIO_MUSIC)
         this.config = null;
         
-        console.log("[MusicManager] Initialized.");
+//        console.log("[MusicManager] Initialized.");
     }
 
     /**
@@ -41,7 +41,7 @@ class MusicManager {
     init(audioMusicConfig) {
         this.config = audioMusicConfig;
         this.crossfadeDuration = audioMusicConfig.STATE_TRANSITION_TIME || 1.0;
-        console.log("[MusicManager] Configuration loaded.");
+//        console.log("[MusicManager] Configuration loaded.");
     }
 
     /**
@@ -50,7 +50,7 @@ class MusicManager {
      */
     setBiome(biomeType) {
         this.currentBiome = biomeType;
-        console.log(`[MusicManager] Biome set to: ${biomeType}`);
+//        console.log(`[MusicManager] Biome set to: ${biomeType}`);
     }
 
     /**
@@ -67,7 +67,7 @@ class MusicManager {
             this.setBiome(params.biome);
         }
         
-        console.log(`[MusicManager] Game state: ${previousState} -> ${newState}`);
+//        console.log(`[MusicManager] Game state: ${previousState} -> ${newState}`);
         
         // Handle the state transition
         this.transitionToState(newState, params);
@@ -80,11 +80,11 @@ class MusicManager {
      */
     transitionToState(state, params = {}) {
         if (!this.config) {
-            console.warn("[MusicManager] No config loaded, skipping transition.");
+//            console.warn("[MusicManager] No config loaded, skipping transition.");
             return;
         }
 
-        console.log(`[MusicManager] transitionToState: ${state}, current: ${this.currentGameState}`);
+//        console.log(`[MusicManager] transitionToState: ${state}, current: ${this.currentGameState}`);
         
         const stateTracks = this.config.STATE_TRACKS;
         
@@ -136,11 +136,11 @@ class MusicManager {
             case 'SHOOTOUT_PRE_GAME':
             case 'SHOOTOUT_PLAYING':
             case 'SHOOTOUT_AMBUSH':
-                console.log(`[MusicManager] SHOOTOUT state handling, musicLayer.key: ${this.musicLayer.key}, musicLayer.isPlaying: ${this.musicLayer.isPlaying}`);
+//                console.log(`[MusicManager] SHOOTOUT state handling, musicLayer.key: ${this.musicLayer.key}, musicLayer.isPlaying: ${this.musicLayer.isPlaying}`);
                 const shootoutTrack = stateTracks.SHOOTOUT_AMBUSH || stateTracks.SHOOTOUT_PLAYING;
-                console.log(`[MusicManager] shootoutTrack: ${shootoutTrack}`);
+//                console.log(`[MusicManager] shootoutTrack: ${shootoutTrack}`);
                 if (this.musicLayer.key !== shootoutTrack) {
-                    console.log(`[MusicManager] Playing shootout music: ${shootoutTrack}`);
+//                    console.log(`[MusicManager] Playing shootout music: ${shootoutTrack}`);
                     this.playMusic(shootoutTrack, { fade: true, loop: true });
                 }
                 this.stopAmbient();
@@ -158,7 +158,7 @@ class MusicManager {
                 
             default:
                 // Unknown state - no action
-                console.log(`[MusicManager] No music action defined for state: ${state}`);
+//                console.log(`[MusicManager] No music action defined for state: ${state}`);
         }
     }
 
@@ -168,12 +168,12 @@ class MusicManager {
      */
     startMissionMusic(params = {}) {
         if (!this.config) {
-            console.warn("[MusicManager] startMissionMusic: No config");
+//            console.warn("[MusicManager] startMissionMusic: No config");
             return;
         }
         
         const isBossMission = params.isBossMission || false;
-        console.log(`[MusicManager] startMissionMusic called, biome: ${this.currentBiome}, isBossMission: ${isBossMission}, ambientLayer.isPlaying: ${this.ambientLayer.isPlaying}`);
+//        console.log(`[MusicManager] startMissionMusic called, biome: ${this.currentBiome}, isBossMission: ${isBossMission}, ambientLayer.isPlaying: ${this.ambientLayer.isPlaying}`);
         
         // Always use TROPICAL biome (only biome implemented in game)
         const biome = 'TROPICAL';
@@ -187,7 +187,7 @@ class MusicManager {
             if (bossTracks.combat && bossTracks.combat.length > 0) {
                 const rng = params.rng || new SeededRandom(Date.now());
                 combatTrack = rng.pickFrom(bossTracks.combat);
-                console.log(`[MusicManager] Boss mission detected, using boss track: ${combatTrack}`);
+//                console.log(`[MusicManager] Boss mission detected, using boss track: ${combatTrack}`);
             }
         }
         
@@ -212,9 +212,9 @@ class MusicManager {
         }
         
         // Only start ambient if not already playing
-        console.log(`[MusicManager] Checking ambient: isPlaying=${this.ambientLayer.isPlaying}, hasTrack=${!!ambientTrack}`);
+//        console.log(`[MusicManager] Checking ambient: isPlaying=${this.ambientLayer.isPlaying}, hasTrack=${!!ambientTrack}`);
         if (!this.ambientLayer.isPlaying && ambientTrack) {
-            console.log(`[MusicManager] Restarting ambient: ${ambientTrack}`);
+//            console.log(`[MusicManager] Restarting ambient: ${ambientTrack}`);
             this.playAmbient(ambientTrack, { fade: true, loop: true });
         }
     }
@@ -274,7 +274,7 @@ class MusicManager {
             this.musicLayer.instance = instance;
             this.musicLayer.volume = volumeValue;
             this.musicLayer.isPlaying = true;
-            console.log(`[MusicManager] Playing music: ${key}`);
+//            console.log(`[MusicManager] Playing music: ${key}`);
         }
     }
 
@@ -320,7 +320,7 @@ class MusicManager {
             this.ambientLayer.instance = instance;
             this.ambientLayer.volume = volumeValue;
             this.ambientLayer.isPlaying = true;
-            console.log(`[MusicManager] Playing ambient: ${key}`);
+//            console.log(`[MusicManager] Playing ambient: ${key}`);
         }
     }
 

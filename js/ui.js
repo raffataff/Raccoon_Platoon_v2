@@ -80,7 +80,7 @@ class UI {
             if (this.game) {
                 // Try auto-save first
                 if (SaveManager.autoLoad(this.game)) {
-                    console.log('[UI] Continue: Loaded from auto-save');
+//                    console.log('[UI] Continue: Loaded from auto-save');
                     this.hideMainMenuScreen();
                     this.game.start();
                     return;
@@ -96,7 +96,7 @@ class UI {
                     }
                 }
                 
-                console.log('[UI] Continue: No save found');
+//                console.log('[UI] Continue: No save found');
             }
         });
 
@@ -155,7 +155,7 @@ class UI {
                             this.game.getAvailableRecruits()
                         );
                     } else {
-                        console.error("UI: Failed to get phase data or mission params for retry pre-mission screen.");
+//                        console.error("UI: Failed to get phase data or mission params for retry pre-mission screen.");
                         this.game.quitToMainMenu();
                     }
                 } else {
@@ -524,10 +524,10 @@ class UI {
         // Return a promise that resolves when video starts playing
         // This ensures the 6-second timer doesn't start until video is actually playing
         const videoPlayPromise = this.loadingVideoPlayer.play().then(() => {
-            console.log("Video started playing successfully");
+//            console.log("Video started playing successfully");
             return true;
         }).catch(error => {
-            console.warn("Video autoplay was prevented. User interaction might be required.", error);
+//            console.warn("Video autoplay was prevented. User interaction might be required.", error);
             // Fallback to a static loading screen if video fails - still resolve after a delay
             return new Promise(resolve => setTimeout(resolve, 2000));
         });
@@ -911,10 +911,10 @@ class UI {
         try {
             await navigator.clipboard.writeText(jsonConfig);
             this.showDevStatus('Config copied to clipboard!', 'success');
-            console.log('Spawn Config:\n', jsonConfig);
+//            console.log('Spawn Config:\n', jsonConfig);
         } catch (err) {
             // Fallback: show in console and display error
-            console.log('Spawn Config (copy manually):\n', jsonConfig);
+//            console.log('Spawn Config (copy manually):\n', jsonConfig);
             this.showDevStatus('Failed to copy. See console for JSON.', 'error');
         }
     }
@@ -1661,7 +1661,7 @@ class UI {
                 };
                 this.game.masterRoster.push(testRecruit);
                 this.refreshRecruitSelectionLists();
-                console.log(`[DEBUG] Added test unit: ${testRecruit.name} with rank ${selectedRank}, XP: ${xpForRank}`);
+//                console.log(`[DEBUG] Added test unit: ${testRecruit.name} with rank ${selectedRank}, XP: ${xpForRank}`);
             });
             debugControls.appendChild(addBtn);
 
@@ -2040,7 +2040,7 @@ class UI {
         const alertTimer = document.getElementById('alertTimer');
         
         if (!alertScreen) {
-            console.error('[UI] Fullscreen alert screen not found!');
+//            console.error('[UI] Fullscreen alert screen not found!');
             setTimeout(callback, 500);
             return;
         }
@@ -2135,11 +2135,11 @@ class UI {
         // callback: function to call when player clicks to start the ambush
         // backgroundImage: optional image URL for background
         
-        console.log('[UI] showShootoutAmbushAlert called, scenarioType:', scenarioType, 'backgroundImage:', backgroundImage);
+//        console.log('[UI] showShootoutAmbushAlert called, scenarioType:', scenarioType, 'backgroundImage:', backgroundImage);
         
         // Get random message from config
         const messages = CONFIG.SHOOTOUT_MODE.AMBUSH_ALERT_MESSAGES[scenarioType];
-        console.log('[UI] messages:', messages);
+//        console.log('[UI] messages:', messages);
         const message = messages[Math.floor(Math.random() * messages.length)];
         
         // Set title and styling based on scenario
@@ -2186,7 +2186,7 @@ class UI {
         const resultMessage = document.getElementById('ambushResultMessage');
         
         if (!resultScreen) {
-            console.error('[UI] Ambush result screen not found!');
+//            console.error('[UI] Ambush result screen not found!');
             setTimeout(callback, 1500);
             return;
         }
@@ -2610,7 +2610,7 @@ class UI {
                     this.showToast('Invalid save file format', 'error');
                 }
             } catch (error) {
-                console.error('[UI] Import error:', error);
+//                console.error('[UI] Import error:', error);
                 this.showToast('Failed to read save file', 'error');
             }
         };
@@ -2694,7 +2694,7 @@ class UI {
             return false; // Abort mission start so they can save
 
         } catch (error) {
-            console.error('[Auto-Save] Error:', error);
+//            console.error('[Auto-Save] Error:', error);
             return true; // Don't block gameplay on error
         }
     }

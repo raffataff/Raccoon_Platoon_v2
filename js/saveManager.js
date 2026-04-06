@@ -67,7 +67,7 @@ class SaveManager {
      */
     static saveToSlot(game, slotIndex) {
         if (slotIndex < 0 || slotIndex >= this.MAX_SLOTS) {
-            console.error('[SaveManager] Invalid slot index:', slotIndex);
+//            console.error('[SaveManager] Invalid slot index:', slotIndex);
             return false;
         }
 
@@ -77,10 +77,10 @@ class SaveManager {
             saves[slotIndex] = saveData;
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(saves));
             game.currentSaveSlot = slotIndex; // Update active slot
-            console.log(`[SaveManager] Saved to slot ${slotIndex + 1}:`, saveData.slotName);
+//            console.log(`[SaveManager] Saved to slot ${slotIndex + 1}:`, saveData.slotName);
             return true;
         } catch (error) {
-            console.error('[SaveManager] Failed to save:', error);
+//            console.error('[SaveManager] Failed to save:', error);
             return false;
         }
     }
@@ -93,7 +93,7 @@ class SaveManager {
      */
     static loadFromSlot(game, slotIndex) {
         if (slotIndex < 0 || slotIndex >= this.MAX_SLOTS) {
-            console.error('[SaveManager] Invalid slot index:', slotIndex);
+//            console.error('[SaveManager] Invalid slot index:', slotIndex);
             return false;
         }
 
@@ -102,22 +102,22 @@ class SaveManager {
             const saveData = saves[slotIndex];
 
             if (!saveData) {
-                console.warn('[SaveManager] Slot is empty:', slotIndex);
+//                console.warn('[SaveManager] Slot is empty:', slotIndex);
                 return false;
             }
 
             // Version check for future compatibility
             if (saveData.version !== this.SAVE_VERSION) {
-                console.warn(`[SaveManager] Save version mismatch. Save: ${saveData.version}, Current: ${this.SAVE_VERSION}`);
+//                console.warn(`[SaveManager] Save version mismatch. Save: ${saveData.version}, Current: ${this.SAVE_VERSION}`);
                 // For now, attempt to load anyway. Future versions may need migration logic.
             }
 
             this._deserializeGameState(game, saveData.data);
             game.currentSaveSlot = slotIndex; // Update active slot
-            console.log(`[SaveManager] Loaded from slot ${slotIndex + 1}:`, saveData.slotName);
+//            console.log(`[SaveManager] Loaded from slot ${slotIndex + 1}:`, saveData.slotName);
             return true;
         } catch (error) {
-            console.error('[SaveManager] Failed to load:', error);
+//            console.error('[SaveManager] Failed to load:', error);
             return false;
         }
     }
@@ -129,7 +129,7 @@ class SaveManager {
      */
     static deleteSlot(slotIndex) {
         if (slotIndex < 0 || slotIndex >= this.MAX_SLOTS) {
-            console.error('[SaveManager] Invalid slot index:', slotIndex);
+//            console.error('[SaveManager] Invalid slot index:', slotIndex);
             return false;
         }
 
@@ -137,10 +137,10 @@ class SaveManager {
             const saves = this._getAllSaves();
             saves[slotIndex] = null;
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(saves));
-            console.log(`[SaveManager] Deleted slot ${slotIndex + 1}`);
+//            console.log(`[SaveManager] Deleted slot ${slotIndex + 1}`);
             return true;
         } catch (error) {
-            console.error('[SaveManager] Failed to delete:', error);
+//            console.error('[SaveManager] Failed to delete:', error);
             return false;
         }
     }
@@ -155,12 +155,12 @@ class SaveManager {
             const saves = this._getAllSaves();
             const saveData = saves[slotIndex];
             if (!saveData) {
-                console.warn('[SaveManager] Cannot export empty slot:', slotIndex);
+//                console.warn('[SaveManager] Cannot export empty slot:', slotIndex);
                 return null;
             }
             return JSON.stringify(saveData, null, 2);
         } catch (error) {
-            console.error('[SaveManager] Failed to export:', error);
+//            console.error('[SaveManager] Failed to export:', error);
             return null;
         }
     }
@@ -173,7 +173,7 @@ class SaveManager {
      */
     static importSave(jsonString, slotIndex) {
         if (slotIndex < 0 || slotIndex >= this.MAX_SLOTS) {
-            console.error('[SaveManager] Invalid slot index:', slotIndex);
+//            console.error('[SaveManager] Invalid slot index:', slotIndex);
             return false;
         }
 
@@ -182,17 +182,17 @@ class SaveManager {
 
             // Basic validation
             if (!saveData.version || !saveData.data || !saveData.data.campaignSeed) {
-                console.error('[SaveManager] Invalid save file format');
+//                console.error('[SaveManager] Invalid save file format');
                 return false;
             }
 
             const saves = this._getAllSaves();
             saves[slotIndex] = saveData;
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(saves));
-            console.log(`[SaveManager] Imported to slot ${slotIndex + 1}`);
+//            console.log(`[SaveManager] Imported to slot ${slotIndex + 1}`);
             return true;
         } catch (error) {
-            console.error('[SaveManager] Failed to import:', error);
+//            console.error('[SaveManager] Failed to import:', error);
             return false;
         }
     }
@@ -213,7 +213,7 @@ class SaveManager {
      */
     static autoSave(game) {
         if (!game || !game.campaignSeed) {
-            console.warn('[SaveManager] Cannot auto-save: no game or campaign seed');
+//            console.warn('[SaveManager] Cannot auto-save: no game or campaign seed');
             return false;
         }
 
@@ -233,10 +233,10 @@ class SaveManager {
                 }
             };
             localStorage.setItem(this.AUTO_SAVE_KEY, JSON.stringify(saveData));
-            console.log(`[SaveManager] Auto-saved campaign (seed: ${game.campaignSeed}, phase: ${game.currentPhaseIndex}, mission: ${game.currentMissionIndex})`);
+//            console.log(`[SaveManager] Auto-saved campaign (seed: ${game.campaignSeed}, phase: ${game.currentPhaseIndex}, mission: ${game.currentMissionIndex})`);
             return true;
         } catch (error) {
-            console.error('[SaveManager] Auto-save failed:', error);
+//            console.error('[SaveManager] Auto-save failed:', error);
             return false;
         }
     }
@@ -250,24 +250,24 @@ class SaveManager {
         try {
             const data = localStorage.getItem(this.AUTO_SAVE_KEY);
             if (!data) {
-                console.log('[SaveManager] No auto-save found');
+//                console.log('[SaveManager] No auto-save found');
                 return false;
             }
 
             const saveData = JSON.parse(data);
             if (!saveData.data || !saveData.data.campaignSeed) {
-                console.warn('[SaveManager] Invalid auto-save data');
+//                console.warn('[SaveManager] Invalid auto-save data');
                 return false;
             }
 
-            console.log(`[SaveManager] Auto-loading campaign (seed: ${saveData.data.campaignSeed}, phase: ${saveData.data.currentPhaseIndex}, mission: ${saveData.data.currentMissionIndex})`);
+//            console.log(`[SaveManager] Auto-loading campaign (seed: ${saveData.data.campaignSeed}, phase: ${saveData.data.currentPhaseIndex}, mission: ${saveData.data.currentMissionIndex})`);
             this._deserializeGameState(game, saveData.data);
 
             // Find the matching save slot (by campaign seed) or use most recent/empty slot
             game.currentSaveSlot = this._findSlotForCampaign(game.campaignSeed);
             return true;
         } catch (error) {
-            console.error('[AutoLoad] Auto-load failed:', error);
+//            console.error('[AutoLoad] Auto-load failed:', error);
             return false;
         }
     }
@@ -284,7 +284,7 @@ class SaveManager {
         // First, look for a slot with matching campaign seed
         for (let i = 0; i < this.MAX_SLOTS; i++) {
             if (saves[i] && saves[i].data && saves[i].data.campaignSeed === campaignSeed) {
-                console.log(`[SaveManager] Found matching slot ${i} for seed ${campaignSeed}`);
+//                console.log(`[SaveManager] Found matching slot ${i} for seed ${campaignSeed}`);
                 return i;
             }
         }
@@ -292,7 +292,7 @@ class SaveManager {
         // No match found - find first empty slot
         for (let i = 0; i < this.MAX_SLOTS; i++) {
             if (!saves[i]) {
-                console.log(`[SaveManager] Using empty slot ${i} for continued campaign`);
+//                console.log(`[SaveManager] Using empty slot ${i} for continued campaign`);
                 return i;
             }
         }
@@ -306,7 +306,7 @@ class SaveManager {
                 mostRecentIdx = i;
             }
         }
-        console.log(`[SaveManager] All slots full, using most recent slot ${mostRecentIdx} for continued campaign`);
+//        console.log(`[SaveManager] All slots full, using most recent slot ${mostRecentIdx} for continued campaign`);
         return mostRecentIdx;
     }
 
@@ -339,7 +339,7 @@ class SaveManager {
                 return saves;
             }
         } catch (error) {
-            console.error('[SaveManager] Failed to read saves:', error);
+//            console.error('[SaveManager] Failed to read saves:', error);
         }
         return [null, null, null];
     }
@@ -355,7 +355,7 @@ class SaveManager {
 
         const slotName = `${phaseName} - M${game.currentMissionIndex + 1} | ${rosterCount} Raccoons`;
         
-        console.log(`[SaveManager] Saving campaignSeed: ${game.campaignSeed}, phase: ${game.currentPhaseIndex}, mission: ${game.currentMissionIndex}`);
+//        console.log(`[SaveManager] Saving campaignSeed: ${game.campaignSeed}, phase: ${game.currentPhaseIndex}, mission: ${game.currentMissionIndex}`);
 
         return {
             version: this.SAVE_VERSION,
@@ -380,16 +380,16 @@ class SaveManager {
      */
     static _deserializeGameState(game, data) {
         // Stop any ongoing game activities (but don't stop main menu music)
-        console.log('[SaveManager] Not stopping looping sounds (keeping main menu music playing)');
+//        console.log('[SaveManager] Not stopping looping sounds (keeping main menu music playing)');
         // game.audioManager.stopAllLoopingSounds();
         // game.lastPlayedMusicKey = null;
 
         // Restore campaign seed and RNG
-        console.log(`[SaveManager] Loading campaignSeed: ${data.campaignSeed}, phase: ${data.currentPhaseIndex}, mission: ${data.currentMissionIndex}`);
+//        console.log(`[SaveManager] Loading campaignSeed: ${data.campaignSeed}, phase: ${data.currentPhaseIndex}, mission: ${data.currentMissionIndex}`);
         
         // Validate campaign seed - if invalid, generate a new one but warn about it
         if (!data.campaignSeed || isNaN(data.campaignSeed) || data.campaignSeed === 0) {
-            console.warn('[SaveManager] WARNING: Invalid campaignSeed in save data! This may cause non-deterministic mission generation.');
+//            console.warn('[SaveManager] WARNING: Invalid campaignSeed in save data! This may cause non-deterministic mission generation.');
             game.campaignSeed = Date.now();
         } else {
             game.campaignSeed = data.campaignSeed;
@@ -400,7 +400,7 @@ class SaveManager {
         // Restore RNG state if saved (for exact sequence matching)
         if (data.campaignSeedRNGState) {
             game.campaignSeedRNG.seed = data.campaignSeedRNGState;
-            console.log(`[SaveManager] Restored RNG state: ${data.campaignSeedRNGState}`);
+//            console.log(`[SaveManager] Restored RNG state: ${data.campaignSeedRNGState}`);
         }
         game.totalCampaignPhases = data.totalCampaignPhases;
 

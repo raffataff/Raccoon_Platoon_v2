@@ -172,7 +172,7 @@ class InputHandler {
             if ((event.key === 'u' || event.key === 'U') && !isInputFieldActive) {
                 const playerUnits = this.game.getLivingPlayerControlledUnits();
                 if (playerUnits && playerUnits.length > 0) {
-                    console.log("'U' key pressed. Forcing phase out for all player-controlled units.");
+//                    console.log("'U' key pressed. Forcing phase out for all player-controlled units.");
                     playerUnits.forEach(unit => {
                         if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
                             if (unit instanceof RaccoonHostage && !unit.isRescued) {

@@ -83,7 +83,7 @@ class PossumElite extends Unit {
         } while (attempts < 20);
 
         if (attempts >= 20 && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-            console.warn(`[${this.id} generateSecondPatrolPoint] Could not find ideal clear patrol point after 20 attempts. Using last attempt.`);
+//            console.warn(`[${this.id} generateSecondPatrolPoint] Could not find ideal clear patrol point after 20 attempts. Using last attempt.`);
         }
         return { x: pX, y: pY };
     }

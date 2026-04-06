@@ -13,7 +13,7 @@ class AudioManager {
         this.loopingSounds = new Map(); // Map<key, { instance: HTMLAudioElement, userVolume: number }>
         // ---
 
-        console.log("[AudioManager] Initialized.");
+//        console.log("[AudioManager] Initialized.");
     }
 
     addSoundToLoadQueue(key, path, defaultVolume = 1.0) {
@@ -23,11 +23,11 @@ class AudioManager {
 
     async loadAllSounds(onProgress = null, onComplete = null) {
         if (this.loadQueue.length === 0) {
-            console.log("[AudioManager] No sounds in queue to load.");
+//            console.log("[AudioManager] No sounds in queue to load.");
             if (onComplete) onComplete();
             return;
         }
-        console.log(`[AudioManager] Starting to load ${this.loadQueue.length} sounds.`);
+//        console.log(`[AudioManager] Starting to load ${this.loadQueue.length} sounds.`);
         this.loadedCount = 0;
         this.totalCount = this.loadQueue.length;
 
@@ -56,7 +56,7 @@ class AudioManager {
                 };
 
                 audio.onerror = (e) => {
-                    console.error(`[AudioManager] Error loading sound: ${soundKey} from ${soundData.path}`, e);
+//                    console.error(`[AudioManager] Error loading sound: ${soundKey} from ${soundData.path}`, e);
                     this.sounds[soundKey] = { audio: null, defaultVolume: 0, path: soundData.path, loaded: false, error: true }; 
                     this.loadedCount++; 
                     if (onProgress) onProgress(this.loadedCount, this.totalCount, soundKey, true);
@@ -86,7 +86,7 @@ class AudioManager {
         });
 
         await Promise.all(loadPromises);
-        console.log("[AudioManager] All sounds processed.");
+//        console.log("[AudioManager] All sounds processed.");
         this.loadQueue = []; 
         if (onComplete) onComplete();
     }
@@ -192,7 +192,7 @@ class AudioManager {
             }
         }
         this.loopingSounds.clear();
-        console.log("[AudioManager] Stopped all looping sounds.");
+//        console.log("[AudioManager] Stopped all looping sounds.");
     }
 
 
@@ -225,9 +225,9 @@ class AudioManager {
         }
         
         if (this.isMuted) {
-            console.log("[AudioManager] Looping Music Muted.");
+//            console.log("[AudioManager] Looping Music Muted.");
         } else {
-            console.log("[AudioManager] Looping Music Unmuted.");
+//            console.log("[AudioManager] Looping Music Unmuted.");
         }
         return this.isMuted;
     }

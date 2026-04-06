@@ -5,7 +5,7 @@ class Game {
         if (this.canvas) {
             this.ctx = this.canvas.getContext('2d');
         } else {
-            console.error("Fatal: Canvas element not found with ID:", canvasId);
+//            console.error("Fatal: Canvas element not found with ID:", canvasId);
             return;
         }
 
@@ -80,8 +80,10 @@ class Game {
         this.previousGameState = null;
 
         // Auto-save on page unload (for session persistence)
+        // Only save during non-mission states to prevent infinite XP/death bugs
+        const MISSION_ACTIVE_STATES = ['RUNNING', 'LOADING_MISSION', 'SHOOTOUT_AMBUSH', 'SHOOTOUT_PLAYING', 'PAUSED', 'SHOOTOUT_PAUSED'];
         window.addEventListener('beforeunload', () => {
-            if (this.campaignSeed && this.gameState !== 'MAIN_MENU') {
+            if (this.campaignSeed && this.gameState !== 'MAIN_MENU' && !MISSION_ACTIVE_STATES.includes(this.gameState)) {
                 SaveManager.autoSave(this);
             }
         });
@@ -144,7 +146,7 @@ class Game {
 
     toggleDebugVisuals() {
         this.isDebugVisualsActive = !this.isDebugVisualsActive;
-        console.log(`[Game] Debug Visuals Toggled: ${this.isDebugVisualsActive ? 'ON' : 'OFF'}`);
+//        console.log(`[Game] Debug Visuals Toggled: ${this.isDebugVisualsActive ? 'ON' : 'OFF'}`);
     }
 
     getProjectileFromPool(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy) {
@@ -227,46 +229,46 @@ class Game {
         if (CONFIG.SHOOTOUT_MODE && CONFIG.SHOOTOUT_MODE.ENEMY_TILESHEET) {
             const path = CONFIG.SHOOTOUT_MODE.ENEMY_TILESHEET.PATH;
             if (path && !this.preloadedImages[path]) {
-                console.log(`[Preload] Loading shootout enemy tilesheet: ${path}`);
+//                console.log(`[Preload] Loading shootout enemy tilesheet: ${path}`);
                 imagePromises.push(new Promise((resolve) => {
                     const img = new Image();
                     img.onload = () => {
-                        console.log(`[Preload] SUCCESS: Shootout enemy tilesheet loaded`);
+//                        console.log(`[Preload] SUCCESS: Shootout enemy tilesheet loaded`);
                         this.preloadedImages[path] = img;
                         resolve();
                     };
                     img.onerror = (e) => {
-                        console.error(`[Preload FAILED - Misc] Shootout enemy tilesheet: '${path}'`, e);
+//                        console.error(`[Preload FAILED - Misc] Shootout enemy tilesheet: '${path}'`, e);
                         this.preloadedImages[path] = null;
                         resolve();
                     };
                     img.src = path;
                 }));
             } else if (path && this.preloadedImages[path]) {
-                console.log(`[Preload] Shootout enemy tilesheet already loaded: ${path}`);
+//                console.log(`[Preload] Shootout enemy tilesheet already loaded: ${path}`);
             }
         }
         // Preload shootout heavy enemy tilesheet
         if (CONFIG.SHOOTOUT_MODE && CONFIG.SHOOTOUT_MODE.ENEMY_HEAVY_TILESHEET) {
             const path = CONFIG.SHOOTOUT_MODE.ENEMY_HEAVY_TILESHEET.PATH;
             if (path && !this.preloadedImages[path]) {
-                console.log(`[Preload] Loading shootout heavy enemy tilesheet: ${path}`);
+//                console.log(`[Preload] Loading shootout heavy enemy tilesheet: ${path}`);
                 imagePromises.push(new Promise((resolve) => {
                     const img = new Image();
                     img.onload = () => {
-                        console.log(`[Preload] SUCCESS: Shootout heavy enemy tilesheet loaded`);
+//                        console.log(`[Preload] SUCCESS: Shootout heavy enemy tilesheet loaded`);
                         this.preloadedImages[path] = img;
                         resolve();
                     };
                     img.onerror = (e) => {
-                        console.error(`[Preload FAILED - Misc] Shootout heavy enemy tilesheet: '${path}'`, e);
+//                        console.error(`[Preload FAILED - Misc] Shootout heavy enemy tilesheet: '${path}'`, e);
                         this.preloadedImages[path] = null;
                         resolve();
                     };
                     img.src = path;
                 }));
             } else if (path && this.preloadedImages[path]) {
-                console.log(`[Preload] Shootout heavy enemy tilesheet already loaded: ${path}`);
+//                console.log(`[Preload] Shootout heavy enemy tilesheet already loaded: ${path}`);
             }
         }
         // Preload shootout bullet mark sprites
@@ -276,16 +278,16 @@ class Game {
             if (bulletMarksConfig.ENEMY_HIT && bulletMarksConfig.ENEMY_HIT.PATH) {
                 const enemyHitPath = bulletMarksConfig.ENEMY_HIT.PATH;
                 if (!this.preloadedImages[enemyHitPath]) {
-                    console.log(`[Preload] Loading shootout bullet mark (enemy hit): ${enemyHitPath}`);
+//                    console.log(`[Preload] Loading shootout bullet mark (enemy hit): ${enemyHitPath}`);
                     imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => {
-                            console.log(`[Preload] SUCCESS: Bullet mark (enemy hit) loaded`);
+//                            console.log(`[Preload] SUCCESS: Bullet mark (enemy hit) loaded`);
                             this.preloadedImages[enemyHitPath] = img;
                             resolve();
                         };
                         img.onerror = (e) => {
-                            console.error(`[Preload FAILED - Misc] Bullet mark (enemy hit): '${enemyHitPath}'`, e);
+//                            console.error(`[Preload FAILED - Misc] Bullet mark (enemy hit): '${enemyHitPath}'`, e);
                             this.preloadedImages[enemyHitPath] = null;
                             resolve();
                         };
@@ -297,16 +299,16 @@ class Game {
             if (bulletMarksConfig.ENVIRONMENT_HIT && bulletMarksConfig.ENVIRONMENT_HIT.PATH) {
                 const envHitPath = bulletMarksConfig.ENVIRONMENT_HIT.PATH;
                 if (!this.preloadedImages[envHitPath]) {
-                    console.log(`[Preload] Loading shootout bullet mark (environment hit): ${envHitPath}`);
+//                    console.log(`[Preload] Loading shootout bullet mark (environment hit): ${envHitPath}`);
                     imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => {
-                            console.log(`[Preload] SUCCESS: Bullet mark (environment hit) loaded`);
+//                            console.log(`[Preload] SUCCESS: Bullet mark (environment hit) loaded`);
                             this.preloadedImages[envHitPath] = img;
                             resolve();
                         };
                         img.onerror = (e) => {
-                            console.error(`[Preload FAILED - Misc] Bullet mark (environment hit): '${envHitPath}'`, e);
+//                            console.error(`[Preload FAILED - Misc] Bullet mark (environment hit): '${envHitPath}'`, e);
                             this.preloadedImages[envHitPath] = null;
                             resolve();
                         };
@@ -322,16 +324,16 @@ class Game {
             if (bulletMarksConfig.ENEMY_HIT && bulletMarksConfig.ENEMY_HIT.PATH) {
                 const enemyHitPath = bulletMarksConfig.ENEMY_HIT.PATH;
                 if (!this.preloadedImages[enemyHitPath]) {
-                    console.log(`[Preload] Loading shootout bullet mark (enemy hit): ${enemyHitPath}`);
+//                    console.log(`[Preload] Loading shootout bullet mark (enemy hit): ${enemyHitPath}`);
                     imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
                         img.onload = () => {
-                            console.log(`[Preload] SUCCESS: Bullet mark (enemy hit) loaded`);
+//                            console.log(`[Preload] SUCCESS: Bullet mark (enemy hit) loaded`);
                             this.preloadedImages[enemyHitPath] = img;
                             resolve();
                         };
                         img.onerror = (e) => {
-                            console.error(`[Preload FAILED - Misc] Bullet mark (enemy hit): '${enemyHitPath}'`, e);
+//                            console.error(`[Preload FAILED - Misc] Bullet mark (enemy hit): '${enemyHitPath}'`, e);
                             this.preloadedImages[enemyHitPath] = null;
                             resolve();
                         };
@@ -555,7 +557,7 @@ class Game {
                                     resolve();
                                 };
                                 img.onerror = () => {
-                                    console.warn(`[Preload WARN - Unit] '${spritePath}'`);
+//                                    console.warn(`[Preload WARN - Unit] '${spritePath}'`);
                                     this.preloadedImages[spriteKey] = null;
                                     resolve();
                                 };
@@ -576,7 +578,7 @@ class Game {
                                 resolve();
                             };
                             img.onerror = () => {
-                                console.warn(`[Preload WARN - Dead Unit] '${fullPath}'`);
+//                                console.warn(`[Preload WARN - Dead Unit] '${fullPath}'`);
                                 this.preloadedImages[fullPath] = null;
                                 resolve();
                             };
@@ -915,9 +917,6 @@ class Game {
             return;
         }
 
-        // Auto-save before starting mission (so we can retry from this point if needed)
-        SaveManager.autoSave(this);
-
         // Show video and wait for it to start playing before starting the 6-second timer
         let videoStartedPromise = Promise.resolve();
         let videoPathToShow;
@@ -1050,7 +1049,7 @@ class Game {
                         obj.currentProgress = 0;
                     } else if (obj.type === "ASSASSINATION") {
                         if (!obj.targetUnitId && obj.targetDetails) {
-                            console.error(`[Game] CRITICAL: Assassination target ${obj.targetDetails.name} (${obj.targetDetails.callsign}) for objective ${obj.id} FAILED TO SPAWN or link. Mission may be uncompletable or objectives need to change.`);
+//                            console.error(`[Game] CRITICAL: Assassination target ${obj.targetDetails.name} (${obj.targetDetails.callsign}) for objective ${obj.id} FAILED TO SPAWN or link. Mission may be uncompletable or objectives need to change.`);
                         }
                     }
                 });
@@ -1059,13 +1058,13 @@ class Game {
                     const exterminateObj = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE");
                     if (exterminateObj) {
                         exterminateObj.isPrimary = true;
-                        console.warn("[Game] No primary objective found after setup, defaulting EXTERMINATE to primary.");
+//                        console.warn("[Game] No primary objective found after setup, defaulting EXTERMINATE to primary.");
                     } else {
                         const defaultExtObj = this._instantiateObjective(this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE"), this.currentPhaseIndex, true);
                         if (defaultExtObj) {
                             defaultExtObj.totalToAchieve = this.initialEnemyCount;
                             this.currentMissionParams.objectives.push(defaultExtObj);
-                            console.warn("[Game] No objectives found, adding default EXTERMINATE as primary.");
+//                            console.warn("[Game] No objectives found, adding default EXTERMINATE as primary.");
                         }
                     }
                 }
@@ -1201,7 +1200,7 @@ class Game {
      * @param {function} callback - Called when ambush ends
      */
     executeStartAmbush(callback) {
-        console.log('[Game] START AMBUSH TRIGGERED!');
+//        console.log('[Game] START AMBUSH TRIGGERED!');
         
         // Set flag so mission doesn't start while ambush alert is showing
         this.ambushTriggered = true;
@@ -1234,7 +1233,7 @@ class Game {
                 // Start the ambush
                 game.shootoutController.startAmbush(background, isNight, function(result) {
                     // Ambush ended
-                    console.log('[Game] Start ambush ended with result:', result);
+//                    console.log('[Game] Start ambush ended with result:', result);
                     
                     // Handle ambush result (START type)
                     game.handleAmbushResult('START', result);
@@ -1275,12 +1274,12 @@ class Game {
         if (result === 'VICTORY') {
             // Ambush survived - track it
             this.ambushesSurvivedThisMission.push(ambushType);
-            console.log(`[Game] Ambush ${ambushType} SURVIVED!`);
+//            console.log(`[Game] Ambush ${ambushType} SURVIVED!`);
             
             if (ambushType === 'START') {
                 // START ambush: return to RUNNING (music handled by finishMissionStart)
                 this.gameState = 'RUNNING';
-                console.log('[Game] Ambush ended, campaign will start music in finishMissionStart');
+//                console.log('[Game] Ambush ended, campaign will start music in finishMissionStart');
             } else {
                 // EXTRACTION ambush: go directly to victory
                 // CRITICAL: Reset missionEndInitiated flag that was set BEFORE the ambush started
@@ -1291,7 +1290,7 @@ class Game {
             }
         } else {
             // Ambush failed - handle capture and casualties
-            console.log(`[Game] Ambush ${ambushType} FAILED! Handling consequences...`);
+//            console.log(`[Game] Ambush ${ambushType} FAILED! Handling consequences...`);
             this.handleAmbushDefeat(ambushType);
         }
     }
@@ -1334,7 +1333,7 @@ class Game {
             // Highest rank is captured
             const captured = allAvailable[0];
             this.takenHostageRaccoonId = captured.raccoon.id;
-            console.log(`[Game] ${captured.raccoon.name} (${captured.raccoon.rank}) CAPTURED!`);
+//            console.log(`[Game] ${captured.raccoon.name} (${captured.raccoon.rank}) CAPTURED!`);
             
             // Remove captured from deployed squad
             if (captured.source === 'deployed') {
@@ -1657,7 +1656,7 @@ class Game {
         if (isNew || !this.campaignSeed) {
             // Generate a brand new seed for a new campaign, or if one doesn't exist yet.
             this.campaignSeed = Date.now();
-            console.log(`[Game] New campaign created with seed: ${this.campaignSeed}`);
+//            console.log(`[Game] New campaign created with seed: ${this.campaignSeed}`);
         }
         // If isNew is false, we intentionally do nothing, reusing the existing this.campaignSeed.
         // --- MODIFICATION END ---
@@ -1807,12 +1806,12 @@ class Game {
         if (objDef.type === "DESTROY_TARGET") {
             const availableTargetTypes = (this.campaignRules.DESTROY_TARGET_TYPE_POOL || []).filter(t => t.unlocksPhase <= phaseIdx);
             if (availableTargetTypes.length === 0) {
-                console.warn(`[Game] No available DESTROY_TARGET types for phase ${phaseIdx}.`);
+//                console.warn(`[Game] No available DESTROY_TARGET types for phase ${phaseIdx}.`);
                 return null;
             }
             const selectedTargetType = this._weightedRandomSelect(availableTargetTypes, this.currentMissionSeedRNG);
             if (!selectedTargetType) {
-                console.warn(`[Game] Failed to select a DESTROY_TARGET type for phase ${phaseIdx}.`);
+//                console.warn(`[Game] Failed to select a DESTROY_TARGET type for phase ${phaseIdx}.`);
                 return null;
             }
             newObj.targetTypeKey = selectedTargetType.targetTypeKey;
@@ -1833,21 +1832,21 @@ class Game {
             if (forceSpecificTargetKey) {
                 selectedTargetInfo = (this.campaignRules.ASSASSINATION_TARGET_POOL || []).find(t => t.assassinationTypeKey === forceSpecificTargetKey && t.unlocksPhase <= phaseIdx);
                 if (!selectedTargetInfo) {
-                    console.warn(`[Game] Forced assassination targetKey '${forceSpecificTargetKey}' not found or not unlocked for phase ${phaseIdx}.`);
+//                    console.warn(`[Game] Forced assassination targetKey '${forceSpecificTargetKey}' not found or not unlocked for phase ${phaseIdx}.`);
                 }
             }
 
             if (!selectedTargetInfo) {
                 const availableTargets = (this.campaignRules.ASSASSINATION_TARGET_POOL || []).filter(t => t.unlocksPhase <= phaseIdx);
                 if (availableTargets.length === 0) {
-                    console.warn(`[Game] No available assassination targets for phase ${phaseIdx}. Assassination objective cannot be created.`);
+//                    console.warn(`[Game] No available assassination targets for phase ${phaseIdx}. Assassination objective cannot be created.`);
                     return null;
                 }
                 selectedTargetInfo = this._weightedRandomSelect(availableTargets, this.currentMissionSeedRNG);
             }
 
             if (!selectedTargetInfo) {
-                console.warn("[Game] Failed to select an assassination target. Assassination objective cannot be created.");
+//                console.warn("[Game] Failed to select an assassination target. Assassination objective cannot be created.");
                 return null;
             }
 
@@ -1894,7 +1893,7 @@ class Game {
 
     generateAndSetCurrentMissionParams(phaseIdx, missionIdx) {
         const missionSpecificSeedValue = this.campaignSeed + (phaseIdx * 1000) + (missionIdx * 10);
-        console.log(`[Game] Generating mission P${phaseIdx}M${missionIdx} with seed: ${missionSpecificSeedValue} (campaignSeed: ${this.campaignSeed})`);
+//        console.log(`[Game] Generating mission P${phaseIdx}M${missionIdx} with seed: ${missionSpecificSeedValue} (campaignSeed: ${this.campaignSeed})`);
         this.currentMissionSeedRNG = new SeededRandom(missionSpecificSeedValue);
         this.currentMissionSeed = missionSpecificSeedValue;
 
@@ -2017,7 +2016,7 @@ class Game {
                 objectivesArray.push(newPrimaryObjective);
                 selectedObjectiveTypesThisMission.add(newPrimaryObjective.type);
             } else if (i === 0) {
-                console.warn("[Game Gen] CRITICAL: Failed to select any primary objective. Defaulting to EXTERMINATE.");
+//                console.warn("[Game Gen] CRITICAL: Failed to select any primary objective. Defaulting to EXTERMINATE.");
                 const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
                 if (exterminateDef) {
                     const fallbackPrimary = this._instantiateObjective(exterminateDef, phaseIdx, true);
@@ -2065,33 +2064,33 @@ class Game {
                         objectivesArray.push(newSecondaryObjective);
                         selectedObjectiveTypesThisMission.add(newSecondaryObjective.type);
                     } else {
-                        console.warn(`[Game Gen] Failed to instantiate secondary: ${chosenSecondaryDef.type}`);
+//                        console.warn(`[Game Gen] Failed to instantiate secondary: ${chosenSecondaryDef.type}`);
                     }
                 }
             } else {
-                console.log("[Game Gen] No more compatible secondary objectives to select.");
+//                console.log("[Game Gen] No more compatible secondary objectives to select.");
                 break;
             }
         }
 
         const exterminateObjectiveExists = objectivesArray.some(obj => obj.type === "EXTERMINATE");
         if (!exterminateObjectiveExists) {
-            console.log("[Game Gen] 'Exterminate' not selected. Forcing as a secondary objective.");
+//            console.log("[Game Gen] 'Exterminate' not selected. Forcing as a secondary objective.");
             const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
             if (exterminateDef) {
                 const fallbackExterminate = this._instantiateObjective(exterminateDef, phaseIdx, false);
                 if (fallbackExterminate) {
                     objectivesArray.push(fallbackExterminate);
                 } else {
-                    console.error("[Game Gen] CRITICAL: Fallback EXTERMINATE instantiation failed!");
+//                    console.error("[Game Gen] CRITICAL: Fallback EXTERMINATE instantiation failed!");
                 }
             } else {
-                console.error("[Game Gen] CRITICAL: Could not find EXTERMINATE definition for fallback!");
+//                console.error("[Game Gen] CRITICAL: Could not find EXTERMINATE definition for fallback!");
             }
         }
 
         if (objectivesArray.length === 0) {
-            console.warn("[Game Gen] No objectives selected at all. Adding default EXTERMINATE.");
+//            console.warn("[Game Gen] No objectives selected at all. Adding default EXTERMINATE.");
             const exterminateDef = this.campaignRules.OBJECTIVE_POOL.find(o => o.type === "EXTERMINATE");
             if (exterminateDef) {
                 const fallbackExterminate = this._instantiateObjective(exterminateDef, phaseIdx, true);
@@ -2108,7 +2107,7 @@ class Game {
                     const extractionObj = this._instantiateObjective(JSON.parse(JSON.stringify(extractionObjDef)), phaseIdx, false);
                     if (extractionObj) {
                         objectivesArray.push(extractionObj);
-                        console.log("[Game Gen] Phase Finale: Added EXTRACTION objective.");
+//                        console.log("[Game Gen] Phase Finale: Added EXTRACTION objective.");
                     }
                 }
             }
@@ -2199,7 +2198,7 @@ class Game {
             };
             
             objectivesArray.push(rescueTakenObjective);
-            console.log(`[Game Gen] Added RESCUE_TAKEN_HOSTAGE objective for ${takenRaccoonName}`);
+//            console.log(`[Game Gen] Added RESCUE_TAKEN_HOSTAGE objective for ${takenRaccoonName}`);
             
             // Clear the taken hostage ID since it's now an objective
             this.takenHostageRaccoonId = null;
@@ -2327,7 +2326,7 @@ class Game {
             if (this.ambushesSurvivedThisMission.length > 0 && this.deployedSquadRoster) {
                 const totalAmbushXp = ambushXpBonus * this.ambushesSurvivedThisMission.length;
                 this.deployedSquadRoster.forEach(r => { if (r.isAlive()) r.addXp(totalAmbushXp); });
-                console.log(`[Game] Ambush survival bonus: +${totalAmbushXp} XP (${this.ambushesSurvivedThisMission.length} ambush(es))`);
+//                console.log(`[Game] Ambush survival bonus: +${totalAmbushXp} XP (${this.ambushesSurvivedThisMission.length} ambush(es))`);
             }
             const recruitsToAdd = CONFIG.NEW_RECRUITS_PER_MISSION_WIN || 0;
             const maxRoster = CONFIG.MAX_TOTAL_ROSTER_SIZE || Infinity;
@@ -2712,7 +2711,7 @@ class Game {
                         if (targetHostage && targetHostage.isRescued && targetHostage.isAlive()) {
                             obj.isComplete = true;
                             obj.currentProgress = 1;
-                            console.log(`[Game] RESCUE_TAKEN_HOSTAGE completed: ${obj.targetRaccoonName} rescued!`);
+//                            console.log(`[Game] RESCUE_TAKEN_HOSTAGE completed: ${obj.targetRaccoonName} rescued!`);
                         }
                         if (!obj.isComplete && hasExtractionObjective && obj.currentProgress >= 1) {
                             obj.isComplete = true;
@@ -2860,7 +2859,7 @@ class Game {
             if (this.shootoutController && !this.shootoutController.isRoundActive) {
                 // Ambush ended - just set state to RUNNING and restore HUD
                 // DON'T change music here - handleAmbushResult handles music based on victory/defeat
-                console.log('[Game] SHOOTOUT_AMBUSH ended, setting gameState=RUNNING, missionEndInitiated=' + this.missionEndInitiated);
+//                console.log('[Game] SHOOTOUT_AMBUSH ended, setting gameState=RUNNING, missionEndInitiated=' + this.missionEndInitiated);
                 this.gameState = 'RUNNING';
                 // Clear ambush triggered flag - critical for mission completion check
                 this.ambushTriggered = false;
@@ -2987,7 +2986,7 @@ class Game {
 
     render() {
         if (!this.ctx) {
-            console.warn("Game render called but this.ctx is not defined.");
+//            console.warn("Game render called but this.ctx is not defined.");
             return;
         }
 
@@ -3405,7 +3404,7 @@ class Game {
             try {
                 this.update(deltaTime);
             } catch (e) {
-                console.error("ERROR IN Game.update():", e);
+//                console.error("ERROR IN Game.update():", e);
                 this.gameState = 'ERROR_STATE';
             }
         }
@@ -3413,14 +3412,14 @@ class Game {
         try {
             this.render();
         } catch (e) {
-            console.error("ERROR IN Game.render():", e);
+//            console.error("ERROR IN Game.render():", e);
             this.gameState = 'ERROR_STATE';
         }
 
         if (this.gameState !== 'ERROR_STATE') {
             requestAnimationFrame(this.gameLoop);
         } else {
-            console.error("Game in ERROR_STATE. Halting game loop.");
+//            console.error("Game in ERROR_STATE. Halting game loop.");
         }
     }
 
@@ -3724,7 +3723,7 @@ class Game {
             return;
         }
 
-        console.log('[Game] EXTRACTION AMBUSH TRIGGERED!');
+//        console.log('[Game] EXTRACTION AMBUSH TRIGGERED!');
         
         // Set flag so extraction doesn't proceed while ambush alert is showing
         this.ambushTriggered = true;
@@ -3759,7 +3758,7 @@ class Game {
                 // Start the ambush
                 game.shootoutController.startAmbush(background, isNight, function(result) {
                     // Ambush ended
-                    console.log('[Game] Extraction ambush ended with result:', result);
+//                    console.log('[Game] Extraction ambush ended with result:', result);
                     
                     // Handle ambush result (EXTRACTION type)
                     game.handleAmbushResult('EXTRACTION', result);

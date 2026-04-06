@@ -1,10 +1,9 @@
 # Notes
 
-collision boxes need to flip when object sprite is flipped
+place a long_fence sprite along top of actual player unit spawn zone, to act as a barrier when first spawning in.
 
-ambient tracks should play when video starts and continue into gameplay
+flying birds are moving behind sprites, like projectiles and units, but i dont want that. they shouldn't be part of the list that do, and should remain on top.
 
-separate bullet colors for each unit type, raccoon and possum
+Remove the Score display from ambush screens.
 
-extraction ambush logic should run only when units are in extraction zone, and not before:
-  ** so raccoons complete all objective > extraction zone is visible > raccoons enter zone > chance for ambush is run > if no ambush then proceed with end of mission logic > if ambush is yes then proceed to ambush shootout.
+we have a objectives panel that is visible when not in the actual campaign level. make it hidden

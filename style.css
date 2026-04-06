@@ -75,7 +75,7 @@ canvas {
 }
 
 #left-hud-panel {
-    width: 260px;
+    width: 220px;
     min-width: 220px;
     height: 100%;
     box-sizing: border-box;
@@ -789,17 +789,18 @@ canvas#gameCanvas {
 }
 
 #hud-controls {
-    margin-bottom: 15px;
-    margin-top: 15px;
+    margin-bottom: 0px;
+    margin-top: 5px;
     display: flex;
     flex-direction: column;
     gap: 8px;
     align-items: stretch;
-    padding: 2px 4px;
+    padding: 2px 0px;
     border-top: 2px groove #403B30;
     border-bottom: none;
     width: 100%;
     box-sizing: border-box;
+    overflow: hidden;
 }
 
 #hud-squad {
@@ -808,9 +809,10 @@ canvas#gameCanvas {
     gap: 3px;
     align-items: center;
     width: 100%;
-    overflow-y: auto;
+    overflow-y: hidden;
     flex-grow: 1;
-    padding: 5px 10px;
+    padding: 5px 0px;
+    margin-right: 0px;
 }
 
 .hud-control-group {
@@ -834,7 +836,7 @@ canvas#gameCanvas {
     /* Default border state */
     background-color: rgba(20, 18, 16, 0.8);
     border-radius: 2px;
-    width: 100%;
+    width: 99%;
     margin: 0px 0px;
     box-sizing: border-box;
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);

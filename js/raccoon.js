@@ -310,10 +310,10 @@ class Raccoon extends Unit {
             this.grenadeMoveToTargetPos = null;
             if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         } else if (this.grenadeCooldownTimer > 0) {
-            console.log(`[${this.id}] Grenade on cooldown for ${this.grenadeCooldownTimer.toFixed(1)}s`);
+//            console.log(`[${this.id}] Grenade on cooldown for ${this.grenadeCooldownTimer.toFixed(1)}s`);
         } else if (this.grenadeAmmo <= 0) {
             const logMsgTemplate = (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.RACCOON_OUT_OF_GRENADES_LOG) || "Raccoon {ID}: Out of grenades!";
-            console.log(logMsgTemplate.replace('{ID}', this.name || this.id));
+//            console.log(logMsgTemplate.replace('{ID}', this.name || this.id));
         }
     }
 
@@ -368,7 +368,7 @@ class Raccoon extends Unit {
             this.currentPath = [];
             this.grenadeMoveToTargetPos = null;
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                console.log(`[${this.id} moveToGrenadeRange] Already in preferred range of target ${enemyTarget.id}.`);
+//                console.log(`[${this.id} moveToGrenadeRange] Already in preferred range of target ${enemyTarget.id}.`);
             }
             return;
         }
@@ -386,7 +386,7 @@ class Raccoon extends Unit {
             this.currentPath = [];
             this.grenadeMoveToTargetPos = null;
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                console.warn(`[${this.id} moveToGrenadeRange] Raccoon is on top of grenade target ${enemyTarget.id}. Cannot calculate move point.`);
+//                console.warn(`[${this.id} moveToGrenadeRange] Raccoon is on top of grenade target ${enemyTarget.id}. Cannot calculate move point.`);
             }
             return;
         }

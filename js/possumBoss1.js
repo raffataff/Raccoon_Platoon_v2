@@ -210,6 +210,6 @@ class PossumBoss1 extends Unit {
                 assassinateObjective.currentProgress = 1;
             }
         }
-        console.log(`PossumBoss1 ${this.id} has been defeated!`);
+//        console.log(`PossumBoss1 ${this.id} has been defeated!`);
     }
 }

@@ -15,7 +15,7 @@ class SpatialGrid {
             this.grid[i] = new Set();
         }
 
-        console.log(`[SpatialGrid] Initialized: ${this.gridCols}x${this.gridRows} grid, CellSize: ${this.cellSize}`);
+//        console.log(`[SpatialGrid] Initialized: ${this.gridCols}x${this.gridRows} grid, CellSize: ${this.cellSize}`);
     }
 
     _getCellIndex(x, y) {

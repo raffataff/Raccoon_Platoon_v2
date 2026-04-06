@@ -271,7 +271,7 @@ class Unit {
         this.currentPath = [];
         this.currentPathNodeIndex = 0;
         if (CONFIG.DEBUG_LOGGING || CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-            console.log(`[${this.id}] Manually Force Phasing for ${duration}s. isMoving: ${this.isMoving}`);
+//            console.log(`[${this.id}] Manually Force Phasing for ${duration}s. isMoving: ${this.isMoving}`);
         }
     }
 

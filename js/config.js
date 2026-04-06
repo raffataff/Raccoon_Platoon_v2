@@ -1,10 +1,10 @@
 // js/config.js
 const CONFIG = {
     // --- Core Game & World ---
-    BASE_WORLD_WIDTH: 1280,
-    BASE_WORLD_HEIGHT: 720,
-    MIN_CANVAS_WIDTH: 1280,
-    MIN_CANVAS_HEIGHT: 720,
+    BASE_WORLD_WIDTH: 1920,
+    BASE_WORLD_HEIGHT: 1080,
+    MIN_CANVAS_WIDTH: 1920,
+    MIN_CANVAS_HEIGHT: 1080,
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
     CAMERA_ZOOM: 1.1, // Fixed zoom level for campaign mode (1.0 = no zoom, higher = closer)
@@ -14,7 +14,7 @@ const CONFIG = {
     WORLD_BASE_DIRT_COLOR: '#5C4033', // A lighter dirt color for bare patches
     WORLD_GRASS_TILE_SIZE: 48,     // Approximate width/height of your grass tile sprites
     WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.66, // e.g., 0.25 means tiles can overlap by up to 25% of their size
-    WORLD_GRASS_SKIP_CHANCE: 0.6, // Probability (0-1) to start skipping grass and show dirt/mud
+    WORLD_GRASS_SKIP_CHANCE: 0.5, // Probability (0-1) to start skipping grass and show dirt/mud
     WORLD_GRASS_SKIP_MIN: 3,       // Minimum consecutive grass tiles to skip
     WORLD_GRASS_SKIP_MAX: 12,       // Maximum consecutive grass tiles to skip
 
@@ -26,7 +26,7 @@ const CONFIG = {
     WORLD_MUD_NOISE_SCALE_X: 0.05,  // Lower = larger blobs
     WORLD_MUD_NOISE_SCALE_Y: 0.05,  // Lower = larger blobs
     WORLD_MUD_NOISE_THRESHOLD: 0.2, // Higher = fewer/smaller patches
-    WORLD_MUD_NOISE_OCTAVES: 4,     // More octaves = more detail
+    WORLD_MUD_NOISE_OCTAVES: 3,     // More octaves = more detail
     // Iteration step will be TILE_SIZE * (1 - OVERLAP_FACTOR)
     // VIDEO SETTINGS
     MIN_LOADING_VIDEO_DURATION_MS: 5000,
@@ -108,10 +108,10 @@ const CONFIG = {
     POSSUM_RIFLE_DAMAGE: 8,
     POSSUM_RIFLE_ROF: 5,
     POSSUM_RIFLE_RANGE: 400,
-    POSSUM_RIFLE_PROJECTILE_SPEED: 300,
+    POSSUM_RIFLE_PROJECTILE_SPEED: 320,
     POSSUM_RIFLE_ACCURACY_STATIONARY: 0.75,
     POSSUM_RIFLE_ACCURACY_MOVING: 0.45,
-    POSSUM_RIFLE_BULLET_LIFETIME: 1.2,
+    POSSUM_RIFLE_BULLET_LIFETIME: 1.3,
     POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/',
     POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.5,
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
@@ -129,7 +129,7 @@ const CONFIG = {
     POSSUM_HEAVY_WEAPON_PROJECTILE_SPEED: 400,
     POSSUM_HEAVY_WEAPON_ACCURACY_STATIONARY: 0.85,
     POSSUM_HEAVY_WEAPON_ACCURACY_MOVING: 0.3,
-    POSSUM_HEAVY_WEAPON_BULLET_LIFETIME: 1.3,
+    POSSUM_HEAVY_WEAPON_BULLET_LIFETIME: 1.4,
     POSSUM_HEAVY_SPRITE_PATH: 'assets/images/units/possum_heavy/',
     POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.55,
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
@@ -400,7 +400,7 @@ const CONFIG = {
 
     // Formation settings
     FORMATION_INDEX: 3,
-    INITIAL_FORMATION_SPACING: 2.5, // Spacing between units in formation
+    INITIAL_FORMATION_SPACING: 3.5, // Spacing between units in formation
 
     // --- Progression ---
     XP_PER_MISSION_SURVIVED: 35,
@@ -592,10 +592,10 @@ const CONFIG = {
         BORDER_COLOR: '#25221D',
         BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long',
         PLAYER_SPAWN_ZONE: {
-            MIN_WIDTH: 1080,
-            WIDTH_FACTOR: 0.10,
-            MIN_HEIGHT: 780,
-            HEIGHT_FACTOR: 0.10, //
+            MIN_WIDTH: 180,
+            WIDTH_FACTOR: 0.40,
+            MIN_HEIGHT: 180,
+            HEIGHT_FACTOR: 0.125, // 1/8th of playable height - spawn zone at bottom-left
             INTERNAL_PADDING_FACTOR: 30.0, // Factor to ensure enough space around player spawn
             PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES: [
                 'possum_hut',
@@ -1077,7 +1077,7 @@ const CONFIG = {
             spawnWeight: 0.01,
             spriteScale: 0.4,
             spriteDestroyedScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.42), offsetY: (h => h * 1.15), radiusX: (w => w * 0.44), radiusY: (h => h * 0.33) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 1.15), radiusX: (w => w * 0.40), radiusY: (h => h * 0.33) },
             isDecoration: false,
             sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED',
             canBeFlipped: true,
@@ -1109,8 +1109,18 @@ const CONFIG = {
 
     ENEMY_SPAWNING: {
         QUADRANT_SPAWNING_ENABLED: true, // Master toggle for this system
-        QUADRANT_COLS: 3,               // How many columns to divide the map into
-        QUADRANT_ROWS: 2,               // How many rows to divide the map into
+        QUADRANT_COLS: 3,               // Default columns (used if scaling disabled or for fallback)
+        QUADRANT_ROWS: 3,               // Default rows (used if scaling disabled or for fallback)
+        QUADRANT_SCALING_ENABLED: true, // Scale grid size based on world size
+        QUADRANT_BASE_COLS: 3,          // Base columns at worldSizeFactor = 1.0
+        QUADRANT_BASE_ROWS: 2,          // Base rows at worldSizeFactor = 1.0
+        QUADRANT_SCALE_COLS_PER_WORLD_FACTOR: 0.5, // Additional columns per worldSizeFactor increment
+        QUADRANT_SCALE_ROWS_PER_WORLD_FACTOR: 0.3, // Additional rows per worldSizeFactor increment
+        QUADRANT_RANDOMNESS_FACTOR: 0.3, // Random factor (0.3 = +/- 30% variation)
+        QUADRANT_MIN_COLS: 2,           // Minimum columns cap
+        QUADRANT_MIN_ROWS: 2,           // Minimum rows cap
+        QUADRANT_MAX_COLS: 6,           // Maximum columns cap
+        QUADRANT_MAX_ROWS: 4,           // Maximum rows cap
         BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 10,
         RANDOM_ADDITION_FACTOR_MAX: 6,
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
@@ -1164,11 +1174,11 @@ const CONFIG = {
         FOLLOW_DISTANCE: 80,
         FOLLOW_LERP_SPEED: 0.04,
         POSSIBLE_RANKS_ON_RESCUE: [
-            { rankName: "Recruit", xpNeeded: 0 },
-            { rankName: "Private", xpNeeded: 100 },
-            { rankName: "Corporal", xpNeeded: 300 },
-            { rankName: "Sergeant", xpNeeded: 600 },
-            { rankName: "Elite", xpNeeded: 1000 }
+            { rankName: "Recruit", xpNeeded: 0, weight: 40 },
+            { rankName: "Private", xpNeeded: 100, weight: 25 },
+            { rankName: "Corporal", xpNeeded: 300, weight: 18 },
+            { rankName: "Sergeant", xpNeeded: 600, weight: 12 },
+            { rankName: "Elite", xpNeeded: 1000, weight: 5 }
         ],
         MAX_HOSTAGES_PER_MISSION: 5,
         MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,

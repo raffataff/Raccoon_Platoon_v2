@@ -98,7 +98,7 @@ class ShootoutController {
     loadBackgroundImage() {
         const bgConfig = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[this.currentBackgroundKey];
         if (!bgConfig) {
-            console.error(`[Shootout] Background config not found for key: ${this.currentBackgroundKey}`);
+//            console.error(`[Shootout] Background config not found for key: ${this.currentBackgroundKey}`);
             return;
         }
 
@@ -116,10 +116,10 @@ class ShootoutController {
         this.backgroundImage = new Image();
         this.backgroundImage.src = imagePath;
         this.backgroundImage.onload = () => {
-            console.log(`[Shootout] Loaded background image: ${imagePath}`);
+//            console.log(`[Shootout] Loaded background image: ${imagePath}`);
         };
         this.backgroundImage.onerror = () => {
-            console.warn(`[Shootout] Failed to load background image: ${imagePath}. Falling back to daytime.`);
+//            console.warn(`[Shootout] Failed to load background image: ${imagePath}. Falling back to daytime.`);
             if (this.isNightMode) {
                 const dayPath = bgConfig.IMAGE;
                 this.backgroundImage.src = dayPath;
@@ -133,7 +133,7 @@ class ShootoutController {
      */
     setBackground(backgroundKey) {
         if (!CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey]) {
-            console.error(`[Shootout] Invalid background key: ${backgroundKey}`);
+//            console.error(`[Shootout] Invalid background key: ${backgroundKey}`);
             return;
         }
 
@@ -145,7 +145,7 @@ class ShootoutController {
             this.spawner.setTreePositions(CONFIG.SHOOTOUT_MODE.BACKGROUNDS[this.currentBackgroundKey].TREE_SPAWN_POSITIONS);
         }
 
-        console.log(`[Shootout] Background set to: ${backgroundKey}`);
+//        console.log(`[Shootout] Background set to: ${backgroundKey}`);
     }
 
     /**
@@ -155,7 +155,7 @@ class ShootoutController {
     setNightMode(enabled) {
         this.isNightMode = enabled;
         this.loadBackgroundImage();
-        console.log(`[Shootout] Night mode set to: ${enabled}`);
+//        console.log(`[Shootout] Night mode set to: ${enabled}`);
     }
 
     /**
@@ -164,7 +164,7 @@ class ShootoutController {
      */
     toggleShuffleMode() {
         this.isShuffleMode = !this.isShuffleMode;
-        console.log(`[Shootout] Shuffle mode set to: ${this.isShuffleMode}`);
+//        console.log(`[Shootout] Shuffle mode set to: ${this.isShuffleMode}`);
         return this.isShuffleMode;
     }
 
@@ -191,7 +191,7 @@ class ShootoutController {
         this.setBackground(selectedMap);
         this.setNightMode(useNightMode);
         
-        console.log(`[Shootout] Random map selected: ${selectedMap} (Night: ${useNightMode})`);
+//        console.log(`[Shootout] Random map selected: ${selectedMap} (Night: ${useNightMode})`);
     }
 
     startRound(useDevPositions = false) {
@@ -266,7 +266,7 @@ class ShootoutController {
      * @param {function} callback - Callback function when ambush ends
      */
     startAmbush(backgroundKey = null, isNight = false, callback = null) {
-        console.log('[Shootout] startAmbush called, backgroundKey:', backgroundKey, 'isNight:', isNight);
+//        console.log('[Shootout] startAmbush called, backgroundKey:', backgroundKey, 'isNight:', isNight);
         
         // Set ambush mode
         this.isAmbushMode = true;
@@ -274,11 +274,11 @@ class ShootoutController {
 
         // Only set background/night if not already configured (prevents double initialization)
         if (backgroundKey && this.currentBackgroundKey !== backgroundKey) {
-            console.log('[Shootout] Calling setBackground...');
+//            console.log('[Shootout] Calling setBackground...');
             this.setBackground(backgroundKey);
         }
         if (isNight !== this.isNightMode) {
-            console.log('[Shootout] Calling setNightMode...');
+//            console.log('[Shootout] Calling setNightMode...');
             this.setNightMode(isNight);
         }
 
@@ -349,7 +349,7 @@ class ShootoutController {
             this.game.ui.showShootoutHud();
         }
 
-        console.log(`[Shootout] Ambush started! Mode: ${this.gameMode}, Night: ${isNight}, Background: ${this.currentBackgroundKey}`);
+//        console.log(`[Shootout] Ambush started! Mode: ${this.gameMode}, Night: ${isNight}, Background: ${this.currentBackgroundKey}`);
     }
 
     /**
@@ -359,7 +359,7 @@ class ShootoutController {
     endAmbush(reason = 'clear') {
         if (!this.isAmbushMode) return;
 
-        console.log('[Shootout] endAmbush called, reason:', reason);
+//        console.log('[Shootout] endAmbush called, reason:', reason);
         
         const callback = this.ambushCallback;
         
@@ -373,12 +373,12 @@ class ShootoutController {
     }
 
     endRound(reason = 'time', callback = null) {
-        console.log('[Shootout] endRound called, reason:', reason, 'isAmbushMode:', this.isAmbushMode, '_endingAmbush:', this._endingAmbush);
+//        console.log('[Shootout] endRound called, reason:', reason, 'isAmbushMode:', this.isAmbushMode, '_endingAmbush:', this._endingAmbush);
         
         // Handle ambush mode differently - use _endingAmbush flag since isAmbushMode is cleared by endAmbush
         if (this._endingAmbush) {
             this._endingAmbush = false;
-            console.log('[Shootout] Processing ambush result...');
+//            console.log('[Shootout] Processing ambush result...');
             
             // Campaign ambushes: only 'health' (death) is defeat, all other outcomes are VICTORY
             let result = (reason === 'health') ? 'DEFEAT' : 'VICTORY';
@@ -388,10 +388,10 @@ class ShootoutController {
             this.game.canvas.style.cursor = 'default';
 
             // Show ambush result and call callback
-            console.log('[Shootout] Showing ambush result, callback exists:', !!callback);
+//            console.log('[Shootout] Showing ambush result, callback exists:', !!callback);
             if (this.game.ui) {
                 this.game.ui.showShootoutAmbushResult(result, () => {
-                    console.log('[Shootout] Ambush result UI dismissed, calling callback with:', result);
+//                    console.log('[Shootout] Ambush result UI dismissed, calling callback with:', result);
                     if (callback) callback(result);
                     else console.log('[Shootout] WARNING: callback was null!');
                 });
@@ -984,14 +984,14 @@ class ShootoutController {
         if (bulletMarksConfig.ENEMY_HIT && bulletMarksConfig.ENEMY_HIT.PATH) {
             const path = bulletMarksConfig.ENEMY_HIT.PATH;
             if (!this.game.preloadedImages[path]) {
-                console.log('[BulletMark] Lazy loading enemy sprite...');
+//                console.log('[BulletMark] Lazy loading enemy sprite...');
                 const img = new Image();
                 img.onload = () => {
                     this.game.preloadedImages[path] = img;
-                    console.log('[BulletMark] Enemy sprite loaded!');
+//                    console.log('[BulletMark] Enemy sprite loaded!');
                 };
                 img.onerror = () => {
-                    console.error('[BulletMark] Failed to load enemy sprite:', path);
+//                    console.error('[BulletMark] Failed to load enemy sprite:', path);
                 };
                 img.src = path;
             }
@@ -1001,14 +1001,14 @@ class ShootoutController {
         if (bulletMarksConfig.ENVIRONMENT_HIT && bulletMarksConfig.ENVIRONMENT_HIT.PATH) {
             const path = bulletMarksConfig.ENVIRONMENT_HIT.PATH;
             if (!this.game.preloadedImages[path]) {
-                console.log('[BulletMark] Lazy loading environment sprite...');
+//                console.log('[BulletMark] Lazy loading environment sprite...');
                 const img = new Image();
                 img.onload = () => {
                     this.game.preloadedImages[path] = img;
-                    console.log('[BulletMark] Environment sprite loaded!');
+//                    console.log('[BulletMark] Environment sprite loaded!');
                 };
                 img.onerror = () => {
-                    console.error('[BulletMark] Failed to load environment sprite:', path);
+//                    console.error('[BulletMark] Failed to load environment sprite:', path);
                 };
                 img.src = path;
             }
@@ -2050,7 +2050,7 @@ class ShootoutController {
         const tilesheetConfigKey = enemyTypeDef?.tilesheetKey || 'ENEMY_TILESHEET';
         const tilesheetConfig = CONFIG.SHOOTOUT_MODE[tilesheetConfigKey];
         if (!tilesheetConfig) {
-            console.warn(`[drawEnemyPreviewAtPeek] No tilesheet config for ${enemyType}`);
+//            console.warn(`[drawEnemyPreviewAtPeek] No tilesheet config for ${enemyType}`);
             return;
         }
 

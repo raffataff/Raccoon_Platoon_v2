@@ -79,7 +79,7 @@ class PossumGrunt extends Unit {
         } while (attempts < 20);
 
         if (attempts >= 20 && CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-            console.warn(`[${this.id} generateSecondPatrolPoint] Could not find ideal clear patrol point after 20 attempts. Using last attempt.`);
+//            console.warn(`[${this.id} generateSecondPatrolPoint] Could not find ideal clear patrol point after 20 attempts. Using last attempt.`);
         }
         return { x: pX, y: pY };
     }
@@ -251,7 +251,7 @@ class PossumGrunt extends Unit {
         const currentTime = performance.now() / 1000;
 
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-            console.warn(`[${this.id} onStuck GRUNT] Reason: ${reason}. AI State: ${this.aiState}. Pos:(${this.x.toFixed(0)},${this.y.toFixed(0)}), Target:(${this.worldTargetX.toFixed(0)},${this.worldTargetY.toFixed(0)})`);
+//            console.warn(`[${this.id} onStuck GRUNT] Reason: ${reason}. AI State: ${this.aiState}. Pos:(${this.x.toFixed(0)},${this.y.toFixed(0)}), Target:(${this.worldTargetX.toFixed(0)},${this.worldTargetY.toFixed(0)})`);
         }
 
         this.isMoving = false;
@@ -270,7 +270,7 @@ class PossumGrunt extends Unit {
         const maxStuckBeforePhasing = this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL + 2; // Inherited from Unit.js or defined in config
         if (this.consecutiveStuckAttempts >= maxStuckBeforePhasing && !this.isPhasing) {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
-                console.warn(`[${this.id} onStuck GRUNT] Max consecutive stuck attempts (${this.consecutiveStuckAttempts}). Initiating Phasing.`);
+//                console.warn(`[${this.id} onStuck GRUNT] Max consecutive stuck attempts (${this.consecutiveStuckAttempts}). Initiating Phasing.`);
             }
             this.isPhasing = true;
             this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75;
