@@ -7,10 +7,10 @@ const CAMPAIGN_RULES = {
     BASE_PARAMETERS: {
         worldWidthFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness 
         worldHeightFactor: { initial: 1.8, perPhaseIncrement: 0.15, max: 5.0, randomnessFactor: 0.4 }, // High randomness
-        enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.1, max: 5.0, randomnessFactor: 0.1 }, // 20% growth per phase
-        heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.05, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
-        sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.03, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
-        eliteChance: { initial: 0.05, perPhaseGrowthFactor: 0.03, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
+        enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.2, max: 5.0, randomnessFactor: 0.15 }, // 20% growth per phase
+        heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
+        sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
+        eliteChance: { initial: 0.05, perPhaseGrowthFactor: 0.07, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
         numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.4, max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
@@ -25,10 +25,10 @@ const CAMPAIGN_RULES = {
     // --- Pools of Options ---
     BIOME_POOL: [
         { name: "TROPICAL", weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
-        { name: "JUNKYARD", weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
+    /*    { name: "JUNKYARD", weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
         { name: "SWAMP", weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY", weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
-    ],
+ */   ],
 
     OBJECTIVE_POOL: [
         // --- MODIFIED OBJECTIVE STRUCTURE ---

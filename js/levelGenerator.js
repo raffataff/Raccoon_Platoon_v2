@@ -139,7 +139,7 @@ class LevelGenerator {
         return lastValidDefs.pop() || (lastValidDefs.length > 0 ? lastValidDefs[0] : null);
     }
 
-    _spawnInitialGuardsForObject(parentObject, objectDefinition, allSpawnedEnemies) {
+    _spawnInitialGuardsForObject(parentObject, objectDefinition, allSpawnedEnemies, extraUnitPoolWeights) {
         if (!objectDefinition.initialGuardPack || !objectDefinition.initialGuardPack.enabled) {
             return;
         }
@@ -164,10 +164,15 @@ class LevelGenerator {
             maxY: (CONFIG.WORLD_HEIGHT || 0) - (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) - (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20)
         };
 
+        let effectiveUnitPool = pack.unitPool;
+        if (extraUnitPoolWeights && extraUnitPoolWeights.length > 0) {
+            effectiveUnitPool = pack.unitPool.concat(extraUnitPoolWeights);
+        }
+
         let spawnedGuards = 0;
 
         for (let i = 0; i < guardCount; i++) {
-            const unitDef = this.game._weightedRandomSelect(pack.unitPool, this.rng);
+            const unitDef = this.game._weightedRandomSelect(effectiveUnitPool, this.rng);
             if (!unitDef) continue;
 
             let GuardClass;
@@ -952,9 +957,13 @@ class LevelGenerator {
 
                     const sniperChance = baseParams.sniperChance || 0;
                     const heavyChance = baseParams.heavyChance || 0.20;
+                    const eliteChance = baseParams.eliteChance || 0;
                     const heavyLeaderBonus = enemySpawnCfg.HEAVY_CHANCE_GROUP_LEADER_BONUS || 0.1;
 
-                    if (this.rng.chance(sniperChance)) {
+                    if (this.rng.chance(eliteChance)) {
+                        EnemyClass = PossumElite;
+                        currentEnemyUnitSize = CONFIG.POSSUM_ELITE_SIZE;
+                    } else if (this.rng.chance(sniperChance)) {
                         EnemyClass = PossumSniper;
                         currentEnemyUnitSize = CONFIG.POSSUM_SNIPER_SIZE;
                     } else if ((m === 0 && currentGroupSizeAttempt > 0 && this.rng.chance(heavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0))) || (currentGroupSizeAttempt === 1 && this.rng.chance(heavyChance))) {
@@ -1020,7 +1029,29 @@ class LevelGenerator {
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
                             hutHostageCounts.set(hut.name || hut.type + hut.x + hut.y, (currentHutHostageCount + 1));
                             const hutDef = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === hut.type);
-                            if (hutDef) this._spawnInitialGuardsForObject(hut, hutDef, allSpawnedEnemiesDuringGen);
+                            if (hutDef) {
+                                const baseParams = missionParamsContainer.baseParams || {};
+                                const phaseIndex = this.game.currentPhaseIndex || 0;
+                                const sniperRules = CAMPAIGN_RULES.BASE_PARAMETERS.sniperChance || {};
+                                const eliteRules = CAMPAIGN_RULES.BASE_PARAMETERS.eliteChance || {};
+                                const sniperUnlockPhase = sniperRules.unlocksPhase || 2;
+                                const eliteUnlockPhase = eliteRules.unlocksPhase || 3;
+                                let phaseSniperWeight = 0;
+                                let phaseEliteWeight = 0;
+                                if (phaseIndex >= sniperUnlockPhase) {
+                                    const effectivePhase = phaseIndex - sniperUnlockPhase;
+                                    phaseSniperWeight = Math.min((sniperRules.initial || 0.05) + (effectivePhase * (sniperRules.perPhaseGrowthFactor || 0.08)), sniperRules.max || 0.45);
+                                }
+                                if (phaseIndex >= eliteUnlockPhase) {
+                                    const effectivePhase = phaseIndex - eliteUnlockPhase;
+                                    phaseEliteWeight = Math.min((eliteRules.initial || 0.05) + (effectivePhase * (eliteRules.perPhaseGrowthFactor || 0.07)), eliteRules.max || 0.45);
+                                }
+                                const hostageGuardBonusWeights = [
+                                    { type: 'possum_sniper', weight: phaseSniperWeight * 10 },
+                                    { type: 'possum_elite', weight: phaseEliteWeight * 10 }
+                                ];
+                                this._spawnInitialGuardsForObject(hut, hutDef, allSpawnedEnemiesDuringGen, hostageGuardBonusWeights);
+                            }
                             break;
                         }
                     }

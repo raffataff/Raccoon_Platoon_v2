@@ -1616,7 +1616,7 @@ class UI {
         this.refreshRecruitSelectionLists();
 
         // --- DEBUG: Add Test Raccoon Controls to Header ---
-        const availableRecruitsTitle = document.getElementById('availableRecruitsTitle');
+    /*    const availableRecruitsTitle = document.getElementById('availableRecruitsTitle');
         if (availableRecruitsTitle) {
             // Remove existing debug controls if any
             const existingDebug = availableRecruitsTitle.parentElement.querySelector('.debug-test-controls');
@@ -1667,7 +1667,7 @@ class UI {
 
             availableRecruitsTitle.insertAdjacentElement('afterend', debugControls);
         }
-        // --- END DEBUG CONTROLS ---
+    */    // --- END DEBUG CONTROLS ---
 
         this.preMissionScreen.style.display = 'flex';
         this.setCursor('default');

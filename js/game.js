@@ -2801,6 +2801,8 @@ class Game {
                 this.missionEndInitiated = true;
                 const game = this;
                 this.triggerExtractionAmbush(function(success) {
+                    // Reset flag so initiateMissionEnd can proceed (will be re-set inside initiateMissionEnd)
+                    game.missionEndInitiated = false;
                     if (success === false) {
                         game.initiateMissionEnd(true);
                     }

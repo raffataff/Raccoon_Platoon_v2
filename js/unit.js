@@ -324,10 +324,6 @@ class Unit {
             this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level);
             if (this.currentPath && this.currentPath.length > 0) {
                 this.currentPathNodeIndex = 0; this.isMoving = true;
-                const firstNodeWorld = this.currentPath[0];
-                if (distance(this.x, this.y, firstNodeWorld.x, firstNodeWorld.y) > 0.1) {
-                    this.facingAngle = Math.atan2(firstNodeWorld.y - this.y, firstNodeWorld.x - this.x);
-                }
                 if (!this.manualTarget && !this.autoTarget && !this.isPlayerDirectFiring) { this.gunAimAngle = this.facingAngle; }
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Path found (phasing: ${isPhasingOverride}). Smoothed len: ${this.currentPath.length}. isMoving=true.`);
                 return true;
@@ -613,6 +609,14 @@ class Unit {
         this.lastDeltaY = this.y - originalY;
     }
 
+    setFacingToward(worldX, worldY) {
+        if (distance(this.x, this.y, worldX, worldY) > 0.1) {
+            this.facingAngle = Math.atan2(worldY - this.y, worldX - this.x);
+            this.updateVisualDirection(this.facingAngle);
+            this.gunAimAngle = this.facingAngle;
+        }
+    }
+
     setMoveTarget(worldX, worldY) {
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
@@ -698,6 +702,8 @@ class Unit {
         }
 
         this.worldTargetX = finalWorldTargetX; this.worldTargetY = finalWorldTargetY;
+
+        this.setFacingToward(this.worldTargetX, this.worldTargetY);
 
         if (this.calculatePath(conceptualStartGrid, this.isPhasing)) {
             return true;

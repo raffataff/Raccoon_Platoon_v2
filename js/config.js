@@ -13,8 +13,8 @@ const CONFIG = {
     WORLD_BASE_MUD_COLOR: '#483524', // A muddy brown color
     WORLD_BASE_DIRT_COLOR: '#5C4033', // A lighter dirt color for bare patches
     WORLD_GRASS_TILE_SIZE: 48,     // Approximate width/height of your grass tile sprites
-    WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.35, // e.g., 0.25 means tiles can overlap by up to 25% of their size
-    WORLD_GRASS_SKIP_CHANCE: 0.05, // Probability (0-1) to start skipping grass and show dirt/mud
+    WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.66, // e.g., 0.25 means tiles can overlap by up to 25% of their size
+    WORLD_GRASS_SKIP_CHANCE: 0.6, // Probability (0-1) to start skipping grass and show dirt/mud
     WORLD_GRASS_SKIP_MIN: 3,       // Minimum consecutive grass tiles to skip
     WORLD_GRASS_SKIP_MAX: 12,       // Maximum consecutive grass tiles to skip
 
@@ -25,8 +25,8 @@ const CONFIG = {
     // Perlin noise settings for mud patch generation
     WORLD_MUD_NOISE_SCALE_X: 0.05,  // Lower = larger blobs
     WORLD_MUD_NOISE_SCALE_Y: 0.05,  // Lower = larger blobs
-    WORLD_MUD_NOISE_THRESHOLD: 0.5, // Higher = fewer/smaller patches
-    WORLD_MUD_NOISE_OCTAVES: 2,     // More octaves = more detail
+    WORLD_MUD_NOISE_THRESHOLD: 0.2, // Higher = fewer/smaller patches
+    WORLD_MUD_NOISE_OCTAVES: 4,     // More octaves = more detail
     // Iteration step will be TILE_SIZE * (1 - OVERLAP_FACTOR)
     // VIDEO SETTINGS
     MIN_LOADING_VIDEO_DURATION_MS: 5000,
@@ -211,7 +211,7 @@ const CONFIG = {
     POSSUM_ELITE_SIZE: 15,
     POSSUM_ELITE_COLOR: '#8B4513',
     POSSUM_ELITE_WEAPON_DAMAGE: 12,
-    POSSUM_ELITE_WEAPON_ROF: 10,
+    POSSUM_ELITE_WEAPON_ROF: 7,
     POSSUM_ELITE_WEAPON_RANGE: 650,
     POSSUM_ELITE_WEAPON_PROJECTILE_SPEED: 500,
     POSSUM_ELITE_WEAPON_ACCURACY_STATIONARY: 0.95,
@@ -588,13 +588,13 @@ const CONFIG = {
     // --- Level Generation & Obstacles ---
     LEVEL_GENERATION: {
         WORLD_MARGIN: 5,
-        BORDER_WIDTH: 5,
+        BORDER_WIDTH: 1,
         BORDER_COLOR: '#25221D',
         BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long',
         PLAYER_SPAWN_ZONE: {
-            MIN_WIDTH: 780,
+            MIN_WIDTH: 1080,
             WIDTH_FACTOR: 0.10,
-            MIN_HEIGHT: 580,
+            MIN_HEIGHT: 780,
             HEIGHT_FACTOR: 0.10, //
             INTERNAL_PADDING_FACTOR: 30.0, // Factor to ensure enough space around player spawn
             PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES: [
@@ -603,9 +603,9 @@ const CONFIG = {
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 80,
+            BASE_COUNT: 100,
             WORLD_SIZE_FALLBACK_FACTOR: 1.0,
-            RANDOM_ADDITION_MAX: 20,
+            RANDOM_ADDITION_MAX: 50,
             PLACEMENT_MAX_ATTEMPTS: 15
         },
         PLAYER_SPAWN_PLACEMENT: {
@@ -960,7 +960,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radiusX: (w => w * 0.08), radiusY: (h => h * 0.05) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 1.5), radiusX: (w => w * 0.12), radiusY: (h => h * 0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.25,
             canBeFlipped: true,
@@ -1077,10 +1077,10 @@ const CONFIG = {
             spawnWeight: 0.01,
             spriteScale: 0.4,
             spriteDestroyedScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.38), offsetY: (h => h * 1.15), radiusX: (w => w * 0.44), radiusY: (h => h * 0.33) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.42), offsetY: (h => h * 1.15), radiusX: (w => w * 0.44), radiusY: (h => h * 0.33) },
             isDecoration: false,
             sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED',
-            canBeFlipped: false, // Towers have a clear orientation
+            canBeFlipped: true,
             initialGuardPack: {
                 enabled: true,
                 countRange: [1, 4], // Fewer, but tougher guards
@@ -1165,27 +1165,26 @@ const CONFIG = {
         FOLLOW_LERP_SPEED: 0.04,
         POSSIBLE_RANKS_ON_RESCUE: [
             { rankName: "Recruit", xpNeeded: 0 },
-            { rankName: "Recruit", xpNeeded: 0 },
             { rankName: "Private", xpNeeded: 100 },
             { rankName: "Corporal", xpNeeded: 300 },
             { rankName: "Sergeant", xpNeeded: 600 },
             { rankName: "Elite", xpNeeded: 1000 }
         ],
-        MAX_HOSTAGES_PER_MISSION: 3,
+        MAX_HOSTAGES_PER_MISSION: 5,
         MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,
         SPAWN_WITH_ENEMY_GROUPS: true,
         SPAWN_NEAR_CAPTORS_RADIUS: 60,
-        MIN_CAPTORS_GROUP_SIZE: 1,
-        HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 10,
+        MIN_CAPTORS_GROUP_SIZE: 3,
+        HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 30,
         SPAWN_AT_HUTS: true,
-        MAX_HOSTAGES_PER_HUT: 1,
+        MAX_HOSTAGES_PER_HUT: 2,
         SPAWN_OFFSET_FROM_HUT_X: -30,
         SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30),
         MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 500,
         HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 15,
         HOSTAGE_SPAWN_BUFFER: 20,
-        INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 2,
-        INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 3,
+        INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 3,
+        INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 5,
         INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20,
         INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 60,
         INITIAL_GUARD_PLACEMENT_ATTEMPTS: 10
@@ -1203,7 +1202,7 @@ const CONFIG = {
             MIN_Y_SPAWN_FACTOR: 0.1,
             MAX_Y_SPAWN_FACTOR: 0.6,
             FLOCK_SIZE_MIN: 1,
-            FLOCK_SIZE_MAX: 3,
+            FLOCK_SIZE_MAX: 6,
             FLOCK_SPACING_X: 50,
             FLOCK_SPACING_Y: 20,
             SPAWN_INTERVAL_MIN_SECONDS: 20,
