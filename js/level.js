@@ -122,7 +122,7 @@ class Level {
 
         obstacle.hp -= amount;
 
-        if (wasAlive && obstacle.type === 'possum_hut' && obstacle.hp > 0 && !obstacle.isDestroyed) {
+        if (wasAlive && (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') && obstacle.hp > 0 && !obstacle.isDestroyed) {
             const isSpawner = this.potentialSpawnerHuts.includes(obstacle) || this.activeSpawningHuts.includes(obstacle);
             if (obstacle.isMissionTarget || isSpawner) {
                 if (!obstacle.damageSpawnCooldown || obstacle.damageSpawnCooldown <= 0) {
@@ -164,14 +164,20 @@ class Level {
             if (obstacleDef && obstacleDef.sfxOnDestroy && this.game && this.game.audioManager) {
                 this.game.audioManager.play(obstacleDef.sfxOnDestroy);
             } 
-            else if (obstacle.type === 'possum_hut' && this.game && this.game.audioManager && !obstacleDef?.sfxOnDestroy) { 
+            else if ((obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') && this.game && this.game.audioManager && !obstacleDef?.sfxOnDestroy) {
                 this.game.audioManager.play('POSSUM_HUT_DESTROYED');
             }
             
-            if (obstacle.type === 'possum_hut') { 
+if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') { 
                 this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== obstacle);
                 const potIndex = this.potentialSpawnerHuts.indexOf(obstacle);
                 if (potIndex > -1) this.potentialSpawnerHuts.splice(potIndex, 1);
+                obstacle.spawnCooldownTimer = 0;
+                obstacle.isActivelySpawning = false;
+                obstacle.unitsToSpawnThisBurst = 0;
+                obstacle.timeUntilNextUnitInBurst = 0;
+                obstacle.delayedDamageSpawnTimer = 0;
+                obstacle.damageSpawnCooldown = 0;
             }
             
             if (obstacleDef) {
@@ -567,6 +573,14 @@ class Level {
     attemptSingleSpawnFromHut(hut) {
         if (hut.isDestroyed || !this.rng) return false;
 
+        const maxUnitsPerHut = Math.floor((this.hutSpawnConfig.MAX_UNITS_PER_HUT_BASE || 10) + (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_UNITS_PER_HUT_PHASE_INCREMENT || 2)));
+        if (hut.unitsSpawnedFromHut >= maxUnitsPerHut) {
+            if (CONFIG.DEBUG_LOGGING) console.log(`[Level] Hut ${hut.name || hut.id} has reached max units spawned (${hut.unitsSpawnedFromHut}/${maxUnitsPerHut}).`);
+            hut.isActivelySpawning = false;
+            this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== hut);
+            return false;
+        }
+
         const hutCenterX = hut.x + hut.width / 2;
         const hutBottomEdgeY = hut.y + hut.height;
         const spawnOffsetX = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
@@ -583,6 +597,7 @@ class Level {
             spawnX = this.rng.nextFloat(spawnLineMinX, spawnLineMinX + spawnAreaWidth);
             spawnX = Math.max(gruntSize / 2, Math.min(spawnX, (CONFIG.WORLD_WIDTH || 0) - gruntSize / 2));
             const clampedSpawnY = Math.max(gruntSize / 2, Math.min(spawnCenterY, (CONFIG.WORLD_HEIGHT || 0) - gruntSize / 2));
+            if (this.playableMinY !== undefined && clampedSpawnY < this.playableMinY + gruntSize / 2) continue;
 
             if (this.isSpawnPointClear(spawnX, clampedSpawnY, gruntSize, this.obstacles, this.game.enemyUnits)) {
                 spawnClear = true;
@@ -612,6 +627,7 @@ class Level {
             if (this.game && this.game.spatialGrid) {
                 this.game.spatialGrid.addObject(newGrunt);
             }
+            hut.unitsSpawnedFromHut++;
             return true;
         } else {
             if (CONFIG.DEBUG_LOGGING) console.warn(`[Level] Failed to find clear spawn point for hut ${hut.name || hut.id}`);
@@ -633,7 +649,7 @@ class Level {
             const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
             const spawnAreaWidth = this.hutSpawnConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
             const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
-            const spawnLineCenterX = hutCenterX + spawnOffsetX;
+const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
             const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
             const debugSpawnHeight = (CONFIG.POSSUM_GRUNT_SIZE || 14) * 0.5;
             ctx.fillRect(spawnLineMinX, spawnCenterY - debugSpawnHeight / 2, spawnAreaWidth, debugSpawnHeight);

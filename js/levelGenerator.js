@@ -158,10 +158,10 @@ class LevelGenerator {
 
         const spawnRadius = pack.spawnRadius || 60;
         const playableBounds = {
-            minX: (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) + (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
-            maxX: (CONFIG.WORLD_WIDTH || 0) - (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) - (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
-            minY: (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) + (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20),
-            maxY: (CONFIG.WORLD_HEIGHT || 0) - (CONFIG.LEVEL_GENERATION.BORDER_WIDTH || 30) - (CONFIG.LEVEL_GENERATION.WORLD_MARGIN || 20)
+            minX: this.level.playableMinX,
+            maxX: this.level.playableMaxX,
+            minY: this.level.playableMinY,
+            maxY: this.level.playableMaxY
         };
 
         let effectiveUnitPool = pack.unitPool;
@@ -432,6 +432,11 @@ class LevelGenerator {
         const playableWidth = Math.max(0, playableMaxX - playableMinX);
         const playableHeight = Math.max(0, playableMaxY - playableMinY);
 
+        this.level.playableMinY = playableMinY;
+        this.level.playableMaxY = playableMaxY;
+        this.level.playableMinX = playableMinX;
+        this.level.playableMaxX = playableMaxX;
+
         const extraKeepOutZones = [];
         const pSpawnCfg = genConfig.PLAYER_SPAWN_ZONE || {};
         const playerSpawnZoneWidth = Math.max(pSpawnCfg.MIN_WIDTH || 150, playableWidth * (pSpawnCfg.WIDTH_FACTOR || 0.20));
@@ -458,6 +463,13 @@ class LevelGenerator {
 
         extraKeepOutZones.push(this.level.effectivePlayerSpawnZone);
 
+        extraKeepOutZones.push({
+            x: 0,
+            y: 0,
+            width: worldWidth,
+            height: topBottomBorderHeight
+        });
+
         if (borderObstacleTemplate && borderSpriteImage && borderSegmentWidth > 0 && borderSegmentHeight > 0) {
             const numSegments = Math.ceil(worldWidth / borderSegmentWidth);
             const borderCollisionShape = borderObstacleTemplate.collisionShape ? {
@@ -482,6 +494,30 @@ class LevelGenerator {
                 };
                 this.level.obstacles.push({ ...commonProps, x: segmentX, y: 0, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Top)` });
                 this.level.obstacles.push({ ...commonProps, x: segmentX, y: worldHeight - topBottomBorderHeight, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Bottom)` });
+            }
+
+            // Add a single long fence at the top of the player spawn zone as a barrier
+            if (borderObstacleTemplate.collisionShape) {
+                this.level.obstacles.push({
+                    type: borderObstacleTemplate.type,
+                    name: borderObstacleTemplate.name,
+                    destructible: borderObstacleTemplate.destructible || false,
+                    hp: borderObstacleTemplate.hp || Infinity,
+                    maxHp: borderObstacleTemplate.maxHp || Infinity,
+                    isDestroyed: false,
+                    blocksMovement: true,
+                    providesCover: true,
+                    isDecoration: false,
+                    spriteNormalPath: borderSpritePath,
+                    imageNormal: borderSpriteImage,
+                    spriteScale: borderSpriteScale * 0.5,
+                    collisionShape: borderObstacleTemplate.collisionShape,
+                    x: playerSpawnZone.x,
+                    y: playerSpawnZone.y,
+                    width: borderSegmentWidth,
+                    height: borderSegmentHeight,
+                    name: `${borderObstacleTemplate.name} (Spawn Zone Barrier)`
+                });
             }
         } else {
             this.level.obstacles.push({ x: 0, y: 0, width: worldWidth, height: topBottomBorderHeight, type: 'border_wall', name: 'Border Wall Top', color: sideBorderColor, destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false });
@@ -647,11 +683,15 @@ class LevelGenerator {
 
                         let actualSpritePath = null;
                         let actualDestroyedSpritePath = null;
-                        if (targetTemplateOriginal.type === 'possum_hut') {
-                            const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
+                        if (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round') {
+                            const hutSpritePairs = targetTemplateOriginal.type === 'possum_hut' 
+                                ? (CONFIG.POSSUM_HUT_SPRITE_FILES || [])
+                                : (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || []);
+                            const pathBase = targetTemplateOriginal.type === 'possum_hut'
+                                ? (CONFIG.POSSUM_HUT_SPRITE_PATH || '')
+                                : (CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '');
                             if (hutSpritePairs.length > 0) {
                                 const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                                const pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
                                 actualSpritePath = pathBase + selectedPair.normal;
                                 actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                             }
@@ -697,9 +737,9 @@ class LevelGenerator {
                                     spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
                                     collisionShape: targetTemplateOriginal.collisionShape,
                                     isMissionTarget: true, objectiveId: objective.id,
-                                    isSpawner: targetTemplateOriginal.type === 'possum_hut',
+                                    isSpawner: targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round',
                                     spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
-                                    delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0
+                                    delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
                                 };
                                 this.level.obstacles.push(missionTargetObs);
                                 this.level.missionTargetObstacles.push(missionTargetObs);
@@ -727,7 +767,7 @@ class LevelGenerator {
         });
 
         const spawnedMissionTargets = this.level.missionTargetObstacles || [];
-        const hutsSpawned = spawnedMissionTargets.filter(o => o.type === 'possum_hut').length;
+        const hutsSpawned = spawnedMissionTargets.filter(o => o.type === 'possum_hut' || o.type === 'possum_hut_round').length;
         const towersSpawned = spawnedMissionTargets.filter(o => o.type === 'possum_relay_tower').length;
         if (hutsSpawned === 0 && towersSpawned === 0) {
 //            console.error(`[Level Gen] CRITICAL: No mission targets (huts/towers) were spawned! This will lock the mission!`);
@@ -752,6 +792,15 @@ class LevelGenerator {
                 if (hutSpritePairs.length > 0) {
                     const selectedPair = this.rng.pickFrom(hutSpritePairs);
                     pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'possum_hut_round') {
+                const hutSpritePairs = CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || [];
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '';
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
@@ -865,9 +914,9 @@ class LevelGenerator {
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false, // --- ADDED THIS LINE ---
-                        collisionShape: template.collisionShape || null, isSpawner: template.type === 'possum_hut',
+                        collisionShape: template.collisionShape || null, isSpawner: template.type === 'possum_hut' || template.type === 'possum_hut_round',
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
-                        delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0
+                        delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
                     };
                     this.level.obstacles.push(newObstacle);
                     if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
@@ -1068,6 +1117,8 @@ class LevelGenerator {
             if (hostageConf.SPAWN_AT_HUTS && numHostagesToSpawn > spawnedHostageCount) {
                 const eligibleHuts = this.level.obstacles.filter(hut => {
                     if (hut.type !== 'possum_hut' || hut.isDestroyed) return false;
+                    const hutBottomEdgeY = hut.y + hut.height;
+                    if (hutBottomEdgeY < playableMinY + (CONFIG.POSSUM_GRUNT_SIZE || 14)) return false;
                     const hutCenterX = hut.x + hut.width / 2; const hutCenterY = hut.y + hut.height / 2;
                     const distToPlayerSpawn = distance(hutCenterX, hutCenterY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2);
                     return distToPlayerSpawn > (hostageConf.MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE || 0);

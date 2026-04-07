@@ -857,6 +857,7 @@ class UI {
     showShootoutHud() {
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
         if (this.preMissionScreen) this.preMissionScreen.style.display = 'none';
+        if (this.objectivesPanel) this.objectivesPanel.style.display = 'none';
         if (this.shootoutHud) this.shootoutHud.style.display = 'block';
     }
 
@@ -2224,6 +2225,7 @@ class UI {
 
     showHUD() {
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'flex';
+        if (this.objectivesPanel) this.objectivesPanel.style.display = 'block';
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game && this.game.formationSpacingMultiplier !== undefined) {
             this.formationSpacingSlider.value = this.game.formationSpacingMultiplier.toString();
@@ -2233,7 +2235,7 @@ class UI {
         this.updateSquadPanel();
         this.updateObjective();
     }
-    hideHUD() { if (this.leftHudPanel) this.leftHudPanel.style.display = 'none'; }
+    hideHUD() { if (this.leftHudPanel) this.leftHudPanel.style.display = 'none'; if (this.objectivesPanel) this.objectivesPanel.style.display = 'none'; }
 
     updateObjective() {
         const objectiveDisplayElement = this.objectiveTextContainer || document.getElementById('objectiveText');

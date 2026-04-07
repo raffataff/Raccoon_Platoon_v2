@@ -81,13 +81,13 @@ class Game {
 
         // Auto-save on page unload (for session persistence)
         // Only save during non-mission states to prevent infinite XP/death bugs
-        const MISSION_ACTIVE_STATES = ['RUNNING', 'LOADING_MISSION', 'SHOOTOUT_AMBUSH', 'SHOOTOUT_PLAYING', 'PAUSED', 'SHOOTOUT_PAUSED'];
+    /*    const MISSION_ACTIVE_STATES = ['RUNNING', 'LOADING_MISSION', 'SHOOTOUT_AMBUSH', 'SHOOTOUT_PLAYING', 'PAUSED', 'SHOOTOUT_PAUSED'];
         window.addEventListener('beforeunload', () => {
             if (this.campaignSeed && this.gameState !== 'MAIN_MENU' && !MISSION_ACTIVE_STATES.includes(this.gameState)) {
                 SaveManager.autoSave(this);
             }
         });
-
+    */
         this.missionEndDelayTimer = -1;
         this.MISSION_END_DELAY_SECONDS = 3.0;
         this.missionPendingOutcomeIsVictory = false;
@@ -656,6 +656,30 @@ class Game {
             });
         }
 
+        if (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES && CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH) {
+            const hutPath = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH;
+            CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES.forEach(pair => {
+                const normalPath = hutPath + pair.normal;
+                const destroyedPath = hutPath + pair.destroyed;
+                if (pair.normal && !this.preloadedImages[normalPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                        img.src = normalPath;
+                    }));
+                }
+                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                        img.src = destroyedPath;
+                    }));
+                }
+            });
+        }
+
         if (CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES && CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH) {
             const towerPath = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH;
             CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES.forEach(pair => {
@@ -706,6 +730,7 @@ class Game {
                 (def.type === 'palm_bush_large' && CONFIG.PALM_BUSH_LARGE_FILES) ||
                 (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
                 (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ||
+                (def.type === 'possum_hut_round' && CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES) ||
                 (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES)) {
                 handledByDedicatedList = true;
             }
@@ -3041,8 +3066,11 @@ class Game {
                     } 
                 } 
                 if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
+        const birdsToRenderLast = [];
         this.gameObjects.forEach(obj => {
-            if (this.isProjectileOrBird(obj) && typeof obj.y === 'number') {
+            if (obj instanceof FlyingBird) {
+                return;
+            } else if (this.isProjectileOrBird(obj) && typeof obj.y === 'number') {
                 sortableObjects.push({ entity: obj, sortY: obj.y, isUnit: true });
             } else if (obj && typeof obj.render === 'function') {
                 obj.render(this.ctx);
@@ -3095,6 +3123,12 @@ class Game {
                     if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) { const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR; const hpBarHeight = healthBarStyle.HEIGHT || 4; const hpBarWidth = Math.min(obj.width * 0.7, 60); const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4; this.ctx.fillStyle = healthBarStyle.BG_COLOR || '#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2); let fillColor = healthBarStyle.HP_COLOR_FULL || '#0c0'; const hpPercent = obj.hp / obj.maxHp; if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) { fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000'; } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) { fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#D09040'; } this.ctx.fillStyle = fillColor; this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight); }
                 }
             } catch (e) { }
+        });
+
+        this.gameObjects.forEach(obj => {
+            if (obj instanceof FlyingBird) {
+                obj.render(this.ctx);
+            }
         });
 
         if (this.isDebugVisualsActive) {
@@ -3749,6 +3783,9 @@ class Game {
                 this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { fade: true, loop: true });
             }
         }
+
+        const shootoutScoreEl = document.getElementById('shootoutScore');
+        if (shootoutScoreEl) shootoutScoreEl.style.display = 'none';
 
         // Show ambush alert
         const game = this;

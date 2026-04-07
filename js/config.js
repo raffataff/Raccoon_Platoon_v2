@@ -23,9 +23,9 @@ const CONFIG = {
     MUD_SPRITE_FILES: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'],
 
     // Perlin noise settings for mud patch generation
-    WORLD_MUD_NOISE_SCALE_X: 0.05,  // Lower = larger blobs
-    WORLD_MUD_NOISE_SCALE_Y: 0.05,  // Lower = larger blobs
-    WORLD_MUD_NOISE_THRESHOLD: 0.2, // Higher = fewer/smaller patches
+    WORLD_MUD_NOISE_SCALE_X: 0.015,  // Lower = larger blobs
+    WORLD_MUD_NOISE_SCALE_Y: 0.01,  // Lower = larger blobs
+    WORLD_MUD_NOISE_THRESHOLD: 0.3, // Higher = fewer/smaller patches
     WORLD_MUD_NOISE_OCTAVES: 3,     // More octaves = more detail
     // Iteration step will be TILE_SIZE * (1 - OVERLAP_FACTOR)
     // VIDEO SETTINGS
@@ -595,11 +595,17 @@ const CONFIG = {
             MIN_WIDTH: 180,
             WIDTH_FACTOR: 0.40,
             MIN_HEIGHT: 180,
-            HEIGHT_FACTOR: 0.125, // 1/8th of playable height - spawn zone at bottom-left
-            INTERNAL_PADDING_FACTOR: 30.0, // Factor to ensure enough space around player spawn
+            HEIGHT_FACTOR: 0.2, // 1/8th of playable height - spawn zone at bottom-left
+            INTERNAL_PADDING_FACTOR: 80.0, // Factor to ensure enough space around player spawn
             PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES: [
                 'possum_hut',
-                'possum_relay_tower'
+                'possum_hut_round',
+                'possum_relay_tower',
+                'rock_large',
+                'rock_medium',
+                'fence_barbed_straight_short',
+                'fence_barbed_straight_long'
+
             ]
         },
         OBSTACLES: {
@@ -610,7 +616,7 @@ const CONFIG = {
         },
         PLAYER_SPAWN_PLACEMENT: {
             MAX_ATTEMPTS: 30,
-            FALLBACK_SPACING_FACTOR: 3.0,
+            FALLBACK_SPACING_FACTOR: 10.0,
             PLAYER_SPAWN_AREA: 0.2
         },
         DECORATIONS: {
@@ -745,6 +751,13 @@ const CONFIG = {
         { normal: 'possum_hut_3.png', destroyed: 'possum_hut_3_destroyed.png' }
     ],
 
+    POSSUM_HUT_ROUND_SPRITE_PATH: 'assets/images/objects/possums/huts/',
+    POSSUM_HUT_ROUND_SPRITE_FILES: [
+        { normal: 'possum_hut_4.png', destroyed: 'possum_hut_4_destroyed.png' },
+        { normal: 'possum_hut_5.png', destroyed: 'possum_hut_5_destroyed.png' }
+    ],
+
+
     // Possum Towers
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
     POSSUM_RELAY_TOWER_SPRITE_FILES: [
@@ -797,7 +810,7 @@ const CONFIG = {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 7, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -807,7 +820,7 @@ const CONFIG = {
             type: 'palm_bush_small', name: 'Small Palm Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -815,7 +828,7 @@ const CONFIG = {
             type: 'palm_bush_large', name: 'Large Palm Bush', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -877,7 +890,7 @@ const CONFIG = {
             type: 'tree_palm2_single', name: 'Palm Tree 2 Single', color: '#005522',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 5, isDecoration: false,
             spriteScale: 0.3,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -888,7 +901,7 @@ const CONFIG = {
             type: 'tree_palm2_double', name: 'Palm Tree 2 Double', color: '#005522',
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 4, isDecoration: false,
             spriteScale: 0.3,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -934,7 +947,7 @@ const CONFIG = {
             type: 'tree_deciduous_single', name: 'Deciduous Tree Single', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.3,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.93), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
@@ -958,7 +971,7 @@ const CONFIG = {
             type: 'tree5_deciduous_single', name: 'Deciduous Tree Medium', color: '#228B22',
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 1.5), radiusX: (w => w * 0.12), radiusY: (h => h * 0.15) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
@@ -1006,7 +1019,7 @@ const CONFIG = {
             spriteNormal: 'assets/images/objects/barrels/barrel_red.png',
             spriteScale: 0.1,
             spriteDestroyed: 'assets/images/objects/barrels/barrel_red_destroyed.png',
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.066), width: (w => w * 0.7), height: (h => h * 0.86) },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.048), offsetY: (h => h * 0.066), width: (w => w * 0.7), height: (h => h * 0.86) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_DESTROYED',
             canBeFlipped: false,
         },
@@ -1057,18 +1070,46 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.45), radiusX: (w => w * 0.35), radiusY: (h => h * 0.29) },
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
-            canBeFlipped: false, // Huts have a clear orientation
+            canBeFlipped: true,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 4],
                 countPerPhaseBonus: 0.3, // Scales with mission phase
                 spawnRadius: 80,
                 unitPool: [
-                    { type: 'possum_grunt', weight: 4 },
-                    { type: 'possum_heavy', weight: 1 }
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
                 ]
             }
         },
+
+        {
+            type: 'possum_hut_round', name: 'Round Possum Hut', color: '#8B4513',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.2,
+            spriteScale: 0.3,
+            spriteDestroyedScale: 0.3,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.45), radius: (w => w * 0.35) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+            canBeFlipped: true, // Huts have a clear orientation
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 4],
+                countPerPhaseBonus: 0.3, // Scales with mission phase
+                spawnRadius: 80,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
+                ]
+            }
+        },
+
         {
             type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',
             destructible: true, hp: 150, maxHp: 150,
@@ -1087,11 +1128,11 @@ const CONFIG = {
                 countPerPhaseBonus: 0.1,
                 spawnRadius: 100,
                 unitPool: [
-                    { type: 'possum_grunt', weight: 2 },
+                    { type: 'possum_grunt', weight: 5 },
                     { type: 'possum_heavy', weight: 3 }, // More likely to be heavies
                     { type: 'possum_boss_1', weight: 0.1 }, // Chance for a boss unit
-                    { type: 'possum_sniper', weight: 3 },
-                    { type: 'possum_elite', weight: 2 }
+                    { type: 'possum_sniper', weight: 2 },
+                    { type: 'possum_elite', weight: 1 }
                 ]
             }
         },
@@ -1113,16 +1154,16 @@ const CONFIG = {
         QUADRANT_ROWS: 3,               // Default rows (used if scaling disabled or for fallback)
         QUADRANT_SCALING_ENABLED: true, // Scale grid size based on world size
         QUADRANT_BASE_COLS: 3,          // Base columns at worldSizeFactor = 1.0
-        QUADRANT_BASE_ROWS: 2,          // Base rows at worldSizeFactor = 1.0
+        QUADRANT_BASE_ROWS: 3,          // Base rows at worldSizeFactor = 1.0
         QUADRANT_SCALE_COLS_PER_WORLD_FACTOR: 0.5, // Additional columns per worldSizeFactor increment
         QUADRANT_SCALE_ROWS_PER_WORLD_FACTOR: 0.3, // Additional rows per worldSizeFactor increment
         QUADRANT_RANDOMNESS_FACTOR: 0.3, // Random factor (0.3 = +/- 30% variation)
-        QUADRANT_MIN_COLS: 2,           // Minimum columns cap
-        QUADRANT_MIN_ROWS: 2,           // Minimum rows cap
-        QUADRANT_MAX_COLS: 6,           // Maximum columns cap
-        QUADRANT_MAX_ROWS: 4,           // Maximum rows cap
+        QUADRANT_MIN_COLS: 3,           // Minimum columns cap
+        QUADRANT_MIN_ROWS: 3,           // Minimum rows cap
+        QUADRANT_MAX_COLS: 7,           // Maximum columns cap
+        QUADRANT_MAX_ROWS: 5,           // Maximum rows cap
         BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 10,
-        RANDOM_ADDITION_FACTOR_MAX: 6,
+        RANDOM_ADDITION_FACTOR_MAX: 8,
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
         SMALL_GROUP_CHANCE: 0.6,
         SMALL_GROUP_SIZE_MIN: 2,
@@ -1162,6 +1203,8 @@ const CONFIG = {
             UNITS_TO_SPAWN_ON_DAMAGE: 2,                 // How many units spawn when hut is shot
             SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 10, // Cooldown for regular spawning after a damage-spawn
             SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 20,
+            MAX_UNITS_PER_HUT_BASE: 6,              // Max units that can spawn from a hut over its lifetime
+            MAX_UNITS_PER_HUT_PHASE_INCREMENT: 2,    // Additional max units per phase
         }
     },
 

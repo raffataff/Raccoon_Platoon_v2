@@ -3,8 +3,7 @@
 
 class SaveManager {
     static STORAGE_KEY = 'raccoon_platoon_saves';
-    static AUTO_SAVE_KEY = 'raccoon_platoon_autosave';
-    static MAX_SLOTS = 3;
+    static MAX_SLOTS = 5;
     static SAVE_VERSION = 1;
 
     /**
@@ -207,36 +206,19 @@ class SaveManager {
     }
 
     /**
-     * Auto-save current campaign progress (for session persistence)
+     * Auto-save current campaign progress to the campaign's save slot
      * @param {Game} game - The game instance
      * @returns {boolean} Success
      */
     static autoSave(game) {
         if (!game || !game.campaignSeed) {
-//            console.warn('[SaveManager] Cannot auto-save: no game or campaign seed');
             return false;
         }
 
         try {
-            const saveData = {
-                version: this.SAVE_VERSION,
-                timestamp: Date.now(),
-                data: {
-                    campaignSeed: game.campaignSeed,
-                    campaignSeedRNGState: game.campaignSeedRNG ? game.campaignSeedRNG.seed : null,
-                    totalCampaignPhases: game.totalCampaignPhases,
-                    currentPhaseIndex: game.currentPhaseIndex,
-                    currentMissionIndex: game.currentMissionIndex,
-                    masterRoster: this._serializeRoster(game.masterRoster),
-                    fallenRaccoonsGlobal: this._serializeFallenRaccoons(game.fallenRaccoonsGlobal),
-                    lastDeployedSquadIds: game.lastDeployedSquadIds || []
-                }
-            };
-            localStorage.setItem(this.AUTO_SAVE_KEY, JSON.stringify(saveData));
-//            console.log(`[SaveManager] Auto-saved campaign (seed: ${game.campaignSeed}, phase: ${game.currentPhaseIndex}, mission: ${game.currentMissionIndex})`);
-            return true;
+            const slotIndex = this.findSlotForCampaign(game.campaignSeed);
+            return this.saveToSlot(game, slotIndex);
         } catch (error) {
-//            console.error('[SaveManager] Auto-save failed:', error);
             return false;
         }
     }
@@ -248,26 +230,26 @@ class SaveManager {
      */
     static autoLoad(game) {
         try {
-            const data = localStorage.getItem(this.AUTO_SAVE_KEY);
-            if (!data) {
-//                console.log('[SaveManager] No auto-save found');
-                return false;
+            if (!game) return false;
+
+            const saves = this._getAllSaves();
+            
+            // If we have a campaign seed, find the matching slot
+            if (game.campaignSeed) {
+                const slotIndex = this.findSlotForCampaign(game.campaignSeed);
+                if (saves[slotIndex]) {
+                    return this.loadFromSlot(game, slotIndex);
+                }
             }
 
-            const saveData = JSON.parse(data);
-            if (!saveData.data || !saveData.data.campaignSeed) {
-//                console.warn('[SaveManager] Invalid auto-save data');
-                return false;
+            // No campaign seed or no matching slot - find most recent save
+            const mostRecent = this.getMostRecentSave();
+            if (mostRecent) {
+                return this.loadFromSlot(game, mostRecent.slotIndex);
             }
 
-//            console.log(`[SaveManager] Auto-loading campaign (seed: ${saveData.data.campaignSeed}, phase: ${saveData.data.currentPhaseIndex}, mission: ${saveData.data.currentMissionIndex})`);
-            this._deserializeGameState(game, saveData.data);
-
-            // Find the matching save slot (by campaign seed) or use most recent/empty slot
-            game.currentSaveSlot = this._findSlotForCampaign(game.campaignSeed);
-            return true;
+            return false;
         } catch (error) {
-//            console.error('[AutoLoad] Auto-load failed:', error);
             return false;
         }
     }
@@ -276,9 +258,8 @@ class SaveManager {
      * Find a save slot for a campaign (by seed) or fallback to empty/most recent slot
      * @param {number} campaignSeed - The campaign seed
      * @returns {number} Slot index to use
-     * @private
      */
-    static _findSlotForCampaign(campaignSeed) {
+    static findSlotForCampaign(campaignSeed) {
         const saves = this._getAllSaves();
 
         // First, look for a slot with matching campaign seed
@@ -311,16 +292,11 @@ class SaveManager {
     }
 
     /**
-     * Check if an auto-save exists
+     * Check if an auto-save exists (now delegates to hasSaves since auto-saves go to slots)
      * @returns {boolean}
      */
     static hasAutoSave() {
-        try {
-            const data = localStorage.getItem(this.AUTO_SAVE_KEY);
-            return data !== null;
-        } catch (error) {
-            return false;
-        }
+        return this.hasSaves();
     }
 
     // ==================== PRIVATE METHODS ====================
