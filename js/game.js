@@ -132,6 +132,12 @@ class Game {
 
         (async () => {
             await this.preloadAudioAssets();
+            const menuWallpaperPath = 'assets/images/ui/wallpapers/raccoon_marine_menu_left.jpg';
+            if (!this.preloadedImages[menuWallpaperPath]) {
+                const img = new Image();
+                img.onload = () => { this.preloadedImages[menuWallpaperPath] = img; };
+                img.src = menuWallpaperPath;
+            }
             if (this.ui) {
                 this.ui.showMainMenuScreen();
             }
@@ -424,6 +430,16 @@ class Game {
                     }));
                 }
             }
+        }
+
+        const menuWallpaperPath = 'assets/images/ui/wallpapers/raccoon_marine_menu_left.jpg';
+        if (!this.preloadedImages[menuWallpaperPath]) {
+            imagePromises.push(new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => { this.preloadedImages[menuWallpaperPath] = img; resolve(); };
+                img.onerror = () => { console.warn(`[Preload FAILED - UI] Menu Wallpaper: '${menuWallpaperPath}'`); this.preloadedImages[menuWallpaperPath] = null; resolve(); };
+                img.src = menuWallpaperPath;
+            }));
         }
 
         await Promise.all(imagePromises);

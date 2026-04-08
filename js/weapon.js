@@ -61,7 +61,7 @@ const WEAPONS = {
         CONFIG.RACCOON_MG_DAMAGE, CONFIG.RACCOON_MG_ROF, CONFIG.RACCOON_MG_RANGE,
         CONFIG.RACCOON_MG_PROJECTILE_SPEED, CONFIG.PROJECTILE_COLOR_RACCOON_GHOST,
         CONFIG.RACCOON_MG_ACCURACY_STATIONARY, CONFIG.RACCOON_MG_ACCURACY_MOVING,
-        'RACCOON_MG_FIRE',
+        'LASER_WEAPON_FIRE',
         1.0
     ),
     RACCOON_MAVERICK_MG: new Weapon(
@@ -121,7 +121,7 @@ const WEAPONS = {
         CONFIG.PROJECTILE_COLOR_POSSUM_REVOLVER,
         CONFIG.POSSUM_REVOLVER_WEAPON_ACCURACY,
         CONFIG.POSSUM_REVOLVER_WEAPON_ACCURACY, // Same accuracy while moving
-        'POSSUM_RIFLE_FIRE', // Re-using grunt sound for now
+        'POSSUM_REVOLVER_FIRE',
         1.1, // Muzzle flash scale
         CONFIG.POSSUM_REVOLVER_WEAPON_BULLET_LIFETIME
     ),
@@ -134,7 +134,7 @@ const WEAPONS = {
         CONFIG.PROJECTILE_COLOR_POSSUM_SNIPER,
         CONFIG.POSSUM_SNIPER_RIFLE_ACCURACY, // Same accuracy for stationary and moving
         CONFIG.POSSUM_SNIPER_RIFLE_ACCURACY,
-        'POSSUM_HEAVY_MG_FIRE', // Using the same sound as heavy MG for now
+        'SNIPER_RIFLE_FIRE',
         1.2, // Muzzle flash scale
         CONFIG.POSSUM_SNIPER_RIFLE_BULLET_LIFETIME
     ),
@@ -438,10 +438,11 @@ class GrenadeProjectile {
         
         objectsInAOE.forEach(obj => {
             if (obj instanceof Unit && obj.isAlive()) {
+                if (obj === this.shooterUnit) return;
                 const distToUnit = distance(this.x, this.y, obj.x, obj.y);
                 if (distToUnit <= this.aoeRadius + obj.size) { // Unit size as buffer for AOE
                     let damageMultiplier = 1.0;
-                    if (this.shooterTeam === 'player' && obj.team === 'player' && obj !== this.shooterUnit) {
+                    if (this.shooterTeam === 'player' && obj.team === 'player') {
                         damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5; 
                     }
                     obj.takeDamage(this.damage * damageMultiplier, this.shooterUnit);

@@ -7,6 +7,7 @@ class UI {
         this.uiSettings = CONFIG.UI_SETTINGS || {};
 
         this.mainMenuScreen = document.getElementById('mainMenuScreen');
+        this.mainMenuWallpaper = document.getElementById('mainMenuWallpaper');
         this.newCampaignButton = document.getElementById('newCampaignButton');
         this.mainMenuMemorialButton = document.getElementById('mainMenuMemorialButton');
         this.howToPlayButton = document.getElementById('howToPlayButton');
@@ -605,9 +606,14 @@ class UI {
             const hasAutoSave = SaveManager.hasAutoSave();
             this.continueGameButton.disabled = !(hasManualSaves || hasAutoSave);
         }
-        this.mainMenuScreen.style.display = 'flex'; this.setCursor('default');
+        this.mainMenuScreen.style.display = 'flex';
+        if (this.mainMenuWallpaper) this.mainMenuWallpaper.style.display = 'block';
+        this.setCursor('default');
     }
-    hideMainMenuScreen() { if (this.mainMenuScreen) this.mainMenuScreen.style.display = 'none'; }
+    hideMainMenuScreen() {
+        if (this.mainMenuScreen) this.mainMenuScreen.style.display = 'none';
+        if (this.mainMenuWallpaper) this.mainMenuWallpaper.style.display = 'none';
+    }
     hidePreMissionScreen() { if (this.preMissionScreen) this.preMissionScreen.style.display = 'none'; }
     hidePostMissionScreen() { if (this.postMissionScreen) this.postMissionScreen.style.display = 'none'; }
     hideGameOverScreen() { if (this.gameOverScreen) this.gameOverScreen.style.display = 'none'; }

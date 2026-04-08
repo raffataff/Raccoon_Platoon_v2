@@ -429,12 +429,24 @@ const CONFIG = {
         'face5.png', 'face6.png', 'face7.png', 'face8.png',
         'face9.png', 'face10.png', 'face11.png'
     ],
+
+    // --- Audio ---
     AUDIO_ASSETS: {
         // Weapons & Combat SFX
+        // Raccoon SFX
         RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.3 },
+        
+
+        // Possum SFX
         POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.7, pitchVariation: 0.03 },
         POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.mp3', defaultVolume: 0.3, pitchVariation: 0.03 },
+        SNIPER_RIFLE_FIRE: { path: 'assets/audio/sfx/gunshot_sniper_1.ogg', defaultVolume: 0.5, pitchVariation: 0.02 },
+        POSSUM_REVOLVER_FIRE: { path: 'assets/audio/sfx/gunshot_1.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
+        LASER_WEAPON_FIRE: { path: 'assets/audio/sfx/advance_laser_1.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
+        LASER_WEAPON_2_FIRE: { path: 'assets/audio/sfx/advance_laser_2.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
         POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.mp3', defaultVolume: 0.2, pitchVariation: 0.1 },
+
+        // Other SFX
         GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.mp3', defaultVolume: 0.3, pitchVariation: 0.4 },
         // Unit SFX
         UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.1 },
@@ -444,7 +456,7 @@ const CONFIG = {
         AMBIENT_FOREST_2: { path: 'assets/audio/ambience/tropical_forest_ambient_2.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_3: { path: 'assets/audio/ambience/tropical_forest_ambient_3.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_4: { path: 'assets/audio/ambience/tropical_forest_ambient_4.mp3', defaultVolume: 0.45 },
-        AMBIENT_FOREST_5: { path: 'assets/audio/ambience/ambience_temperate_day.mp3', defaultVolume: 1.0 },
+        AMBIENT_FOREST_5: { path: 'assets/audio/ambience/ambience_temperate_day_4.ogg', defaultVolume: 1.0 },
 
         AMBIENT_MUSIC_TROPICAL_FOREST_KEYS: [
             'AMBIENT_FOREST_1',
