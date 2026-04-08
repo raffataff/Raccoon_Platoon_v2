@@ -435,7 +435,7 @@ const CONFIG = {
         // Weapons & Combat SFX
         // Raccoon SFX
         RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.3 },
-        
+
 
         // Possum SFX
         POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.7, pitchVariation: 0.03 },
@@ -616,14 +616,24 @@ const CONFIG = {
                 'rock_large',
                 'rock_medium',
                 'fence_barbed_straight_short',
-                'fence_barbed_straight_long'
-
+                'fence_barbed_straight_long',
+                'tree5_deciduous_single',
+                'tree4_deciduous_single',
+                'tree_deciduous_single',
+                'tree_palm2_fallen',
+                'tree_palm1_fallen',
+                'tree_palm2_triple',
+                'tree_palm1_triple',
+                'tree_palm2_double',
+                'tree_palm1_double',
+                'tree_palm2_single',
+                'tree_palm1_single'
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 100,
-            WORLD_SIZE_FALLBACK_FACTOR: 1.0,
-            RANDOM_ADDITION_MAX: 50,
+            BASE_COUNT: 80,
+            WORLD_SIZE_FALLBACK_FACTOR: 0.8,
+            RANDOM_ADDITION_MAX: 30,
             PLACEMENT_MAX_ATTEMPTS: 15
         },
         PLAYER_SPAWN_PLACEMENT: {
