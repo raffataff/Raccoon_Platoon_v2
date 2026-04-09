@@ -132,13 +132,27 @@ class Game {
 
         (async () => {
             await this.preloadAudioAssets();
-            const menuWallpaperPath = 'assets/images/ui/wallpapers/raccoon_marine_menu_left.jpg';
+            const defaultWallpaper = CONFIG.MENU_WALLPAPERS.find(w => w.key === CONFIG.DEFAULT_MENU_WALLPAPER) || CONFIG.MENU_WALLPAPERS[0];
+            const menuWallpaperPath = defaultWallpaper ? defaultWallpaper.path : 'assets/images/ui/wallpapers/raccoon_marine_menu_3_left.jpg';
             if (!this.preloadedImages[menuWallpaperPath]) {
                 const img = new Image();
                 img.onload = () => { this.preloadedImages[menuWallpaperPath] = img; };
                 img.src = menuWallpaperPath;
             }
+
+            // Preload all menu wallpapers
+            if (CONFIG.MENU_WALLPAPERS) {
+                CONFIG.MENU_WALLPAPERS.forEach(wallpaper => {
+                    if (!this.preloadedImages[wallpaper.path]) {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[wallpaper.path] = img; };
+                        img.src = wallpaper.path;
+                    }
+                });
+            }
+
             if (this.ui) {
+                this.ui.currentWallpaperKey = CONFIG.DEFAULT_MENU_WALLPAPER;
                 this.ui.showMainMenuScreen();
             }
             // Start main menu music after audio is loaded
@@ -1855,7 +1869,7 @@ class Game {
 //                console.warn(`[Game] Failed to select a DESTROY_TARGET type for phase ${phaseIdx}.`);
                 return null;
             }
-            newObj.targetTypeKey = selectedTargetType.targetTypeKey;
+            newObj.targetTypeKeyPrefix = selectedTargetType.targetTypeKeyPrefix;
             newObj.targetNameSingular = selectedTargetType.nameSingular;
             newObj.targetNamePlural = selectedTargetType.namePlural;
             newObj.totalToAchieve = Math.max(1, Math.round(baseP.numDestroyTargets));
@@ -2176,7 +2190,7 @@ class Game {
             objectivesArray.forEach(obj => {
                 if (!obj.isPrimary) {
                     if (primaryObjInstanceToDescribe && obj.type === primaryObjInstanceToDescribe.type && obj.type !== "DESTROY_TARGET") return;
-                    if (primaryObjInstanceToDescribe && obj.type === "DESTROY_TARGET" && primaryObjInstanceToDescribe.type === "DESTROY_TARGET" && obj.targetTypeKey === primaryObjInstanceToDescribe.targetTypeKey) return;
+                    if (primaryObjInstanceToDescribe && obj.type === "DESTROY_TARGET" && primaryObjInstanceToDescribe.type === "DESTROY_TARGET" && obj.targetTypeKeyPrefix === primaryObjInstanceToDescribe.targetTypeKeyPrefix) return;
 
                     combinedObjectiveDescription += " Additionally, " + this._getObjectiveDescriptionForBriefing(obj, baseP).toLowerCase() + ".";
                 }
@@ -2620,7 +2634,7 @@ class Game {
                 } else if (!obj.isComplete) {
                     if (obj.type === 'DESTROY_TARGET') {
                         obj.currentProgress = this.level.missionTargetObstacles ?
-                            this.level.missionTargetObstacles.filter(t => t.type === obj.targetTypeKey && t.isDestroyed && t.objectiveId === obj.id).length : 0;
+                            this.level.missionTargetObstacles.filter(t => t.type.startsWith(obj.targetTypeKeyPrefix) && t.isDestroyed && t.objectiveId === obj.id).length : 0;
                         if (obj.currentProgress >= obj.totalToAchieve) {
                             obj.isComplete = true;
                         }

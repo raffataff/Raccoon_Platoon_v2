@@ -108,7 +108,7 @@ const CAMPAIGN_RULES = {
 
     // This pool now defines specific *types* of targets for the generic "DESTROY_TARGET" objective
     DESTROY_TARGET_TYPE_POOL: [
-        // targetTypeKey: Matches 'type' in CONFIG.OBSTACLE_DEFINITIONS.
+        // targetTypeKeyPrefix: Matches 'type' prefix in CONFIG.OBSTACLE_DEFINITIONS.
         // nameSingular/Plural: For UI text.
         // weight: Chance of this specific target type being chosen for a "DESTROY_TARGET" objective.
         // unlocksPhase: When this target type becomes available.
@@ -117,13 +117,13 @@ const CAMPAIGN_RULES = {
         //                         This maxInstancesPerMission here means you wouldn't have "Destroy Huts" and "Destroy More Huts"
         //                         as two separate line items on the objective list for the same mission.
         {
-            targetTypeKey: "possum_hut",
+            targetTypeKeyPrefix: "possum_hut",
             nameSingular: "Possum Hut", namePlural: "Possum Huts",
-            weight: 2, unlocksPhase: 1,
-            maxInstancesPerMission: 3 // Typically, one "Destroy Possum Huts" objective per mission.
+            weight: 4, unlocksPhase: 1,
+            maxInstancesPerMission: 3
         },
         {
-            targetTypeKey: "possum_relay_tower",
+            targetTypeKeyPrefix: "possum_relay_tower",
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
             weight: 1, unlocksPhase: 2,
             maxInstancesPerMission: 2
@@ -143,7 +143,7 @@ const CAMPAIGN_RULES = {
             assassinationTypeKey: "possum_boss_1",
             name: "General Whiskers", callsign: "Whiskers",
             description: "A cunning strategist known for his brutal tactics.",
-            weight: 3, unlocksPhase: 6, isBoss: true
+            weight: 3, unlocksPhase: 3, isBoss: true
         },
         {
             assassinationTypeKey: "possum_revolver_boss",

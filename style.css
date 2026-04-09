@@ -155,7 +155,7 @@ canvas#gameCanvas {
     text-align: center;
     position: absolute;
     top: 50%;
-    left: 70%;
+    left: 75%;
     transform: translate(-50%, -50%);
     width: 600px;
     display: flex;
@@ -326,6 +326,136 @@ canvas#gameCanvas {
     margin-top: 0;
     margin-bottom: 25px;
     font-size: 35px;
+}
+
+#optionsMenuScreen {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 4px;
+    color: var(--text-main);
+    padding: 50px 40px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 150;
+    backdrop-filter: blur(8px);
+    clip-path: polygon(0 0,
+            100% 0,
+            100% calc(100% - 20px),
+            calc(100% - 20px) 100%,
+            0 100%);
+    overflow-y: auto;
+}
+
+#optionsMenuScreen h2 {
+    color: var(--brand-primary);
+    margin-top: 0;
+    margin-bottom: 25px;
+    font-size: 35px;
+}
+
+#optionsContent {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.options-section {
+    text-align: left;
+}
+
+.options-section h3 {
+    color: var(--text-main);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.2em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid var(--panel-border);
+    padding-bottom: 8px;
+}
+
+#wallpaperSelectionGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    padding: 10px;
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--panel-border);
+    border-radius: 3px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.wallpaper-option {
+    position: relative;
+    aspect-ratio: 16/9;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid var(--panel-border);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.wallpaper-option:hover {
+    border-color: var(--brand-primary);
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(230, 157, 69, 0.3);
+}
+
+.wallpaper-option.selected {
+    border-color: var(--brand-primary);
+    box-shadow: 0 0 10px rgba(230, 157, 69, 0.5);
+}
+
+.wallpaper-option.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: var(--brand-primary);
+    color: var(--brand-dark);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.wallpaper-option-name {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.5));
+    color: var(--text-main);
+    padding: 5px 8px;
+    font-size: 0.85em;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.options-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    margin-top: auto;
 }
 
 #pauseMenuScreen .main-menu-buttons button {

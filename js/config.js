@@ -430,6 +430,19 @@ const CONFIG = {
         'face9.png', 'face10.png', 'face11.png'
     ],
 
+    // --- Main Menu Wallpapers ---
+    MENU_WALLPAPERS: [
+        
+        { key: 'raccoon_1', name: 'Raccoon 1', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_1_menu.jpg' },
+        { key: 'raccoon_2', name: 'Raccoon 2', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_2_menu.jpg' },
+        { key: 'raccoon_3', name: 'Raccoon 3', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_3_menu.jpg' },
+        { key: 'raccoon_4', name: 'Raccoon 4', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_4_menu.jpg' },
+        { key: 'raccoon_5', name: 'Raccoon 5', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_5_menu.jpg' },
+
+    ],
+        
+    DEFAULT_MENU_WALLPAPER: 'raccoon_1',
+
     // --- Audio ---
     AUDIO_ASSETS: {
         // Weapons & Combat SFX
@@ -631,7 +644,7 @@ const CONFIG = {
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 80,
+            BASE_COUNT: 100,
             WORLD_SIZE_FALLBACK_FACTOR: 0.95,
             RANDOM_ADDITION_MAX: 30,
             PLACEMENT_MAX_ATTEMPTS: 15

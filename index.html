@@ -26,9 +26,24 @@
             <button id="shootoutModeButton">Shootout</button>
             <button id="howToPlayButton">How To Play</button>
             <button id="mainMenuMemorialButton" hidden>Recruit Memorial</button>
-            <button id="optionsButton" disabled>Options</button> <!-- Disabled for now -->
+            <button id="optionsButton">Options</button>
         </div>
-        <p class="game-version">v0.1.0 Alpha</p> <!-- Optional version display -->
+        <p class="game-version">v0.1.0 Alpha</p>
+    </div>
+
+    <div id="optionsMenuScreen" class="ui-panel" style="display: none;">
+        <h2>OPTIONS</h2>
+        <div id="optionsContent">
+            <div class="options-section">
+                <h3>Change Wallpaper</h3>
+                <div id="wallpaperSelectionGrid">
+                    <!-- JS will populate this with wallpaper options -->
+                </div>
+            </div>
+        </div>
+        <div class="options-buttons">
+            <button id="backFromOptionsButton">Back</button>
+        </div>
     </div>
 
     <div id="preMissionScreen" class="ui-panel" style="display: none;">
