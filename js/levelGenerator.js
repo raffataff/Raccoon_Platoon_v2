@@ -425,12 +425,22 @@ class LevelGenerator {
             }
         }
 
-        const playableMinX = effectiveBorderCollisionHeight + (genConfig.WORLD_MARGIN || 20);
-        const playableMaxX = worldWidth - effectiveBorderCollisionHeight - (genConfig.WORLD_MARGIN || 20);
-        const playableMinY = effectiveBorderCollisionHeight + (genConfig.WORLD_MARGIN || 20);
-        const playableMaxY = worldHeight - effectiveBorderCollisionHeight - (genConfig.WORLD_MARGIN || 20);
+        let playableMinX = effectiveBorderCollisionHeight + (genConfig.WORLD_MARGIN || 20);
+        let playableMaxX = worldWidth - effectiveBorderCollisionHeight - (genConfig.WORLD_MARGIN || 20);
+        let playableMinY = effectiveBorderCollisionHeight + (genConfig.WORLD_MARGIN || 20);
+        let playableMaxY = worldHeight - effectiveBorderCollisionHeight - (genConfig.WORLD_MARGIN || 20);
         const playableWidth = Math.max(0, playableMaxX - playableMinX);
         const playableHeight = Math.max(0, playableMaxY - playableMinY);
+
+        const fallbackFactor = (genConfig.OBSTACLES && genConfig.OBSTACLES.WORLD_SIZE_FALLBACK_FACTOR) || 1.0;
+        if (fallbackFactor < 1.0 && fallbackFactor > 0) {
+            const widthReduction = playableWidth * (1 - fallbackFactor);
+            const heightReduction = playableHeight * (1 - fallbackFactor);
+            playableMinX += widthReduction / 2;
+            playableMaxX -= widthReduction / 2;
+            playableMinY += heightReduction / 2;
+            playableMaxY -= heightReduction / 2;
+        }
 
         this.level.playableMinY = playableMinY;
         this.level.playableMaxY = playableMaxY;

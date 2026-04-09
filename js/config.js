@@ -216,7 +216,7 @@ const CONFIG = {
     POSSUM_ELITE_WEAPON_PROJECTILE_SPEED: 500,
     POSSUM_ELITE_WEAPON_ACCURACY_STATIONARY: 0.95,
     POSSUM_ELITE_WEAPON_ACCURACY_MOVING: 0.90,
-    POSSUM_ELITE_WEAPON_BULLET_LIFETIME: 2.0,
+    POSSUM_ELITE_WEAPON_BULLET_LIFETIME: 1.2,
     POSSUM_ELITE_SPRITE_PATH: 'assets/images/units/possum_elite/',
     POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.55,
     POSSUM_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite/dead/',
@@ -347,15 +347,15 @@ const CONFIG = {
 
     // --- Projectiles & Weapons ---
     PROJECTILE_SIZE: 3,
-    PROJECTILE_COLOR_RACCOON: '#ff9100',
-    PROJECTILE_COLOR_RACCOON_PRIVATE: '#eeff00',
-    PROJECTILE_COLOR_RACCOON_CORPORAL: '#00ff22',
-    PROJECTILE_COLOR_RACCOON_SERGEANT: '#00ff95',
-    PROJECTILE_COLOR_RACCOON_ELITE: '#00eeff',
+    PROJECTILE_COLOR_RACCOON: '#ff91008f',
+    PROJECTILE_COLOR_RACCOON_PRIVATE: '#fbff008f',
+    PROJECTILE_COLOR_RACCOON_CORPORAL: '#00ff228e',
+    PROJECTILE_COLOR_RACCOON_SERGEANT: '#00ff957c',
+    PROJECTILE_COLOR_RACCOON_ELITE: '#00eeff9a',
     PROJECTILE_COLOR_RACCOON_GHOST: '#000000',
-    PROJECTILE_COLOR_RACCOON_MAVERICK: '#8c00ff',
-    PROJECTILE_COLOR_POSSUM: '#ff3c00',
-    PROJECTILE_COLOR_POSSUM_HEAVY: '#ff4747',
+    PROJECTILE_COLOR_RACCOON_MAVERICK: '#8c00ff98',
+    PROJECTILE_COLOR_POSSUM: '#ff3c008e',
+    PROJECTILE_COLOR_POSSUM_HEAVY: '#ff47478e',
     GRENADE_PROJECTILE_COLOR: '#228B22',
     PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER: 0, // 0 = no friendly fire, 1 = full damage
 
@@ -367,7 +367,7 @@ const CONFIG = {
         BULLET: {
             LIFETIME: 0.7,
             MAX_SPREAD_ANGLE_RADIANS: Math.PI / 6,
-            DESPAWN_WORLD_BUFFER: 50
+            DESPAWN_WORLD_BUFFER: 100
         },
         GRENADE: {
             SPRITE_PATH: 'assets/images/projectiles/grenade.png',
@@ -376,7 +376,7 @@ const CONFIG = {
             MIN_FLIGHT_TIME: 0.05,
             ARC_PEAK_HEIGHT_MIN: 20,
             ARC_PEAK_HEIGHT_DISTANCE_FACTOR: 0.2,
-            MAX_LIFETIME_BUFFER: 1.5,
+            MAX_LIFETIME_BUFFER: 1.0,
             SHADOW: {
                 COLOR_RGBA: [0, 0, 0, 0.3],
                 Y_OFFSET_FACTOR: 0.5,
@@ -400,7 +400,7 @@ const CONFIG = {
 
     // Formation settings
     FORMATION_INDEX: 3,
-    INITIAL_FORMATION_SPACING: 3.5, // Spacing between units in formation
+    INITIAL_FORMATION_SPACING: 3.0, // Spacing between units in formation
 
     // --- Progression ---
     XP_PER_MISSION_SURVIVED: 35,
@@ -434,22 +434,22 @@ const CONFIG = {
     AUDIO_ASSETS: {
         // Weapons & Combat SFX
         // Raccoon SFX
-        RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.3 },
+        RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_possum_grunt.ogg', defaultVolume: 0.9, pitchVariation: 0.3 },
 
 
         // Possum SFX
-        POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_grunt_possum.mp3', defaultVolume: 0.7, pitchVariation: 0.03 },
-        POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_heavy_possum.mp3', defaultVolume: 0.3, pitchVariation: 0.03 },
+        POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.1 },
+        POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_possum_heavy.ogg', defaultVolume: 0.5, pitchVariation: 0.03 },
         SNIPER_RIFLE_FIRE: { path: 'assets/audio/sfx/gunshot_sniper_1.ogg', defaultVolume: 0.5, pitchVariation: 0.02 },
         POSSUM_REVOLVER_FIRE: { path: 'assets/audio/sfx/gunshot_1.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
-        LASER_WEAPON_FIRE: { path: 'assets/audio/sfx/advance_laser_1.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
-        LASER_WEAPON_2_FIRE: { path: 'assets/audio/sfx/advance_laser_2.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
-        POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.mp3', defaultVolume: 0.2, pitchVariation: 0.1 },
+        LASER_WEAPON_FIRE: { path: 'assets/audio/sfx/advanced_laser_1.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
+        LASER_WEAPON_2_FIRE: { path: 'assets/audio/sfx/advanced_laser_2.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
+        POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.ogg', defaultVolume: 0.2, pitchVariation: 0.1 },
 
         // Other SFX
-        GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.mp3', defaultVolume: 0.3, pitchVariation: 0.4 },
+        GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.ogg', defaultVolume: 0.3, pitchVariation: 0.4 },
         // Unit SFX
-        UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.mp3', defaultVolume: 0.1 },
+        UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.ogg', defaultVolume: 0.1 },
         UI_BUTTON_HOVER: { path: 'assets/audio/sfx/ui_hover_gentle.mp3', defaultVolume: 0.3, pitchVariation: 0.1 },
         // Ambient sounds
         AMBIENT_FOREST_1: { path: 'assets/audio/ambience/tropical_forest_ambient_1.mp3', defaultVolume: 0.45 },
@@ -467,13 +467,13 @@ const CONFIG = {
         ],
         // Destruction SFX
         POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.5, pitchVariation: 0.1 }, // Example: unique sound
-        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_metal_01.mp3', defaultVolume: 0.1, pitchVariation: 0.2 }, // Example: unique sound
-        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_explode_cluster_01.mp3', defaultVolume: 0.15, pitchVariation: 0.15 }, // Example for cluster
+        EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode.ogg', defaultVolume: 0.1, pitchVariation: 0.2 }, // Example: unique sound
+        EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_cluster_explode.ogg', defaultVolume: 0.15, pitchVariation: 0.15 }, // Example for cluster
         // Add more SFX keys as needed, e.g., TREE_FALL_SOUND, FENCE_BREAK_SOUND
         
         // --- MUSIC TRACKS ---
         // Main Menu (also used for Pre-Mission Select, How to Play)
-        MUSIC_MAIN_MENU: { path: 'assets/audio/music/March Through The Jungle.mp3', defaultVolume: 0.6 },
+        MUSIC_MAIN_MENU: { path: 'assets/audio/music/March Through The Jungle.mp3', defaultVolume: 0.5 },
         
         // Mission Combat Music (simple - plays for entire mission)
         MUSIC_COMBAT_1: { path: 'assets/audio/music/Broken Raccoon.mp3', defaultVolume: 0.3 },
@@ -620,19 +620,19 @@ const CONFIG = {
                 'tree5_deciduous_single',
                 'tree4_deciduous_single',
                 'tree_deciduous_single',
+                'tree_palm_fallen',
                 'tree_palm2_fallen',
-                'tree_palm1_fallen',
+                'tree_palm_triple',
                 'tree_palm2_triple',
-                'tree_palm1_triple',
+                'tree_palm_double',
                 'tree_palm2_double',
-                'tree_palm1_double',
-                'tree_palm2_single',
-                'tree_palm1_single'
+                'tree_palm_single',
+                'tree_palm2_single'
             ]
         },
         OBSTACLES: {
             BASE_COUNT: 80,
-            WORLD_SIZE_FALLBACK_FACTOR: 0.8,
+            WORLD_SIZE_FALLBACK_FACTOR: 0.95,
             RANDOM_ADDITION_MAX: 30,
             PLACEMENT_MAX_ATTEMPTS: 15
         },
@@ -1527,17 +1527,17 @@ const CONFIG = {
         // Chance (0-1) that an ambush will trigger when getting out of the heli at mission start
         AMBUSH_START_CHANCE: 0.5,
         // Chance (0-1) that an ambush will trigger when evacuating
-        AMBUSH_EXTRACTION_CHANCE: 1.0,
+        AMBUSH_EXTRACTION_CHANCE: 0.6,
         // Duration (ms) to show the ambush alert before auto-transitioning
         AMBUSH_ALERT_DURATION: 3000,
         // Game mode to use for ambushes: 'TIME_ATTACK' or 'ELIMINATION' (fallback if random selection disabled)
         AMBUSH_DEFAULT_MODE: 'ELIMINATION',
         // Chance (0-1) that an ambush will be TIME_ATTACK mode vs ELIMINATION mode. 0.5 = 50/50
         AMBUSH_TIME_ATTACK_CHANCE: 0.5,
-        AMBUSH_TIME_LIMIT: 30,
+        AMBUSH_TIME_LIMIT: 45,
         AMBUSH_ELIMINATION_COUNT: 15,
         AMBUSH_NIGHT_MODE_ENABLED: true,
-        AMBUSH_BACKGROUNDS: ['JUNGLE_AMBUSH', 'JUNGLE_ATTACK', 'JUNGLE_RUINS', 'JUNGLE_RUINS_2'],
+        AMBUSH_BACKGROUNDS: ['JUNGLE_AMBUSH', 'JUNGLE_ATTACK'], //, 'JUNGLE_RUINS', 'JUNGLE_RUINS_2'
         AMBUSH_UNLOCKS_PHASE: 2,
 
         // --- Ambush Success/Failure Rewards ---
@@ -1574,8 +1574,8 @@ const CONFIG = {
         AMBUSH_RESULT_MESSAGES: {
             VICTORY: [
                 "Area clear! Good work!",
-                "All hostiles eliminated!",
-                "Threat neutralized!",
+                "All scum eliminated!",
+                "Possum scum neutralized!",
                 "Sector secure!",
                 "Nice shooting!",
                 "Clear! Move out!"

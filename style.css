@@ -144,8 +144,7 @@ canvas#gameCanvas {
 }
 
 /* --- Main Menu Screen --- */
-#mainMenuScreen,
-#pauseMenuScreen {
+#mainMenuScreen {
     background: var(--panel-bg);
     border: 2px solid var(--panel-border);
     border-radius: 4px;
@@ -173,6 +172,8 @@ canvas#gameCanvas {
     /* Tactical cut corner */
 }
 
+
+
 /* Add a pseudo-element for a tech decorative line */
 #mainMenuScreen::before {
     content: '';
@@ -183,6 +184,34 @@ canvas#gameCanvas {
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--brand-primary), transparent);
     opacity: 0.5;
+}
+
+#pauseMenuScreen {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-radius: 4px;
+    /* Slight rounding */
+    color: var(--text-main);
+    padding: 50px 40px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.5);
+    text-align: center;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 150;
+    backdrop-filter: blur(8px);
+    clip-path: polygon(0 0,
+            100% 0,
+            100% calc(100% - 20px),
+            calc(100% - 20px) 100%,
+            0 100%);
+    /* Tactical cut corner */
 }
 
 #gameTitle {
