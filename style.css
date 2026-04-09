@@ -1,6 +1,6 @@
 /* style.css - TRASH TACTICAL REDESIGN */
 :root {
-    --bg-color: #1a1815;
+    --bg-color: #171512;
     --panel-bg: rgba(26, 24, 21, 0.95);
     --panel-border: #4a453d;
     --text-main: #d0cdc5;
@@ -85,7 +85,7 @@ canvas {
     width: 100vw;
     height: 100vh;
     align-items: stretch;
-    background-color: #1c1a17;
+    background-color: #181c17;
     /* This will cover the body bg during gameplay */
 }
 
@@ -132,7 +132,7 @@ canvas {
 
 canvas#gameCanvas {
     border: 3px ridge #201E1A;
-    background-color: #1e1c18;
+    background-color: var(--bg-color);
     /* This will be drawn over by game's world fill if world is smaller */
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.6) inset, 0 0 5px rgba(0, 0, 0, 0.5);
     display: block;
@@ -508,9 +508,8 @@ canvas#gameCanvas {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 95vw;
-    height: 95vh;
-    max-width: 1800px;
+    width: 96vw;
+    height: 94vh;
     z-index: 100;
     padding: 30px;
     display: flex;

@@ -438,6 +438,7 @@ const CONFIG = {
         { key: 'raccoon_3', name: 'Raccoon 3', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_3_menu.jpg' },
         { key: 'raccoon_4', name: 'Raccoon 4', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_4_menu.jpg' },
         { key: 'raccoon_5', name: 'Raccoon 5', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_5_menu.jpg' },
+        { key: 'raccoon_6', name: 'Raccoon 6', path: 'assets/images/ui/wallpapers/1K/menu/raccoon_6_menu.jpg' },
 
     ],
         
