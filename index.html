@@ -17,6 +17,20 @@
 <body>
     <div id="crt-overlay" class="scanlines"></div>
     <div id="mainMenuWallpaper"></div>
+    
+    <!-- Asset Loading Screen -->
+    <div id="assetLoadingScreen" class="loading-screen">
+        <div id="assetLoadingBackground" class="loading-screen-bg"></div>
+        <div class="loading-screen-content">
+            <div class="loading-title">RACCOON PLATOON</div>
+            <div class="loading-spinner"></div>
+            <div id="loadingProgressText" class="loading-progress">Loading assets...</div>
+            <div id="loadingBarContainer" class="loading-bar-container">
+                <div id="loadingBar" class="loading-bar"></div>
+            </div>
+        </div>
+    </div>
+    
     <div id="mainMenuScreen" class="ui-panel" style="display: none;">
         <h1 id="gameTitle">RACCOON PLATOON</h1>
         <div class="main-menu-buttons">
@@ -39,6 +53,7 @@
                 <div id="wallpaperSelectionGrid">
                     <!-- JS will populate this with wallpaper options -->
                 </div>
+                <button id="shuffleWallpaperButton">Shuffle</button>
             </div>
         </div>
         <div class="options-buttons">
@@ -438,6 +453,11 @@
     <!-- Video Loading Screen -->
     <div id="videoLoadingScreen">
         <video id="loadingVideoPlayer" loop playsinline></video>
+    </div>
+
+    <!-- Extraction Video Screen -->
+    <div id="extractionVideoScreen">
+        <video id="extractionVideoPlayer" playsinline></video>
     </div>
 
     <div id="game-container">

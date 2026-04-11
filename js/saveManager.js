@@ -3,8 +3,34 @@
 
 class SaveManager {
     static STORAGE_KEY = 'raccoon_platoon_saves';
+    static PREFERENCES_KEY = 'raccoon_platoon_preferences';
     static MAX_SLOTS = 5;
     static SAVE_VERSION = 1;
+
+    static getPreferences() {
+        try {
+            const stored = localStorage.getItem(this.PREFERENCES_KEY);
+            return stored ? JSON.parse(stored) : {};
+        } catch (e) {
+            console.warn('Failed to load preferences:', e);
+            return {};
+        }
+    }
+
+    static savePreference(key, value) {
+        try {
+            const prefs = this.getPreferences();
+            prefs[key] = value;
+            localStorage.setItem(this.PREFERENCES_KEY, JSON.stringify(prefs));
+        } catch (e) {
+            console.warn('Failed to save preference:', e);
+        }
+    }
+
+    static getPreference(key, defaultValue = null) {
+        const prefs = this.getPreferences();
+        return prefs.hasOwnProperty(key) ? prefs[key] : defaultValue;
+    }
 
     /**
      * Get all save slot metadata (for displaying in UI)

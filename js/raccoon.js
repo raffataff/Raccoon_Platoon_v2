@@ -437,6 +437,13 @@ class Raccoon extends Unit {
             this.grenadeAmmo += pickupObstacle.pickupQuantity;
             pickupColor = '#F0E68C'; // Khaki
             pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.GRENADE_ICON];
+        } else if (pickupObstacle.pickupType === 'ammo') {
+            this.ammo += pickupObstacle.pickupQuantity;
+            if (this.ammo > this.maxAmmo) {
+                this.ammo = this.maxAmmo;
+            }
+            pickupColor = '#87CEEB'; // SkyBlue
+            pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.AMMO_ICON];
         } else if (pickupObstacle.pickupType === 'health') {
             if (this.hp < this.maxHp) {
                 this.hp += pickupObstacle.pickupQuantity;
@@ -474,6 +481,7 @@ class Raccoon extends Unit {
 
         // Reloading Indicator - show while reload is in progress
         if (this.isAlive() && this.isReloading) {
+            ctx.save();
             ctx.font = "bold 14px 'Consolas'";
             ctx.textAlign = 'center';
             ctx.shadowColor = "rgba(0,0,0,0.9)";
@@ -491,6 +499,7 @@ class Raccoon extends Unit {
 
             ctx.fillStyle = '#AAAAAA';
             ctx.fillText("Reloading...", x, y);
+            ctx.restore();
         }
     }
 }

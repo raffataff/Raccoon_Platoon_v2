@@ -151,7 +151,7 @@ class Level {
             const treeFallSettings = CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS;
             const isPalmTree = obstacle.type.startsWith('tree_palm');
             const isDeciduousTree = obstacle.type.startsWith('tree_deciduous');
-            if ((isPalmTree || isDeciduousTree) && treeFallSettings?.ENABLED && this.rng.chance(treeFallSettings.FALL_CHANCE)) {
+            if ((isPalmTree || isDeciduousTree) && treeFallSettings?.ENABLED && obstacle.willSpawnLog) {
                 let fallenLogType = 'tree_palm_fallen';
                 if (obstacle.type.startsWith('tree_palm2_')) {
                     fallenLogType = 'tree_palm2_fallen';

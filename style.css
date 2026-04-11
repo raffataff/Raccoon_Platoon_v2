@@ -58,7 +58,6 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-image: url('assets/images/ui/wallpapers/raccoon_marine_menu_3_left.jpg');
     background-size: auto 100%;
     background-position: center;
     background-repeat: no-repeat;
@@ -449,6 +448,27 @@ canvas#gameCanvas {
     text-align: center;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+#shuffleWallpaperButton {
+    margin-top: 15px;
+    padding: 10px 20px;
+    background-color: var(--brand-dark);
+    color: var(--text-main);
+    border: 2px solid var(--brand-primary);
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 1em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s ease;
+}
+
+#shuffleWallpaperButton:hover {
+    background-color: var(--brand-primary);
+    color: var(--brand-dark);
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(230, 157, 69, 0.4);
 }
 
 .options-buttons {
@@ -2239,6 +2259,145 @@ input[type="range"]::-moz-range-thumb {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+/* --- Extraction Video Screen --- */
+#extractionVideoScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: #000;
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease-in-out;
+}
+
+#extractionVideoScreen.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+#extractionVideoScreen.visible::before,
+#extractionVideoScreen.visible::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 10%;
+    background-color: #000;
+    z-index: 1;
+    pointer-events: none;
+}
+
+#extractionVideoScreen.visible::before {
+    top: 0;
+}
+
+#extractionVideoScreen.visible::after {
+    bottom: 0;
+}
+
+#extractionVideoPlayer {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* --- Asset Loading Screen --- */
+.loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 0.5s ease-in-out;
+}
+
+.loading-screen.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-screen-bg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #12100e;
+    background-size: cover;
+    background-position: center;
+}
+
+.loading-screen-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.loading-title {
+    font-family: 'Black Ops One', cursive;
+    font-size: 3.5em;
+    color: #e69d45;
+    text-shadow: 0 0 20px rgba(230, 157, 69, 0.5), 2px 2px 0 #000;
+    margin-bottom: 40px;
+    letter-spacing: 4px;
+}
+
+.loading-spinner {
+    width: 60px;
+    height: 60px;
+    border: 4px solid rgba(230, 157, 69, 0.2);
+    border-top-color: #e69d45;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 30px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-progress {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.2em;
+    color: #d0cdc5;
+    margin-bottom: 15px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.loading-bar-container {
+    width: 300px;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(230, 157, 69, 0.3);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.loading-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #5e8c48, #e69d45);
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px rgba(230, 157, 69, 0.5);
 }
 
 /* --- Full-Screen Reusable Alert --- */

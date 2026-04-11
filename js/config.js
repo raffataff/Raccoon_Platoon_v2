@@ -448,14 +448,14 @@ const CONFIG = {
     AUDIO_ASSETS: {
         // Weapons & Combat SFX
         // Raccoon SFX
-        RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_possum_grunt.ogg', defaultVolume: 0.9, pitchVariation: 0.3 },
+        RACCOON_MG_FIRE: { path: 'assets/audio/sfx/gun_possum_grunt.ogg', defaultVolume: 1.0, pitchVariation: 0.3 },
 
 
         // Possum SFX
-        POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.2, pitchVariation: 0.1 },
-        POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_possum_heavy.ogg', defaultVolume: 0.5, pitchVariation: 0.03 },
+        POSSUM_RIFLE_FIRE: { path: 'assets/audio/sfx/gun_mg_raccoon.mp3', defaultVolume: 0.25, pitchVariation: 0.3 },
+        POSSUM_HEAVY_MG_FIRE: { path: 'assets/audio/sfx/gun_possum_heavy.ogg', defaultVolume: 0.5, pitchVariation: 0.08 },
         SNIPER_RIFLE_FIRE: { path: 'assets/audio/sfx/gunshot_sniper_1.ogg', defaultVolume: 0.5, pitchVariation: 0.02 },
-        POSSUM_REVOLVER_FIRE: { path: 'assets/audio/sfx/gunshot_1.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
+        POSSUM_REVOLVER_FIRE: { path: 'assets/audio/sfx/gunshot_1.ogg', defaultVolume: 0.4, pitchVariation: 0.15 },
         LASER_WEAPON_FIRE: { path: 'assets/audio/sfx/advanced_laser_1.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
         LASER_WEAPON_2_FIRE: { path: 'assets/audio/sfx/advanced_laser_2.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
         POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.ogg', defaultVolume: 0.2, pitchVariation: 0.1 },
@@ -589,7 +589,8 @@ const CONFIG = {
 
     UI_ASSETS: {
         GRENADE_ICON: 'assets/images/ui/icons/grenade_icon.png',
-        HEALTH_ICON: 'assets/images/ui/icons/health_icon.png'
+        HEALTH_ICON: 'assets/images/ui/icons/health_icon.png',
+        AMMO_ICON: 'assets/images/ui/icons/ammo_icon.png'
     },
 
     UI_SETTINGS: {
@@ -648,6 +649,12 @@ const CONFIG = {
             BASE_COUNT: 100,
             WORLD_SIZE_FALLBACK_FACTOR: 0.95,
             RANDOM_ADDITION_MAX: 30,
+            PLACEMENT_MAX_ATTEMPTS: 15
+        },
+        PICKUPS: {
+            BASE_COUNT: 5,
+            PHASE_INCREMENT: 2,
+            RANDOM_ADDITION_MAX: 3,
             PLACEMENT_MAX_ATTEMPTS: 15
         },
         PLAYER_SPAWN_PLACEMENT: {
@@ -764,20 +771,37 @@ const CONFIG = {
 
     PALM2_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
     PALM2_TREE_FALLEN_SPRITE_FILES: ['palm_fallen_log_2.png'],
+    
+    // Fan Trees
+    FAN_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    FAN_TREE_SINGLE_SPRITE_FILES: ['tropical_fan_single_1.png', 'tropical_fan_single_2.png', 'tropical_fan_single_3.png'],
 
-    // Fallen Deciduous Trees (logs)
-    DECIDUOUS_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
-    DECIDUOUS_TREE_FALLEN_SPRITE_FILES: ['tree_fallen_log_1.png'],
+    FAN_TREE_DOUBLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    FAN_TREE_DOUBLE_SPRITE_FILES: ['tropical_fan_double_1.png', 'tropical_fan_double_2.png', 'tropical_fan_double_3.png'],
+
+    FAN_TREE_TRIPLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
+    FAN_TREE_TRIPLE_SPRITE_FILES: ['tropical_fan_triple_1.png', 'tropical_fan_triple_2.png', 'tropical_fan_triple_3.png'],
 
     // Deciduous Trees
     DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
     DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES: ['tree2_single_tall.png'],
-
+    
     TREE4_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
     TREE4_SINGLE_SPRITE_FILES: ['tree4_single_large_1.png', 'tree4_single_large_2.png', 'tree4_single_large_3.png'],
-
+    
     TREE5_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
     TREE5_SINGLE_SPRITE_FILES: ['tree5_single_1.png', 'tree5_single_2.png', 'tree5_single_3.png'],
+    
+    // Fallen Deciduous Trees (logs)
+    DECIDUOUS_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
+    DECIDUOUS_TREE_FALLEN_SPRITE_FILES: ['tree_fallen_log_1.png'],
+
+    // Forest Patches
+    RAINFOREST_SMALL_PATCH_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/forests/',
+    RAINFOREST_SMALL_PATCH_SPRITE_FILES: ['rainforest_small_1.png',],
+
+    RAINFOREST_LARGE_PATCH_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/forests/',
+    RAINFOREST_LARGE_PATCH_SPRITE_FILES: ['rainforest_large_1.png', ],
 
     // Possum Huts
     POSSUM_HUT_SPRITE_PATH: 'assets/images/objects/possums/huts/',
@@ -801,10 +825,21 @@ const CONFIG = {
         { normal: 'possum_tower_3.png', destroyed: 'possum_tower_3_destroyed.png' }
     ],
 
-
+    // Pickups
     HEALTH_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/health/',
-    HEALTH_PICKUP_SPRITE_FILES: ['health_pickup_crate.png'],
+    HEALTH_PICKUP_SPRITE_FILES: [
+        { normal: 'health_pickup_crate.png', destroyed: 'health_pickup_crate_empty.png' }
+    ],
+    AMMO_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/ammo/',
+    AMMO_PICKUP_SPRITE_FILES: [
+        { normal: 'ammo_pickup_crate.png', destroyed: 'ammo_pickup_crate_empty.png' }
+    ],
+    GRENADE_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/grenade/',
+    GRENADE_PICKUP_SPRITE_FILES: [
+        { normal: 'grenade_pickup_crate.png', destroyed: 'grenade_pickup_crate_empty.png' }
+    ],
 
+    // Fences
     FENCE_BARBED_SPRITE_PATH: 'assets/images/objects/fences/barbed/',
     FENCE_BARBED_SHORT_SPRITE_FILES: ['fence_barbed_straight_short_1.png', 'fence_barbed_straight_short_2.png', 'fence_barbed_straight_short_3.png', 'fence_barbed_straight_short_4.png', 'fence_barbed_straight_short_5.png', 'fence_barbed_straight_short_6.png'],
     FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png'],
@@ -890,9 +925,9 @@ const CONFIG = {
         },
         {
             type: 'tree_palm_single', name: 'Palm Tree Single', color: '#005522',
-            destructible: true, hp: 50, maxHp: 50,
+            destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
+            spawnWeight: 4, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.39), offsetY: (h => h * 1.25), radius: (w => w * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -901,9 +936,9 @@ const CONFIG = {
         },
         {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
-            destructible: true, hp: 75, maxHp: 75,
+            destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.25), radiusX: (w => w * 0.17), radiusY: (h => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -912,9 +947,9 @@ const CONFIG = {
         },
         {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
-            destructible: true, hp: 100, maxHp: 100,
+            destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 1, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.3), radiusX: (w => w * 0.2), radiusY: (h => h * 0.10) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -924,7 +959,7 @@ const CONFIG = {
         // 2
         {
             type: 'tree_palm2_single', name: 'Palm Tree 2 Single', color: '#005522',
-            destructible: true, hp: 50, maxHp: 50,
+            destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
             spriteScale: 0.3,
@@ -935,7 +970,7 @@ const CONFIG = {
         },
         {
             type: 'tree_palm2_double', name: 'Palm Tree 2 Double', color: '#005522',
-            destructible: true, hp: 75, maxHp: 75,
+            destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
             spawnWeight: 4, isDecoration: false,
             spriteScale: 0.3,
@@ -946,7 +981,7 @@ const CONFIG = {
         },
         {
             type: 'tree_palm2_triple', name: 'Palm Tree 2 Triple', color: '#005522',
-            destructible: true, hp: 100, maxHp: 100,
+            destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.4,
@@ -975,6 +1010,41 @@ const CONFIG = {
             isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
+            canBeFlipped: true,
+        },
+
+        // Fan Trees
+        {
+            type: 'tree_fan_single', name: 'Fan Tree Single', color: '#005522',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 5, isDecoration: false,
+            spriteScale: 0.3,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
+            spriteDestroyedScale: 0.5,
+            canBeFlipped: true,
+        },
+        {
+            type: 'tree_fan_double', name: 'Fan Tree Double', color: '#005522',
+            destructible: true, hp: 150, maxHp: 150,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 4, isDecoration: false,
+            spriteScale: 0.3,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
+            spriteDestroyedScale: 0.5,
+            canBeFlipped: true,
+        },
+        {
+            type: 'tree_fan_triple', name: 'Fan Tree Triple', color: '#005522',
+            destructible: true, hp: 200, maxHp: 200,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 1, isDecoration: false,
+            spriteScale: 0.4,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
+            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
+            spriteDestroyedScale: 0.45,
             canBeFlipped: true,
         },
         
@@ -1029,7 +1099,7 @@ const CONFIG = {
 
         // Forest patches
         {
-            type: 'forest_patch_dense_1',
+            type: 'rainforest_patch_small_1',
             name: 'Dense Palm Forest Patch',
             color: '#0E2908',
             destructible: false,
@@ -1037,15 +1107,36 @@ const CONFIG = {
             maxHp: Infinity,
             blocksMovement: true,
             providesCover: true,
-            spawnWeight: 3,
-            spriteNormal: 'assets/images/objects/biomes/tropical/trees/palm_forest_1.png',
-            spriteScale: 1.30,
+            spawnWeight: 4,
+            spriteNormal: 'assets/images/objects/biomes/tropical/trees/forests/rainforest_small_1.png',
+            spriteScale: 0.60,
             spriteDestroyed: null,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.15), width: (w => w * 0.85), height: (h => h * 0.25) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.33), radiusY: (h => h * 0.15) },
+            placementBuffer: 250,
+            canBeFlipped: true,
+            isDecoration: false
+        },
+        // --SMALLER FOREST PATCHES
+        {
+            type: 'tropical_forest_patch_small_1',
+            name: 'Small Tropical Forest Patch',
+            color: '#0E2908',
+            destructible: false,
+            hp: Infinity,
+            maxHp: Infinity,
+            blocksMovement: true,
+            providesCover: true,
+            spawnWeight: 2,
+            spriteNormal: 'assets/images/objects/biomes/tropical/trees/forests/rainforest_small_1.png',
+            spriteScale: 1.0,
+            spriteDestroyed: null,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.15), radius: (w => w * 0.35) },
             placementBuffer: 50,
             canBeFlipped: true,
             isDecoration: false
         },
+
+        // Explosive Barrels
         {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
@@ -1072,30 +1163,8 @@ const CONFIG = {
             sfxOnDestroy: 'EXPLOSIVE_BARREL_CLUSTER_DESTROYED',
             canBeFlipped: false,
         },
-        {
-            type: 'pickup_grenade_crate', name: 'Grenade Crate', color: '#006400',
-            destructible: true, hp: 1, maxHp: 1,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 1.5,
-            pickupType: 'grenade', pickupQuantity: 2,
-            spriteNormal: 'assets/images/objects/crates/crate_full.png',
-            spriteScale: 0.15,
-            spriteDestroyed: 'assets/images/objects/crates/crate_empty.png',
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
-            isPickup: true,
-            canBeFlipped: true, // Crates might have markings
-        },
-        {
-            type: 'pickup_health', name: 'Health Crate', color: '#FF69B4',
-            destructible: true, hp: 1, maxHp: 1,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 1.5,
-            pickupType: 'health', pickupQuantity: 30,
-            spriteScale: 0.25,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84) },
-            isPickup: true,
-            canBeFlipped: true,
-        },
+
+        // Enemy Structures
         {
             type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
             destructible: true, hp: 100, maxHp: 100,
@@ -1182,6 +1251,42 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8) },
         }
 
+    ],
+
+    PICKUP_DEFINITIONS: [
+        {
+            type: 'pickup_grenade_crate', name: 'Grenade Crate', color: '#006400',
+            destructible: true, hp: 1, maxHp: 1,
+            blocksMovement: false, providesCover: false,
+            spawnWeight: 0.5,
+            pickupType: 'grenade', pickupQuantity: 2,
+            spriteScale: 0.2,
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
+            isPickup: true,
+            canBeFlipped: true,
+        },
+        {
+            type: 'pickup_ammo_crate', name: 'Ammo Crate', color: '#4169E1',
+            destructible: true, hp: 1, maxHp: 1,
+            blocksMovement: false, providesCover: false,
+            spawnWeight: 0.5,
+            pickupType: 'ammo', pickupQuantity: 30,
+            spriteScale: 0.2,
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
+            isPickup: true,
+            canBeFlipped: true,
+        },
+        {
+            type: 'pickup_health', name: 'Health Crate', color: '#FF69B4',
+            destructible: true, hp: 1, maxHp: 1,
+            blocksMovement: false, providesCover: false,
+            spawnWeight: 0.5,
+            pickupType: 'health', pickupQuantity: 30,
+            spriteScale: 0.2,
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84) },
+            isPickup: true,
+            canBeFlipped: true,
+        },
     ],
 
     ENEMY_SPAWNING: {

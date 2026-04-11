@@ -34,8 +34,7 @@ class LevelGenerator {
 
             // --- MODIFICATION START: Inflate shape for buffer check ---
             const buffer = newObstacleTemplate.placementBuffer || 0;
-            // Apply buffer only if the new object and existing object are the same type
-            if (buffer > 0 && existing.type === newObstacleTemplate.type) {
+            if (buffer > 0) {
                 let inflatedShape = { ...shapeToCheck };
                 if (inflatedShape.type === 'rectangle') {
                     inflatedShape.x -= buffer;
@@ -139,6 +138,29 @@ class LevelGenerator {
         return lastValidDefs.pop() || (lastValidDefs.length > 0 ? lastValidDefs[0] : null);
     }
 
+    _getRandomPickupTemplate() {
+        const definitions = CONFIG.PICKUP_DEFINITIONS || [];
+        if (definitions.length === 0) {
+            console.warn("No pickup definitions found in CONFIG.PICKUP_DEFINITIONS!");
+            return null;
+        }
+
+        let totalWeight = 0;
+        definitions.forEach(def => {
+            totalWeight += (def.spawnWeight || 0);
+        });
+
+        if (totalWeight === 0) return null;
+
+        let randomNum = this.rng.next() * totalWeight;
+        for (const def of definitions) {
+            randomNum -= (def.spawnWeight || 0);
+            if (randomNum <= 0) return def;
+        }
+
+        return definitions.pop() || null;
+    }
+
     _spawnInitialGuardsForObject(parentObject, objectDefinition, allSpawnedEnemies, extraUnitPoolWeights) {
         if (!objectDefinition.initialGuardPack || !objectDefinition.initialGuardPack.enabled) {
             return;
@@ -232,7 +254,7 @@ class LevelGenerator {
      */
     _spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight) {
         // Find the grenade crate template
-        const grenadeCrateDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === 'pickup_grenade_crate');
+        const grenadeCrateDef = (CONFIG.PICKUP_DEFINITIONS || []).find(def => def.type === 'pickup_grenade_crate');
         if (!grenadeCrateDef) {
 //            console.warn("[Level Gen] Could not find pickup_grenade_crate definition");
             return;
@@ -272,9 +294,14 @@ class LevelGenerator {
         }
 
         // Create the grenade crate obstacle
-        const spritePath = grenadeCrateDef.spriteNormal;
-        const crateImage = this.preloadedAssetImages ? this.preloadedAssetImages[spritePath] : null;
-        
+        const grenadeSpriteFiles = CONFIG.GRENADE_PICKUP_SPRITE_FILES || [];
+        const grenadeSpritePath = CONFIG.GRENADE_PICKUP_SPRITE_PATH || '';
+        const grenadeSpritePair = grenadeSpriteFiles.length > 0 ? grenadeSpriteFiles[0] : { normal: 'grenade_pickup_crate.png', destroyed: 'grenade_pickup_crate_empty.png' };
+        const spriteNormalPath = grenadeSpritePath + grenadeSpritePair.normal;
+        const spriteDestroyedPath = grenadeSpritePath + grenadeSpritePair.destroyed;
+        const crateImage = this.preloadedAssetImages ? this.preloadedAssetImages[spriteNormalPath] : null;
+        const crateDestroyedImage = this.preloadedAssetImages ? this.preloadedAssetImages[spriteDestroyedPath] : null;
+
         const grenadeCrate = {
             x: crateShape.x,
             y: crateShape.y,
@@ -293,14 +320,94 @@ class LevelGenerator {
             pickupQuantity: grenadeCrateDef.pickupQuantity,
             isPickup: true,
             isDecoration: false,
-            spriteNormalPath: spritePath,
+            spriteNormalPath: spriteNormalPath,
+            spriteDestroyedPath: spriteDestroyedPath,
             imageNormal: crateImage,
+            imageDestroyed: crateDestroyedImage,
             spriteScale: grenadeCrateDef.spriteScale || 1.0,
             collisionShape: grenadeCrateDef.collisionShape
         };
 
         this.level.obstacles.push(grenadeCrate);
         if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned grenade crate at (${finalCrateX.toFixed(0)}, ${finalCrateY.toFixed(0)}) near relay tower`);
+    }
+
+    /**
+     * Spawns an ammo crate near a relay tower target
+     * @param {number} targetX - X position of the target
+     * @param {number} targetY - Y position of the target
+     * @param {number} targetWidth - Width of the target
+     * @param {number} targetHeight - Height of the target
+     */
+    _spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight) {
+        const ammoCrateDef = (CONFIG.PICKUP_DEFINITIONS || []).find(def => def.type === 'pickup_ammo_crate');
+        if (!ammoCrateDef) {
+            return;
+        }
+
+        const crateOffsetX = targetWidth / 2 + 40;
+        const crateOffsetY = 0;
+        const crateX = targetX + crateOffsetX;
+        const crateY = targetY + crateOffsetY;
+
+        const playableMinX = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMaxX = (CONFIG.WORLD_WIDTH || 800) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMinY = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMaxY = (CONFIG.WORLD_HEIGHT || 600) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+
+        const finalCrateX = Math.max(playableMinX, Math.min(crateX, playableMaxX - 30));
+        const finalCrateY = Math.max(playableMinY, Math.min(crateY, playableMaxY + 30));
+
+        const crateShape = {
+            x: finalCrateX,
+            y: finalCrateY,
+            width: 30,
+            height: 30
+        };
+
+        if (this._isPlacementInvalid(crateShape, ammoCrateDef, this.level.obstacles, [])) {
+            crateShape.x = targetX - targetWidth / 2 - 40;
+            if (this._isPlacementInvalid(crateShape, ammoCrateDef, this.level.obstacles, [])) {
+                return;
+            }
+        }
+
+        const ammoSpriteFiles = CONFIG.AMMO_PICKUP_SPRITE_FILES || [];
+        const ammoSpritePath = CONFIG.AMMO_PICKUP_SPRITE_PATH || '';
+        const ammoSpritePair = ammoSpriteFiles.length > 0 ? ammoSpriteFiles[0] : { normal: 'ammo_pickup_crate.png', destroyed: 'ammo_pickup_crate_empty.png' };
+        const spriteNormalPath = ammoSpritePath + ammoSpritePair.normal;
+        const spriteDestroyedPath = ammoSpritePath + ammoSpritePair.destroyed;
+        const crateImage = this.preloadedAssetImages ? this.preloadedAssetImages[spriteNormalPath] : null;
+        const crateDestroyedImage = this.preloadedAssetImages ? this.preloadedAssetImages[spriteDestroyedPath] : null;
+
+        const ammoCrate = {
+            x: crateShape.x,
+            y: crateShape.y,
+            width: crateImage ? crateImage.naturalWidth * (ammoCrateDef.spriteScale || 1) : (ammoCrateDef.width || 30),
+            height: crateImage ? crateImage.naturalHeight * (ammoCrateDef.spriteScale || 1) : (ammoCrateDef.height || 30),
+            type: ammoCrateDef.type,
+            name: ammoCrateDef.name,
+            color: ammoCrateDef.color,
+            destructible: ammoCrateDef.destructible,
+            hp: ammoCrateDef.hp,
+            maxHp: ammoCrateDef.maxHp,
+            isDestroyed: false,
+            blocksMovement: false,
+            providesCover: false,
+            pickupType: ammoCrateDef.pickupType,
+            pickupQuantity: ammoCrateDef.pickupQuantity,
+            isPickup: true,
+            isDecoration: false,
+            spriteNormalPath: spriteNormalPath,
+            spriteDestroyedPath: spriteDestroyedPath,
+            imageNormal: crateImage,
+            imageDestroyed: crateDestroyedImage,
+            spriteScale: ammoCrateDef.spriteScale || 1.0,
+            collisionShape: ammoCrateDef.collisionShape
+        };
+
+        this.level.obstacles.push(ammoCrate);
+        if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned ammo crate at (${finalCrateX.toFixed(0)}, ${finalCrateY.toFixed(0)}) near relay tower`);
     }
 
     // --- NEW: Sanity check function to run at the end of generation ---
@@ -758,6 +865,7 @@ class LevelGenerator {
                             
                             if (targetTemplateOriginal.type === 'possum_relay_tower') {
                                 this._spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight);
+                                this._spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight);
                             }
                             
                             placedTarget = true;
@@ -792,7 +900,7 @@ class LevelGenerator {
             let actualSpritePath = null, actualImageObject = null;
             let actualDestroyedSpritePath = template.spriteDestroyed || null, actualDestroyedImageObject = null;
             let normalSpriteScale = template.spriteScale || 1.0, destroyedSpriteScale = template.spriteDestroyedScale;
-            let filesArray = [], pathBase = '', useRandomSpriteFromList = false;
+            let filesArray = [], pathBase = '', useRandomSpriteFromList = false, useSpritePair = false;
 
             if (template.type === 'possum_hut') {
                 const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
@@ -830,7 +938,24 @@ class LevelGenerator {
             else if (template.type === 'tree_palm_single') { filesArray = CONFIG.PALM_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_double') { filesArray = CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_triple') { filesArray = CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'pickup_health') { filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || []; pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'pickup_health') {
+                filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || [];
+                pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || '';
+                useRandomSpriteFromList = true;
+                useSpritePair = true;
+            }
+            else if (template.type === 'pickup_ammo_crate') {
+                filesArray = CONFIG.AMMO_PICKUP_SPRITE_FILES || [];
+                pathBase = CONFIG.AMMO_PICKUP_SPRITE_PATH || '';
+                useRandomSpriteFromList = true;
+                useSpritePair = true;
+            }
+            else if (template.type === 'pickup_grenade_crate') {
+                filesArray = CONFIG.GRENADE_PICKUP_SPRITE_FILES || [];
+                pathBase = CONFIG.GRENADE_PICKUP_SPRITE_PATH || '';
+                useRandomSpriteFromList = true;
+                useSpritePair = true;
+            }
             else if (template.type === 'tree_palm_fallen') { filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm2_fallen') { filesArray = CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_deciduous_fallen') { filesArray = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
@@ -840,13 +965,22 @@ class LevelGenerator {
             else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree4_deciduous_single') { filesArray = CONFIG.TREE4_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE4_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree5_deciduous_single') { filesArray = CONFIG.TREE5_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE5_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_fan_single') { filesArray = CONFIG.FAN_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_fan_double') { filesArray = CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_fan_triple') { filesArray = CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'palm_bush_small') { filesArray = CONFIG.PALM_BUSH_SMALL_FILES || []; pathBase = CONFIG.PALM_BUSH_SMALL_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'palm_bush_large') { filesArray = CONFIG.PALM_BUSH_LARGE_FILES || []; pathBase = CONFIG.PALM_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
             else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {
                 if (filesArray.length > 0 && pathBase) {
-                    actualSpritePath = pathBase + this.rng.pickFrom(filesArray);
+                    if (useSpritePair) {
+                        const selectedPair = this.rng.pickFrom(filesArray);
+                        actualSpritePath = pathBase + selectedPair.normal;
+                        actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                    } else {
+                        actualSpritePath = pathBase + this.rng.pickFrom(filesArray);
+                    }
                 } else {
                     if (CONFIG.DEBUG_LOGGING) console.warn(`[Level Gen] Obstacle type ${template.type} configured for list-based sprite but filesArray or pathBase is missing/empty.`);
                 }
@@ -910,6 +1044,8 @@ class LevelGenerator {
                 }
 
                 if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, extraKeepOutZones) && !(isRestrictedType && overlapsOuterSpawnZone)) {
+                    const isTreeType = template.type.startsWith('tree_palm') || template.type.startsWith('tree_deciduous');
+                    const treeFallChance = isTreeType ? (CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS?.FALL_CHANCE ?? 0.45) : 0;
                     const newObstacle = {
                         x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight, type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
@@ -920,10 +1056,11 @@ class LevelGenerator {
                         imageNormal: actualImageObject,
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
-                        isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false, // --- ADDED THIS LINE ---
+                        isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false,
                         collisionShape: template.collisionShape || null, isSpawner: template.type === 'possum_hut' || template.type === 'possum_hut_round',
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
-                        delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
+                        delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
+                        willSpawnLog: isTreeType ? this.rng.chance(treeFallChance) : false
                     };
                     this.level.obstacles.push(newObstacle);
                     if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
@@ -932,6 +1069,90 @@ class LevelGenerator {
                 }
                 attempts++;
             } while (!placed && attempts < placementMaxAttempts);
+        }
+
+        const pickupGenCfg = genConfig.PICKUPS || {};
+        const pickupBaseCount = pickupGenCfg.BASE_COUNT || 5;
+        const pickupPhaseIncrement = pickupGenCfg.PHASE_INCREMENT || 0;
+        const phaseIndex = this.game.currentPhaseIndex || 0;
+        const numPickups = pickupBaseCount + (phaseIndex * pickupPhaseIncrement) + this.rng.nextInt(0, pickupGenCfg.RANDOM_ADDITION_MAX || 3);
+        const pickupPlacementMaxAttempts = pickupGenCfg.PLACEMENT_MAX_ATTEMPTS || 15;
+
+        for (let i = 0; i < numPickups; i++) {
+            const template = this._getRandomPickupTemplate();
+            if (!template) continue;
+
+            let actualSpritePath = null, actualImageObject = null;
+            let actualDestroyedSpritePath = null, actualDestroyedImageObject = null;
+            let normalSpriteScale = template.spriteScale || 1.0, destroyedSpriteScale = template.spriteDestroyedScale;
+            let filesArray = [], pathBase = '', useRandomSpriteFromList = false, useSpritePair = false;
+
+            if (template.type === 'pickup_health') {
+                filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || [];
+                pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || '';
+                useRandomSpriteFromList = true;
+                useSpritePair = true;
+            }
+            else if (template.type === 'pickup_ammo_crate') {
+                filesArray = CONFIG.AMMO_PICKUP_SPRITE_FILES || [];
+                pathBase = CONFIG.AMMO_PICKUP_SPRITE_PATH || '';
+                useRandomSpriteFromList = true;
+                useSpritePair = true;
+            }
+            else if (template.type === 'pickup_grenade_crate') {
+                filesArray = CONFIG.GRENADE_PICKUP_SPRITE_FILES || [];
+                pathBase = CONFIG.GRENADE_PICKUP_SPRITE_PATH || '';
+                useRandomSpriteFromList = true;
+                useSpritePair = true;
+            }
+
+            if (useRandomSpriteFromList && filesArray.length > 0 && pathBase) {
+                if (useSpritePair) {
+                    const selectedPair = this.rng.pickFrom(filesArray);
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                } else {
+                    actualSpritePath = pathBase + this.rng.pickFrom(filesArray);
+                }
+            }
+            actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
+            if (actualDestroyedSpritePath) actualDestroyedImageObject = preloadedAssetImages[actualDestroyedSpritePath] || null;
+
+            const pickupWidth = actualImageObject ? actualImageObject.naturalWidth * normalSpriteScale : (template.width || 32);
+            const pickupHeight = actualImageObject ? actualImageObject.naturalHeight * normalSpriteScale : (template.height || 32);
+
+            let pickupX, pickupY;
+            let placed = false;
+            let attempts = 0;
+
+            do {
+                pickupX = this.rng.nextFloat(playableMinX, playableMaxX - pickupWidth);
+                pickupY = this.rng.nextFloat(playableMinY, playableMaxY - pickupHeight);
+
+                const tempPickupForShape = { ...template, x: pickupX, y: pickupY, width: pickupWidth, height: pickupHeight };
+                const collisionCheckShape = this.level._getObstacleCollisionShape(tempPickupForShape);
+
+                if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, [])) {
+                    const newPickup = {
+                        x: pickupX, y: pickupY, width: pickupWidth, height: pickupHeight,
+                        type: template.type, name: template.name || template.type, color: template.color,
+                        destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
+                        blocksMovement: false, providesCover: false,
+                        pickupType: template.pickupType || null, pickupQuantity: template.pickupQuantity || 0,
+                        isPickup: true, isDecoration: false,
+                        spriteNormalPath: actualSpritePath,
+                        spriteDestroyedPath: actualDestroyedSpritePath,
+                        imageNormal: actualImageObject,
+                        imageDestroyed: actualDestroyedImageObject,
+                        spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
+                        collisionShape: template.collisionShape || null
+                    };
+                    this.level.obstacles.push(newPickup);
+                    placed = true;
+                    if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned pickup ${template.type} at (${pickupX.toFixed(0)}, ${pickupY.toFixed(0)})`);
+                }
+                attempts++;
+            } while (!placed && attempts < pickupPlacementMaxAttempts);
         }
 
         this.level.generateNavigationGrid(worldWidth, worldHeight);

@@ -93,6 +93,7 @@ class Game {
         this.missionPendingOutcomeIsVictory = false;
         this.missionEndInitiated = false;
         this.missionEndMessage = "";
+        this.pendingDebriefData = null;
 
         this.isGamePausedManually = false;
 
@@ -131,37 +132,107 @@ class Game {
         this.gameLoop = this.gameLoop.bind(this);
 
         (async () => {
+            this._showAssetLoadingScreen();
+            
+            const totalAssets = this._countTotalAssets();
+            let loadedAssets = 0;
+            const updateProgress = (text) => {
+                loadedAssets++;
+                const progress = Math.min((loadedAssets / totalAssets) * 100, 100);
+                this._updateLoadingProgress(progress, text);
+            };
+
+            this._updateLoadingProgress(0, 'Loading audio...');
             await this.preloadAudioAssets();
+            updateProgress('audio');
+
             const defaultWallpaper = CONFIG.MENU_WALLPAPERS.find(w => w.key === CONFIG.DEFAULT_MENU_WALLPAPER) || CONFIG.MENU_WALLPAPERS[0];
-            const menuWallpaperPath = defaultWallpaper ? defaultWallpaper.path : 'assets/images/ui/wallpapers/raccoon_marine_menu_3_left.jpg';
+            const menuWallpaperPath = defaultWallpaper ? defaultWallpaper.path : 'assets/images/ui/wallpapers/1K/menu/raccoon_1_menu.jpg';
             if (!this.preloadedImages[menuWallpaperPath]) {
                 const img = new Image();
-                img.onload = () => { this.preloadedImages[menuWallpaperPath] = img; };
+                img.onload = () => { this.preloadedImages[menuWallpaperPath] = img; updateProgress('wallpaper'); };
                 img.src = menuWallpaperPath;
+            } else {
+                updateProgress('wallpaper');
             }
 
-            // Preload all menu wallpapers
             if (CONFIG.MENU_WALLPAPERS) {
                 CONFIG.MENU_WALLPAPERS.forEach(wallpaper => {
                     if (!this.preloadedImages[wallpaper.path]) {
                         const img = new Image();
-                        img.onload = () => { this.preloadedImages[wallpaper.path] = img; };
+                        img.onload = () => { this.preloadedImages[wallpaper.path] = img; updateProgress('wallpaper'); };
                         img.src = wallpaper.path;
+                    } else {
+                        updateProgress('wallpaper');
                     }
                 });
             }
 
+            this._updateLoadingProgress(10, 'Loading unit sprites...');
+            await this.preloadUnitAssets();
+            updateProgress('units');
+
+            this._updateLoadingProgress(40, 'Loading level assets...');
+            await this.preloadLevelAssets();
+            updateProgress('level');
+
+            this._updateLoadingProgress(70, 'Loading misc assets...');
+            await this.preloadMiscAssets();
+            updateProgress('misc');
+
+            this._updateLoadingProgress(100, 'Ready!');
+            
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            this._hideAssetLoadingScreen();
+
             if (this.ui) {
-                this.ui.currentWallpaperKey = CONFIG.DEFAULT_MENU_WALLPAPER;
+                const savedWallpaper = SaveManager.getPreference('menuWallpaper', CONFIG.DEFAULT_MENU_WALLPAPER);
+                this.ui.currentWallpaperKey = savedWallpaper;
                 this.ui.showMainMenuScreen();
             }
-            // Start main menu music after audio is loaded
             if (this.musicManager) {
                 this.musicManager.onGameStateChange('MAIN_MENU');
             }
             this.lastFpsUpdateTime = performance.now();
             requestAnimationFrame(this.gameLoop);
         })();
+    }
+
+    _countTotalAssets() {
+        let count = 1;
+        if (CONFIG.MENU_WALLPAPERS) count += CONFIG.MENU_WALLPAPERS.length;
+        count += 3;
+        count += 5;
+        return Math.max(count, 50);
+    }
+
+    _showAssetLoadingScreen() {
+        const loadingScreen = document.getElementById('assetLoadingScreen');
+        const loadingBg = document.getElementById('assetLoadingBackground');
+        if (loadingScreen) {
+            loadingScreen.classList.remove('hidden');
+        }
+        if (loadingBg && CONFIG.MENU_WALLPAPERS && CONFIG.MENU_WALLPAPERS.length > 0) {
+            const defaultWp = CONFIG.MENU_WALLPAPERS.find(w => w.key === CONFIG.DEFAULT_MENU_WALLPAPER) || CONFIG.MENU_WALLPAPERS[0];
+            if (defaultWp) {
+                loadingBg.style.backgroundImage = `url('${defaultWp.path}')`;
+            }
+        }
+    }
+
+    _updateLoadingProgress(percent, text) {
+        const bar = document.getElementById('loadingBar');
+        const textEl = document.getElementById('loadingProgressText');
+        if (bar) bar.style.width = `${percent}%`;
+        if (textEl && text) textEl.textContent = text;
+    }
+
+    _hideAssetLoadingScreen() {
+        const loadingScreen = document.getElementById('assetLoadingScreen');
+        if (loadingScreen) {
+            loadingScreen.classList.add('hidden');
+        }
     }
 
     toggleDebugVisuals() {
@@ -446,7 +517,7 @@ class Game {
             }
         }
 
-        const menuWallpaperPath = 'assets/images/ui/wallpapers/raccoon_marine_menu_left.jpg';
+        const menuWallpaperPath = 'assets/images/ui/wallpapers/1K/menu/raccoon_1_menu.jpg';
         if (!this.preloadedImages[menuWallpaperPath]) {
             imagePromises.push(new Promise((resolve) => {
                 const img = new Image();
@@ -734,6 +805,36 @@ class Game {
             });
         }
 
+        const pickupSpritePairs = [
+            { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH },
+            { files: CONFIG.AMMO_PICKUP_SPRITE_FILES, path: CONFIG.AMMO_PICKUP_SPRITE_PATH },
+            { files: CONFIG.GRENADE_PICKUP_SPRITE_FILES, path: CONFIG.GRENADE_PICKUP_SPRITE_PATH }
+        ];
+        pickupSpritePairs.forEach(pickup => {
+            if (pickup.files && pickup.path) {
+                pickup.files.forEach(pair => {
+                    const normalPath = pickup.path + pair.normal;
+                    const destroyedPath = pickup.path + pair.destroyed;
+                    if (pair.normal && !this.preloadedImages[normalPath]) {
+                        imagePromises.push(new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                            img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                            img.src = normalPath;
+                        }));
+                    }
+                    if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
+                        imagePromises.push(new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                            img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                            img.src = destroyedPath;
+                        }));
+                    }
+                });
+            }
+        });
+
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
             if (
@@ -756,9 +857,14 @@ class Game {
                 (def.type === 'tree_deciduous_single' && CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES) ||
                 (def.type === 'tree4_deciduous_single' && CONFIG.TREE4_SINGLE_SPRITE_FILES) ||
                 (def.type === 'tree5_deciduous_single' && CONFIG.TREE5_SINGLE_SPRITE_FILES) ||
+                (def.type === 'tree_fan_single' && CONFIG.FAN_TREE_SINGLE_SPRITE_FILES) ||
+                (def.type === 'tree_fan_double' && CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES) ||
+                (def.type === 'tree_fan_triple' && CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES) ||
                 (def.type === 'palm_bush_small' && CONFIG.PALM_BUSH_SMALL_FILES) ||
                 (def.type === 'palm_bush_large' && CONFIG.PALM_BUSH_LARGE_FILES) ||
                 (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
+                (def.type === 'pickup_ammo_crate' && CONFIG.AMMO_PICKUP_SPRITE_FILES) ||
+                (def.type === 'pickup_grenade_crate' && CONFIG.GRENADE_PICKUP_SPRITE_FILES) ||
                 (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ||
                 (def.type === 'possum_hut_round' && CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES) ||
                 (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES)) {
@@ -803,9 +909,14 @@ class Game {
             { files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, name: "deciduous_single" },
             { files: CONFIG.TREE4_SINGLE_SPRITE_FILES, path: CONFIG.TREE4_SINGLE_SPRITE_PATH, name: "tree4_deciduous_single" },
             { files: CONFIG.TREE5_SINGLE_SPRITE_FILES, path: CONFIG.TREE5_SINGLE_SPRITE_PATH, name: "tree5_deciduous_single" },
+            { files: CONFIG.FAN_TREE_SINGLE_SPRITE_FILES, path: CONFIG.FAN_TREE_SINGLE_SPRITE_PATH, name: "tree_fan_single" },
+            { files: CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH, name: "tree_fan_double" },
+            { files: CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH, name: "tree_fan_triple" },
             { files: CONFIG.PALM_BUSH_SMALL_FILES, path: CONFIG.PALM_BUSH_SMALL_PATH, name: "palm_bush_small" },
             { files: CONFIG.PALM_BUSH_LARGE_FILES, path: CONFIG.PALM_BUSH_LARGE_PATH, name: "palm_bush_large" },
             { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH, name: "pickup_health" },
+            { files: CONFIG.AMMO_PICKUP_SPRITE_FILES, path: CONFIG.AMMO_PICKUP_SPRITE_PATH, name: "pickup_ammo_crate" },
+            { files: CONFIG.GRENADE_PICKUP_SPRITE_FILES, path: CONFIG.GRENADE_PICKUP_SPRITE_PATH, name: "pickup_grenade_crate" },
             { files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, name: "mud" }
         ];
 
@@ -1194,14 +1305,13 @@ class Game {
 
         // --- Handle Ambush After Video Ends ---
         if (willTriggerAmbush) {
-            // Show ambush alert, then start mission after alert is dismissed
             const game = this;
             this.executeStartAmbush(function(success) {
-                // Ambush completed, continue with mission setup
-                game.finishMissionStart();
+                if (success) {
+                    game.finishMissionStart();
+                }
             });
         } else {
-            // No ambush - proceed directly to mission
             this.finishMissionStart();
         }
     }
@@ -1248,6 +1358,7 @@ class Game {
         this.missionEndDelayTimer = -1;
         this.missionPendingOutcomeIsVictory = false;
         this.missionEndInitiated = false;
+        this.pendingDebriefData = null;
     }
 
     /**
@@ -2456,11 +2567,47 @@ class Game {
 
         if (this.ui) {
             this.ui.hideHUD();
-            this.ui.showPostMissionScreen_Debrief(debriefData);
-            if (this.inputHandler) this.inputHandler.updateMouseCursor();
         }
-        this.missionEndDelayTimer = -1;
+
+        if (isVictory) {
+            this.pendingDebriefData = debriefData;
+            if (isLastMissionInPhase) {
+                this.gameState = 'EXTRACTION_VIDEO';
+                this._playExtractionVideo();
+            } else {
+                this._showDebriefScreen();
+            }
+        } else {
+            if (this.ui) {
+                this.ui.showPostMissionScreen_Debrief(debriefData);
+                if (this.inputHandler) this.inputHandler.updateMouseCursor();
+            }
+            this.missionEndDelayTimer = -1;
+        }
         this.hostageUnits = [];
+    }
+
+    async _playExtractionVideo() {
+        if (!this.ui) {
+            this._showDebriefScreen();
+            return;
+        }
+        const extractionVideoPaths = [
+            'assets/video/extraction/extraction_takeoff_1.mp4',
+        ];
+        const videoPath = extractionVideoPaths[Math.floor(Math.random() * extractionVideoPaths.length)];
+        await this.ui.playExtractionVideo(videoPath);
+        this._showDebriefScreen();
+    }
+
+    _showDebriefScreen() {
+        if (this.pendingDebriefData && this.ui) {
+            this.ui.showPostMissionScreen_Debrief(this.pendingDebriefData);
+            if (this.inputHandler) this.inputHandler.updateMouseCursor();
+            this.pendingDebriefData = null;
+        }
+        this.gameState = 'POST_MISSION_DEBRIEF';
+        this.missionEndDelayTimer = -1;
     }
 
     proceedToNextLogicalStep() {
@@ -2922,14 +3069,17 @@ class Game {
                 if (this.ui) {
                     this.ui.hideShootoutHud();
                     this.ui.showHUD();
+                    // Crossfade from shootout music back to campaign music
+                    if (this.musicManager) {
+                        this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { fade: true, loop: true });
+                    }
                 }
-                // Stop shootout music and fade out (victory/defeat music handled by initiateMissionEnd)
-                // Don't restart mission music here - if mission is ending, initiateMissionEnd will handle music
-            // Crossfade from campaign music to ambush music
-            if (this.musicManager) {
-                this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { fade: true, loop: true });
             }
-            }
+            return;
+        }
+
+        // Handle Extraction Video - state managed by _playExtractionVideo and _showDebriefScreen
+        if (this.gameState === 'EXTRACTION_VIDEO') {
             return;
         }
 
@@ -3081,9 +3231,9 @@ class Game {
         }
 
         let sortableObjects = [];
-        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
-        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
-        if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2), isUnit: true }); } }); }
+        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2) - (isDeadUnit ? 0.5 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2) - (isDeadUnit ? 0.5 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2) - (isDeadUnit ? 0.5 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
                     // --- MODIFICATION START: Fix extraction zone not being drawn after isHidden=false ---
             // Added check for isHidden to allow extraction zones to appear when revealed
             if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { 
@@ -3095,7 +3245,7 @@ class Game {
                         shouldSort = false; 
                     } 
                 } 
-                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null; if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { sortableObjects.push({ entity: obstacle, sortY: sortYValue, isUnit: false }); } } }); }
+                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;                 if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { const isDestroyedObstacle = !!obstacle.isDestroyed; sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isDestroyedObstacle ? 0.5 : 0), isUnit: false, isDestroyed: isDestroyedObstacle }); } } }); }
         const birdsToRenderLast = [];
         this.gameObjects.forEach(obj => {
             if (obj instanceof FlyingBird) {

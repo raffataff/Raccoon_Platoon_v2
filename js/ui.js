@@ -49,6 +49,8 @@ class UI {
         this.nextMissionButton = document.getElementById('nextMissionButton');
         this.videoLoadingScreen = document.getElementById('videoLoadingScreen');
         this.loadingVideoPlayer = document.getElementById('loadingVideoPlayer');
+        this.extractionVideoScreen = document.getElementById('extractionVideoScreen');
+        this.extractionVideoPlayer = document.getElementById('extractionVideoPlayer');
 
         this.gameOverMemorialButton = document.getElementById('gameOverMemorialButton'); // New button
         this.gameOverNewCampaignButton = document.getElementById('gameOverNewCampaignButton');
@@ -57,7 +59,8 @@ class UI {
         this.optionsMenuScreen = document.getElementById('optionsMenuScreen');
         this.backFromOptionsButton = document.getElementById('backFromOptionsButton');
         this.wallpaperSelectionGrid = document.getElementById('wallpaperSelectionGrid');
-        this.currentWallpaperKey = CONFIG.DEFAULT_MENU_WALLPAPER || 'raccoon_marine_3';
+        this.shuffleWallpaperButton = document.getElementById('shuffleWallpaperButton');
+        this.currentWallpaperKey = SaveManager.getPreference('menuWallpaper', CONFIG.DEFAULT_MENU_WALLPAPER) || 'raccoon_marine_3';
 
         // Save/Load UI elements
         this.continueGameButton = document.getElementById('continueGameButton');
@@ -559,6 +562,42 @@ class UI {
         }, 500);
     }
 
+    playExtractionVideo(videoPath) {
+        if (!this.extractionVideoScreen || !this.extractionVideoPlayer) return Promise.resolve();
+
+        this.extractionVideoPlayer.src = videoPath;
+        this.extractionVideoPlayer.load();
+
+        this.extractionVideoScreen.style.display = 'flex';
+        setTimeout(() => {
+            this.extractionVideoScreen.classList.add('visible');
+        }, 10);
+
+        return new Promise((resolve) => {
+            const handleEnded = () => {
+                this.extractionVideoPlayer.removeEventListener('ended', handleEnded);
+                this.hideExtractionVideoScreen();
+                resolve();
+            };
+            this.extractionVideoPlayer.addEventListener('ended', handleEnded);
+            this.extractionVideoPlayer.play().catch(() => {
+                resolve();
+            });
+        });
+    }
+
+    hideExtractionVideoScreen() {
+        if (!this.extractionVideoScreen || !this.extractionVideoPlayer) return;
+
+        this.extractionVideoScreen.classList.remove('visible');
+
+        setTimeout(() => {
+            this.extractionVideoScreen.style.display = 'none';
+            this.extractionVideoPlayer.pause();
+            this.extractionVideoPlayer.src = '';
+        }, 500);
+    }
+
     _addSoundToButton(buttonElement, clickCallback) {
         if (buttonElement) {
             buttonElement.addEventListener('click', () => {
@@ -616,10 +655,8 @@ class UI {
         this.mainMenuScreen.style.display = 'flex';
         if (this.mainMenuWallpaper) {
             this.mainMenuWallpaper.style.display = 'block';
-            const wallpaper = CONFIG.MENU_WALLPAPERS.find(w => w.key === this.currentWallpaperKey);
-            if (wallpaper) {
-                this.mainMenuWallpaper.style.backgroundImage = `url('${wallpaper.path}')`;
-            }
+            const randomWallpaper = CONFIG.MENU_WALLPAPERS[Math.floor(Math.random() * CONFIG.MENU_WALLPAPERS.length)];
+            this.applyWallpaper(randomWallpaper.key, false);
         }
         this.setCursor('default');
     }
@@ -1383,6 +1420,7 @@ class UI {
         // Options Menu button handlers
         this._addSoundToButton(this.optionsButton, () => this.showOptionsMenu());
         this._addSoundToButton(this.backFromOptionsButton, () => this.hideOptionsMenu());
+        this._addSoundToButton(this.shuffleWallpaperButton, () => this.shuffleWallpaper());
     }
 
     showHowToPlayScreen() {
@@ -1458,10 +1496,17 @@ class UI {
     }
 
     selectWallpaper(wallpaperKey) {
+        this.applyWallpaper(wallpaperKey, true);
+    }
+
+    applyWallpaper(wallpaperKey, savePreference = false) {
         const wallpaper = CONFIG.MENU_WALLPAPERS.find(w => w.key === wallpaperKey);
         if (!wallpaper) return;
 
         this.currentWallpaperKey = wallpaperKey;
+        if (savePreference) {
+            SaveManager.savePreference('menuWallpaper', wallpaperKey);
+        }
 
         if (this.mainMenuWallpaper) {
             this.mainMenuWallpaper.style.backgroundImage = `url('${wallpaper.path}')`;
@@ -1477,6 +1522,14 @@ class UI {
         }
 
         this.populateWallpaperSelection();
+    }
+
+    shuffleWallpaper() {
+        if (!CONFIG.MENU_WALLPAPERS || CONFIG.MENU_WALLPAPERS.length === 0) return;
+        const otherWallpapers = CONFIG.MENU_WALLPAPERS.filter(w => w.key !== this.currentWallpaperKey);
+        if (otherWallpapers.length === 0) return;
+        const randomWallpaper = otherWallpapers[Math.floor(Math.random() * otherWallpapers.length)];
+        this.applyWallpaper(randomWallpaper.key, false);
     }
 
     showGameOverScreen(message, isCampaignVictory = false) {
