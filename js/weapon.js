@@ -422,7 +422,7 @@ class GrenadeProjectile {
             this.game.audioManager.play('GRENADE_EXPLODE');
         }
 
-        if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('explosion', { x: this.x, y: this.y, radius: this.aoeRadius });
+        if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('grenade_explosion', { x: this.x, y: this.y, radius: this.aoeRadius });
 
         let objectsInAOE = [];
         if (this.game.spatialGrid) {

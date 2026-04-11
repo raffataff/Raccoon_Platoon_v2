@@ -74,6 +74,7 @@ class Game {
         this.currentPhaseIndex = 0;
         this.currentMissionIndex = 0;
         this.currentMissionParams = null;
+        this.currentPhaseMudParams = null;
         this.lastPlayedMusicKey = null;
 
         this.gameState = 'MAIN_MENU';
@@ -314,6 +315,31 @@ class Game {
                     img.onerror = () => { console.warn(`[Preload FAILED - Misc] Bird sheet: '${path}'`); this.preloadedImages[path] = null; resolve(); };
                     img.src = path;
                 }));
+            }
+        }
+        const explosionConfig = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.EXPLOSION;
+        if (explosionConfig) {
+            if (explosionConfig.GRENADE && explosionConfig.GRENADE.SPRITE_PATH) {
+                const path = explosionConfig.GRENADE.SPRITE_PATH;
+                if (!this.preloadedImages[path]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload FAILED - Misc] Grenade explosion sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                        img.src = path;
+                    }));
+                }
+            }
+            if (explosionConfig.BARREL && explosionConfig.BARREL.SPRITE_PATH) {
+                const path = explosionConfig.BARREL.SPRITE_PATH;
+                if (!this.preloadedImages[path]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload FAILED - Misc] Barrel explosion sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                        img.src = path;
+                    }));
+                }
             }
         }
         // Preload shootout enemy tilesheets (grunt and heavy)
@@ -970,18 +996,19 @@ class Game {
             const stepX = configuredTileSize * (1 - overlapFactor + 0.1);
             const stepY = configuredTileSize * (1 - overlapFactor);
 
-            const skipChance = CONFIG.WORLD_GRASS_SKIP_CHANCE || 0.0;
-            const skipMin = CONFIG.WORLD_GRASS_SKIP_MIN || 1;
-            const skipMax = CONFIG.WORLD_GRASS_SKIP_MAX || 1;
+            const mudParams = this.currentPhaseMudParams || {};
+            const skipChance = mudParams.grassSkipChance ?? CONFIG.WORLD_GRASS_SKIP_CHANCE ?? 0.0;
+            const skipMin = mudParams.grassSkipMin ?? CONFIG.WORLD_GRASS_SKIP_MIN ?? 1;
+            const skipMax = mudParams.grassSkipMax ?? CONFIG.WORLD_GRASS_SKIP_MAX ?? 1;
 
             const mudSpritePath = CONFIG.MUD_SPRITE_PATH || '';
             const mudSpriteFiles = CONFIG.MUD_SPRITE_FILES || [];
             const hasMudSprites = mudSpriteFiles.length > 0;
 
-            const noiseScaleX = (CONFIG.WORLD_MUD_NOISE_SCALE_X || 0.05);
-            const noiseScaleY = (CONFIG.WORLD_MUD_NOISE_SCALE_Y || 0.05);
-            const noiseThreshold = (CONFIG.WORLD_MUD_NOISE_THRESHOLD || 0.3);
-            const noiseOctaves = (CONFIG.WORLD_MUD_NOISE_OCTAVES || 4);
+            const noiseScaleX = (mudParams.noiseScaleX ?? CONFIG.WORLD_MUD_NOISE_SCALE_X) || 0.05;
+            const noiseScaleY = (mudParams.noiseScaleY ?? CONFIG.WORLD_MUD_NOISE_SCALE_Y) || 0.05;
+            const noiseThreshold = (mudParams.noiseThreshold ?? CONFIG.WORLD_MUD_NOISE_THRESHOLD) || 0.3;
+            const noiseOctaves = (mudParams.noiseOctaves ?? CONFIG.WORLD_MUD_NOISE_OCTAVES) || 4;
 
             for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
                 const rowOffset = (Math.floor((y + configuredTileSize * overlapFactor) / stepY) % 2 === 1) ? stepX / 2 : 0;
@@ -1179,9 +1206,18 @@ class Game {
             let worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1280) * (this.currentMissionParams.baseParams.worldWidthFactor || 1);
             let worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 720) * (this.currentMissionParams.baseParams.worldHeightFactor || 1);
 
+            const ASPECT_RATIO = (CONFIG.BASE_WORLD_WIDTH || 1920) / (CONFIG.BASE_WORLD_HEIGHT || 1080);
+
             if (this.canvas && this.canvas.width && this.canvas.height) {
-                worldWidth = Math.max(worldWidth, this.canvas.width);
-                worldHeight = Math.max(worldHeight, this.canvas.height);
+                const availableWidth = this.canvas.width;
+                const availableHeight = this.canvas.height;
+                if (availableWidth / availableHeight > ASPECT_RATIO) {
+                    worldHeight = Math.max(worldHeight, availableHeight);
+                    worldWidth = Math.max(worldWidth, Math.round(worldHeight * ASPECT_RATIO));
+                } else {
+                    worldWidth = Math.max(worldWidth, availableWidth);
+                    worldHeight = Math.max(worldHeight, Math.round(worldWidth / ASPECT_RATIO));
+                }
             } else {
                 worldWidth = Math.max(worldWidth, CONFIG.MIN_CANVAS_WIDTH || 800);
                 worldHeight = Math.max(worldHeight, CONFIG.MIN_CANVAS_HEIGHT || 600);
@@ -1859,11 +1895,32 @@ class Game {
         }
     }
 
+    generatePhaseMudParams(phaseIdx) {
+        const phaseSeed = this.campaignSeed + (phaseIdx * 1000);
+        const mudRng = new SeededRandom(phaseSeed + 999);
+        
+        const baseNoiseScaleX = CONFIG.WORLD_MUD_NOISE_SCALE_X || 0.015;
+        const baseNoiseScaleY = CONFIG.WORLD_MUD_NOISE_SCALE_Y || 0.01;
+        const baseThreshold = CONFIG.WORLD_MUD_NOISE_THRESHOLD || 0.3;
+        const baseSkipChance = CONFIG.WORLD_GRASS_SKIP_CHANCE || 0.5;
+        
+        this.currentPhaseMudParams = {
+            noiseScaleX: baseNoiseScaleX * mudRng.nextFloat(0.2, 1.8),
+            noiseScaleY: baseNoiseScaleY * mudRng.nextFloat(0.2, 1.8),
+            noiseThreshold: mudRng.nextFloat(baseThreshold * 0.2, baseThreshold * 1.8),
+            noiseOctaves: Math.round(mudRng.nextInt(Math.max(1, (CONFIG.WORLD_MUD_NOISE_OCTAVES || 3) - 1), (CONFIG.WORLD_MUD_NOISE_OCTAVES || 3) + 2)),
+            grassSkipChance: mudRng.nextFloat(Math.max(0, baseSkipChance - 0.2), Math.min(0.9, baseSkipChance + 0.3)),
+            grassSkipMin: mudRng.nextInt(Math.max(1, (CONFIG.WORLD_GRASS_SKIP_MIN || 3) - 2), (CONFIG.WORLD_GRASS_SKIP_MIN || 3) + 4),
+            grassSkipMax: mudRng.nextInt(Math.max(3, (CONFIG.WORLD_GRASS_SKIP_MAX || 12) - 3), (CONFIG.WORLD_GRASS_SKIP_MAX || 12) + 6)
+        };
+    }
+
     _generatePhaseStructure(phaseIdx) {
         if (this.campaignStructure[phaseIdx]) return;
 
         const phaseSeed = this.campaignSeed + (phaseIdx * 1000);
         this.currentPhaseSeedRNG = new SeededRandom(phaseSeed);
+        this.generatePhaseMudParams(phaseIdx);
 
         const phaseRules = this.campaignRules.PHASE_GENERATION;
         const availableBiomes = this.campaignRules.BIOME_POOL.filter(b => b.unlocksPhase <= phaseIdx);
@@ -1930,7 +1987,10 @@ class Game {
     resizeCanvas() {
         if (!this.canvasContainer) this.canvasContainer = document.getElementById('canvas-container');
         if (!this.canvasContainer) return;
-        const containerWidth = this.canvasContainer.offsetWidth; const containerHeight = this.canvasContainer.offsetHeight;
+        // Use clientWidth/clientHeight to get the actual rendered size after CSS flexbox layout
+        // This accounts for the left HUD panel reducing the canvas display area
+        const containerWidth = this.canvasContainer.clientWidth;
+        const containerHeight = this.canvasContainer.clientHeight;
         this.canvas.width = Math.max(CONFIG.MIN_CANVAS_WIDTH || 800, containerWidth);
         this.canvas.height = Math.max(CONFIG.MIN_CANVAS_HEIGHT || 600, containerHeight);
         if (this.gameState === 'RUNNING') this.clampCamera();
@@ -3732,6 +3792,14 @@ class Game {
 
         if (type === 'explosion' && data) {
             this.visualEffects.push(new ExplosionEffect(data.x, data.y, data.radius, this));
+            return;
+        }
+        if (type === 'grenade_explosion' && data) {
+            this.visualEffects.push(new SpriteExplosionEffect(data.x, data.y, data.radius, this, 'GRENADE'));
+            return;
+        }
+        if (type === 'barrel_explosion' && data) {
+            this.visualEffects.push(new SpriteExplosionEffect(data.x, data.y, data.radius, this, 'BARREL'));
             return;
         }
         if (type === 'promotion' && data && data.unitId) {

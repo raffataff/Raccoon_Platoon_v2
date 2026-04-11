@@ -12,8 +12,8 @@ const CONFIG = {
     // --- World Rendering ---
     WORLD_BASE_MUD_COLOR: '#483524', // A muddy brown color
     WORLD_BASE_DIRT_COLOR: '#5C4033', // A lighter dirt color for bare patches
-    WORLD_GRASS_TILE_SIZE: 48,     // Approximate width/height of your grass tile sprites
-    WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.66, // e.g., 0.25 means tiles can overlap by up to 25% of their size
+    WORLD_GRASS_TILE_SIZE: 54,     // Approximate width/height of your grass tile sprites
+    WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.6, // e.g., 0.25 means tiles can overlap by up to 25% of their size
     WORLD_GRASS_SKIP_CHANCE: 0.5, // Probability (0-1) to start skipping grass and show dirt/mud
     WORLD_GRASS_SKIP_MIN: 3,       // Minimum consecutive grass tiles to skip
     WORLD_GRASS_SKIP_MAX: 12,       // Maximum consecutive grass tiles to skip
@@ -561,7 +561,25 @@ const CONFIG = {
             LIFETIME: 1.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
             COLOR_RGB_FADE_START: [255, 223, 0], VELOCITY_Y: -20
         },
-        EXPLOSION: { LIFETIME: 1.8 },
+        EXPLOSION: {
+            LIFETIME: 1.8,
+            GRENADE: {
+                SPRITE_PATH: 'assets/images/effects/explosion_25.png',
+                FRAME_WIDTH: 205,
+                FRAME_HEIGHT: 205,
+                NUM_FRAMES: 25,
+                ANIMATION_SPEED: 0.1,
+                SCALE: 0.6
+            },
+            BARREL: {
+                SPRITE_PATH: 'assets/images/effects/explosion_16.png',
+                FRAME_WIDTH: 256,
+                FRAME_HEIGHT: 256,
+                NUM_FRAMES: 16,
+                ANIMATION_SPEED: 0.1,
+                SCALE: 0.5
+            }
+        },
         HOSTAGE_HELP_TEXT: {
             TEXT_OPTIONS: ['Help!', 'Over here!', 'Psst!', 'Save me!'],
             LIFETIME_SECONDS: 2.0,
@@ -1008,7 +1026,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1,
             isDecoration: false,
-            spriteScale: 0.6,
+            spriteScale: 0.8,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
             canBeFlipped: true,
         },
@@ -1019,8 +1037,8 @@ const CONFIG = {
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
+            spriteScale: 0.4,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.75), radius: (w => w * 0.07) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -1030,7 +1048,7 @@ const CONFIG = {
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
             spawnWeight: 4, isDecoration: false,
-            spriteScale: 0.3,
+            spriteScale: 0.4,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
             spriteDestroyedScale: 0.5,
@@ -1303,7 +1321,7 @@ const CONFIG = {
         QUADRANT_MIN_ROWS: 3,           // Minimum rows cap
         QUADRANT_MAX_COLS: 7,           // Maximum columns cap
         QUADRANT_MAX_ROWS: 5,           // Maximum rows cap
-        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 10,
+        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 20,
         RANDOM_ADDITION_FACTOR_MAX: 8,
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
         SMALL_GROUP_CHANCE: 0.6,

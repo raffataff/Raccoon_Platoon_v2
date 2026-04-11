@@ -13,6 +13,65 @@ class PromotionEffect {
     render(ctx) { ctx.font = this.font; ctx.fillStyle = `rgba(${this.colorRGB[0]}, ${this.colorRGB[1]}, ${this.colorRGB[2]}, ${Math.max(0, this.opacity)})`; ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.textAlign = 'left'; }
 }
 
+class SpriteExplosionEffect {
+    constructor(x, y, radius, gameInstance, type) {
+        this.game = gameInstance;
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.type = type;
+        this.effectConfig = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.EXPLOSION) ? CONFIG.VISUAL_EFFECTS.EXPLOSION : {};
+        this.spriteConfig = this.effectConfig[type] || {};
+
+        this.image = this.game.preloadedImages[this.spriteConfig.SPRITE_PATH];
+        this.frameWidth = this.spriteConfig.FRAME_WIDTH || 64;
+        this.frameHeight = this.spriteConfig.FRAME_HEIGHT || 64;
+        this.numFrames = this.spriteConfig.NUM_FRAMES || 16;
+        this.animationSpeed = this.spriteConfig.ANIMATION_SPEED || 0.1;
+        this.scale = this.spriteConfig.SCALE || 1.0;
+
+        this.currentFrame = 0;
+        this.animationTimer = 0;
+        this.isMarkedForDeletion = false;
+        this.lifetime = this.numFrames * this.animationSpeed;
+
+        this.width = this.frameWidth * this.scale;
+        this.height = this.frameHeight * this.scale;
+        this.drawWidth = this.radius * 2 * this.scale;
+        this.drawHeight = this.radius * 2 * this.scale;
+    }
+
+    update(deltaTime) {
+        this.animationTimer += deltaTime;
+        if (this.animationTimer >= this.animationSpeed) {
+            this.animationTimer = 0;
+            this.currentFrame++;
+            if (this.currentFrame >= this.numFrames) {
+                this.isMarkedForDeletion = true;
+            }
+        }
+    }
+
+    render(ctx) {
+        if (!this.image || this.isMarkedForDeletion) return;
+
+        const sourceX = this.currentFrame * this.frameWidth;
+        const sourceY = 0;
+
+        ctx.drawImage(
+            this.image,
+            sourceX,
+            sourceY,
+            this.frameWidth,
+            this.frameHeight,
+            this.x - this.drawWidth / 2,
+            this.y - this.drawHeight / 2,
+            this.drawWidth,
+            this.drawHeight
+        );
+    }
+}
+
 class ExplosionEffect {
     constructor(x, y, radius, gameInstance) {
         this.game = gameInstance;

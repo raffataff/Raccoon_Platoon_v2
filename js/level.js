@@ -199,7 +199,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') {
             }
 
             if (this.game && obstacleDef && obstacleDef.explosionDamage && obstacleDef.explosionAoeRadius) {
-                this.game.addVisualEffect('explosion', { x: obstacle.x + obstacle.width / 2, y: obstacle.y + obstacle.height / 2, radius: obstacleDef.explosionAoeRadius });
+                this.game.addVisualEffect('barrel_explosion', { x: obstacle.x + obstacle.width / 2, y: obstacle.y + obstacle.height / 2, radius: obstacleDef.explosionAoeRadius });
                 const explosionDmg = obstacleDef.explosionDamage;
                 const explosionRadius = obstacleDef.explosionAoeRadius;
                 (this.game.level.obstacles || []).forEach(otherObs => {
