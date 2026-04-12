@@ -151,14 +151,8 @@ class Level {
             const treeFallSettings = CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS;
             const isPalmTree = obstacle.type.startsWith('tree_palm');
             const isDeciduousTree = obstacle.type.startsWith('tree_deciduous');
-            if ((isPalmTree || isDeciduousTree) && treeFallSettings?.ENABLED && obstacle.willSpawnLog) {
-                let fallenLogType = 'tree_palm_fallen';
-                if (obstacle.type.startsWith('tree_palm2_')) {
-                    fallenLogType = 'tree_palm2_fallen';
-                } else if (obstacle.type.startsWith('tree_deciduous')) {
-                    fallenLogType = 'tree_deciduous_fallen';
-                }
-                this._spawnFallenTree(obstacle.x, obstacle.y, obstacle.width, obstacle.height, fallenLogType);
+            if ((isPalmTree || isDeciduousTree) && treeFallSettings?.ENABLED && obstacle.willSpawnLog && obstacle.precomputedLogSpawnData) {
+                this._spawnFallenTree(obstacle.precomputedLogSpawnData);
             }
 
             if (obstacleDef && obstacleDef.sfxOnDestroy && this.game && this.game.audioManager) {
@@ -226,13 +220,10 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') {
         }
     }
 
-    _spawnFallenTree(stumpX, stumpY, stumpWidth, stumpHeight, fallenLogType = 'tree_palm_fallen') {
-        const fallSettings = CONFIG.LEVEL_GENERATION.TREE_FALL_SETTINGS;
+    _spawnFallenTree(precomputedData) {
+        const { type: fallenLogType, angle, distance, stumpBottomCenterX, stumpBottomCenterY } = precomputedData;
         const fallenLogTemplate = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === fallenLogType);
-        if (!fallenLogTemplate) {
-//            console.warn(`Could not find '${fallenLogType}' obstacle definition to spawn.`);
-            return;
-        }
+        if (!fallenLogTemplate) return;
 
         let filesArray, pathBase;
         switch (fallenLogType) {
@@ -249,58 +240,28 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') {
                 pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || '';
                 break;
         }
-        let actualSpritePath = (filesArray.length > 0 && pathBase) ? pathBase + this.rng.pickFrom(filesArray) : null;
-        let logImage = actualSpritePath ? this.game.preloadedImages[actualSpritePath] : null;
+        const actualSpritePath = (filesArray.length > 0 && pathBase) ? pathBase + this.rng.pickFrom(filesArray) : null;
+        const logImage = actualSpritePath ? this.game.preloadedImages[actualSpritePath] : null;
+        if (!logImage) return;
 
-        if (!logImage) {
-//            console.warn("Preloaded image for fallen tree not found.");
-            return;
-        }
-        
         const logWidth = logImage.naturalWidth * (fallenLogTemplate.spriteScale || 1.0);
         const logHeight = logImage.naturalHeight * (fallenLogTemplate.spriteScale || 1.0);
-        
-        // --- MODIFICATION START ---
-        // Calculate spawn origin from the bottom-center of the stump, not the total center.
-        const stumpBottomCenterX = stumpX + stumpWidth / 2;
-        const stumpBottomCenterY = stumpY + stumpHeight; // Use the bottom edge for the Y-origin
-        // --- MODIFICATION END ---
 
-        let placed = false;
-        for (let i = 0; i < fallSettings.MAX_PLACEMENT_ATTEMPTS; i++) {
-            const angle = this.rng.nextFloat(0, Math.PI * 2);
-            const distance = this.rng.nextFloat(fallSettings.PLACEMENT_DISTANCE_MIN, fallSettings.PLACEMENT_DISTANCE_MAX);
-            
-            // --- MODIFICATION START ---
-            // Place the log relative to the new bottom-center origin point
-            const logX = stumpBottomCenterX + Math.cos(angle) * distance - logWidth / 2;
-            const logY = stumpBottomCenterY + Math.sin(angle) * distance - logHeight / 2;
-            // --- MODIFICATION END ---
+        const logX = stumpBottomCenterX + Math.cos(angle) * distance - logWidth / 2;
+        const logY = stumpBottomCenterY + Math.sin(angle) * distance - logHeight / 2;
 
-            const newLogObstacle = {
-                x: logX, y: logY, width: logWidth, height: logHeight,
-                type: fallenLogTemplate.type, name: fallenLogTemplate.name, color: fallenLogTemplate.color,
-                destructible: fallenLogTemplate.destructible, hp: fallenLogTemplate.hp, maxHp: fallenLogTemplate.maxHp,
-                isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false,
-                spriteNormalPath: actualSpritePath, imageNormal: logImage, spriteScale: fallenLogTemplate.spriteScale || 1.0,
-                collisionShape: fallenLogTemplate.collisionShape,
-            };
+        const newLogObstacle = {
+            x: logX, y: logY, width: logWidth, height: logHeight,
+            type: fallenLogTemplate.type, name: fallenLogTemplate.name, color: fallenLogTemplate.color,
+            destructible: fallenLogTemplate.destructible, hp: fallenLogTemplate.hp, maxHp: fallenLogTemplate.maxHp,
+            isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false,
+            spriteNormalPath: actualSpritePath, imageNormal: logImage, spriteScale: fallenLogTemplate.spriteScale || 1.0,
+            collisionShape: fallenLogTemplate.collisionShape,
+        };
 
-            const collisionShape = this._getObstacleCollisionShape(newLogObstacle);
-            
-            const otherObstacles = this.obstacles.filter(obs => obs.hp > 0 || (obs.x !== stumpX && obs.y !== stumpY));
-
-            if (!this.levelGenerator._isPlacementInvalid(collisionShape, false, otherObstacles)) {
-                this.obstacles.push(newLogObstacle);
-                this.game.spatialGrid.addObject(newLogObstacle);
-                this.updateNavigationGridForObstacle(newLogObstacle, false);
-                placed = true;
-                break;
-            }
-        }
-        if (!placed) {
-//            console.log("Could not find a valid placement for fallen tree log.");
-        }
+        this.obstacles.push(newLogObstacle);
+        this.game.spatialGrid.addObject(newLogObstacle);
+        this.updateNavigationGridForObstacle(newLogObstacle, false);
     }
 
     generateNavigationGrid(worldWidth, worldHeight) {

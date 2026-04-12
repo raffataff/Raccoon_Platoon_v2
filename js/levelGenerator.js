@@ -172,6 +172,24 @@ class LevelGenerator {
 
         if (guardCount <= 0) return;
 
+        const currentPhaseIdx = this.game.currentPhaseIndex || 0;
+        const unitUnlockPhases = { possum_heavy: 1, possum_sniper: 2, possum_elite: 3 };
+        const effectiveUnitPool = pack.unitPool.filter(unitDef => {
+            const unlockPhase = unitUnlockPhases[unitDef.type];
+            return unlockPhase === undefined || currentPhaseIdx >= unlockPhase;
+        });
+
+        if (effectiveUnitPool.length === 0) return;
+
+        let finalUnitPool = effectiveUnitPool;
+        if (extraUnitPoolWeights && extraUnitPoolWeights.length > 0) {
+            const filteredExtra = extraUnitPoolWeights.filter(uw => {
+                const unlockPhase = unitUnlockPhases[uw.type];
+                return unlockPhase === undefined || currentPhaseIdx >= unlockPhase;
+            });
+            finalUnitPool = effectiveUnitPool.concat(filteredExtra);
+        }
+
         // --- MODIFICATION START: Correctly determine the center for both Obstacles and Units ---
         const isUnit = parentObject.width === undefined; // Units have .size, not .width
         const parentCenterX = isUnit ? parentObject.x : parentObject.x + parentObject.width / 2;
@@ -186,15 +204,10 @@ class LevelGenerator {
             maxY: this.level.playableMaxY
         };
 
-        let effectiveUnitPool = pack.unitPool;
-        if (extraUnitPoolWeights && extraUnitPoolWeights.length > 0) {
-            effectiveUnitPool = pack.unitPool.concat(extraUnitPoolWeights);
-        }
-
         let spawnedGuards = 0;
 
         for (let i = 0; i < guardCount; i++) {
-            const unitDef = this.game._weightedRandomSelect(effectiveUnitPool, this.rng);
+            const unitDef = this.game._weightedRandomSelect(finalUnitPool, this.rng);
             if (!unitDef) continue;
 
             let GuardClass;
@@ -1046,6 +1059,27 @@ class LevelGenerator {
                 if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, extraKeepOutZones) && !(isRestrictedType && overlapsOuterSpawnZone)) {
                     const isTreeType = template.type.startsWith('tree_palm') || template.type.startsWith('tree_deciduous');
                     const treeFallChance = isTreeType ? (CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS?.FALL_CHANCE ?? 0.45) : 0;
+                    const willSpawnLog = isTreeType ? this.rng.chance(treeFallChance) : false;
+                    let precomputedLogSpawnData = null;
+                    if (willSpawnLog) {
+                        const stumpBottomCenterX = obsX + obsRenderWidth / 2;
+                        const stumpBottomCenterY = obsY + obsRenderHeight;
+                        const fallAngle = this.rng.nextFloat(0, Math.PI * 2);
+                        const fallDistance = this.rng.nextFloat(
+                            CONFIG.LEVEL_GENERATION.TREE_FALL_SETTINGS.PLACEMENT_DISTANCE_MIN,
+                            CONFIG.LEVEL_GENERATION.TREE_FALL_SETTINGS.PLACEMENT_DISTANCE_MAX
+                        );
+                        let fallenLogType = 'tree_palm_fallen';
+                        if (template.type.startsWith('tree_palm2_')) fallenLogType = 'tree_palm2_fallen';
+                        else if (template.type.startsWith('tree_deciduous')) fallenLogType = 'tree_deciduous_fallen';
+                        precomputedLogSpawnData = {
+                            type: fallenLogType,
+                            angle: fallAngle,
+                            distance: fallDistance,
+                            stumpBottomCenterX: stumpBottomCenterX,
+                            stumpBottomCenterY: stumpBottomCenterY
+                        };
+                    }
                     const newObstacle = {
                         x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight, type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
@@ -1060,7 +1094,8 @@ class LevelGenerator {
                         collisionShape: template.collisionShape || null, isSpawner: template.type === 'possum_hut' || template.type === 'possum_hut_round',
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
-                        willSpawnLog: isTreeType ? this.rng.chance(treeFallChance) : false
+                        willSpawnLog: willSpawnLog,
+                        precomputedLogSpawnData: precomputedLogSpawnData
                     };
                     this.level.obstacles.push(newObstacle);
                     if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
@@ -1164,7 +1199,7 @@ class LevelGenerator {
         const enemyDensityFactor = baseParams.enemyDensityFactor || 1.0;
         const baseNumEnemies = enemySpawnCfg.BASE_ENEMY_COUNT_PER_DENSITY_FACTOR || 8;
         const randomAddMax = enemySpawnCfg.RANDOM_ADDITION_FACTOR_MAX || 5;
-        const totalEnemiesToSpawn_InitialCalculation = Math.floor(baseNumEnemies * enemyDensityFactor) + this.rng.nextInt(0, Math.floor(randomAddMax * enemyDensityFactor));
+        const totalEnemiesToSpawn_InitialCalculation = Math.floor(baseNumEnemies * enemyDensityFactor) + this.rng.nextInt(0, Math.max(1, Math.floor(baseNumEnemies * enemyDensityFactor * randomAddMax)));
         let enemiesSpawnedCount = allSpawnedEnemiesDuringGen.length;
         const enemyGroups = [];
 
@@ -1297,18 +1332,23 @@ class LevelGenerator {
                     let EnemyClass = PossumGrunt;
                     let currentEnemyUnitSize = CONFIG.POSSUM_GRUNT_SIZE;
 
-                    const sniperChance = baseParams.sniperChance || 0;
-                    const heavyChance = baseParams.heavyChance || 0.20;
-                    const eliteChance = baseParams.eliteChance || 0;
+                    const sniperUnlockPhase = CAMPAIGN_RULES.BASE_PARAMETERS.sniperChance?.unlocksPhase ?? 2;
+                    const heavyUnlockPhase = 1;
+                    const eliteUnlockPhase = CAMPAIGN_RULES.BASE_PARAMETERS.eliteChance?.unlocksPhase ?? 3;
+                    const currentPhaseIdx = this.game.currentPhaseIndex || 0;
                     const heavyLeaderBonus = enemySpawnCfg.HEAVY_CHANCE_GROUP_LEADER_BONUS || 0.1;
 
-                    if (this.rng.chance(eliteChance)) {
+                    const phaseSniperChance = currentPhaseIdx >= sniperUnlockPhase ? baseParams.sniperChance : 0;
+                    const phaseHeavyChance = currentPhaseIdx >= heavyUnlockPhase ? baseParams.heavyChance : 0;
+                    const phaseEliteChance = currentPhaseIdx >= eliteUnlockPhase ? baseParams.eliteChance : 0;
+
+                    if (this.rng.chance(phaseEliteChance)) {
                         EnemyClass = PossumElite;
                         currentEnemyUnitSize = CONFIG.POSSUM_ELITE_SIZE;
-                    } else if (this.rng.chance(sniperChance)) {
+                    } else if (this.rng.chance(phaseSniperChance)) {
                         EnemyClass = PossumSniper;
                         currentEnemyUnitSize = CONFIG.POSSUM_SNIPER_SIZE;
-                    } else if ((m === 0 && currentGroupSizeAttempt > 0 && this.rng.chance(heavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0))) || (currentGroupSizeAttempt === 1 && this.rng.chance(heavyChance))) {
+                    } else if ((m === 0 && currentGroupSizeAttempt > 0 && this.rng.chance(phaseHeavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0))) || (currentGroupSizeAttempt === 1 && this.rng.chance(phaseHeavyChance))) {
                         EnemyClass = PossumHeavy;
                         currentEnemyUnitSize = CONFIG.POSSUM_HEAVY_SIZE;
                     }

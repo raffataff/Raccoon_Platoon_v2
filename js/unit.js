@@ -35,6 +35,7 @@ class Unit {
 
         this.currentVisualState = 'idle';
         this.currentVisualDirection = 's';
+        this.previousVisualDirection = 's';
         this.spriteBaseName = 'unknown';
         this.spriteScaleFactor = 1.0;
 
@@ -129,14 +130,20 @@ class Unit {
         const slice = Math.PI / 4;
         const offset = Math.PI / 8;
 
-        if (normalizedAngle >= (twoPi - offset) || normalizedAngle < (offset)) { this.currentVisualDirection = 'e'; }
-        else if (normalizedAngle >= offset && normalizedAngle < (slice + offset)) { this.currentVisualDirection = 'se'; }
-        else if (normalizedAngle >= (slice + offset) && normalizedAngle < (2 * slice + offset)) { this.currentVisualDirection = 's'; }
-        else if (normalizedAngle >= (2 * slice + offset) && normalizedAngle < (3 * slice + offset)) { this.currentVisualDirection = 'sw'; }
-        else if (normalizedAngle >= (3 * slice + offset) && normalizedAngle < (4 * slice + offset)) { this.currentVisualDirection = 'w'; }
-        else if (normalizedAngle >= (4 * slice + offset) && normalizedAngle < (5 * slice + offset)) { this.currentVisualDirection = 'nw'; }
-        else if (normalizedAngle >= (5 * slice + offset) && normalizedAngle < (6 * slice + offset)) { this.currentVisualDirection = 'n'; }
-        else { this.currentVisualDirection = 'ne'; }
+        let newDirection;
+        if (normalizedAngle >= (twoPi - offset) || normalizedAngle < (offset)) { newDirection = 'e'; }
+        else if (normalizedAngle >= offset && normalizedAngle < (slice + offset)) { newDirection = 'se'; }
+        else if (normalizedAngle >= (slice + offset) && normalizedAngle < (2 * slice + offset)) { newDirection = 's'; }
+        else if (normalizedAngle >= (2 * slice + offset) && normalizedAngle < (3 * slice + offset)) { newDirection = 'sw'; }
+        else if (normalizedAngle >= (3 * slice + offset) && normalizedAngle < (4 * slice + offset)) { newDirection = 'w'; }
+        else if (normalizedAngle >= (4 * slice + offset) && normalizedAngle < (5 * slice + offset)) { newDirection = 'nw'; }
+        else if (normalizedAngle >= (5 * slice + offset) && normalizedAngle < (6 * slice + offset)) { newDirection = 'n'; }
+        else { newDirection = 'ne'; }
+
+        if (newDirection !== this.currentVisualDirection) {
+            this.previousVisualDirection = this.currentVisualDirection;
+            this.currentVisualDirection = newDirection;
+        }
     }
 
     _updateVelocity(deltaTime) {
@@ -702,8 +709,6 @@ class Unit {
         }
 
         this.worldTargetX = finalWorldTargetX; this.worldTargetY = finalWorldTargetY;
-
-        this.setFacingToward(this.worldTargetX, this.worldTargetY);
 
         if (this.calculatePath(conceptualStartGrid, this.isPhasing)) {
             return true;

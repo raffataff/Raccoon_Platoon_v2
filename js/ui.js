@@ -2066,6 +2066,11 @@ class UI {
 
         this.postMissionScreen.style.display = 'flex';
         this.setCursor('default');
+        if (this.game && this.game.currentSaveSlot !== -1) {
+            if (SaveManager.saveToSlot(this.game, this.game.currentSaveSlot)) {
+                this.showToast(`Auto-saved to Slot ${this.game.currentSaveSlot + 1}`, 'success');
+            }
+        }
     }
 
     showGameOverScreen(message, isCampaignVictory = false) {
