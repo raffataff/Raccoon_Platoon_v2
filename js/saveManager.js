@@ -355,7 +355,7 @@ class SaveManager {
         const phaseName = phaseData ? phaseData.name : `Phase ${game.currentPhaseIndex + 1}`;
         const rosterCount = game.masterRoster ? game.masterRoster.length : 0;
 
-        const slotName = `${phaseName} - M${game.currentMissionIndex + 1} | ${rosterCount} Raccoons`;
+        const slotName = `Phase ${game.currentPhaseIndex + 1}: ${phaseName} - Mission ${game.currentMissionIndex + 1} | ${rosterCount} Raccoons`;
         
 //        console.log(`[SaveManager] Saving campaignSeed: ${game.campaignSeed}, phase: ${game.currentPhaseIndex}, mission: ${game.currentMissionIndex}`);
 

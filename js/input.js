@@ -144,8 +144,11 @@ class InputHandler {
                 // Manual reload for selected raccoons
                 if (this.game.selectedUnits) {
                     this.game.selectedUnits.forEach(unit => {
-                        if (unit instanceof Raccoon && unit.isAlive() && !unit.isReloading && unit.ammo > 0 && unit.currentMagazine < unit.magazineSize) {
-                            unit.startReload();
+                        if (unit instanceof Raccoon && unit.isAlive() && !unit.isReloading) {
+                            const ammoState = unit._getCurrentAmmoState();
+                            if (ammoState.reserveAmmo > 0 && ammoState.currentMagazine < ammoState.magazineSize) {
+                                unit.startReload();
+                            }
                         }
                     });
                 }

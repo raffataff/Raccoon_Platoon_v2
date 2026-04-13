@@ -8,7 +8,7 @@ class PossumGrunt extends Unit {
         this.deadSpriteFilesKey = 'POSSUM_GRUNT_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_GRUNT_DEAD_SPRITE_SCALE';
 
-        this.weapon = WEAPONS.POSSUM_RIFLE;
+        this.weaponName = CONFIG.POSSUM_GRUNT_DEFAULT_WEAPON || 'POSSUM_RIFLE';
         this.detectionRange = CONFIG.POSSUM_DETECTION_RANGE || 250;
         this.gruntAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_GRUNT) ? CONFIG.AI.POSSUM_GRUNT : {};
 

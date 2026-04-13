@@ -15,7 +15,7 @@ class PossumElite extends Unit {
         this.spriteBaseName = 'possum_elite';
         this.spriteScaleFactor = CONFIG.POSSUM_ELITE_SPRITE_SCALE_FACTOR;
         
-        this.weapon = WEAPONS.POSSUM_ELITE_WEAPON;
+        this.weaponName = CONFIG.POSSUM_ELITE_DEFAULT_WEAPON || 'POSSUM_ELITE_WEAPON';
         this.detectionRange = CONFIG.AI.POSSUM_ELITE?.DETECTION_RANGE || 320;
         
         this.eliteAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_ELITE) ? CONFIG.AI.POSSUM_ELITE : {};

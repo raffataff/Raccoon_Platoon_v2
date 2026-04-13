@@ -59,8 +59,10 @@ class UI {
         this.optionsMenuScreen = document.getElementById('optionsMenuScreen');
         this.backFromOptionsButton = document.getElementById('backFromOptionsButton');
         this.wallpaperSelectionGrid = document.getElementById('wallpaperSelectionGrid');
-        this.shuffleWallpaperButton = document.getElementById('shuffleWallpaperButton');
+        this.shuffleWallpaperToggle = document.getElementById('shuffleWallpaperToggle');
+        this.shuffleWallpaperLabel = document.getElementById('shuffleWallpaperLabel');
         this.currentWallpaperKey = SaveManager.getPreference('menuWallpaper', CONFIG.DEFAULT_MENU_WALLPAPER) || 'raccoon_marine_3';
+        this.menuWallpaperShuffleEnabled = SaveManager.getPreference('menuWallpaperShuffle', true);
 
         // Save/Load UI elements
         this.continueGameButton = document.getElementById('continueGameButton');
@@ -75,13 +77,14 @@ class UI {
         this.importFileInput = document.getElementById('importFileInput');
         this.currentSaveLoadMode = null; // 'save' or 'load'
         this.selectedSlotIndex = null;
+        this.pendingNewCampaignSave = false; // Tracks if we're saving as part of "New Campaign" flow
 
         this._addSoundToButton(this.newCampaignButton, () => {
             if (this.game) {
                 this.hideMainMenuScreen();
-                // --- MODIFICATION: Explicitly start a new campaign ---
                 this.game.initializeNewCampaign(true);
-                this.game.start();
+                this.pendingNewCampaignSave = true;
+                this.showSaveLoadModal('save');
             }
         });
 
@@ -655,8 +658,12 @@ class UI {
         this.mainMenuScreen.style.display = 'flex';
         if (this.mainMenuWallpaper) {
             this.mainMenuWallpaper.style.display = 'block';
-            const randomWallpaper = CONFIG.MENU_WALLPAPERS[Math.floor(Math.random() * CONFIG.MENU_WALLPAPERS.length)];
-            this.applyWallpaper(randomWallpaper.key, false);
+            if (this.menuWallpaperShuffleEnabled) {
+                const randomWallpaper = CONFIG.MENU_WALLPAPERS[Math.floor(Math.random() * CONFIG.MENU_WALLPAPERS.length)];
+                this.applyWallpaper(randomWallpaper.key, false);
+            } else {
+                this.applyWallpaper(this.currentWallpaperKey, false);
+            }
         }
         this.setCursor('default');
     }
@@ -1420,7 +1427,15 @@ class UI {
         // Options Menu button handlers
         this._addSoundToButton(this.optionsButton, () => this.showOptionsMenu());
         this._addSoundToButton(this.backFromOptionsButton, () => this.hideOptionsMenu());
-        this._addSoundToButton(this.shuffleWallpaperButton, () => this.shuffleWallpaper());
+        if (this.shuffleWallpaperToggle) {
+            this.shuffleWallpaperToggle.checked = this.menuWallpaperShuffleEnabled;
+            this.updateShuffleLabel();
+            this.shuffleWallpaperToggle.addEventListener('change', (e) => {
+                this.menuWallpaperShuffleEnabled = e.target.checked;
+                SaveManager.savePreference('menuWallpaperShuffle', this.menuWallpaperShuffleEnabled);
+                this.updateShuffleLabel();
+            });
+        }
     }
 
     showHowToPlayScreen() {
@@ -1460,6 +1475,10 @@ class UI {
         if (this.mainMenuScreen) this.mainMenuScreen.style.display = 'none';
         if (this.optionsMenuScreen) {
             this.populateWallpaperSelection();
+            if (this.shuffleWallpaperToggle) {
+                this.shuffleWallpaperToggle.checked = this.menuWallpaperShuffleEnabled;
+                this.updateShuffleLabel();
+            }
             this.optionsMenuScreen.style.display = 'flex';
         }
     }
@@ -1522,6 +1541,12 @@ class UI {
         }
 
         this.populateWallpaperSelection();
+    }
+
+    updateShuffleLabel() {
+        if (this.shuffleWallpaperLabel) {
+            this.shuffleWallpaperLabel.textContent = 'Shuffle: ' + (this.menuWallpaperShuffleEnabled ? 'ON' : 'OFF');
+        }
     }
 
     shuffleWallpaper() {
@@ -2530,11 +2555,14 @@ class UI {
 
             const infoOverlay = document.createElement('div');
             infoOverlay.classList.add('squad-member-info-overlay');
+            const ammoState = raccoon._getCurrentAmmoState ? raccoon._getCurrentAmmoState() : { currentMagazine: '-', reserveAmmo: '-' };
+            const weaponName = raccoon.currentWeaponName ? CONFIG.WEAPON_DEFINITIONS[raccoon.currentWeaponName]?.name || raccoon.currentWeaponName : 'None';
             infoOverlay.innerHTML = `
                 <div><span class="label">Name:</span> <span class="value">${raccoon.name || raccoon.id}</span></div>
                 <div><span class="label">Rank:</span> <span class="value">${raccoon.rank || 'Recruit'}</span></div>
                 <div><span class="label">HP:</span> <span class="value">${Math.max(0, Math.round(raccoon.hp))} / ${raccoon.maxHp}</span></div>
-                <div><span class="label">Ammo:</span> <span class="value">${raccoon.currentMagazine !== undefined ? raccoon.currentMagazine : '-'} / ${raccoon.ammo !== undefined ? raccoon.ammo : '-'}</span></div>
+                <div><span class="label">Weapon:</span> <span class="value">${weaponName}</span></div>
+                <div><span class="label">Ammo:</span> <span class="value">${ammoState.currentMagazine} / ${ammoState.reserveAmmo}</span></div>
                 <div><span class="label">Grenades:</span> <span class="value">${raccoon.grenadeAmmo !== undefined ? raccoon.grenadeAmmo : 'N/A'}</span></div>
                 <div><span class="label">Status:</span> <span class="value ${statusClass}">${statusText}</span></div>
                 <div><span class="label">XP:</span> <span class="value">${raccoon.xp !== undefined ? raccoon.xp : 0}</span></div>
@@ -2603,6 +2631,7 @@ class UI {
             this.showPauseMenuScreen();
         }
         this.currentSaveLoadMode = null;
+        this.pendingNewCampaignSave = false;
     }
 
     populateSaveSlots() {
@@ -2679,7 +2708,14 @@ class UI {
 
             if (SaveManager.saveToSlot(this.game, slotIndex)) {
                 this.showToast('Game saved!', 'success');
-                this.hideSaveLoadModal();
+
+                if (this.pendingNewCampaignSave) {
+                    this.pendingNewCampaignSave = false;
+                    this.hideSaveLoadModal();
+                    this.game.start();
+                } else {
+                    this.hideSaveLoadModal();
+                }
             } else {
                 this.showToast('Failed to save game', 'error');
             }

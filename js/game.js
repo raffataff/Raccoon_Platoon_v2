@@ -518,6 +518,8 @@ class Game {
             }
         }
 
+        // UI Assets
+        // Grenade
         if (CONFIG.UI_ASSETS) {
             if (CONFIG.UI_ASSETS.GRENADE_ICON) {
                 const path = CONFIG.UI_ASSETS.GRENADE_ICON;
@@ -530,6 +532,20 @@ class Game {
                     }));
                 }
             }
+            // Ammo
+            if (CONFIG.UI_ASSETS.AMMO_ICON) {
+                const path = CONFIG.UI_ASSETS.AMMO_ICON;
+                if (!this.preloadedImages[path]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload FAILED - UI] Ammo Icon: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                        img.src = path;
+                    }));
+                }
+            }
+
+            // Health
             if (CONFIG.UI_ASSETS.HEALTH_ICON) {
                 const path = CONFIG.UI_ASSETS.HEALTH_ICON;
                 if (!this.preloadedImages[path]) {
@@ -861,6 +877,27 @@ class Game {
             }
         });
 
+        // Preload weapon crate sprites from WEAPON_DEFINITIONS
+        const weaponDefs = CONFIG.WEAPON_DEFINITIONS || {};
+        Object.values(weaponDefs).forEach(weaponDef => {
+            if (weaponDef.crateSpriteWithWeapon && !this.preloadedImages[weaponDef.crateSpriteWithWeapon]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[weaponDef.crateSpriteWithWeapon] = img; resolve(); };
+                    img.onerror = () => { this.preloadedImages[weaponDef.crateSpriteWithWeapon] = null; resolve(); };
+                    img.src = weaponDef.crateSpriteWithWeapon;
+                }));
+            }
+            if (weaponDef.crateSpriteWithoutWeapon && !this.preloadedImages[weaponDef.crateSpriteWithoutWeapon]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[weaponDef.crateSpriteWithoutWeapon] = img; resolve(); };
+                    img.onerror = () => { this.preloadedImages[weaponDef.crateSpriteWithoutWeapon] = null; resolve(); };
+                    img.src = weaponDef.crateSpriteWithoutWeapon;
+                }));
+            }
+        });
+
         obstacleDefs.forEach(def => {
             let handledByDedicatedList = false;
             if (
@@ -886,6 +923,7 @@ class Game {
                 (def.type === 'tree_fan_single' && CONFIG.FAN_TREE_SINGLE_SPRITE_FILES) ||
                 (def.type === 'tree_fan_double' && CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES) ||
                 (def.type === 'tree_fan_triple' && CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES) ||
+                (def.type === 'tree_rubber_single' && CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES) ||
                 (def.type === 'palm_bush_small' && CONFIG.PALM_BUSH_SMALL_FILES) ||
                 (def.type === 'palm_bush_large' && CONFIG.PALM_BUSH_LARGE_FILES) ||
                 (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
@@ -938,9 +976,12 @@ class Game {
             { files: CONFIG.FAN_TREE_SINGLE_SPRITE_FILES, path: CONFIG.FAN_TREE_SINGLE_SPRITE_PATH, name: "tree_fan_single" },
             { files: CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH, name: "tree_fan_double" },
             { files: CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH, name: "tree_fan_triple" },
+            { files: CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES, path: CONFIG.RUBBER_TREE_SINGLE_SPRITE_PATH, name: "tree_rubber_single" },
             { files: CONFIG.PALM_BUSH_SMALL_FILES, path: CONFIG.PALM_BUSH_SMALL_PATH, name: "palm_bush_small" },
             { files: CONFIG.PALM_BUSH_LARGE_FILES, path: CONFIG.PALM_BUSH_LARGE_PATH, name: "palm_bush_large" },
-            { files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, name: "mud" }
+            { files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, name: "mud" },
+            { files: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_PATH, name: "rainforest_small" },
+            { files: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_PATH, name: "rainforest_large" }
         ];
 
         listBasedSprites.forEach(spriteSet => {
@@ -1188,8 +1229,9 @@ class Game {
                 r.isPlayerDirectFiring = false;
                 r.isHoldingPosition = false;
                 r.isHoldingFire = false;
-                r.ammo = r.maxAmmo;
-                r.currentMagazine = r.magazineSize;
+                // Refill default weapon ammo
+                r.defaultReserveAmmo = r.defaultMaxAmmo;
+                r.defaultCurrentMagazine = r.defaultMagazineSize;
                 r.reloadTimer = 0;
                 r.isReloading = false;
             });
@@ -3302,7 +3344,7 @@ class Game {
                         shouldSort = false; 
                     } 
                 } 
-                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;                 if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { const isBehindLiving = !!obstacle.isDestroyed; sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving }); } } }); }
+                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;                 if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { const isBehindLiving = !!obstacle.isDestroyed; sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving }); } } }); }
         const birdsToRenderLast = [];
         this.gameObjects.forEach(obj => {
             if (obj instanceof FlyingBird) {
@@ -3672,12 +3714,19 @@ class Game {
             this.gameState === 'MISSION_ENDING_DEFEAT' ||
             this.gameState === 'SHOOTOUT_PLAYING' ||
             this.gameState === 'SHOOTOUT_AMBUSH') {
-            try {
-                this.update(deltaTime);
-            } catch (e) {
-//                console.error("ERROR IN Game.update():", e);
-                this.gameState = 'ERROR_STATE';
-            }
+try {
+    this.update(deltaTime);
+} catch (e) {
+                console.error("ERROR IN Game.update():", e);
+    this.gameState = 'ERROR_STATE';
+}
+
+try {
+    this.render();
+} catch (e) {
+                console.error("ERROR IN Game.render():", e);
+    this.gameState = 'ERROR_STATE';
+}
         }
 
         try {

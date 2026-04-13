@@ -20,7 +20,23 @@ class Unit {
         this.lastDeltaY = 0;
 
         this.canShootWhileMoving = true;
-        this.weapon = null; this.autoTarget = null; this.manualTarget = null;
+        this.weapon = null;
+        this.autoTarget = null; this.manualTarget = null;
+
+        this._weaponName = null;
+        Object.defineProperty(this, 'weaponName', {
+            get: function() { return this._weaponName; },
+            set: function(name) {
+                this._weaponName = name;
+                if (name && WEAPONS[name]) {
+                    this.weapon = WEAPONS[name];
+                } else {
+                    this.weapon = null;
+                }
+            },
+            configurable: true,
+            enumerable: true
+        });
 
         this.attackCooldown = 0; this.actionTimer = 0; this.isMarkedForDeletion = false;
         this.facingAngle = Math.PI / 2;

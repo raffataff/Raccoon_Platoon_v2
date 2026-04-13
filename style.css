@@ -450,25 +450,64 @@ canvas#gameCanvas {
     letter-spacing: 0.5px;
 }
 
-#shuffleWallpaperButton {
+.shuffle-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-top: 15px;
-    padding: 10px 20px;
-    background-color: var(--brand-dark);
-    color: var(--text-main);
-    border: 2px solid var(--brand-primary);
-    border-radius: 3px;
+}
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 26px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
     cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--brand-dark);
+    border: 2px solid var(--brand-primary);
+    border-radius: 26px;
+    transition: 0.3s ease;
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background-color: var(--text-main);
+    border-radius: 50%;
+    transition: 0.3s ease;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: var(--brand-primary);
+}
+
+.toggle-switch input:checked + .toggle-slider:before {
+    transform: translateX(24px);
+}
+
+#shuffleWallpaperLabel {
+    color: var(--text-main);
     font-size: 1em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    transition: all 0.2s ease;
-}
-
-#shuffleWallpaperButton:hover {
-    background-color: var(--brand-primary);
-    color: var(--brand-dark);
-    transform: scale(1.05);
-    box-shadow: 0 0 15px rgba(230, 157, 69, 0.4);
 }
 
 .options-buttons {
@@ -602,7 +641,7 @@ canvas#gameCanvas {
 }
 
 #preMissionLeftPanel {
-    flex: 3;
+    flex: 4;
     /* Takes up more space */
 }
 
@@ -652,7 +691,7 @@ canvas#gameCanvas {
 
 .recruit-grid-card {
     position: relative;
-    width: 95%;
+    width: 90%;
     height: 95%;
     aspect-ratio: 1 / 1;
     background-color: var(--bg-color);
@@ -664,7 +703,7 @@ canvas#gameCanvas {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    filter: grayscale(60%) sepia(30%) brightness(0.9);
+    /*filter: sepia(30%) brightness(0.9);*/
 }
 
 .recruit-grid-card:hover {
@@ -674,7 +713,7 @@ canvas#gameCanvas {
 }
 
 .recruit-grid-card .recruit-card-face {
-    width: 85%;
+    width: 80%;
     height: 85%;
     margin: 0;
     border: none;
@@ -774,8 +813,8 @@ canvas#gameCanvas {
     display: flex;
     align-items: center;
     padding: 5px;
-    height: 90px;
-    width: 200px;
+    width: 100px;
+    height: 112px;
     /* Wider for dossier feel */
     background-color: var(--bg-color);
     border: 1px solid var(--brand-secondary);
@@ -793,24 +832,8 @@ canvas#gameCanvas {
     transform: translateX(3px);
 }
 
-.recruit-card-face {
-    width: 80px;
-    height: 80px;
-    margin-right: 10px;
-    border-radius: 0;
-    border: 1px solid #333;
-    background-size: cover;
-    background-position: center;
-    filter: none !important;
-    -webkit-filter: none !important;
-    image-rendering: auto;
-    -webkit-image-rendering: auto;
-    -moz-image-rendering: auto;
-    -ms-image-rendering: auto;
-}
-
 .deployed-squad-card .recruit-card-face {
-    width: 80px;
+    width: 78px;
     height: 80px;
     margin-right: 10px;
     border-radius: 0;
@@ -1003,7 +1026,7 @@ canvas#gameCanvas {
     width: 100%;
     overflow-y: hidden;
     flex-grow: 1;
-    padding: 5px 0px;
+    padding: 0px 0px;
     margin-right: 0px;
 }
 
@@ -1011,7 +1034,7 @@ canvas#gameCanvas {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 5px;
     padding: 6px 8px;
     background-color: rgba(10, 10, 5, 0.3);
     border-radius: 3px;
@@ -1024,7 +1047,7 @@ canvas#gameCanvas {
 
 .squad-member {
     border: 1px solid var(--panel-border);
-    border-left: 3px solid var(--panel-border);
+    border-left: 2px solid var(--panel-border);
     /* Default border state */
     background-color: rgba(20, 18, 16, 0.8);
     border-radius: 2px;
@@ -1046,14 +1069,14 @@ canvas#gameCanvas {
 }
 
 .squad-member.selected {
-    border-color: var(--brand-primary);
+    border-color: var(--brand-secondary);
     border-left: 5px solid var(--brand-primary);
     box-shadow: 0 0 15px rgba(230, 157, 69, 0.3);
 }
 
 .squad-member-info-overlay {
     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4) 60%, rgba(0, 0, 0, 0.9));
-    padding: 10px;
+    padding: 5px;
     width: 100%;
     height: 100%;
     box-sizing: border-box;
@@ -1079,13 +1102,15 @@ canvas#gameCanvas {
     font-size: 0.7em;
     color: var(--text-normal);
     font-family: var(--font-mono);
+    letter-spacing: 2px;
 }
 
 .squad-member .value {
     text-align: right;
     color: var(--brand-primary);
     font-weight: 700;
-    font-size: 1.1em;
+    font-size: 0.8em;
+    letter-spacing: 2px;
 }
 
 .squad-member .status-kia {
@@ -1286,17 +1311,13 @@ input[type="range"]::-moz-range-thumb {
 
 #availableRecruitsList {
     list-style: none;
-    padding: 10px;
+    padding: 5px;
     flex-grow: 1;
     overflow-y: auto;
-    /* Enable VERTICAL scrolling */
     overflow-x: none;
-    /* Disable horizontal scrolling */
     display: grid;
-    /* Use CSS Grid */
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    /* Create responsive columns */
-    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
+    gap: 0px;
     border: 1px solid #444;
     background-color: rgba(0, 0, 0, 0.1);
     border-radius: 3px;
@@ -1304,19 +1325,17 @@ input[type="range"]::-moz-range-thumb {
 
 .roster-card {
     position: relative;
-    width: 140px;
-    height: 160px;
-    flex-shrink: 0;
+    width: 200px;
+    height: 224px;
     background-color: var(--bg-color);
     border: 1px solid var(--panel-border);
     border-radius: 2px;
+    margin-bottom: 5px;
     cursor: pointer;
     transition: all 0.2s ease;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin: 2px;
-    margin-bottom: 0;
     box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
 }
 
@@ -1329,14 +1348,14 @@ input[type="range"]::-moz-range-thumb {
 
 
 .roster-card .roster-card-face {
-    width: 140px;
-    height: 140px;
+    width: 200px;
+    height: 224px;
     margin: 0;
     border: none;
     border-bottom: 2px solid var(--brand-primary);
     background-size: cover;
     background-position: center;
-    filter: brightness(0.9) contrast(0.9) blur(0.1px)  !important;
+    filter: brightness(1.0) contrast(1.1);
 }
 
 .roster-card .roster-card-name {
@@ -1346,11 +1365,11 @@ input[type="range"]::-moz-range-thumb {
     font-weight: 700;
     font-size: 0.9em;
     text-align: center;
-    padding: 6px;
+    padding: 5px;
     width: 100%;
     box-sizing: border-box;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 3px;
     flex-grow: 1;
     display: flex;
     align-items: center;

@@ -84,6 +84,8 @@ class LevelGenerator {
         const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
 
+        const currentPhaseIdx = this.game.currentPhaseIndex || 0;
+
         let totalWeight = 0;
         definitions.forEach(def => {
             let isCurrentMissionTargetType = false;
@@ -94,7 +96,9 @@ class LevelGenerator {
             }
 
             if (def.type !== 'extraction_zone' && !isCurrentMissionTargetType) {
-                totalWeight += (def.spawnWeight || 0);
+                if (def.phaseUnlocked === undefined || def.phaseUnlocked <= currentPhaseIdx) {
+                    totalWeight += (def.spawnWeight || 0);
+                }
             }
         });
 
@@ -106,7 +110,8 @@ class LevelGenerator {
                         obj.type === "DESTROY_TARGET" && def.type.startsWith(obj.targetTypeKeyPrefix)
                     );
                 }
-                return def.type !== 'extraction_zone' && !isCurrentMissionTargetType;
+                return def.type !== 'extraction_zone' && !isCurrentMissionTargetType &&
+                    (def.phaseUnlocked === undefined || def.phaseUnlocked <= currentPhaseIdx);
             });
             if (validDefs.length > 0) return this.rng.pickFrom(validDefs);
             return null;
@@ -121,6 +126,7 @@ class LevelGenerator {
                 );
             }
             if (def.type === 'extraction_zone' || isCurrentMissionTargetType) continue;
+            if (def.phaseUnlocked !== undefined && def.phaseUnlocked > currentPhaseIdx) continue;
 
             randomNum -= (def.spawnWeight || 0);
             if (randomNum <= 0) return def;
@@ -133,7 +139,8 @@ class LevelGenerator {
                     obj.type === "DESTROY_TARGET" && def.type.startsWith(obj.targetTypeKeyPrefix)
                 );
             }
-            return def.type !== 'extraction_zone' && !isCurrentMissionTargetType;
+            return def.type !== 'extraction_zone' && !isCurrentMissionTargetType &&
+                (def.phaseUnlocked === undefined || def.phaseUnlocked <= currentPhaseIdx);
         });
         return lastValidDefs.pop() || (lastValidDefs.length > 0 ? lastValidDefs[0] : null);
     }
@@ -421,6 +428,94 @@ class LevelGenerator {
 
         this.level.obstacles.push(ammoCrate);
         if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned ammo crate at (${finalCrateX.toFixed(0)}, ${finalCrateY.toFixed(0)}) near relay tower`);
+    }
+
+    _getAvailableWeaponCrateTypes(currentPhase) {
+        const availableWeapons = [];
+        const weaponDefs = CONFIG.WEAPON_DEFINITIONS || {};
+        for (const [weaponName, def] of Object.entries(weaponDefs)) {
+            if (!def.isDefaultWeapon && def.phaseUnlocked !== undefined && def.phaseUnlocked <= currentPhase) {
+                availableWeapons.push(weaponName);
+            }
+        }
+        return availableWeapons;
+    }
+
+    _spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, currentPhase) {
+        const weaponCrateDef = (CONFIG.PICKUP_DEFINITIONS || []).find(def => def.type === 'pickup_weapon_crate');
+        if (!weaponCrateDef) {
+            return;
+        }
+
+        const availableWeapons = this._getAvailableWeaponCrateTypes(currentPhase);
+        if (availableWeapons.length === 0) {
+            return;
+        }
+
+        const selectedWeapon = availableWeapons[this.rng.nextInt(0, availableWeapons.length)];
+
+        const crateOffsetX = targetWidth / 2 + 40;
+        const crateOffsetY = 0;
+        const crateX = targetX + crateOffsetX;
+        const crateY = targetY + crateOffsetY;
+
+        const playableMinX = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMaxX = (CONFIG.WORLD_WIDTH || 800) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMinY = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+        const playableMaxY = (CONFIG.WORLD_HEIGHT || 600) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
+
+        const finalCrateX = Math.max(playableMinX, Math.min(crateX, playableMaxX - 30));
+        const finalCrateY = Math.max(playableMinY, Math.min(crateY, playableMaxY - 30));
+
+        const crateShape = {
+            x: finalCrateX,
+            y: finalCrateY,
+            width: 30,
+            height: 30
+        };
+
+        if (this._isPlacementInvalid(crateShape, weaponCrateDef, this.level.obstacles, [])) {
+            crateShape.x = targetX - targetWidth / 2 - 40;
+            if (this._isPlacementInvalid(crateShape, weaponCrateDef, this.level.obstacles, [])) {
+                return;
+            }
+        }
+
+        const weaponDef = CONFIG.WEAPON_DEFINITIONS[selectedWeapon];
+        const spriteNormalPath = weaponDef?.crateSpriteWithWeapon || weaponCrateDef.baseCrateSprite || '';
+        const spriteDestroyedPath = weaponDef?.crateSpriteWithoutWeapon || weaponCrateDef.baseCrateSprite || '';
+        const crateImage = this.preloadedAssetImages ? this.preloadedAssetImages[spriteNormalPath] : null;
+        const crateDestroyedImage = this.preloadedAssetImages ? this.preloadedAssetImages[spriteDestroyedPath] : null;
+        const crateColor = weaponDef?.crateColor || weaponCrateDef.color || '#FFD700';
+
+        const weaponCrate = {
+            x: crateShape.x,
+            y: crateShape.y,
+            width: crateImage ? crateImage.naturalWidth * (weaponCrateDef.spriteScale || 1) : (weaponCrateDef.width || 30),
+            height: crateImage ? crateImage.naturalHeight * (weaponCrateDef.spriteScale || 1) : (weaponCrateDef.height || 30),
+            type: weaponCrateDef.type,
+            name: weaponDef?.name || 'Weapon Crate',
+            color: crateColor,
+            destructible: weaponCrateDef.destructible,
+            hp: weaponCrateDef.hp,
+            maxHp: weaponCrateDef.maxHp,
+            isDestroyed: false,
+            blocksMovement: false,
+            providesCover: false,
+            pickupType: weaponCrateDef.pickupType,
+            weaponName: selectedWeapon,
+            isPickup: true,
+            isDecoration: false,
+            spriteNormalPath: spriteNormalPath,
+            spriteDestroyedPath: spriteDestroyedPath,
+            imageNormal: crateImage,
+            imageDestroyed: crateDestroyedImage,
+            spriteScale: weaponCrateDef.spriteScale || 1.0,
+            collisionShape: weaponCrateDef.collisionShape
+        };
+
+        this.level.obstacles.push(weaponCrate);
+        if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned weapon crate at (${finalCrateX.toFixed(0)}, ${finalCrateY.toFixed(0)}) with ${selectedWeapon}`);
     }
 
     // --- NEW: Sanity check function to run at the end of generation ---
@@ -879,6 +974,7 @@ class LevelGenerator {
                             if (targetTemplateOriginal.type === 'possum_relay_tower') {
                                 this._spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight);
                                 this._spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight);
+                                this._spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, (this.game.currentPhaseIndex || 0) + 1);
                             }
                             
                             placedTarget = true;
@@ -978,11 +1074,14 @@ class LevelGenerator {
             else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree4_deciduous_single') { filesArray = CONFIG.TREE4_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE4_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree5_deciduous_single') { filesArray = CONFIG.TREE5_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE5_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tree_rubber_single') { filesArray = CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.RUBBER_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_fan_single') { filesArray = CONFIG.FAN_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_fan_double') { filesArray = CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_fan_triple') { filesArray = CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'palm_bush_small') { filesArray = CONFIG.PALM_BUSH_SMALL_FILES || []; pathBase = CONFIG.PALM_BUSH_SMALL_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'palm_bush_large') { filesArray = CONFIG.PALM_BUSH_LARGE_FILES || []; pathBase = CONFIG.PALM_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'rainforest_patch_small_1') { filesArray = CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_FILES || []; pathBase = CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'rainforest_patch_large_1') { filesArray = CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_FILES || []; pathBase = CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {
@@ -1140,6 +1239,22 @@ class LevelGenerator {
                 useRandomSpriteFromList = true;
                 useSpritePair = true;
             }
+            else if (template.type === 'pickup_weapon_crate') {
+                // Pick a random available weapon for this crate
+                const availableWeapons = this._getAvailableWeaponCrateTypes(this.game.currentPhaseIndex || 0);
+                if (availableWeapons.length > 0) {
+                    const selectedWeapon = this.rng.pickFrom(availableWeapons);
+                    const weaponDef = CONFIG.WEAPON_DEFINITIONS[selectedWeapon];
+                    if (weaponDef) {
+                        actualSpritePath = weaponDef.crateSpriteWithWeapon || null;
+                        actualDestroyedSpritePath = weaponDef.crateSpriteWithoutWeapon || null;
+                        // Store weapon info on the template for reference
+                        template.weaponName = selectedWeapon;
+                        template.weaponDef = weaponDef;
+                        normalSpriteScale = template.spriteScale || 1.0;
+                    }
+                }
+            }
 
             if (useRandomSpriteFromList && filesArray.length > 0 && pathBase) {
                 if (useSpritePair) {
@@ -1180,7 +1295,9 @@ class LevelGenerator {
                         imageNormal: actualImageObject,
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
-                        collisionShape: template.collisionShape || null
+                        collisionShape: template.collisionShape || null,
+                        weaponName: template.weaponName || null,
+                        weaponDef: template.weaponDef || null
                     };
                     this.level.obstacles.push(newPickup);
                     placed = true;

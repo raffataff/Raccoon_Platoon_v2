@@ -72,7 +72,7 @@ const CAMPAIGN_RULES = {
         {
             type: "RESCUE_HOSTAGES",
             weight: 3,
-            unlocksPhase: 1,
+            unlocksPhase: 2,
             descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
             completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
             isPrimary: true,
@@ -82,7 +82,7 @@ const CAMPAIGN_RULES = {
         {
             type: "ASSASSINATION",
             weight: 1, // Keep this relatively low if it's mainly for phase finales
-            unlocksPhase: 4, // Or 0 if you want non-boss assassinations earlier
+            unlocksPhase: 3, // Or 0 if you want non-boss assassinations earlier
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
             isPrimary: true,
@@ -125,7 +125,7 @@ const CAMPAIGN_RULES = {
         {
             targetTypeKeyPrefix: "possum_relay_tower",
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
-            weight: 1, unlocksPhase: 2,
+            weight: 1, unlocksPhase: 3,
             maxInstancesPerMission: 2
         },
     ],

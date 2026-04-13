@@ -548,7 +548,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') {
         const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
         const spawnAreaWidth = this.hutSpawnConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
         const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
-        const spawnLineCenterX = hutCenterX + spawnOffsetX;
+        const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
         const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
         const gruntSize = CONFIG.POSSUM_GRUNT_SIZE || 14;
         const maxPlacementAttempts = this.hutSpawnConfig.MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT || 3;

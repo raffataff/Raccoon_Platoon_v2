@@ -13,9 +13,9 @@ class PossumBoss1 extends Unit {
         this.deadSpriteFilesKey = 'POSSUM_BOSS_1_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_BOSS_1_DEAD_SPRITE_SCALE';
         
-        this.primaryWeapon = WEAPONS.POSSUM_BOSS_1_WEAPON; 
-        this.secondaryWeapon = WEAPONS.POSSUM_BOSS_1_SECONDARY;
-        this.weapon = this.primaryWeapon; 
+        this.primaryWeaponName = CONFIG.POSSUM_BOSS_1_DEFAULT_WEAPON || 'POSSUM_BOSS_1_WEAPON'; 
+        this.secondaryWeaponName = CONFIG.POSSUM_BOSS_1_DEFAULT_SECONDARY_WEAPON || 'POSSUM_BOSS_1_SECONDARY';
+        this.weaponName = this.primaryWeaponName; 
         
         this.canShootWhileMoving = false;
         
@@ -67,7 +67,7 @@ class PossumBoss1 extends Unit {
         this.manualTarget = target;
         const dist = distance(this.x, this.y, target.x, target.y);
         const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
-        const currentWeapon = this.attackMode === 'GRENADE_VOLLEY' ? this.primaryWeapon : this.secondaryWeapon;
+        const currentWeapon = this.attackMode === 'GRENADE_VOLLEY' ? WEAPONS[this.primaryWeaponName] : WEAPONS[this.secondaryWeaponName];
 
         // AIM: Always aim if there is a target
         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
@@ -115,7 +115,8 @@ class PossumBoss1 extends Unit {
     }
     
     _executeGrenadeFire(target) {
-        if (!this.game || !this.primaryWeapon || !target) return;
+        if (!this.game || !WEAPONS[this.primaryWeaponName] || !target) return;
+        const primaryWeapon = WEAPONS[this.primaryWeaponName];
         
         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
         this.facingAngle = this.gunAimAngle;
@@ -134,58 +135,55 @@ class PossumBoss1 extends Unit {
         const grenade = this.game.getGrenadeProjectileFromPool(this.x, this.y, finalTargetX, finalTargetY, this);
         this.game.addProjectile(grenade);
 
-        if (this.primaryWeapon.sfxFireKey && this.game.audioManager) {
-            this.game.audioManager.play(this.primaryWeapon.sfxFireKey);
+        if (primaryWeapon.sfxFireKey && this.game.audioManager) {
+            this.game.audioManager.play(primaryWeapon.sfxFireKey);
         }
         
         this.volleyCount++;
-        // Use attackCooldown for delay BETWEEN shots in a volley
         this.attackCooldown = this.bossAIConfig.GRENADE_COOLDOWN_BETWEEN_SHOTS || 0.6;
 
         if (this.volleyCount >= (this.bossAIConfig.GRENADES_PER_VOLLEY || 3)) {
             this.attackMode = 'MG_BURST';
             this.volleyCount = 0;
-            // Use actionTimer for the long delay AFTER the volley is complete
             this.actionTimer = (this.bossAIConfig.MG_COOLDOWN_AFTER_BURST || 2.5);
-            this.weapon = this.secondaryWeapon;
+            this.weapon = WEAPONS[this.secondaryWeaponName];
         }
     }
 
     _executeFire(targetX, targetY) {
-        if (!this.game || !this.secondaryWeapon) return;
+        if (!this.game || !WEAPONS[this.secondaryWeaponName]) return;
+        const secondaryWeapon = WEAPONS[this.secondaryWeaponName];
 
         this.gunAimAngle = Math.atan2(targetY - this.y, targetX - this.x);
         this.facingAngle = this.gunAimAngle;
         
         const fireAngle = this.gunAimAngle;
-        const accuracy = this.secondaryWeapon.accuracyStationary;
+        const accuracy = secondaryWeapon.accuracyStationary;
 
         const projectile = this.game.getProjectileFromPool(
             this.x, this.y, 
-            this.x + Math.cos(fireAngle) * this.secondaryWeapon.range,  
-            this.y + Math.sin(fireAngle) * this.secondaryWeapon.range,
-            this.secondaryWeapon.damage,
-            this.secondaryWeapon.projectileSpeed,
-            this.secondaryWeapon.projectileColor,
+            this.x + Math.cos(fireAngle) * secondaryWeapon.range,  
+            this.y + Math.sin(fireAngle) * secondaryWeapon.range,
+            secondaryWeapon.damage,
+            secondaryWeapon.projectileSpeed,
+            secondaryWeapon.projectileColor,
             this,
             accuracy
         );
         this.game.addProjectile(projectile);
 
-        if (this.secondaryWeapon.sfxFireKey && this.game.audioManager) {
-            this.game.audioManager.play(this.secondaryWeapon.sfxFireKey);
+        if (secondaryWeapon.sfxFireKey && this.game.audioManager) {
+            this.game.audioManager.play(secondaryWeapon.sfxFireKey);
         }
         
-        // Use attackCooldown for the rate of fire
-        this.attackCooldown = 1 / this.secondaryWeapon.rof;
+        this.attackCooldown = 1 / secondaryWeapon.rof;
         this.burstCount++;
 
         if (this.burstCount >= (this.bossAIConfig.MG_BURST_SIZE || 5)) {
             this.attackMode = 'GRENADE_VOLLEY';
             this.burstCount = 0;
-            // Use actionTimer for the long delay AFTER the burst is complete
             this.actionTimer = (this.bossAIConfig.MG_COOLDOWN_AFTER_BURST || 2.5);
-            this.weapon = this.primaryWeapon;
+            this.weapon = WEAPONS[this.primaryWeaponName];
         }
     }
 

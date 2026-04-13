@@ -13,7 +13,7 @@ class PossumRevolver extends Unit {
         this.deadSpriteFilesKey = 'POSSUM_REVOLVER_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_REVOLVER_DEAD_SPRITE_SCALE';
         
-        this.weapon = WEAPONS.POSSUM_REVOLVER;
+        this.weaponName = CONFIG.POSSUM_REVOLVER_DEFAULT_WEAPON || 'POSSUM_REVOLVER';
         
         this.canShootWhileMoving = true;
         

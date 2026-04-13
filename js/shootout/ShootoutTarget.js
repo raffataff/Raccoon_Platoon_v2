@@ -31,7 +31,9 @@ class ShootoutTarget extends Unit {
         this.enemyType = enemyType; // 'grunt' or 'heavy'
 
         // Use different weapons based on enemy type
-        this.weapon = enemyType === 'heavy' ? WEAPONS.POSSUM_HEAVY_WEAPON : WEAPONS.POSSUM_RIFLE;
+        this.weaponName = enemyType === 'heavy' ? 
+            (CONFIG.SHOOTOUT_HEAVY_DEFAULT_WEAPON || 'POSSUM_HEAVY_WEAPON') : 
+            (CONFIG.SHOOTOUT_GRUNT_DEFAULT_WEAPON || 'POSSUM_RIFLE');
 
         // Tree position (hidden position)
         this.treePosition = { x: treePosition.x, y: treePosition.y };

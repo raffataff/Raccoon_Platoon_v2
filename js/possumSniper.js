@@ -15,7 +15,7 @@ class PossumSniper extends Unit {
         this.spriteBaseName = 'possum_sniper';
         this.spriteScaleFactor = CONFIG.POSSUM_SNIPER_SPRITE_SCALE_FACTOR;
         
-        this.weapon = WEAPONS.POSSUM_SNIPER_RIFLE;
+        this.weaponName = CONFIG.POSSUM_SNIPER_DEFAULT_WEAPON || 'POSSUM_SNIPER_RIFLE';
         this.canShootWhileMoving = false;
         
         this.sniperAIConfig = CONFIG.AI.POSSUM_SNIPER || {};

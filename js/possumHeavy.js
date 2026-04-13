@@ -7,7 +7,7 @@ class PossumHeavy extends Unit {
         this.deadSpritePathKey = 'POSSUM_HEAVY_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_HEAVY_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_HEAVY_DEAD_SPRITE_SCALE';
-        this.weapon = WEAPONS.POSSUM_HEAVY_WEAPON;
+        this.weaponName = CONFIG.POSSUM_HEAVY_DEFAULT_WEAPON || 'POSSUM_HEAVY_WEAPON';
         this.canShootWhileMoving = false;
         this.heavyAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_HEAVY) ? CONFIG.AI.POSSUM_HEAVY : {};
         this.detectionRange = this.heavyAIConfig.DETECTION_RANGE || (CONFIG.POSSUM_DETECTION_RANGE || 250) + 20;
@@ -15,7 +15,7 @@ class PossumHeavy extends Unit {
         this.aiState = 'GUARDING';
 
         this.guardPost = { x: x, y: y };
-        this.maxChaseDistanceFromPost = this.weapon.range * (this.heavyAIConfig.MAX_CHASE_DISTANCE_FROM_POST_FACTOR || 0.95);
+        this.maxChaseDistanceFromPost = this.weapon ? this.weapon.range * (this.heavyAIConfig.MAX_CHASE_DISTANCE_FROM_POST_FACTOR || 0.95) : 500;
 
         this.chaseDestination = null;
         this.timeSinceLastChaseDestUpdate = 0;

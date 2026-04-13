@@ -8,7 +8,10 @@ class Raccoon extends Unit {
         this.deadSpriteFilesKey = 'RACCOON_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'RACCOON_DEAD_SPRITE_SCALE';
 
-        this.weapon = WEAPONS.RACCOON_MACHINE_GUN;
+        this.defaultWeaponName = 'RACCOON_MACHINE_GUN';
+        this.currentWeaponName = 'RACCOON_MACHINE_GUN';
+        this.weaponName = 'RACCOON_MACHINE_GUN';
+        
         this.name = name || "Recruit";
         this.grenadeAmmo = CONFIG.RACCOON_STARTING_GRENADES || 0;
         this.isAimingGrenade = false;
@@ -24,11 +27,17 @@ class Raccoon extends Unit {
         this.killCount = existingKills;
         this.faceImageUrl = faceImageUrl || `${CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/'}${CONFIG.RACCOON_FACE_IMAGES ? CONFIG.RACCOON_FACE_IMAGES[0] : 'default_face.png'}`;
 
-        // Ammo & Reload properties
-        this.maxAmmo = CONFIG.RACCOON_STARTING_AMMO || 400;
-        this.ammo = this.maxAmmo; // Total ammo pool (excluding magazine)
-        this.magazineSize = CONFIG.RACCOON_MAGAZINE_SIZE || 50;
-        this.currentMagazine = this.magazineSize;
+        // Ammo & Reload properties - per-weapon tracking
+        this.defaultMagazineSize = CONFIG.RACCOON_MAGAZINE_SIZE || 30;
+        this.defaultMaxAmmo = CONFIG.RACCOON_STARTING_AMMO || 120;
+        this.defaultReserveAmmo = this.defaultMaxAmmo;
+        this.defaultCurrentMagazine = this.defaultMagazineSize;
+        
+        this.specialMagazineSize = 0;
+        this.specialMaxAmmo = 0;
+        this.specialReserveAmmo = 0;
+        this.specialCurrentMagazine = 0;
+        
         this.reloadTimer = 0;
         this.isReloading = false;
 
@@ -40,45 +49,54 @@ class Raccoon extends Unit {
     }
 
     setRankBasedSprite() {
-        // Determine sprite name and scale based on rank
+        const prevDefaultWeapon = this.defaultWeaponName;
+        
+        const rankData = CONFIG.RANK_THRESHOLDS?.find(r => r.rankName === this.rank);
+        this.defaultWeaponName = rankData?.defaultWeapon || 'RACCOON_MACHINE_GUN';
+        
         switch(this.rank) {
             case 'Private':
                 this.spriteBaseName = 'raccoon_private';
                 this.spriteScaleFactor = CONFIG.RACCOON_PRIVATE_SPRITE_SCALE_FACTOR || 0.5;
-                this.weapon = WEAPONS.RACCOON_PRIVATE_MG || WEAPONS.RACCOON_MACHINE_GUN;
                 break;
             case 'Corporal':
                 this.spriteBaseName = 'raccoon_corporal';
                 this.spriteScaleFactor = CONFIG.RACCOON_CORPORAL_SPRITE_SCALE_FACTOR || 0.5;
-                this.weapon = WEAPONS.RACCOON_CORPORAL_MG || WEAPONS.RACCOON_MACHINE_GUN;
                 break;
             case 'Sergeant':
                 this.spriteBaseName = 'raccoon_sergeant';
                 this.spriteScaleFactor = CONFIG.RACCOON_SERGEANT_SPRITE_SCALE_FACTOR || 0.5;
-                this.weapon = WEAPONS.RACCOON_SERGEANT_MG || WEAPONS.RACCOON_MACHINE_GUN;
                 break;
             case 'Elite':
                 this.spriteBaseName = 'raccoon_elite';
                 this.spriteScaleFactor = CONFIG.RACCOON_ELITE_SPRITE_SCALE_FACTOR || 0.5;
-                this.weapon = WEAPONS.RACCOON_ELITE_MG || WEAPONS.RACCOON_MACHINE_GUN;
                 break;
             case 'Ghost':
                 this.spriteBaseName = 'raccoon_ghost';
                 this.spriteScaleFactor = CONFIG.RACCOON_GHOST_SPRITE_SCALE_FACTOR || 0.5;
-                this.weapon = WEAPONS.RACCOON_GHOST_MG || WEAPONS.RACCOON_MACHINE_GUN;
                 break;
             case 'Maverick':
                 this.spriteBaseName = 'raccoon_maverick';
                 this.spriteScaleFactor = CONFIG.RACCOON_MAVERICK_SPRITE_SCALE_FACTOR || 0.5;
-                this.weapon = WEAPONS.RACCOON_MAVERICK_MG || WEAPONS.RACCOON_MACHINE_GUN;
                 break;
             default:
-                // Default raccoon (Recruit)
                 this.spriteBaseName = 'raccoon';
                 this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5;
-                this.weapon = WEAPONS.RACCOON_MACHINE_GUN;
                 break;
         }
+        
+        const defaultDef = CONFIG.WEAPON_DEFINITIONS[this.defaultWeaponName];
+        if (defaultDef) {
+            this.defaultMagazineSize = defaultDef.magazineSize || 30;
+            this.defaultMaxAmmo = defaultDef.maxAmmo || 120;
+            if (prevDefaultWeapon !== this.defaultWeaponName) {
+                this.defaultReserveAmmo = this.defaultMaxAmmo;
+                this.defaultCurrentMagazine = this.defaultMagazineSize;
+            }
+        }
+        
+        this.currentWeaponName = this.defaultWeaponName;
+        this.weaponName = this.defaultWeaponName;
     }
 
     updateXpToNextRank() {
@@ -140,28 +158,66 @@ class Raccoon extends Unit {
     }
 
 
-    // --- NEW: Reload Logic ---
+    // Helper to get current weapon's ammo state
+    _getCurrentAmmoState() {
+        const currentDef = CONFIG.WEAPON_DEFINITIONS[this.currentWeaponName];
+        const isUsingSpecialWeapon = currentDef && !currentDef.isDefaultWeapon;
+        
+        if (isUsingSpecialWeapon) {
+            return {
+                magazineSize: this.specialMagazineSize,
+                maxAmmo: this.specialMaxAmmo,
+                reserveAmmo: this.specialReserveAmmo,
+                currentMagazine: this.specialCurrentMagazine,
+                isSpecial: true
+            };
+        } else {
+            return {
+                magazineSize: this.defaultMagazineSize,
+                maxAmmo: this.defaultMaxAmmo,
+                reserveAmmo: this.defaultReserveAmmo,
+                currentMagazine: this.defaultCurrentMagazine,
+                isSpecial: false
+            };
+        }
+    }
+    
+    // Helper to set current weapon's ammo state
+    _setCurrentAmmoState(state) {
+        if (state.isSpecial) {
+            this.specialMagazineSize = state.magazineSize;
+            this.specialMaxAmmo = state.maxAmmo;
+            this.specialReserveAmmo = state.reserveAmmo;
+            this.specialCurrentMagazine = state.currentMagazine;
+        } else {
+            this.defaultMagazineSize = state.magazineSize;
+            this.defaultMaxAmmo = state.maxAmmo;
+            this.defaultReserveAmmo = state.reserveAmmo;
+            this.defaultCurrentMagazine = state.currentMagazine;
+        }
+    }
+
+    // --- Reload Logic ---
     startReload() {
-        if (this.isReloading || this.ammo <= 0 || this.currentMagazine >= this.magazineSize) return;
+        if (this.isReloading) return;
+        
+        const ammoState = this._getCurrentAmmoState();
+        if (ammoState.reserveAmmo <= 0 || ammoState.currentMagazine >= ammoState.magazineSize) return;
 
         const rankIndex = CONFIG.RANK_THRESHOLDS ? CONFIG.RANK_THRESHOLDS.findIndex(r => r.rankName === this.rank) : 0;
         const baseReloadTime = CONFIG.BASE_RELOAD_TIME || 3.0;
         const reductionPerRank = CONFIG.RELOAD_TIME_REDUCTION_PER_RANK || 0.5;
 
-        // Calculate reload time based on rank
         let reloadTime = baseReloadTime - (Math.max(0, rankIndex) * reductionPerRank);
-        reloadTime = Math.max(0.5, reloadTime); // Minimum 0.5s reload time
+        reloadTime = Math.max(0.5, reloadTime);
 
         this.isReloading = true;
         this.reloadTimer = reloadTime;
-        // this.actionTimer = reloadTime; // REMOVED: Allow movement while reloading
 
-        // Visual Feedback: "Reloading!"
         if (this.game && this.game.addVisualEffect) {
             let effectX = this.x;
             let effectY = this.y - this.size;
 
-            // If selected and mouse active, show at cursor
             if (this.game.selectedUnits && this.game.selectedUnits.includes(this) &&
                 this.game.inputHandler && this.game.inputHandler.mousePos) {
                 effectX = this.game.inputHandler.mousePos.worldX;
@@ -172,50 +228,29 @@ class Raccoon extends Unit {
                 x: effectX,
                 y: effectY,
                 text: "Reloading!",
-                color: '#AAAAAA', // Greyish
-                icon: null // No icon for text-only
+                color: '#AAAAAA',
+                icon: null
             });
         }
-
-        
     }
 
     completeReload() {
-        const ammoNeeded = this.magazineSize - this.currentMagazine;
+        let ammoState = this._getCurrentAmmoState();
+        
+        const ammoNeeded = ammoState.magazineSize - ammoState.currentMagazine;
         if (ammoNeeded <= 0) {
             this.isReloading = false;
             return;
         }
 
-        const ammoToTake = Math.min(ammoNeeded, this.ammo);
-        this.currentMagazine += ammoToTake;
-        this.ammo -= ammoToTake;
+        const ammoToTake = Math.min(ammoNeeded, ammoState.reserveAmmo);
+        ammoState.currentMagazine += ammoToTake;
+        ammoState.reserveAmmo -= ammoToTake;
+        
+        this._setCurrentAmmoState(ammoState);
         this.isReloading = false;
 
-        
-
         if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
-
-        // Visual Feedback: "Last Mag!" if out of reserve
-        if (this.ammo <= 0 && this.game && this.game.addVisualEffect) {
-            let effectX = this.x;
-            let effectY = this.y - this.size * 1.5;
-
-            // If selected and mouse active, show at cursor
-            if (this.game.selectedUnits && this.game.selectedUnits.includes(this) &&
-                this.game.inputHandler && this.game.inputHandler.mousePos) {
-                effectX = this.game.inputHandler.mousePos.worldX;
-                effectY = this.game.inputHandler.mousePos.worldY - 40; // Higher offset than 'Reloading'
-            }
-
-            this.game.addVisualEffect('pickup', {
-                x: effectX,
-                y: effectY,
-                text: "Last Mag!",
-                color: '#FF4444', // Red warning
-                icon: null
-            });
-        }
     }
 
     update(deltaTime) {
@@ -227,9 +262,15 @@ class Raccoon extends Unit {
                 this.completeReload();
             }
         } else {
-            // Auto-reload if empty and have ammo
-            if (this.currentMagazine <= 0 && this.ammo > 0) {
+            const ammoState = this._getCurrentAmmoState();
+            const currentDef = CONFIG.WEAPON_DEFINITIONS[this.currentWeaponName];
+            const isUsingSpecialWeapon = currentDef && !currentDef.isDefaultWeapon;
+            
+            if (ammoState.currentMagazine <= 0 && ammoState.reserveAmmo > 0) {
                 this.startReload();
+            } else if (ammoState.currentMagazine <= 0 && ammoState.reserveAmmo <= 0 && isUsingSpecialWeapon) {
+                // Special weapon completely empty - swap back to default
+                this._revertToDefaultWeapon();
             }
         }
 
@@ -247,36 +288,75 @@ class Raccoon extends Unit {
         this.checkForAndApplyPickups();
     }
 
-    // Override _executeFire to consume ammo
+    // Override _executeFire to consume ammo and handle special weapons
     _executeFire(pointX, pointY) {
         if (this.isReloading) return;
+        
+        // Defensive check: ensure weapon is valid before firing
+        if (!this.weapon) {
+            console.error(`[Raccoon ${this.id}] _executeFire called with null weapon! currentWeaponName: ${this.currentWeaponName}`);
+            return;
+        }
 
-        if (this.currentMagazine <= 0) {
-            if (this.ammo > 0) {
+        let ammoState = this._getCurrentAmmoState();
+        const currentDef = CONFIG.WEAPON_DEFINITIONS[this.currentWeaponName];
+        const isUsingSpecialWeapon = currentDef && !currentDef.isDefaultWeapon;
+
+        if (ammoState.currentMagazine <= 0) {
+            if (ammoState.reserveAmmo > 0) {
                 this.startReload();
+            } else if (isUsingSpecialWeapon) {
+                // Special weapon is completely empty - swap back to default weapon
+                this._revertToDefaultWeapon();
             }
             return;
         }
 
         super._executeFire(pointX, pointY);
 
-        // Decrement ammo only if super._executeFire actually fired (which checks cooldowns etc)
-        // Since super._executeFire doesn't return success/fail, and it does the checks inside,
-        // we might be decrementing even if it didn't fire if we aren't careful.
-        // However, we are inside Raccoon class. Let's look at Unit._executeFire.
-        // It checks: !this.weapon, actionTimer > 0, attackCooldown > 0, !isAlive.
-        // We duplicates some checks here or rely on the fact that if we are here, we passed update()'s checks?
-        // Actually, _executeFire is called from update().
-        // Unit.js:220 calls _executeFire.
-        // Unit.js:191 checks isReadyToFire (attackCooldown <= 0 && actionTimer <= 0).
-        // So if we are called, we are ready to fire.
+        // Consume ammo from current magazine
+        ammoState.currentMagazine--;
+        this._setCurrentAmmoState(ammoState);
+    }
 
-        this.currentMagazine--;
-        if (this.game && this.game.ui) {
-            // Throttle UI updates or just update on every shot? 
-            // Updating on every shot might be heavy if many units. 
-            // For now, let's trust it's okay or maybe user didn't ask for UI yet.
-            // But SquadPanel usually shows ammo if we add it.
+    // Swap back to default weapon when special weapon ammo is exhausted
+    _revertToDefaultWeapon() {
+        const defaultDef = CONFIG.WEAPON_DEFINITIONS[this.defaultWeaponName];
+        if (defaultDef) {
+            this.currentWeaponName = this.defaultWeaponName;
+            this.weaponName = this.defaultWeaponName;
+            
+            // Reset special weapon ammo (can be picked up again later)
+            this.specialMagazineSize = 0;
+            this.specialMaxAmmo = 0;
+            this.specialReserveAmmo = 0;
+            this.specialCurrentMagazine = 0;
+            
+            // Ensure default ammo is valid
+            if (this.defaultCurrentMagazine <= 0 && this.defaultReserveAmmo > 0) {
+                this.defaultCurrentMagazine = Math.min(this.defaultMagazineSize, this.defaultReserveAmmo);
+            }
+            
+            // Show visual feedback
+            if (this.game && this.game.addVisualEffect) {
+                const defaultWeaponName = defaultDef.name || 'Default Weapon';
+                this.game.addVisualEffect('pickup', {
+                    x: this.x,
+                    y: this.y - this.size,
+                    text: defaultWeaponName,
+                    color: defaultDef.projectileColor || '#FFFFFF',
+                    icon: null
+                });
+            }
+            
+            // Update UI
+            if (this.game && this.game.ui) {
+                this.game.ui.updateSquadPanel();
+            }
+            
+            if (CONFIG.DEBUG_LOGGING) {
+                console.log(`[Raccoon ${this.id}] Reverted to default weapon: ${this.defaultWeaponName}`);
+            }
         }
     }
 
@@ -404,7 +484,10 @@ class Raccoon extends Unit {
         }
         for (let i = this.game.level.obstacles.length - 1; i >= 0; i--) {
             const obs = this.game.level.obstacles[i];
-            if (obs && obs.isPickup && !obs.isDestroyed && obs.pickupType && obs.pickupQuantity !== undefined) {
+            if (obs && obs.isPickup && !obs.isDestroyed && obs.pickupType) {
+                const isValidPickup = (obs.pickupQuantity !== undefined) || (obs.pickupType === 'weapon' && obs.weaponName);
+                if (!isValidPickup) continue;
+                
                 const raccoonLeft = this.x - this.size / 2;
                 const raccoonRight = this.x + this.size / 2;
                 const raccoonTop = this.y - this.size / 2;
@@ -429,7 +512,7 @@ class Raccoon extends Unit {
 
     applyPickup(pickupObstacle) {
         // --- MODIFICATION START ---
-        const pickupText = `+${pickupObstacle.pickupQuantity}`;
+        let pickupText = `+${pickupObstacle.pickupQuantity}`;
         let pickupColor = 'white';
         let pickupIcon = null;
 
@@ -438,10 +521,10 @@ class Raccoon extends Unit {
             pickupColor = '#F0E68C'; // Khaki
             pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.GRENADE_ICON];
         } else if (pickupObstacle.pickupType === 'ammo') {
-            this.ammo += pickupObstacle.pickupQuantity;
-            if (this.ammo > this.maxAmmo) {
-                this.ammo = this.maxAmmo;
-            }
+            let ammoState = this._getCurrentAmmoState();
+            ammoState.reserveAmmo += pickupObstacle.pickupQuantity;
+            ammoState.reserveAmmo = Math.min(ammoState.reserveAmmo, ammoState.maxAmmo);
+            this._setCurrentAmmoState(ammoState);
             pickupColor = '#87CEEB'; // SkyBlue
             pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.AMMO_ICON];
         } else if (pickupObstacle.pickupType === 'health') {
@@ -453,8 +536,23 @@ class Raccoon extends Unit {
                 pickupColor = '#90EE90'; // LightGreen
                 pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.HEALTH_ICON];
             } else {
-                // Don't show an effect if health is full and can't be picked up
                 return;
+            }
+        } else if (pickupObstacle.pickupType === 'weapon') {
+            if (pickupObstacle.weaponName && WEAPONS[pickupObstacle.weaponName]) {
+                const weaponDef = CONFIG.WEAPON_DEFINITIONS[pickupObstacle.weaponName];
+                if (weaponDef && !weaponDef.isDefaultWeapon) {
+                    this.specialMagazineSize = weaponDef.magazineSize || 30;
+                    this.specialMaxAmmo = weaponDef.maxAmmo || 120;
+                    this.specialReserveAmmo = this.specialMaxAmmo;
+                    this.specialCurrentMagazine = this.specialMagazineSize;
+                    
+                    this.currentWeaponName = pickupObstacle.weaponName;
+                    this.weaponName = pickupObstacle.weaponName;
+                    
+                    pickupText = weaponDef.name;
+                    pickupColor = weaponDef.projectileColor || '#FFD700';
+                }
             }
         }
 
