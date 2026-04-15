@@ -473,7 +473,7 @@ const CONFIG = {
             isDefaultWeapon: false,
             magazineSize: 40,
             maxAmmo: 120,
-            phaseUnlocked: 0,
+            phaseUnlocked: 1,
             crateColor: '#00ffcc',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/pr-1.png',
             crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/pr-1_empty.png'
@@ -494,7 +494,7 @@ const CONFIG = {
             magazineSize: 8,
             maxAmmo: 32,
             phaseUnlocked: 8,
-            pelletCount: 6,
+            pelletCount: 2,
             crateColor: '#ffaa00',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/g14.png',
             crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/g14_empty.png'
@@ -502,7 +502,7 @@ const CONFIG = {
         X1: {
             name: "X-1",
             damage: 75,
-            rof: 0.5,
+            rof: 1.5,
             range: 800,
             projectileSpeed: 1500,
             projectileColor: '#ff00ff',
@@ -512,9 +512,9 @@ const CONFIG = {
             muzzleFlashScale: 2.0,
             bulletLifetime: 1.5,
             isDefaultWeapon: false,
-            magazineSize: 5,
+            magazineSize: 8,
             maxAmmo: 15,
-            phaseUnlocked: 8,
+            phaseUnlocked: 3,
             crateColor: '#ff00ff',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/x1.png',
             crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/x1_empty.png'
@@ -534,7 +534,7 @@ const CONFIG = {
             isDefaultWeapon: false,
             magazineSize: 60,
             maxAmmo: 180,
-            phaseUnlocked: 8,
+            phaseUnlocked: 4,
             crateColor: '#ff4400',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/pw001.png',
             crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/pw001_empty.png'
@@ -544,7 +544,7 @@ const CONFIG = {
             damage: 80,
             rof: 0.5,
             range: 600,
-            projectileSpeed: 350,
+            projectileSpeed: 850,
             projectileColor: '#ff6600',
             accuracyStationary: 0.9,
             accuracyMoving: 0.5,
@@ -554,7 +554,7 @@ const CONFIG = {
             isDefaultWeapon: false,
             magazineSize: 4,
             maxAmmo: 12,
-            phaseUnlocked: 8,
+            phaseUnlocked: 5,
             crateColor: '#ff6600',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/mosin.png',
             crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/mosin_empty.png'
@@ -566,6 +566,7 @@ const CONFIG = {
     // =============================================================================
     AI: {
         POSSUM_GRUNT: {
+            DETECTION_RANGE: 150,
             PATROL_MIN_RADIUS: 80,
             PATROL_MAX_RADIUS: 200,
             PATROL_POINT_WORLD_MARGIN_BUFFER: 20,
@@ -581,7 +582,7 @@ const CONFIG = {
             DESPERATE_STUCK_MOVE_RADIUS_CELLS: 10,
         },
         POSSUM_HEAVY: {
-            DETECTION_RANGE: 370,
+            DETECTION_RANGE: 270,
             MAX_CHASE_DISTANCE_FROM_POST_FACTOR: 0.95,
             GUARD_POST_POSITION_TOLERANCE: 5,
             SUSPICIOUS_STATE_SCAN_DURATION: 0.5,
@@ -596,7 +597,7 @@ const CONFIG = {
             DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
         },
         POSSUM_SNIPER: {
-            DETECTION_RANGE: 750,
+            DETECTION_RANGE: 550,
             SETUP_TIME_SECONDS: 2.5,
             FIRE_COOLDOWN_SECONDS: 5.0,
             REPOSITION_CHANCE_AFTER_SHOT: 0.6,
@@ -604,7 +605,7 @@ const CONFIG = {
             REPOSITION_MIN_DISTANCE: 100
         },
         POSSUM_ELITE: {
-            DETECTION_RANGE: 520,
+            DETECTION_RANGE: 320,
             PATROL_MIN_RADIUS: 100,
             PATROL_MAX_RADIUS: 250,
             PATROL_WAIT_BASE: 1.0,
@@ -644,7 +645,7 @@ const CONFIG = {
             }
         },
         POSSUM_REVOLVER: {
-            DETECTION_RANGE: 580,
+            DETECTION_RANGE: 280,
             RELOAD_TIME_SECONDS: 2.0,
             BURST_SIZE: 8,
             STRAFE_DISTANCE: 75,
@@ -946,7 +947,7 @@ const CONFIG = {
             type: 'tree_palm_single', name: 'Palm Tree Single', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.39), offsetY: (h => h * 1.25), radius: (w => w * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -957,7 +958,7 @@ const CONFIG = {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 1, isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.25), radiusX: (w => w * 0.17), radiusY: (h => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -968,7 +969,7 @@ const CONFIG = {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0.5, isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.3), radiusX: (w => w * 0.2), radiusY: (h => h * 0.10) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -980,7 +981,7 @@ const CONFIG = {
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 0.4,
+            spriteScale: 0.35,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
             spriteDestroyedScale: 0.5,
@@ -1033,10 +1034,10 @@ const CONFIG = {
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, isDecoration: false,
-            spriteScale: 0.3,
+            spriteScale: 0.35,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.75), radius: (w => w * 0.07) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.5,
+            spriteDestroyedScale: 0.4,
             canBeFlipped: true,
         },
         {
@@ -1044,10 +1045,10 @@ const CONFIG = {
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, isDecoration: false,
-            spriteScale: 0.3,
+            spriteScale: 0.35,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.5,
+            spriteDestroyedScale: 0.4,
             canBeFlipped: true,
         },
         {
@@ -1055,7 +1056,7 @@ const CONFIG = {
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.3,
+            spriteScale: 0.35,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
             spriteDestroyedScale: 0.45,
@@ -1066,8 +1067,8 @@ const CONFIG = {
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radius: (w => w * 0.1) },
+            spriteScale: 0.4,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.2,
             canBeFlipped: true,
@@ -1142,9 +1143,9 @@ const CONFIG = {
             blocksMovement: true,
             providesCover: true,
             spawnWeight: 3,
-            spriteScale: 0.6,
+            spriteScale: 0.5,
             spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.35), radiusY: (h => h * 0.15) },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.06), offsetY: (h => h * 0.35), width: (w => w * 0.8), height: (h => h * 0.15) },
             placementBuffer: 150,
             canBeFlipped: true,
             isDecoration: false
@@ -1490,10 +1491,10 @@ const CONFIG = {
         FOLLOW_LERP_SPEED: 0.04,
         POSSIBLE_RANKS_ON_RESCUE: [
             { rankName: "Recruit", xpNeeded: 0, weight: 40 },
-            { rankName: "Private", xpNeeded: 100, weight: 25 },
-            { rankName: "Corporal", xpNeeded: 300, weight: 18 },
-            { rankName: "Sergeant", xpNeeded: 600, weight: 12 },
-            { rankName: "Elite", xpNeeded: 1000, weight: 5 }
+            { rankName: "Private", xpNeeded: 300, weight: 25 },
+            { rankName: "Corporal", xpNeeded: 600, weight: 18 },
+            { rankName: "Sergeant", xpNeeded: 1200, weight: 12 },
+            { rankName: "Elite", xpNeeded: 2400, weight: 5 }
         ],
         MAX_HOSTAGES_PER_MISSION: 5,
         MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,

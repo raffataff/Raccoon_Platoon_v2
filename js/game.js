@@ -518,6 +518,17 @@ class Game {
             }
         }
 
+        // Dogtag UI Asset
+        const dogtagPath = 'assets/images/ui/dogtag.png';
+        if (!this.preloadedImages[dogtagPath]) {
+            imagePromises.push(new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => { this.preloadedImages[dogtagPath] = img; resolve(); };
+                img.onerror = () => { console.warn(`[Preload FAILED - UI] Dogtag: '${dogtagPath}'`); this.preloadedImages[dogtagPath] = null; resolve(); };
+                img.src = dogtagPath;
+            }));
+        }
+
         // UI Assets
         // Grenade
         if (CONFIG.UI_ASSETS) {
@@ -2628,7 +2639,8 @@ class Game {
                         const newName = getRandomRaccoonName(currentRosterNames, rosterRng);
                         const newRecruit = new Raccoon(0, 0, this, `RCN-RES-${rosterRng.nextInt(1000, 9999)}-${this.masterRoster.length}`, chosenFaceUrl, newName);
                         newRecruit.rank = hostage.assignedRankOnRescue;
-                        newRecruit.xp = hostage.assignedXpOnRescue || 0;
+                        const rankThresholdData = CONFIG.RANK_THRESHOLDS?.find(r => r.rankName === hostage.assignedRankOnRescue);
+                        newRecruit.xp = rankThresholdData ? rankThresholdData.xpNeeded : (hostage.assignedXpOnRescue || 0);
                         newRecruit.isNewlyRescued = true;
                         newRecruit.applyRankBonuses(true);
                         newRecruit.setRankBasedSprite();

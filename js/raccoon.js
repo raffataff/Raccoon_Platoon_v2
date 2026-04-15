@@ -21,6 +21,7 @@ class Raccoon extends Unit {
 
         this.isNewlyRescued = false;
         this.promotedThisMission = false;
+        this.previousRank = null;
 
         this.xp = existingXP;
         this.rank = existingRank || (CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS[0] ? CONFIG.RANK_THRESHOLDS[0].rankName : "Recruit");
@@ -143,6 +144,7 @@ class Raccoon extends Unit {
         while (currentRankIndex < CONFIG.RANK_THRESHOLDS.length - 1) {
             const nextRankData = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1];
             if (this.xp >= nextRankData.xpNeeded) {
+                if (!this.previousRank) this.previousRank = this.rank;
                 this.rank = nextRankData.rankName;
                 promoted = true;
                 // --- NEW ---
@@ -541,7 +543,7 @@ class Raccoon extends Unit {
         } else if (pickupObstacle.pickupType === 'weapon') {
             if (pickupObstacle.weaponName && WEAPONS[pickupObstacle.weaponName]) {
                 const weaponDef = CONFIG.WEAPON_DEFINITIONS[pickupObstacle.weaponName];
-                if (weaponDef && !weaponDef.isDefaultWeapon) {
+                if (weaponDef) {
                     this.specialMagazineSize = weaponDef.magazineSize || 30;
                     this.specialMaxAmmo = weaponDef.maxAmmo || 120;
                     this.specialReserveAmmo = this.specialMaxAmmo;

@@ -1841,9 +1841,34 @@ class UI {
         const card = document.createElement('div');
         card.className = 'unit-card';
 
+        const isPromoted = recruit.promotedThisMission && type !== 'fallen' && type !== 'new';
+        if (isPromoted) {
+            card.classList.add('promoted');
+        }
+
         // Sprite Section (top)
         const spriteSection = document.createElement('div');
         spriteSection.className = 'unit-card-sprite-section';
+
+        // For promoted units, create old rank sprite overlay
+        let oldRankSpriteDiv = null;
+        if (isPromoted && recruit.previousRank) {
+            oldRankSpriteDiv = document.createElement('div');
+            oldRankSpriteDiv.className = 'card-sprite card-sprite-old-rank';
+            
+            const spriteBaseName = recruit.spriteBaseName || 'raccoon';
+            const oldSpritePath = this._getSpritePathForRank(recruit.previousRank);
+            const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+            
+            directions.forEach(dir => {
+                const spriteKey = `${spriteBaseName}_idle_${dir}`;
+                const spriteUrl = this.game?.preloadedImages?.[spriteKey] 
+                    ? this.game.preloadedImages[spriteKey].src 
+                    : `${oldSpritePath}idle/${spriteBaseName}_idle_${dir}.png`;
+                oldRankSpriteDiv.style.setProperty(`--sprite-${dir}`, `url('${spriteUrl}')`);
+            });
+            spriteSection.appendChild(oldRankSpriteDiv);
+        }
 
         const spriteDiv = document.createElement('div');
         spriteDiv.className = 'card-sprite';
@@ -1875,73 +1900,62 @@ class UI {
         spriteSection.appendChild(spriteDiv);
         card.appendChild(spriteSection);
 
-        // Info Row (Face left, Details right)
+        // Promotion badge
+        if (isPromoted) {
+            const promotionBadge = document.createElement('div');
+            promotionBadge.className = 'promotion-badge';
+            promotionBadge.textContent = `PROMOTED TO ${recruit.rank.toUpperCase()}!`;
+            card.appendChild(promotionBadge);
+        }
+
+        // Info Row - Dogtag container with rank icon and details
         const infoRow = document.createElement('div');
         infoRow.className = 'unit-card-info-row';
 
-        // Face Section (left)
-        const faceSection = document.createElement('div');
-        faceSection.className = 'unit-card-face-section';
-        
-        const faceDiv = document.createElement('div');
-        faceDiv.className = 'card-face';
-        faceDiv.style.backgroundImage = `url('${recruit.faceImageUrl}')`;
-        faceSection.appendChild(faceDiv);
-        infoRow.appendChild(faceSection);
+        // Dogtag Container (background + rank icon + details)
+        const dogtagContainer = document.createElement('div');
+        dogtagContainer.className = 'unit-card-dogtag';
 
-        // Details Section (right)
+        // Left side: Rank Icon
+        const rankIconDiv = document.createElement('div');
+        rankIconDiv.className = 'card-rank-icon';
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
+            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
+        }
+        dogtagContainer.appendChild(rankIconDiv);
+
+        // Right side: Details (name, rank, status)
         const detailsDiv = document.createElement('div');
-        detailsDiv.className = 'unit-card-details';
+        detailsDiv.className = 'card-details';
 
         const nameDiv = document.createElement('div');
         nameDiv.className = 'card-name';
         nameDiv.textContent = recruit.name;
         detailsDiv.appendChild(nameDiv);
 
-        // Rank and XP
-        if (type === 'fallen') {
-            const rankDiv = document.createElement('div');
-            rankDiv.className = 'card-rank';
+        const rankDiv = document.createElement('div');
+        rankDiv.className = 'card-rank';
+        if (isPromoted) {
             rankDiv.textContent = recruit.rank || 'Recruit';
-            detailsDiv.appendChild(rankDiv);
-
-            const xpDiv = document.createElement('div');
-            xpDiv.className = 'card-status kia';
-            xpDiv.textContent = 'KIA';
-            detailsDiv.appendChild(xpDiv);
-        } else if (type === 'survivor' && recruit.promotedThisMission) {
-            card.classList.add('is-promoted');
-            const rankConfig = CONFIG.RANK_THRESHOLDS;
-            const currentRankIndex = rankConfig.findIndex(r => r.rankName === recruit.rank);
-            const prevRank = currentRankIndex > 0 ? rankConfig[currentRankIndex - 1].rankName : "Recruit";
-
-            const rankDiv = document.createElement('div');
-            rankDiv.className = 'card-rank';
-            rankDiv.innerHTML = `<span class="rank-text-old">${prevRank}</span> <span class="rank-arrow">▶</span> <span class="rank-text-new">${recruit.rank}</span>`;
-            detailsDiv.appendChild(rankDiv);
-
-            const xpDiv = document.createElement('div');
-            xpDiv.className = 'card-xp';
-            xpDiv.textContent = `XP: ${recruit.xp}`;
-            detailsDiv.appendChild(xpDiv);
-
-            const promoDiv = document.createElement('div');
-            promoDiv.className = 'card-status promoted';
-            promoDiv.textContent = 'PROMOTED!';
-            detailsDiv.appendChild(promoDiv);
         } else {
-            const rankDiv = document.createElement('div');
-            rankDiv.className = 'card-rank';
             rankDiv.textContent = recruit.rank || 'Recruit';
-            detailsDiv.appendChild(rankDiv);
-
-            const xpDiv = document.createElement('div');
-            xpDiv.className = 'card-xp';
-            xpDiv.textContent = `XP: ${recruit.xp}`;
-            detailsDiv.appendChild(xpDiv);
         }
+        detailsDiv.appendChild(rankDiv);
 
-        infoRow.appendChild(detailsDiv);
+        const statusDiv = document.createElement('div');
+        if (type === 'fallen') {
+            statusDiv.className = 'card-status kia';
+            statusDiv.textContent = 'KIA';
+        } else {
+            statusDiv.className = 'card-xp';
+            statusDiv.textContent = `XP: ${recruit.xp}`;
+        }
+        detailsDiv.appendChild(statusDiv);
+
+        dogtagContainer.appendChild(detailsDiv);
+        infoRow.appendChild(dogtagContainer);
         card.appendChild(infoRow);
 
         if (type === 'fallen') {

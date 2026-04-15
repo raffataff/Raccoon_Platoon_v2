@@ -1355,7 +1355,7 @@ input[type="range"]::-moz-range-thumb {
     border-bottom: 2px solid var(--brand-primary);
     background-size: cover;
     background-position: center;
-    filter: brightness(1.0) contrast(1.1);
+    filter: saturate(1.6);
 }
 
 .roster-card .roster-card-name {
@@ -1580,7 +1580,7 @@ input[type="range"]::-moz-range-thumb {
     --pm-card-width: 280px;
     --pm-card-padding: 8px;
     --pm-card-face-size: 110px;
-    --pm-card-sprite-height: 190px;
+    --pm-card-sprite-height: 128px;
     
     /* Colors */
     --pm-card-bg: #312E2B;
@@ -1600,7 +1600,7 @@ input[type="range"]::-moz-range-thumb {
     --pm-subtitle-size: 1rem;
     --pm-name-size: 1.2rem;
     --pm-rank-size: 1.0rem;
-    --pm-xp-size: 0.9em;
+    --pm-xp-size: 1.1em;
     --pm-status-size: 1.1em;
     --pm-name-color: #53f068;
     --pm-rank-color: #C8C6B8;
@@ -1800,12 +1800,11 @@ input[type="range"]::-moz-range-thumb {
 /* --- Unit Card Base --- */
 .unit-card {
     width: var(--pm-card-width);
-    background-color: var(--pm-card-bg);
-    border: 1px solid var(--pm-card-border);
+    border: 1px solid transparent;
     border-radius: 4px;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    overflow: visible;
     flex-shrink: 0;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -1819,44 +1818,23 @@ input[type="range"]::-moz-range-thumb {
 .unit-card-sprite-section {
     width: 100%;
     height: var(--pm-card-sprite-height);
-    background-color: var(--pm-card-bg-dark);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
     position: relative;
     overflow: hidden;
     flex-shrink: 0;
+    padding: 10px 0px;
 }
 
-/* --- Info Row (Face left, Details right) --- */
+/* --- Info Row --- */
 .unit-card-info-row {
     display: flex;
-    flex-direction: row;
-    width: 100%;
-    flex-shrink: 0;
-}
-
-/* --- Face Section (left) --- */
-.unit-card-face-section {
-    width: var(--pm-card-face-size);
-    height: var(--pm-card-face-size);
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
     justify-content: center;
-    background-color: var(--pm-card-bg-dark);
-}
-
-.unit-card .card-face {
-    width: var(--pm-card-face-size);
-    height: var(--pm-card-face-size);
-    background-size: cover;
-    background-position: center;
-    border-radius: 0;
-    border: 2px solid #555;
-    filter: none !important;
-    -webkit-filter: none !important;
-    box-sizing: border-box;
+    width: 100%;
+    height: 110px;
+    flex-shrink: 0;
 }
 
 .unit-card .card-sprite {
@@ -1867,51 +1845,86 @@ input[type="range"]::-moz-range-thumb {
     background-repeat: no-repeat;
     image-rendering: auto;
     -webkit-image-rendering: auto;
+    image-rendering: pixelated;       /* KEY FIX: Prevents anti-aliasing blur */
+    -webkit-image-rendering: pixelated;
     animation: pm-sprite-rotate var(--pm-sprite-rotation-duration) steps(1) infinite;
 }
 
-/* --- Details Section (right) --- */
-.unit-card-details {
+/* --- Dogtag Container --- */
+.unit-card-dogtag {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+    flex-direction: row;
     align-items: center;
-    gap: var(--pm-details-gap);
-    padding: var(--pm-details-padding);
-    background-color: var(--pm-details-bg);
-    flex: 1;
+    justify-content: center;
+    gap: 8px;
+    width: 400px;
+    max-width: 580px;
+    padding: 8px 2px;
+    background-image: url('assets/images/ui/dogtag.png');
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-sizing: border-box;
+    margin-bottom: 15px;
+}
+
+.unit-card.fallen .unit-card-dogtag {
+    filter: grayscale(50%) brightness(0.8);
+}
+
+.unit-card .card-rank-icon {
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.unit-card .card-details {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 3px;
 }
 
 .unit-card .card-name {
-    width: 100%;
-    font-size: var(--pm-name-size);
-    font-weight: bold;
-    color: var(--pm-name-color);
-    text-align: center;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #534c4c;
+    text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    margin-bottom: 2px;
+    letter-spacing: 2px;
+    max-width: 100%;
+    line-height: 1.1;
 }
 
 .unit-card .card-rank {
-    font-size: var(--pm-rank-size);
-    color: var(--pm-rank-color);
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: #2b2b2b;
     text-transform: uppercase;
     letter-spacing: 1px;
+    text-align: left;
+    line-height: 1.1;
 }
 
 .unit-card .card-xp {
-    font-size: var(--pm-xp-size);
-    color: var(--pm-xp-color);
+    font-size: 0.7rem;
+    color: #ffffff;
+    text-align: left;
+    line-height: 1.1;
 }
 
 .unit-card .card-status {
-    font-size: var(--pm-status-size);
+    font-size: 0.75rem;
     font-weight: bold;
     text-transform: uppercase;
     letter-spacing: 1px;
+    text-align: left;
+    line-height: 1.1;
 }
 
 .unit-card .card-status.kia {
@@ -1919,20 +1932,10 @@ input[type="range"]::-moz-range-thumb {
     font-style: italic;
 }
 
-.unit-card .card-status.promoted {
-    color: #ffd700;
-    animation: pm-pulse-gold 1s ease-in-out infinite;
-}
-
 /* --- Fallen Unit Styles --- */
 .unit-card.fallen {
-    background-color: var(--pm-fallen-bg);
+    background: transparent;
     border-color: var(--pm-fallen-border);
-}
-
-.unit-card.fallen .card-face {
-    filter: grayscale(80%) brightness(0.7) !important;
-    -webkit-filter: grayscale(80%) brightness(0.7) !important;
 }
 
 .unit-card.fallen .card-sprite {
@@ -1941,20 +1944,120 @@ input[type="range"]::-moz-range-thumb {
     -webkit-filter: grayscale(100%) brightness(0.5);
 }
 
-/* --- Promotion Styles --- */
-.unit-card.is-promoted .rank-text-old {
-    text-decoration: line-through;
-    opacity: 0.7;
+/* --- Promoted Unit Styles --- */
+.unit-card.promoted {
+    animation: promotion-glow 1.5s ease-in-out infinite;
+    position: relative;
 }
 
-.unit-card.is-promoted .rank-arrow {
-    color: #ffd700;
-    animation: fade-in-anim 0.4s forwards;
+@keyframes promotion-glow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(255, 215, 0, 0.3), 0 0 20px rgba(255, 180, 0, 0.2), inset 0 0 5px rgba(255, 215, 0, 0.1);
+        border-color: rgba(255, 215, 0, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(255, 215, 0, 0.6), 0 0 50px rgba(255, 180, 0, 0.4), inset 0 0 15px rgba(255, 215, 0, 0.2);
+        border-color: rgba(255, 215, 0, 0.9);
+    }
 }
 
-.unit-card.is-promoted .rank-text-new {
-    color: #ffd700;
+.promotion-badge {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(135deg, #ffd700 0%, #ffaa00 50%, #ffd700 100%);
+    color: #1a1a1a;
+    font-family: var(--font-header), 'Black Ops One', cursive;
+    font-size: 0.75rem;
     font-weight: bold;
+    padding: 6px 12px;
+    border-radius: 4px;
+    text-align: center;
+    z-index: 10;
+    white-space: nowrap;
+    animation: badge-pop 0.5s ease-out forwards, badge-pulse 2s ease-in-out infinite 0.5s;
+    box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.4);
+    letter-spacing: 1px;
+}
+
+@keyframes badge-pop {
+    0% {
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+    }
+    70% {
+        transform: translate(-50%, -50%) scale(1.2);
+    }
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+}
+
+@keyframes badge-pulse {
+    0%, 100% {
+        box-shadow: 0 0 15px rgba(255, 215, 0, 0.8), 0 2px 8px rgba(0, 0, 0, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 25px rgba(255, 215, 0, 1), 0 2px 12px rgba(0, 0, 0, 0.5);
+    }
+}
+
+.card-sprite-old-rank {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    animation: old-rank-fade 1.5s ease-out forwards;
+}
+
+@keyframes old-rank-fade {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(1.1) translateY(-10px);
+    }
+}
+
+.unit-card.promoted .card-sprite:not(.card-sprite-old-rank) {
+    animation: new-rank-appear 1.5s ease-out forwards;
+    animation-delay: 0.3s;
+    opacity: 0;
+}
+
+@keyframes new-rank-appear {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+        filter: brightness(2) saturate(0);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.05);
+        filter: brightness(1.5) saturate(0.5);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        filter: brightness(1) saturate(1);
+    }
+}
+
+/* Force pixelated rendering for all scaled images in the debrief */
+.unit-card-sprite-section .card-sprite,
+.unit-card-sprite-section .card-sprite-old-rank {
+    image-rendering: pixelated;
+    -webkit-image-rendering: pixelated;
 }
 
 /* --- No Entry Message --- */
