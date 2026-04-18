@@ -184,10 +184,10 @@ const CONFIG = {
     POSSUM_ELITE_COLOR: '#8B4513',
     POSSUM_ELITE_DEFAULT_WEAPON: 'POSSUM_ELITE_WEAPON',
     POSSUM_ELITE_SPRITE_PATH: 'assets/images/units/possum_elite/',
-    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.6,
+    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.5,
     POSSUM_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite/dead/',
     POSSUM_ELITE_DEAD_SPRITE_FILES: ['possum_elite_dead1.png', 'possum_elite_dead2.png'],
-    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.4,
+    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.35,
     PROJECTILE_COLOR_POSSUM_ELITE: '#FF4500',
 
     // --- Possum Boss 1 ---
@@ -845,6 +845,11 @@ const CONFIG = {
         { normal: 'possum_hut_4.png', destroyed: 'possum_hut_4_destroyed.png' },
         { normal: 'possum_hut_5.png', destroyed: 'possum_hut_5_destroyed.png' }
     ],
+    EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH: 'assets/images/objects/possums/huts/',
+    EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES: [
+        { normal: 'possum_hut_4.png', destroyed: 'possum_hut_4_destroyed.png' },
+        { normal: 'possum_hut_5.png', destroyed: 'possum_hut_5_destroyed.png' }
+    ],
 
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
     POSSUM_RELAY_TOWER_SPRITE_FILES: [
@@ -868,6 +873,17 @@ const CONFIG = {
     FENCE_BARBED_SPRITE_PATH: 'assets/images/objects/fences/barbed/',
     FENCE_BARBED_SHORT_SPRITE_FILES: ['fence_barbed_straight_short_1.png', 'fence_barbed_straight_short_2.png', 'fence_barbed_straight_short_3.png', 'fence_barbed_straight_short_4.png', 'fence_barbed_straight_short_5.png', 'fence_barbed_straight_short_6.png'],
     FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png'],
+
+    INTEL: {
+        INTERACTION_RADIUS: 20,
+        SPAWN_DISTANCE: 600,
+        SPRITE_PATH: 'assets/images/objects/possums/intel/',
+        SPRITE_FILES: [
+            { on: 'intel_console_1_on.png', off: 'intel_console_1_off.png' },
+            { on: 'intel_console_2_on.png', off: 'intel_console_2_off.png' },
+        ],
+        SPRITE_SCALE: 0.2,
+    },
 
     OBSTACLE_DEFINITIONS: [
         {
@@ -1131,7 +1147,7 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.33), radiusY: (h => h * 0.15) },
             placementBuffer: 150,
             canBeFlipped: true,
-            isDecoration: false
+            isDecoration: true
         },
         {
             type: 'rainforest_patch_large_1',
@@ -1148,7 +1164,7 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.06), offsetY: (h => h * 0.35), width: (w => w * 0.8), height: (h => h * 0.15) },
             placementBuffer: 150,
             canBeFlipped: true,
-            isDecoration: false
+            isDecoration: true
         },
         {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
@@ -1180,9 +1196,9 @@ const CONFIG = {
             type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.14, phaseUnlocked: 1,
+            spawnWeight: 0, phaseUnlocked: 1,
             spriteScale: 1,
-            spriteDestroyedScale: 0.5,
+            spriteDestroyedScale: 1.0,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.45), radiusX: (w => w * 0.35), radiusY: (h => h * 0.29) },
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
@@ -1204,10 +1220,10 @@ const CONFIG = {
             type: 'possum_hut_round', name: 'Round Possum Hut', color: '#8B4513',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.2, phaseUnlocked: 1,
+            spawnWeight: 0, phaseUnlocked: 1,
             spriteScale: 0.3,
             spriteDestroyedScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.43), radius: (w => w * 0.35) },
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.42), radius: (w => w * 0.33) },
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
@@ -1224,6 +1240,19 @@ const CONFIG = {
                 ]
             }
         },
+        {
+            type: 'empty_possum_hut_round', name: 'Empty Round Possum Hut', color: '#8B4513',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 3, phaseUnlocked: 1,
+            spriteScale: 0.3,
+            spriteDestroyedScale: 0.3,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.43), radiusX: (w => w * 0.35), radiusY: (h => h * 0.25) },
+            isDecoration: true,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+            canBeFlipped: true,
+        },
+
         {
             type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',
             destructible: true, hp: 150, maxHp: 150,
@@ -1250,6 +1279,14 @@ const CONFIG = {
                     { type: 'possum_elite', weight: 1 }
                 ]
             }
+        },
+        {
+            type: 'intel_console', name: 'Intel Console', color: '#4A90D9',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, isDecoration: false,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
+            isIntelConsole: true
         },
         {
             type: 'extraction_zone', name: 'Extraction Zone', color: '#3C78FF',
@@ -1327,6 +1364,7 @@ const CONFIG = {
             PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES: [
                 'possum_hut',
                 'possum_hut_round',
+                'empty_possum_hut_round',
                 'possum_relay_tower',
                 'rock_large',
                 'rock_medium',
@@ -1688,6 +1726,7 @@ const CONFIG = {
         OBJECTIVE_RESCUE_TAKEN_HOSTAGE_TEXT: "Rescue Captured comrade from captivity",
         OBJECTIVE_EXTRACTION_TEXT: "Extract All Units: Get to Extraction Zone",
         OBJECTIVE_EXTRACTION_PROCEED: "All objectives complete! Proceed to Extraction Zone!",
+        OBJECTIVE_INTERACT_INTEL_TEXT: "Hack Intel Console: {CURRENT}/{TOTAL}",
         EXTRACTION_ZONE_REVEALED: "Extraction Zone Revealed!"
     },
 
@@ -1811,6 +1850,7 @@ const CONFIG = {
         ELIMINATION_TARGET_MAX: 30,
         ELIMINATION_PAR_TIME_PER_TARGET: 3.5,
         INITIAL_PLAYER_HEALTH: 75,
+        PLAYER_FIRE_SFX: 'RACCOON_MG_FIRE',
         INITIAL_SPAWN_INTERVAL: 3.0,
         MIN_SPAWN_INTERVAL: 0.5,
         MAX_CONCURRENT_TARGETS: 5,
@@ -1991,12 +2031,19 @@ const CONFIG = {
                     {"x":745,"y":882,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":60,"scale":1.3,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":1.2,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
                     {"x":1325,"y":699,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":70,"scale":1.1,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":true,"weight":30,"peekOffset":80,"scale":1.2,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}}
                 ]
-            }
+            },
+            RAINFOREST_BATTLE_1: {
+                NAME: 'Rainforest Battle 1',
+                IMAGE: 'assets/images/shootouts/Shootout_Jungle_5.png',
+                TREE_SPAWN_POSITIONS: [
+                    {"x":360,"y":241,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":75,"scale":1.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":769,"y":887,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":60,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":80,"scale":1.6,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":1266,"y":974,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":2.1,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":170,"scale":2.1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":999,"y":785,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":60,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":60,"scale":0.7,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":631,"y":696,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":80,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":357,"y":1017,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":155,"scale":1.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":1254,"y":808,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":120,"scale":1.1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":1069,"y":844,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":70,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":608,"y":533,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":40,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":840,"y":1101,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":1.9,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":105,"scale":2.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
+                ]
+            },
         },
 
-        DEFAULT_BACKGROUND: 'JUNGLE_AMBUSH',
+        DEFAULT_BACKGROUND: 'RAINFOREST_BATTLE_1',
 
-        AMBUSH_START_CHANCE: 0.5,
+        AMBUSH_START_CHANCE: 0.4,
         AMBUSH_EXTRACTION_CHANCE: 0.6,
         AMBUSH_ALERT_DURATION: 3000,
         AMBUSH_DEFAULT_MODE: 'ELIMINATION',
@@ -2004,7 +2051,7 @@ const CONFIG = {
         AMBUSH_TIME_LIMIT: 45,
         AMBUSH_ELIMINATION_COUNT: 15,
         AMBUSH_NIGHT_MODE_ENABLED: true,
-        AMBUSH_BACKGROUNDS: ['JUNGLE_AMBUSH', 'JUNGLE_ATTACK'],
+        AMBUSH_BACKGROUNDS: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK'],
         AMBUSH_UNLOCKS_PHASE: 2,
 
         XP_PER_AMBUSH_SURVIVED: 100,
@@ -2012,7 +2059,10 @@ const CONFIG = {
         AMBUSH_ALERT_MESSAGES: {
             START_AMBUSH: [
                 "AMBUSH! Get down!",
-                "Enemies spotted! Return fire!",
+                "Possum scum spotted! Cover!",
+                "Hostiles! Take cover!",
+                "Ambush! Get to cover!",
+                "Possum scum spotted! Return fire!",
                 "We're under fire! Clear the area!",
                 "Hostiles! Engage immediately!",
                 "Ambush! Open fire!",

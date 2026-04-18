@@ -40,7 +40,10 @@ class ShootoutTarget extends Unit {
         this.peekDirection = treePosition.peekDirection || 'right';
         this.peekOffset = treePosition.peekOffset || 40;
         this.scale = treePosition.scale || 1.0;
-        this.bulletOffset = treePosition.bulletOffset || { x: 5, y: 20 };
+
+        // bulletOffset from enemy type config (global, not per-spawn-position)
+        const defaultBulletOffset = CONFIG.SHOOTOUT_MODE.DEFAULT_ENEMY_CONFIGS[enemyType]?.bulletOffset || { x: 5, y: 20 };
+        this.bulletOffset = treePosition.bulletOffset || defaultBulletOffset;
 
         // Calculate peek position based on direction
         this.peekPosition = this.calculatePeekPosition();
@@ -232,7 +235,8 @@ class ShootoutTarget extends Unit {
         // Add bullet to controller - it will persist even if this enemy dies
         if (this.game && this.game.shootoutController) {
             const damage = this.weapon ? this.weapon.damage : 10;
-            this.game.shootoutController.addBullet(this.x, this.y, damage, this.scale, this.bulletOffset.x, this.bulletOffset.y);
+            const sfxFireKey = this.weapon ? this.weapon.sfxFireKey : null;
+            this.game.shootoutController.addBullet(this.x, this.y, damage, this.scale, this.bulletOffset.x, this.bulletOffset.y, sfxFireKey);
         }
     }
 

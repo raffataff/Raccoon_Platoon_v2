@@ -29,6 +29,7 @@ class Game {
         this.hostageUnits = [];
         this.selectedUnits = [];
         this.visualEffects = [];
+        this.intelConsoles = [];
         this.preloadedImages = {};
         this.audioManager = new AudioManager();
         this.musicManager = new MusicManager(this.audioManager);
@@ -834,6 +835,30 @@ class Game {
             });
         }
 
+        if (CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES && CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH) {
+            const hutPath = CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH;
+            CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES.forEach(pair => {
+                const normalPath = hutPath + pair.normal;
+                const destroyedPath = hutPath + pair.destroyed;
+                if (pair.normal && !this.preloadedImages[normalPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                        img.src = normalPath;
+                    }));
+                }
+                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                        img.src = destroyedPath;
+                    }));
+                }
+            });
+        }
+
         if (CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES && CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH) {
             const towerPath = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH;
             CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES.forEach(pair => {
@@ -942,6 +967,7 @@ class Game {
                 (def.type === 'pickup_grenade_crate' && CONFIG.GRENADE_PICKUP_SPRITE_FILES) ||
                 (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ||
                 (def.type === 'possum_hut_round' && CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES) ||
+                (def.type === 'empty_possum_hut_round' && CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES) ||
                 (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES)) {
                 handledByDedicatedList = true;
             }
@@ -1252,6 +1278,7 @@ class Game {
             this.fallenRaccoonsThisMission = [];
             this.missionStartTime = performance.now();
             this.hostageUnits = [];
+            this.intelConsoles = [];
 
             let worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1280) * (this.currentMissionParams.baseParams.worldWidthFactor || 1);
             let worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 720) * (this.currentMissionParams.baseParams.worldHeightFactor || 1);
@@ -1717,6 +1744,70 @@ class Game {
         }
     }
 
+    handleIntelConsoleInteraction() {
+        if (this.gameState !== 'RUNNING') return;
+        if (!this.intelConsoles || this.intelConsoles.length === 0) return;
+
+        for (const console of this.intelConsoles) {
+            if (!console.isHacked && !console.isBeingHacked) {
+                const nearbyRaccoon = console.getNearestRaccoonInRange();
+                if (nearbyRaccoon) {
+                    this.startHackOnConsole(console);
+                    break;
+                }
+            }
+        }
+    }
+
+    startHackOnConsole(console) {
+        const phase = this.currentPhaseIndex || 0;
+        const params = CAMPAIGN_RULES.BASE_PARAMETERS;
+
+        const timeBase = params.intelHackTimeBase?.initial || [10, 20];
+        const timeBonus = params.intelHackTimeBase?.perPhaseBonus || [2, 4];
+
+        const baseMin = timeBase[0] || 10;
+        const baseMax = timeBase[1] || 20;
+        const bonusMin = timeBonus[0] || 2;
+        const bonusMax = timeBonus[1] || 4;
+
+        const duration = (baseMin + Math.random() * (baseMax - baseMin)) + (bonusMin + Math.random() * (bonusMax - bonusMin)) * phase;
+
+        console.startHack(null, duration);
+    }
+
+    spawnEnemyAtLocation(x, y, unitType, targetX, targetY) {
+        let newEnemy;
+        switch (unitType) {
+            case 'possum_grunt':
+                newEnemy = new PossumGrunt(x, y, this, `PSM-INTEL-${this.enemyUnits.length + 1}`);
+                break;
+            case 'possum_heavy':
+                newEnemy = new PossumHeavy(x, y, this, `PSM-INTEL-${this.enemyUnits.length + 1}`);
+                break;
+            case 'possum_sniper':
+                newEnemy = new PossumSniper(x, y, this, `PSM-INTEL-${this.enemyUnits.length + 1}`);
+                break;
+            case 'possum_elite':
+                newEnemy = new PossumElite(x, y, this, `PSM-INTEL-${this.enemyUnits.length + 1}`);
+                break;
+            default:
+                newEnemy = new PossumGrunt(x, y, this, `PSM-INTEL-${this.enemyUnits.length + 1}`);
+        }
+
+        if (targetX !== undefined && targetY !== undefined) {
+            newEnemy.setMoveTarget(targetX, targetY);
+        }
+
+        this.enemyUnits.push(newEnemy);
+        if (this.spatialGrid) {
+            this.spatialGrid.addObject(newEnemy);
+        }
+        if (typeof this.incrementObjectiveEnemyCount === 'function') {
+            this.incrementObjectiveEnemyCount(1);
+        }
+    }
+
     handleRightClickCommand(worldX, worldY) {
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isLMBHoldFiringActionActive) { this.handleLMBFireActionEnd(); this.inputHandler.isLMBHoldFiringActionActive = false; }
@@ -2122,7 +2213,7 @@ class Game {
             }
 
             if (!selectedTargetInfo) {
-//                console.warn("[Game] Failed to select an assassination target. Assassination objective cannot be created.");
+//                    console.warn("[Game] Failed to select an assassination target. Assassination objective cannot be created.");
                 return null;
             }
 
@@ -2130,7 +2221,13 @@ class Game {
             newObj.targetUnitId = null;
             newObj.totalToAchieve = 1;
             newObj.currentProgress = 0;
-        }
+        } else if (objDef.type === "INTERACT_INTEL") {
+            const params = CAMPAIGN_RULES.BASE_PARAMETERS;
+            const numBase = params.numIntelConsoles?.initial || 1;
+            const numInc = params.numIntelConsoles?.perPhaseIncrement || 0.3;
+            const numMax = params.numIntelConsoles?.max || 3;
+            newObj.totalToAchieve = Math.min(Math.floor(numBase + phaseIdx * numInc), numMax);
+}
         return newObj;
     }
 
@@ -3018,6 +3115,12 @@ class Game {
                                 obj.currentProgress = 1;
                             }
                         }
+                    } else if (obj.type === 'INTERACT_INTEL') {
+                        const hackedCount = this.intelConsoles ? this.intelConsoles.filter(c => c.isHacked).length : 0;
+                        obj.currentProgress = hackedCount;
+                        if (hackedCount >= obj.totalToAchieve) {
+                            obj.isComplete = true;
+                        }
                     } else if (obj.type === 'RESCUE_TAKEN_HOSTAGE') {
                         // Find the captured raccoon in hostage units
                         const targetHostage = this.hostageUnits?.find(h => h.originalRaccoonId === obj.targetRaccoonId || h.id === obj.targetRaccoonId);
@@ -3294,6 +3397,13 @@ class Game {
             if (this.level && typeof this.level.updateHutSpawning === 'function') {
                 this.level.updateHutSpawning(deltaTime);
             }
+            if (this.intelConsoles && this.intelConsoles.length > 0) {
+                this.intelConsoles.forEach(console => {
+                    if (console && typeof console.update === 'function') {
+                        console.update(deltaTime);
+                    }
+                });
+            }
             if (this.ui) {
                 this.ui.updateObjective();
             }
@@ -3520,6 +3630,14 @@ class Game {
         }
 
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function') { effect.render(this.ctx); } });
+
+        if (this.intelConsoles && this.intelConsoles.length > 0) {
+            this.intelConsoles.forEach(console => {
+                if (console && typeof console.render === 'function') {
+                    console.render(this.ctx);
+                }
+            });
+        }
 
         if (this.selectedUnits) {
             this.selectedUnits.forEach((unit) => {

@@ -1113,9 +1113,19 @@ canvas#gameCanvas {
     letter-spacing: 2px;
 }
 
+.squad-member.kia {
+    background-color: rgba(10, 10, 10, 0.85);
+    filter: grayscale(0.6) brightness(0.6);
+}
+
 .squad-member .status-kia {
-    color: #C87070;
+    color: #555;
     font-weight: bold;
+}
+
+.squad-member .status-kia .label .value {
+    font-weight: bold;
+    color: #242424;
 }
 
 .health-bar-container {

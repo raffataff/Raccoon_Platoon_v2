@@ -14,6 +14,13 @@ const CAMPAIGN_RULES = {
         numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.4, max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
+        numIntelConsoles: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true },
+        intelHackTimeBase: { initial: [10, 20], perPhaseBonus: [2, 4] },
+        intelSpawnChance: { initial: 0.3, perPhaseGrowthFactor: 0.1, max: 0.8 },
+        intelSpawnCountMin: { initial: 1, perPhaseIncrement: 0.5, max: 5 },
+        intelSpawnCountMax: { initial: 2, perPhaseIncrement: 1, max: 8 },
+        intelSpawnInterval: { initial: 3.0, perPhaseDecrement: 0.2, min: 1.0 },
+        intelSpawnTotalLimit: { initial: 5, perPhaseIncrement: 2, max: 20 },
         numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
         numSecondaryObjectives: {
             baseRange: [0, 0],          // At Phase 0, select between 0 and 1 secondary objectives.
@@ -91,6 +98,17 @@ const CAMPAIGN_RULES = {
             isPhaseFinaleCandidate: true, // GOOD!
             // isBossObjective: true // This can be inferred if the chosen target from ASSASSINATION_TARGET_POOL has isBoss: true
             // No need for targetTypeKey here, as that's for DESTROY_TARGET
+        },
+        {
+            type: "INTERACT_INTEL",
+            weight: 3,
+            unlocksPhase: 0,
+            descriptionTemplateKey: "OBJECTIVE_INTERACT_INTEL_TEXT",
+            completionCondition: "ALL_INTEL_CONSOLES_CAPTURED",
+            isPrimary: true,
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION"],
+            maxInstancesPerMission: 3,
+            targetTypeKeyPrefix: "intel_console"
         },
         // NEW: Extraction objective for phase finales
         {

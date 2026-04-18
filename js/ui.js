@@ -2533,7 +2533,8 @@ class UI {
             const memberDiv = document.createElement('div');
             memberDiv.classList.add('squad-member');
             memberDiv.dataset.id = raccoon.id;
-            if (selectedUnits.includes(raccoon)) memberDiv.classList.add('selected');
+            const isKIA = !raccoon.isAlive();
+            if (isKIA) memberDiv.classList.add('kia');
             if (raccoon.faceImageUrl) memberDiv.style.backgroundImage = `url('${raccoon.faceImageUrl}')`;
 
             if (raccoon.isAimingGrenade) {
@@ -2543,7 +2544,6 @@ class UI {
                 memberDiv.style.borderColor = ''; memberDiv.style.borderWidth = ''; memberDiv.style.borderStyle = '';
             }
 
-            const isKIA = !raccoon.isAlive();
             let statusText = 'Active';
             if (isKIA) {
                 statusText = 'KIA';

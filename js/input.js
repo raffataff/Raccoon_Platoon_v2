@@ -92,7 +92,7 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', '1', '2', '3', '4'];
+            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', 'e', '1', '2', '3', '4'];
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -151,6 +151,12 @@ class InputHandler {
                             }
                         }
                     });
+                }
+            }
+            if ((event.key === 'e' || event.key === 'E') && !isInputFieldActive) {
+                // Intel console interaction
+                if (this.game.handleIntelConsoleInteraction) {
+                    this.game.handleIntelConsoleInteraction();
                 }
             }
             if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {

@@ -616,7 +616,7 @@ class ShootoutController {
 
                 // Play hit sound
                 if (this.game.audioManager) {
-                    this.game.audioManager.play('RACCOON_MG_FIRE');
+                    this.game.audioManager.play(CONFIG.SHOOTOUT_MODE.PLAYER_FIRE_SFX);
                 }
             } else {
                 // Miss
@@ -627,7 +627,7 @@ class ShootoutController {
 
                 // play sound anyway
                 if (this.game.audioManager) {
-                    this.game.audioManager.play('RACCOON_MG_FIRE');
+                    this.game.audioManager.play(CONFIG.SHOOTOUT_MODE.PLAYER_FIRE_SFX);
                 }
             }
         }
@@ -1062,7 +1062,7 @@ class ShootoutController {
         this.updateUI();
     }
 
-    addBullet(startX, startY, damage, scale, offsetX, offsetY) {
+    addBullet(startX, startY, damage, scale, offsetX, offsetY, sfxFireKey) {
         // Fallback to reasonable defaults if for some reason offsets aren't passed
         const offX = (offsetX !== undefined) ? offsetX : 5;
         const offY = (offsetY !== undefined) ? offsetY : 20;
@@ -1085,9 +1085,15 @@ class ShootoutController {
             offsetY: offY
         });
 
-        // Play sound
+        // Play sound - use the weapon's sfxFireKey if provided, otherwise fallback to POSSUM_RIFLE_FIRE
         if (this.game.audioManager) {
-            this.game.audioManager.play('POSSUM_RIFLE_FIRE');
+            const soundKey = sfxFireKey || 'POSSUM_RIFLE_FIRE';
+            const sfxConfig = CONFIG.AUDIO_ASSETS[soundKey];
+            if (sfxConfig) {
+                this.game.audioManager.play(soundKey, { volume: sfxConfig.defaultVolume, pitchVariation: sfxConfig.pitchVariation });
+            } else {
+                this.game.audioManager.play('POSSUM_RIFLE_FIRE');
+            }
         }
     }
 
@@ -2168,13 +2174,26 @@ class ShootoutController {
     }
 
     getSpawnPositionsAsJSON() {
-        // Export positions in new config format (without internal ID)
-        const exportData = this.editableSpawnPositions.map(pos => ({
-            x: pos.x,
-            y: pos.y,
-            peekDirection: pos.peekDirection,
-            enemyConfigs: pos.enemyConfigs
-        }));
+        const defaultConfigs = CONFIG.SHOOTOUT_MODE.DEFAULT_ENEMY_CONFIGS;
+        const exportData = this.editableSpawnPositions.map(pos => {
+            const enemyConfigs = {};
+            Object.keys(pos.enemyConfigs).forEach(type => {
+                const config = pos.enemyConfigs[type];
+                enemyConfigs[type] = {
+                    enabled: config.enabled,
+                    weight: config.weight,
+                    peekOffset: config.peekOffset,
+                    scale: config.scale,
+                    showInDevMode: config.showInDevMode
+                };
+            });
+            return {
+                x: pos.x,
+                y: pos.y,
+                peekDirection: pos.peekDirection,
+                enemyConfigs
+            };
+        });
 
         return JSON.stringify(exportData);
     }

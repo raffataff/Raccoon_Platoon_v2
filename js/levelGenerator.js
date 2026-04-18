@@ -962,7 +962,7 @@ class LevelGenerator {
                                 spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
                                 collisionShape: targetTemplateOriginal.collisionShape,
                                 isMissionTarget: true, objectiveId: objective.id,
-                                isSpawner: targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round',
+                                isSpawner: (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round') && !targetTemplateOriginal.isDecoration,
                                 spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                                 delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
                             };
@@ -984,6 +984,100 @@ class LevelGenerator {
                     }
                     if (!placedTarget) console.warn(`[Level Gen] Could not place mission target type ${objective.targetTypeKeyPrefix}`);
                 }
+                if (successfulPlacements < objective.totalToAchieve) {
+                    objective.totalToAchieve = successfulPlacements;
+                }
+            } else if (objective.type === 'INTERACT_INTEL' && objective.totalToAchieve > 0) {
+                const consoleTemplate = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === 'intel_console');
+                if (!consoleTemplate) {
+                    console.error('[Level Gen] CRITICAL: Intel console template not found in OBSTACLE_DEFINITIONS!');
+                    return;
+                }
+
+                const spriteVariants = CONFIG.INTEL.SPRITE_FILES;
+                const phase = this.game.currentPhaseIndex || 0;
+                const params = CAMPAIGN_RULES.BASE_PARAMETERS;
+                const numBase = params.numIntelConsoles?.initial || 1;
+                const numInc = params.numIntelConsoles?.perPhaseIncrement || 0.3;
+                const numMax = params.numIntelConsoles?.max || 3;
+                const numToPlace = Math.min(Math.floor(numBase + phase * numInc), numMax);
+
+                objective.totalToAchieve = Math.min(numToPlace, objective.totalToAchieve);
+
+                let successfulPlacements = 0;
+                const placementMinY = playableMinY;
+                const placementMaxY = objectivePlacementMaxY > placementMinY ? objectivePlacementMaxY : playableMinY + (playableMaxY - playableMinY) * 0.6;
+
+                for (let i = 0; i < numToPlace; i++) {
+                    let placedConsole = false;
+
+                    // Randomly select a sprite variant for this console
+                    const selectedVariant = spriteVariants[Math.floor(this.rng.nextFloat(0, spriteVariants.length))];
+                    const consoleSpritePath = CONFIG.INTEL.SPRITE_PATH + selectedVariant.on;
+                    const consoleSpriteDestroyedPath = CONFIG.INTEL.SPRITE_PATH + selectedVariant.off;
+                    const consoleImage = preloadedAssetImages[consoleSpritePath];
+                    const consoleImageDestroyed = preloadedAssetImages[consoleSpriteDestroyedPath];
+
+                    const consoleWidth = consoleImage ? consoleImage.naturalWidth * CONFIG.INTEL.SPRITE_SCALE : 64;
+                    const consoleHeight = consoleImage ? consoleImage.naturalHeight * CONFIG.INTEL.SPRITE_SCALE : 64;
+
+                    for (let attempt = 0; attempt < 100; attempt++) {
+                        const consoleX = this.rng.nextFloat(playableMinX, playableMaxX - consoleWidth);
+                        const consoleY = this.rng.nextFloat(placementMinY, placementMaxY - consoleHeight);
+
+                        const tempShape = {
+                            x: consoleX, y: consoleY,
+                            width: consoleWidth, height: consoleHeight,
+                            collisionShape: consoleTemplate.collisionShape
+                        };
+                        const collisionShapeForCheck = this.level._getObstacleCollisionShape(tempShape);
+
+                        if (!this._isPlacementInvalid(collisionShapeForCheck, consoleTemplate, this.level.obstacles, extraKeepOutZones)) {
+                            const consoleObs = {
+                                x: consoleX, y: consoleY,
+                                width: consoleWidth, height: consoleHeight,
+                                type: 'intel_console',
+                                name: 'Intel Console',
+                                color: consoleTemplate.color,
+                                destructible: consoleTemplate.destructible,
+                                hp: consoleTemplate.hp,
+                                maxHp: consoleTemplate.maxHp,
+                                isDestroyed: false,
+                                blocksMovement: consoleTemplate.blocksMovement,
+                                providesCover: consoleTemplate.providesCover,
+                                isDecoration: consoleTemplate.isDecoration,
+                                spriteNormalPath: consoleSpritePath,
+                                imageNormal: consoleImage,
+                                spriteDestroyedPath: consoleSpriteDestroyedPath,
+                                imageDestroyed: consoleImageDestroyed,
+                                spriteScale: CONFIG.INTEL.SPRITE_SCALE,
+                                collisionShape: consoleTemplate.collisionShape,
+                                interactionRadius: CONFIG.INTEL.INTERACTION_RADIUS,
+                                isMissionTarget: true,
+                                objectiveId: objective.id,
+                                isIntelConsole: true,
+                                spriteVariant: selectedVariant
+                            };
+
+                            this.level.obstacles.push(consoleObs);
+
+                            const intelConsoleInstance = new IntelConsole(consoleX, consoleY, this.game, `intel_${this.game.intelConsoles.length}`, selectedVariant);
+                            intelConsoleInstance.width = consoleWidth;
+                            intelConsoleInstance.height = consoleHeight;
+                            intelConsoleInstance.isHacked = false;
+                            intelConsoleInstance.isBeingHacked = false;
+                            this.game.intelConsoles.push(intelConsoleInstance);
+
+                            placedConsole = true;
+                            successfulPlacements++;
+                            break;
+                        }
+                    }
+                    if (!placedConsole) {
+                        console.warn(`[Level Gen] Could not place intel console ${i + 1}`);
+                    }
+                }
+
                 if (successfulPlacements < objective.totalToAchieve) {
                     objective.totalToAchieve = successfulPlacements;
                 }
@@ -1025,6 +1119,15 @@ class LevelGenerator {
                 if (hutSpritePairs.length > 0) {
                     const selectedPair = this.rng.pickFrom(hutSpritePairs);
                     pathBase = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'empty_possum_hut_round') {
+                const hutSpritePairs = CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES || [];
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH || '';
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
@@ -1190,7 +1293,7 @@ class LevelGenerator {
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false,
-                        collisionShape: template.collisionShape || null, isSpawner: template.type === 'possum_hut' || template.type === 'possum_hut_round',
+                        collisionShape: template.collisionShape || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round') && !template.isDecoration,
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
                         willSpawnLog: willSpawnLog,

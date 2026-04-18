@@ -50,7 +50,6 @@ class ShootoutSpawner {
                 // Old positions might have had these at the top level
                 if (pos.peekOffset) enemyConfigs[type].peekOffset = pos.peekOffset;
                 if (pos.scale) enemyConfigs[type].scale = pos.scale;
-                if (pos.bulletOffset) enemyConfigs[type].bulletOffset = pos.bulletOffset;
             });
         }
 
@@ -124,8 +123,7 @@ class ShootoutSpawner {
             y: position.y,
             peekDirection: position.peekDirection,
             peekOffset: enemyConfig.peekOffset,
-            scale: enemyConfig.scale,
-            bulletOffset: enemyConfig.bulletOffset
+            scale: enemyConfig.scale
         };
 
         // Create new target with selected enemy type

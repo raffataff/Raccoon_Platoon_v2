@@ -122,7 +122,7 @@ class Level {
 
         obstacle.hp -= amount;
 
-        if (wasAlive && (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') && obstacle.hp > 0 && !obstacle.isDestroyed) {
+        if (wasAlive && (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round') && obstacle.hp > 0 && !obstacle.isDestroyed) {
             const isSpawner = this.potentialSpawnerHuts.includes(obstacle) || this.activeSpawningHuts.includes(obstacle);
             if (obstacle.isMissionTarget || isSpawner) {
                 if (!obstacle.damageSpawnCooldown || obstacle.damageSpawnCooldown <= 0) {
@@ -162,7 +162,7 @@ class Level {
                 this.game.audioManager.play('POSSUM_HUT_DESTROYED');
             }
             
-if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') { 
+if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round') { 
                 this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== obstacle);
                 const potIndex = this.potentialSpawnerHuts.indexOf(obstacle);
                 if (potIndex > -1) this.potentialSpawnerHuts.splice(potIndex, 1);
