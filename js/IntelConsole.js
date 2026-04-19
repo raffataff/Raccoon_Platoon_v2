@@ -142,6 +142,7 @@ class IntelConsole {
     }
 
     completeHack() {
+        console.log(`[INTEL HACK] Hack complete on console ${this.id}! Total enemies spawned: ${this.totalSpawnedThisHack}`);
         this.isHacked = true;
         this.isBeingHacked = false;
         this.hackingRaccoon = null;
@@ -153,7 +154,7 @@ class IntelConsole {
         const phase = this.game.currentPhaseIndex || 0;
         const params = CAMPAIGN_RULES.BASE_PARAMETERS;
 
-        // Check total spawn limit
+        // Check total spawn limit per console
         const limitBase = params.intelSpawnTotalLimit?.initial || 5;
         const limitInc = params.intelSpawnTotalLimit?.perPhaseIncrement || 2;
         const limitMax = params.intelSpawnTotalLimit?.max || 20;
@@ -178,7 +179,7 @@ class IntelConsole {
             const countMax = Math.min(Math.floor(maxBase + (phase * maxInc)), maxMaxVal);
 
             let spawnCount = countMin + Math.floor(Math.random() * (countMax - countMin + 1));
-            // Cap by remaining spawn budget
+            // Cap by remaining spawn budget for this console
             spawnCount = Math.min(spawnCount, spawnLimit - this.totalSpawnedThisHack);
 
             for (let i = 0; i < spawnCount; i++) {
@@ -187,6 +188,7 @@ class IntelConsole {
                 this.game.spawnEnemyAtLocation(spawnPos.x, spawnPos.y, unitType, this.x + this.width / 2, this.y + this.height / 2);
                 this.totalSpawnedThisHack++;
             }
+            console.log(`[INTEL HACK] Spawned ${spawnCount} enemies on console ${this.id}! Total on this console: ${this.totalSpawnedThisHack}/${spawnLimit}`);
         }
     }
 

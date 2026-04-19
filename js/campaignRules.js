@@ -9,23 +9,23 @@ const CAMPAIGN_RULES = {
         worldHeightFactor: { initial: 1.1, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness
         enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.15, max: 5.0, randomnessFactor: 0.15 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
-        sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 2 },
-        eliteChance: { initial: 0.05, perPhaseGrowthFactor: 0.07, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
+        sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
+        eliteChance: { initial: 0.05, perPhaseGrowthFactor: 0.07, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 4 },
         numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.4, max: 5, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
         numIntelConsoles: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true },
         intelHackTimeBase: { initial: [10, 20], perPhaseBonus: [2, 4] },
         intelSpawnChance: { initial: 0.3, perPhaseGrowthFactor: 0.1, max: 0.8 },
-        intelSpawnCountMin: { initial: 1, perPhaseIncrement: 0.5, max: 5 },
-        intelSpawnCountMax: { initial: 2, perPhaseIncrement: 1, max: 8 },
-        intelSpawnInterval: { initial: 3.0, perPhaseDecrement: 0.2, min: 1.0 },
-        intelSpawnTotalLimit: { initial: 5, perPhaseIncrement: 2, max: 20 },
+        intelSpawnCountMin: { initial: 1, perPhaseIncrement: 0.5, max: 2 },
+        intelSpawnCountMax: { initial: 2, perPhaseIncrement: 1, max: 4 },
+        intelSpawnInterval: { initial: 5.0, perPhaseDecrement: 0.2, min: 1.0 },
+        intelSpawnTotalLimit: { initial: 3, perPhaseIncrement: 1, max: 20 },
         numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
         numSecondaryObjectives: {
             baseRange: [0, 0],          // At Phase 0, select between 0 and 1 secondary objectives.
             incrementPerPhase: 0.5,     // Add 0.5 to both min and max of the range per phase.
-            maxRange: [1, 6]            // The range will not exceed a max of [1, 4].
+            maxRange: [2, 6]            // The range will not exceed a max of [1, 4].
         },
     },
 

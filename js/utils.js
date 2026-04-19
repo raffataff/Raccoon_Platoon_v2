@@ -233,6 +233,102 @@ function circleEllipseOverlap(circle, ellipse) {
     return false;
 }
 
+function getOBBCorners(obb) {
+    const cx = obb.x + obb.width / 2;
+    const cy = obb.y + obb.height / 2;
+    const hw = obb.width / 2;
+    const hh = obb.height / 2;
+    const cos = Math.cos(obb.rotation || 0);
+    const sin = Math.sin(obb.rotation || 0);
+    return [
+        { x: cx + cos * -hw - sin * -hh, y: cy + sin * -hw + cos * -hh },
+        { x: cx + cos * hw - sin * -hh, y: cy + sin * hw + cos * -hh },
+        { x: cx + cos * hw - sin * hh, y: cy + sin * hw + cos * hh },
+        { x: cx + cos * -hw - sin * hh, y: cy + sin * -hw + cos * hh }
+    ];
+}
+
+function projectOntoAxis(corners, axis) {
+    let min = Infinity, max = -Infinity;
+    for (const corner of corners) {
+        const proj = corner.x * axis.x + corner.y * axis.y;
+        if (proj < min) min = proj;
+        if (proj > max) max = proj;
+    }
+    return { min, max };
+}
+
+function obbOverlap(obb1, obb2) {
+    const r1 = obb1.rotation || 0;
+    const r2 = obb2.rotation || 0;
+    if (r1 === 0 && r2 === 0) {
+        return !(obb1.x >= obb2.x + obb2.width || obb1.x + obb1.width <= obb2.x ||
+                 obb1.y >= obb2.y + obb2.height || obb1.y + obb1.height <= obb2.y);
+    }
+    const corners1 = getOBBCorners(obb1);
+    const corners2 = getOBBCorners(obb2);
+    const axes = [
+        { x: Math.cos(r1), y: Math.sin(r1) },
+        { x: -Math.sin(r1), y: Math.cos(r1) },
+        { x: Math.cos(r2), y: Math.sin(r2) },
+        { x: -Math.sin(r2), y: Math.cos(r2) }
+    ];
+    for (const axis of axes) {
+        const proj1 = projectOntoAxis(corners1, axis);
+        const proj2 = projectOntoAxis(corners2, axis);
+        if (proj1.max < proj2.min || proj2.max < proj1.min) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function obbCircleOverlap(obb, circle) {
+    const r = obb.rotation || 0;
+    if (r === 0) {
+        return rectCircleOverlap({ x: obb.x, y: obb.y, width: obb.width, height: obb.height }, circle);
+    }
+    const cx = obb.x + obb.width / 2;
+    const cy = obb.y + obb.height / 2;
+    const cos = Math.cos(-r);
+    const sin = Math.sin(-r);
+    const relX = circle.x - cx;
+    const relY = circle.y - cy;
+    const localCircleX = cos * relX - sin * relY;
+    const localCircleY = sin * relX + cos * relY;
+    const localCircle = { x: localCircleX, y: localCircleY, radius: circle.radius };
+    const hw = obb.width / 2;
+    const hh = obb.height / 2;
+    const closestX = Math.max(-hw, Math.min(localCircleX, hw));
+    const closestY = Math.max(-hh, Math.min(localCircleY, hh));
+    const distX = localCircleX - closestX;
+    const distY = localCircleY - closestY;
+    return (distX * distX + distY * distY) <= circle.radius * circle.radius;
+}
+
+function obbEllipseOverlap(obb, ellipse) {
+    const r = obb.rotation || 0;
+    if (r === 0) {
+        return rectEllipseOverlap({ x: obb.x, y: obb.y, width: obb.width, height: obb.height }, ellipse);
+    }
+    const cx = obb.x + obb.width / 2;
+    const cy = obb.y + obb.height / 2;
+    const cos = Math.cos(-r);
+    const sin = Math.sin(-r);
+    const relX = ellipse.x - cx;
+    const relY = ellipse.y - cy;
+    const localEllipseX = cos * relX - sin * relY;
+    const localEllipseY = sin * relX + cos * relY;
+    const localEllipse = { x: localEllipseX, y: localEllipseY, radiusX: ellipse.radiusX, radiusY: ellipse.radiusY };
+    const hw = obb.width / 2;
+    const hh = obb.height / 2;
+    const closestX = Math.max(-hw, Math.min(localEllipseX, hw));
+    const closestY = Math.max(-hh, Math.min(localEllipseY, hh));
+    const termX = (closestX - localEllipseX) / (ellipse.radiusX || 1e-6);
+    const termY = (closestY - localEllipseY) / (ellipse.radiusY || 1e-6);
+    return (termX * termX + termY * termY) <= 1;
+}
+
 
 class PathNode {
     /* ... (Unchanged from previous complete version) ... */

@@ -486,7 +486,8 @@ class Unit {
             let isCollisionWithDesiredMove = false;
             for (const obs of obstaclesForCollision) {
                 const obsCS = this.game.level._getObstacleCollisionShape(obs);
-                if ((obsCS.type === 'rectangle' && rectCircleOverlap(obsCS, unitBodyShape_combined)) ||
+                const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, unitBodyShape_combined) : rectCircleOverlap(obsCS, unitBodyShape_combined))) ||
                     (obsCS.type === 'circle' && circleOverlap(obsCS, unitBodyShape_combined)) ||
                     (obsCS.type === 'ellipse' && circleEllipseOverlap(unitBodyShape_combined, obsCS))) {
                     isCollisionWithDesiredMove = true; break;
@@ -500,7 +501,8 @@ class Unit {
                     let collisionX = false;
                     for (const obs of obstaclesForCollision) {
                         const obsCS = this.game.level._getObstacleCollisionShape(obs);
-                        if ((obsCS.type === 'rectangle' && rectCircleOverlap(obsCS, unitBodyShape_X_Only)) ||
+                        const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                        if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, unitBodyShape_X_Only) : rectCircleOverlap(obsCS, unitBodyShape_X_Only))) ||
                             (obsCS.type === 'circle' && circleOverlap(obsCS, unitBodyShape_X_Only)) ||
                             (obsCS.type === 'ellipse' && circleEllipseOverlap(unitBodyShape_X_Only, obsCS))) {
                             collisionX = true; break;
@@ -514,7 +516,8 @@ class Unit {
                     let collisionY = false;
                     for (const obs of obstaclesForCollision) {
                         const obsCS = this.game.level._getObstacleCollisionShape(obs);
-                        if ((obsCS.type === 'rectangle' && rectCircleOverlap(obsCS, unitBodyShape_Y_Only)) ||
+                        const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                        if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, unitBodyShape_Y_Only) : rectCircleOverlap(obsCS, unitBodyShape_Y_Only))) ||
                             (obsCS.type === 'circle' && circleOverlap(obsCS, unitBodyShape_Y_Only)) ||
                             (obsCS.type === 'ellipse' && circleEllipseOverlap(unitBodyShape_Y_Only, obsCS))) {
                             collisionY = true; break;
@@ -585,7 +588,8 @@ class Unit {
                 const nudgedShape = { type: 'circle', x: nudgedX, y: nudgedY, radius: this.size / 2 + 0.5 };
                 for (const obs of obstaclesForCollision) {
                     const obsCS = this.game.level._getObstacleCollisionShape(obs);
-                    if ((obsCS.type === 'rectangle' && rectCircleOverlap(obsCS, nudgedShape)) ||
+                    const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                    if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, nudgedShape) : rectCircleOverlap(obsCS, nudgedShape))) ||
                         (obsCS.type === 'circle' && circleOverlap(obsCS, nudgedShape)) ||
                         (obsCS.type === 'ellipse' && circleEllipseOverlap(nudgedShape, obsCS))) {
                         canNudgeToSpot = false; break;

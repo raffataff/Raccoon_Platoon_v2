@@ -19,8 +19,15 @@ class LevelGenerator {
     _isPlacementInvalid(newObstacleShape, newObstacleTemplate, existingObstacles, extraKeepOutZones = []) {
         // Check against extra keep-out zones first
         for (const zone of extraKeepOutZones) {
-            if (this.level._rectOverlap(newObstacleShape, zone)) {
-                return true; // Invalid if it overlaps a keep-out zone
+            const newHasRotation = newObstacleShape.type === 'rectangle' && newObstacleShape.rotation !== undefined && newObstacleShape.rotation !== 0;
+            if (newObstacleShape.type === 'rectangle' && newHasRotation) {
+                if (obbOverlap(newObstacleShape, zone)) {
+                    return true;
+                }
+            } else {
+                if (this.level._rectOverlap(newObstacleShape, zone)) {
+                    return true;
+                }
             }
         }
 
@@ -52,16 +59,24 @@ class LevelGenerator {
             // --- MODIFICATION END ---
 
             let collision = false;
+            const newHasRotation = newObstacleShape.type === 'rectangle' && newObstacleShape.rotation !== undefined && newObstacleShape.rotation !== 0;
+            const checkHasRotation = shapeToCheck.type === 'rectangle' && shapeToCheck.rotation !== undefined && shapeToCheck.rotation !== 0;
             if (newObstacleShape.type === 'circle') {
-                if (shapeToCheck.type === 'rectangle') collision = rectCircleOverlap(shapeToCheck, newObstacleShape);
+                if (shapeToCheck.type === 'rectangle') collision = checkHasRotation ? obbCircleOverlap(shapeToCheck, newObstacleShape) : rectCircleOverlap(shapeToCheck, newObstacleShape);
                 else if (shapeToCheck.type === 'circle') collision = circleOverlap(shapeToCheck, newObstacleShape);
                 else if (shapeToCheck.type === 'ellipse') collision = circleEllipseOverlap(newObstacleShape, shapeToCheck);
             } else if (newObstacleShape.type === 'rectangle') {
-                if (shapeToCheck.type === 'rectangle') collision = this.level._rectOverlap(shapeToCheck, newObstacleShape);
-                else if (shapeToCheck.type === 'circle') collision = rectCircleOverlap(newObstacleShape, shapeToCheck);
-                else if (shapeToCheck.type === 'ellipse') collision = rectEllipseOverlap(newObstacleShape, shapeToCheck);
+                if (shapeToCheck.type === 'rectangle') {
+                    if (newHasRotation || checkHasRotation) {
+                        collision = obbOverlap(newObstacleShape, shapeToCheck);
+                    } else {
+                        collision = this.level._rectOverlap(shapeToCheck, newObstacleShape);
+                    }
+                }
+                else if (shapeToCheck.type === 'circle') collision = newHasRotation ? obbCircleOverlap(newObstacleShape, shapeToCheck) : rectCircleOverlap(newObstacleShape, shapeToCheck);
+                else if (shapeToCheck.type === 'ellipse') collision = newHasRotation ? obbEllipseOverlap(newObstacleShape, shapeToCheck) : rectEllipseOverlap(newObstacleShape, shapeToCheck);
             } else if (newObstacleShape.type === 'ellipse') {
-                if (shapeToCheck.type === 'rectangle') collision = rectEllipseOverlap(shapeToCheck, newObstacleShape);
+                if (shapeToCheck.type === 'rectangle') collision = checkHasRotation ? obbEllipseOverlap(shapeToCheck, newObstacleShape) : rectEllipseOverlap(shapeToCheck, newObstacleShape);
                 else if (shapeToCheck.type === 'circle') collision = circleEllipseOverlap(shapeToCheck, newObstacleShape);
                 else if (shapeToCheck.type === 'ellipse') {
                     const r1 = { x: newObstacleShape.x - newObstacleShape.radiusX, y: newObstacleShape.y - newObstacleShape.radiusY, width: newObstacleShape.radiusX * 2, height: newObstacleShape.radiusY * 2 };
@@ -759,6 +774,9 @@ class LevelGenerator {
                 let bossX, bossY, bossSpawned = false;
                 const bossMaxAttempts = 50;
                 const bossArenaRadius = CONFIG.AI.POSSUM_BOSS_1.ARENA_RADIUS || 200;
+                const bossMinDistFromPlayer = CONFIG.AI.POSSUM_BOSS_1.BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER || 600;
+                const playerSpawnCenterX = playerSpawnZone.x + playerSpawnZone.width / 2;
+                const playerSpawnCenterY = playerSpawnZone.y + playerSpawnZone.height / 2;
 
                 const bossSpawnMinX = playableMinX + bossArenaRadius;
                 const bossSpawnMaxX = playableMaxX - bossArenaRadius;
@@ -768,6 +786,9 @@ class LevelGenerator {
                 for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
                     bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
                     bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
+
+                    const distToPlayer = distance(bossX, bossY, playerSpawnCenterX, playerSpawnCenterY);
+                    if (distToPlayer < bossMinDistFromPlayer) continue;
 
                     const arenaZoneShape = { type: 'circle', x: bossX, y: bossY, radius: bossArenaRadius };
                     if (!this._isPlacementInvalid(arenaZoneShape, { isDecoration: false }, this.level.obstacles, extraKeepOutZones)) {
@@ -801,6 +822,9 @@ class LevelGenerator {
                 let bossX, bossY, bossSpawned = false;
                 const bossMaxAttempts = 50;
                 const bossArenaRadius = 150;
+                const bossMinDistFromPlayer = CONFIG.AI.POSSUM_REVOLVER.BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER || 600;
+                const playerSpawnCenterX = playerSpawnZone.x + playerSpawnZone.width / 2;
+                const playerSpawnCenterY = playerSpawnZone.y + playerSpawnZone.height / 2;
 
                 const bossSpawnMinX = playableMinX + bossArenaRadius;
                 const bossSpawnMaxX = playableMaxX - bossArenaRadius;
@@ -810,6 +834,9 @@ class LevelGenerator {
                 for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
                     bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
                     bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
+
+                    const distToPlayer = distance(bossX, bossY, playerSpawnCenterX, playerSpawnCenterY);
+                    if (distToPlayer < bossMinDistFromPlayer) continue;
 
                     const arenaZoneShape = { type: 'circle', x: bossX, y: bossY, radius: bossArenaRadius };
                     if (!this._isPlacementInvalid(arenaZoneShape, { isDecoration: false }, this.level.obstacles, extraKeepOutZones)) {
@@ -1141,11 +1168,11 @@ class LevelGenerator {
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
-            else if (template.type === 'bush_medium') { filesArray = CONFIG.BUSH_SPRITES_32PX_FILES || []; pathBase = CONFIG.BUSH_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
+            
             else if (template.type === 'bush_large') { filesArray = CONFIG.TROPICAL_BUSH_LARGE_FILES || []; pathBase = CONFIG.TROPICAL_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'fence_barbed_straight_short') { filesArray = CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'fence_barbed_straight_long') { filesArray = CONFIG.FENCE_BARBED_LONG_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'rock_medium') { filesArray = CONFIG.ROCK_SPRITES_32PX_FILES || []; pathBase = CONFIG.ROCK_SPRITES_32PX_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'rock_medium') { filesArray = CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_FILES || []; pathBase = CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'rock_large') { filesArray = CONFIG.ROCK_SPRITES_64PX_FILES || []; pathBase = CONFIG.ROCK_SPRITES_64PX_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_single') { filesArray = CONFIG.PALM_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'tree_palm_double') { filesArray = CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
@@ -1185,6 +1212,8 @@ class LevelGenerator {
             else if (template.type === 'palm_bush_large') { filesArray = CONFIG.PALM_BUSH_LARGE_FILES || []; pathBase = CONFIG.PALM_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'rainforest_patch_small_1') { filesArray = CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_FILES || []; pathBase = CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'rainforest_patch_large_1') { filesArray = CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_FILES || []; pathBase = CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'helipad_concrete_square_1') { filesArray = CONFIG.HELIPAD_SQUARE_SPRITE_FILES || []; pathBase = CONFIG.HELIPAD_SQUARE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tropical_ruins') { filesArray = CONFIG.TROPICAL_RUINS_SPRITE_FILES || []; pathBase = CONFIG.TROPICAL_RUINS_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {
@@ -1249,8 +1278,13 @@ class LevelGenerator {
 
                 let overlapsOuterSpawnZone = false;
                 if (isRestrictedType) {
+                    const shapeHasRotation = collisionCheckShape.type === 'rectangle' && collisionCheckShape.rotation !== undefined && collisionCheckShape.rotation !== 0;
                     if (collisionCheckShape.type === 'rectangle') {
-                        overlapsOuterSpawnZone = this.level._rectOverlap(collisionCheckShape, this.level.playerSpawnZone);
+                        if (shapeHasRotation) {
+                            overlapsOuterSpawnZone = obbOverlap(collisionCheckShape, this.level.playerSpawnZone);
+                        } else {
+                            overlapsOuterSpawnZone = this.level._rectOverlap(collisionCheckShape, this.level.playerSpawnZone);
+                        }
                     } else if (collisionCheckShape.type === 'circle') {
                         overlapsOuterSpawnZone = rectCircleOverlap(this.level.playerSpawnZone, collisionCheckShape);
                     } else if (collisionCheckShape.type === 'ellipse') {
@@ -1306,6 +1340,23 @@ class LevelGenerator {
                 }
                 attempts++;
             } while (!placed && attempts < placementMaxAttempts);
+        }
+
+        if (needsExtractionZone) {
+            const helipadObstacles = this.level.obstacles.filter(o => o.type === 'helipad_concrete_square_1');
+            if (helipadObstacles.length > 0) {
+                const helipad = helipadObstacles[0];
+                const extractionZoneObs = this.level.obstacles.filter(o => o.type === 'extraction_zone');
+                if (extractionZoneObs.length > 0) {
+                    extractionZoneObs.forEach(ez => {
+                        ez.x = helipad.x;
+                        ez.y = helipad.y;
+                        ez.width = helipad.width;
+                        ez.height = helipad.height;
+                    });
+                    if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Extraction zone placed on helipad at (${helipad.x.toFixed(0)}, ${helipad.y.toFixed(0)})`);
+                }
+            }
         }
 
         const pickupGenCfg = genConfig.PICKUPS || {};

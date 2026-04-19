@@ -184,10 +184,10 @@ const CONFIG = {
     POSSUM_ELITE_COLOR: '#8B4513',
     POSSUM_ELITE_DEFAULT_WEAPON: 'POSSUM_ELITE_WEAPON',
     POSSUM_ELITE_SPRITE_PATH: 'assets/images/units/possum_elite/',
-    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.5,
+    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.45,
     POSSUM_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite/dead/',
     POSSUM_ELITE_DEAD_SPRITE_FILES: ['possum_elite_dead1.png', 'possum_elite_dead2.png'],
-    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.35,
+    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.3,
     PROJECTILE_COLOR_POSSUM_ELITE: '#FF4500',
 
     // --- Possum Boss 1 ---
@@ -619,6 +619,7 @@ const CONFIG = {
             DETECTION_RANGE: 550,
             PREFERRED_GRENADE_RANGE_MAX: 450,
             MIN_ENGAGEMENT_DISTANCE: 120,
+            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 600,
 
             GRENADE_COOLDOWN_BETWEEN_SHOTS: 0.6,
             GRENADES_PER_VOLLEY: 4,
@@ -650,6 +651,7 @@ const CONFIG = {
             BURST_SIZE: 8,
             STRAFE_DISTANCE: 75,
             STRAFE_CHANCE: 0.5,
+            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 600,
             initialGuardPack: {
                 enabled: true,
                 countRange: [1, 3],
@@ -738,6 +740,13 @@ const CONFIG = {
     MUD_SPRITE_PATH: 'assets/images/objects/biomes/tropical/mud/',
     MUD_SPRITE_FILES: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'],
 
+    
+    FENCE_BARBED_SPRITE_PATH: 'assets/images/objects/fences/barbed/',
+    FENCE_BARBED_SHORT_SPRITE_FILES: [
+        'fence_barbed_straight_short_1.png', 'fence_barbed_straight_short_2.png', 'fence_barbed_straight_short_3.png', 'fence_barbed_straight_short_4.png', 'fence_barbed_straight_short_5.png', 'fence_barbed_straight_short_6.png'
+    ],
+    FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png'],
+
     WORLD_MUD_NOISE_SCALE_X: 0.015,
     WORLD_MUD_NOISE_SCALE_Y: 0.01,
     WORLD_MUD_NOISE_THRESHOLD: 0.3,
@@ -746,14 +755,12 @@ const CONFIG = {
     GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/',
     GRASS_SPRITE_FILES: [
         'grass1.png', 'grass2.png', 'grass3.png', 'grass4.png', 'grass5.png',
-        'grass6.png', 'grass7.png', 'grass8.png', 'grass9.png', 'grass10.png',
+        'grass6.png', 'grass7.png', 'grass8.png', 'grass9.png', 'grass10.png'
     ],
 
     // =============================================================================
     // BIOME_TROPICAL
     // =============================================================================
-    BUSH_SPRITES_32PX_PATH: 'assets/images/objects/biomes/tropical/grass2/',
-    BUSH_SPRITES_32PX_FILES: ['grass7.png'],
 
     TROPICAL_BUSH_LARGE_PATH: 'assets/images/objects/biomes/tropical/bushes/',
     TROPICAL_BUSH_LARGE_FILES: [
@@ -767,13 +774,10 @@ const CONFIG = {
     PALM_BUSH_LARGE_PATH: 'assets/images/objects/biomes/tropical/bushes/',
     PALM_BUSH_LARGE_FILES: ['palm_bush_large_1.png', 'palm_bush_large_2.png'],
 
-    ROCK_SPRITES_16PX_PATH: 'assets/images/objects/rocks/grassy/16/',
-    ROCK_SPRITES_16PX_FILES: [],
+    ROCK_SPRITES_TRIPICAL_MEDIUM_PATH: 'assets/images/objects/rocks/grassy/medium/',
+    ROCK_SPRITES_TRIPICAL_MEDIUM_FILES: ['rock_medium_tropical_1.png', 'rock_medium_tropical_2.png', 'rock_medium_tropical_3.png', 'rock_medium_tropical_4.png', 'rock_medium_tropical_5.png', 'rock_medium_tropical_6.png'],
 
-    ROCK_SPRITES_32PX_PATH: 'assets/images/objects/rocks/grassy/32/',
-    ROCK_SPRITES_32PX_FILES: ['rock_medium_tropical_1.png', 'rock_medium_tropical_2.png', 'rock_medium_tropical_3.png', 'rock_medium_tropical_4.png', 'rock_medium_tropical_5.png', 'rock_medium_tropical_6.png'],
-
-    ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/64/',
+    ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/large/',
     ROCK_SPRITES_64PX_FILES: ['rock_large_tropical_1.png', 'rock_large_tropical_2.png', 'rock_large_tropical_3.png', 'rock_large_tropical_4.png', 'rock_large_tropical_5.png', 'rock_large_tropical_6.png'],
 
     PALM_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/fullSize/',
@@ -810,7 +814,7 @@ const CONFIG = {
     FAN_TREE_TRIPLE_SPRITE_FILES: ['tropical_fan_triple_1.png'],
 
     RUBBER_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/rubber/',
-    RUBBER_TREE_SINGLE_SPRITE_FILES: ['tree_rubber_single_1.png', 'tree_rubber_single_2.png', 'tree_rubber_single_3.png'],
+    RUBBER_TREE_SINGLE_SPRITE_FILES: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png'],
 
     DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
     DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES: ['tree2_single_tall.png'],
@@ -828,7 +832,7 @@ const CONFIG = {
     RAINFOREST_SMALL_PATCH_SPRITE_FILES: ['rainforest_small_1.png'],
 
     RAINFOREST_LARGE_PATCH_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/forests/',
-    RAINFOREST_LARGE_PATCH_SPRITE_FILES: ['rainforest_large_2.png', 'rainforest_large_3.png', 'rainforest_large_4.png', 'rainforest_large_5.png', ],
+    RAINFOREST_LARGE_PATCH_SPRITE_FILES: ['rainforest_large_1.png', 'rainforest_large_3.png', 'rainforest_large_4.png', 'rainforest_large_5.png', ],
 
     // =============================================================================
     // OBSTACLES
@@ -847,8 +851,7 @@ const CONFIG = {
     ],
     EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH: 'assets/images/objects/possums/huts/',
     EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES: [
-        { normal: 'possum_hut_4.png', destroyed: 'possum_hut_4_destroyed.png' },
-        { normal: 'possum_hut_5.png', destroyed: 'possum_hut_5_destroyed.png' }
+        { normal: 'possum_hut_6.png', destroyed: 'possum_hut_4_destroyed.png' }
     ],
 
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
@@ -857,30 +860,37 @@ const CONFIG = {
         { normal: 'possum_tower_3.png', destroyed: 'possum_tower_3_destroyed.png' }
     ],
 
-    HEALTH_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/health/',
-    HEALTH_PICKUP_SPRITE_FILES: [
-        { normal: 'health_pickup_crate.png', destroyed: 'health_pickup_crate_empty.png' }
-    ],
+    HELIPAD_SQUARE_SPRITE_PATH: 'assets/images/objects/helipad/',
+    HELIPAD_SQUARE_SPRITE_FILES: ['concrete_helipad_square_1.png'],
+    
+    TROPICAL_RUINS_SPRITE_PATH: 'assets/images/objects/BIOMES/tropical/ruins/',
+    TROPICAL_RUINS_SPRITE_FILES: ['ruins_arch.png'],
+
+    // Pickups
     AMMO_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/ammo/',
     AMMO_PICKUP_SPRITE_FILES: [
         { normal: 'ammo_pickup_crate.png', destroyed: 'ammo_pickup_crate_empty.png' }
     ],
+
+    HEALTH_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/health/',
+    HEALTH_PICKUP_SPRITE_FILES: [
+        { normal: 'health_pickup_crate.png', destroyed: 'health_pickup_crate_empty.png' }
+    ],
+
     GRENADE_PICKUP_SPRITE_PATH: 'assets/images/objects/pickups/grenade/',
     GRENADE_PICKUP_SPRITE_FILES: [
         { normal: 'grenade_pickup_crate.png', destroyed: 'grenade_pickup_crate_empty.png' }
     ],
 
-    FENCE_BARBED_SPRITE_PATH: 'assets/images/objects/fences/barbed/',
-    FENCE_BARBED_SHORT_SPRITE_FILES: ['fence_barbed_straight_short_1.png', 'fence_barbed_straight_short_2.png', 'fence_barbed_straight_short_3.png', 'fence_barbed_straight_short_4.png', 'fence_barbed_straight_short_5.png', 'fence_barbed_straight_short_6.png'],
-    FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png'],
 
     INTEL: {
-        INTERACTION_RADIUS: 20,
-        SPAWN_DISTANCE: 600,
+        INTERACTION_RADIUS: 80,
+        SPAWN_DISTANCE: 400,
         SPRITE_PATH: 'assets/images/objects/possums/intel/',
         SPRITE_FILES: [
             { on: 'intel_console_1_on.png', off: 'intel_console_1_off.png' },
             { on: 'intel_console_2_on.png', off: 'intel_console_2_off.png' },
+            { on: 'intel_console_3_on.png', off: 'intel_console_3_off.png' },
         ],
         SPRITE_SCALE: 0.2,
     },
@@ -1161,7 +1171,7 @@ const CONFIG = {
             spawnWeight: 3,
             spriteScale: 0.5,
             spriteDestroyed: null,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.06), offsetY: (h => h * 0.35), width: (w => w * 0.8), height: (h => h * 0.15) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.05), offsetY: (h => h * 0.35), radiusX: (w => w * 0.46), radiusY: (h => h * 0.19) },
             placementBuffer: 150,
             canBeFlipped: true,
             isDecoration: true
@@ -1172,9 +1182,9 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1,
             explosionDamage: 50, explosionAoeRadius: 80,
-            spriteNormal: 'assets/images/objects/barrels/barrel_red.png',
-            spriteScale: 0.09,
-            spriteDestroyed: 'assets/images/objects/barrels/barrel_red_destroyed.png',
+            spriteNormal: 'assets/images/objects/barrels/barrel_red_1.png',
+            spriteScale: 0.15,
+            spriteDestroyed: 'assets/images/objects/barrels/barrel_red_1_destroyed.png',
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.048), offsetY: (h => h * 0.066), width: (w => w * 0.7), height: (h => h * 0.86) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_DESTROYED',
             canBeFlipped: false,
@@ -1203,6 +1213,7 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
+            placementBuffer: 50,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 4],
@@ -1227,6 +1238,7 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
+            placementBuffer: 50,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 4],
@@ -1242,15 +1254,16 @@ const CONFIG = {
         },
         {
             type: 'empty_possum_hut_round', name: 'Empty Round Possum Hut', color: '#8B4513',
-            destructible: true, hp: 100, maxHp: 100,
+            destructible: true, hp: 300, maxHp: 300,
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, phaseUnlocked: 1,
-            spriteScale: 0.3,
-            spriteDestroyedScale: 0.3,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.43), radiusX: (w => w * 0.35), radiusY: (h => h * 0.25) },
-            isDecoration: true,
+            spriteScale: 0.6,
+            spriteDestroyedScale: 0.6,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.4), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
+            isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
+            placementBuffer: 50,
         },
 
         {
@@ -1281,22 +1294,38 @@ const CONFIG = {
             }
         },
         {
-            type: 'intel_console', name: 'Intel Console', color: '#4A90D9',
+            type: 'intel_console', name: 'Intel Console', color: '#2e5986',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0, isDecoration: false,
+            spawnWeight: 0, isDecoration: false, placementBuffer: 100,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
             isIntelConsole: true
         },
         {
-            type: 'extraction_zone', name: 'Extraction Zone', color: '#3C78FF',
+            type: 'extraction_zone', name: 'Extraction Zone', color: '#3cc1ff',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: false, providesCover: false,
             spriteNormal: null,
             spawnWeight: 0, isDecoration: true,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8) },
-        }
+        },
+        {
+            type: 'helipad_concrete_square_1', name: 'Square Concrete Helipad', color: '#afafaf',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: false, providesCover: false,
+            spawnWeight: 0.5, isDecoration: true,
+            spriteScale: 0.5,
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8), rotation: Math.PI / 4 },
+        },
+        {
+            type: 'tropical_ruins', name: 'Tropical Ruins', color: '#afafaf',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.5, isDecoration: true,
+            spriteScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.1), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: (h => h * 0.4) },
+        },
     ],
 
     PICKUP_DEFINITIONS: [
@@ -1307,7 +1336,7 @@ const CONFIG = {
             spawnWeight: 0.5,
             pickupType: 'grenade', pickupQuantity: 2,
             spriteScale: 0.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84), rotation: Math.PI / 8 },
             isPickup: true,
             canBeFlipped: true,
         },
@@ -1318,7 +1347,7 @@ const CONFIG = {
             spawnWeight: 0.5,
             pickupType: 'ammo', pickupQuantity: 30,
             spriteScale: 0.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84), rotation: Math.PI / 8 },
             isPickup: true,
             canBeFlipped: true,
         },
@@ -1326,10 +1355,10 @@ const CONFIG = {
             type: 'pickup_health', name: 'Health Crate', color: '#FF69B4',
             destructible: true, hp: 1, maxHp: 1,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 0.5,
+            spawnWeight: 0.9,
             pickupType: 'health', pickupQuantity: 30,
             spriteScale: 0.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84) },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84), rotation: Math.PI / 8 },
             isPickup: true,
             canBeFlipped: true,
         },
@@ -1624,6 +1653,21 @@ const CONFIG = {
             SPAWN_INTERVAL_MIN_SECONDS: 20,
             SPAWN_INTERVAL_MAX_SECONDS: 60,
             SCALE: 0.45,
+        },
+        UFO: {
+            TILE_SHEET_PATH: 'assets/images/objects/ufo/ufo_1_tilesheet.png',
+            FRAME_WIDTH: 512,
+            FRAME_HEIGHT: 512,
+            NUM_FRAMES: 4,
+            ANIMATION_SPEED: 0.08,
+            SPEED_MIN: 1000,
+            SPEED_MAX: 1200,
+            MIN_Y_SPAWN_FACTOR: 0.05,
+            MAX_Y_SPAWN_FACTOR: 0.35,
+            SPAWN_INTERVAL_MIN_SECONDS: 300,
+            SPAWN_INTERVAL_MAX_SECONDS: 1200,
+            SCALE: 0.2,
+            PHASE_UNLOCK: 4,
         }
     },
 

@@ -213,44 +213,83 @@
     </div>
 
     <!-- Shootout Mode Screens -->
-    <div id="shootoutPreGameScreen" class="ui-panel" style="display: none;">
-        <h2>JUNGLE SHOOTOUT</h2>
-        <div class="shootout-instructions">
-            <p>Possums are hiding in the trees!</p>
-            <p>Shoot them before they shoot you!</p>
-            <p>Aim with mouse, click to fire</p>
-        </div>
-        <div class="shootout-mode-selection">
-            <p>Select Mode:</p>
-            <div class="mode-buttons-container">
-                <button id="modeTimeAttackButton" class="mode-select-btn active">Time Attack</button>
-                <button id="modeEliminationButton" class="mode-select-btn">Elimination</button>
+    <div id="shootoutPreGameScreen" class="enhanced-game-over" style="display: none;">
+        <div class="hud-panel hud-left">
+            <div class="hud-bracket top-left"></div>
+            <div class="hud-bracket bottom-left"></div>
+
+            <div class="mission-status-header">
+                <h3>JUNGLE SHOOTOUT</h3>
+                <div class="status-line"></div>
             </div>
-            <p id="shootoutModeDescription" class="mode-description">Survive for 60 seconds and get the highest score!
-            </p>
-        </div>
-        <div class="shootout-map-selection-container">
-            <p>Select Map:</p>
-            <div id="shootoutMapList" class="shootout-map-list">
-                <!-- JS will populate this with map cards -->
+
+            <div class="shootout-instructions">
+                <p>Possums are hiding in the trees!</p>
+                <p>Shoot them before they shoot you!</p>
+                <p>Aim with mouse, click to fire</p>
             </div>
-        </div>
-        <div class="shootout-shuffle-toggle">
-            <label class="toggle-switch">
-                <input type="checkbox" id="shuffleModeToggle">
-                <span class="slider"></span>
-            </label>
-            <span>Shuffle Maps (Random)</span>
-        </div>
-        <div class="shootout-high-score">
-            <span>High Score (Time Attack): </span><span id="shootoutHighScoreDisplay">0</span><br>
-            <span>High Score (Elimination): </span><span id="shootoutEliminationHighScoreDisplay">0</span>
+
+            <div class="shootout-mode-selection">
+                <p>Select Mode:</p>
+                <div class="mode-buttons-container">
+                    <button id="modeTimeAttackButton" class="mode-select-btn active">Time Attack</button>
+                    <button id="modeEliminationButton" class="mode-select-btn">Elimination</button>
+                </div>
+                <p id="shootoutModeDescription" class="mode-description">Survive for 60 seconds and get the highest score!</p>
+            </div>
+
+            <div class="core-score-group" style="margin-top: 20px;">
+                <span class="stat-label">HIGH SCORES</span>
+                <div class="high-score-grid">
+                    <div class="high-score-item">
+                        <span class="stat-label">TIME ATTACK</span>
+                        <span class="stat-value" id="shootoutHighScoreDisplay">0</span>
+                    </div>
+                    <div class="high-score-item">
+                        <span class="stat-label">ELIMINATION</span>
+                        <span class="stat-value" id="shootoutEliminationHighScoreDisplay">0</span>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="main-menu-buttons">
-            <button id="startShootoutButton">Start</button>
-            <button id="toggleDevModeButton" class="dev-mode-toggle">Dev Mode: OFF</button>
-            <button id="backFromShootoutButton">Back to Menu</button>
+        <div class="hud-panel hud-right">
+            <div class="hud-bracket top-right"></div>
+            <div class="hud-bracket bottom-right"></div>
+
+            <div class="telemetry-header">
+                <h3>SELECT ENGAGEMENT ZONE</h3>
+                <div class="data-stream"></div>
+            </div>
+
+            <div class="shootout-map-selection-container">
+                <div id="shootoutMapList" class="shootout-map-list">
+                    <!-- JS will populate this with map cards -->
+                </div>
+            </div>
+
+            <div class="shootout-shuffle-toggle">
+                <label class="toggle-switch">
+                    <input type="checkbox" id="shuffleModeToggle">
+                    <span class="slider"></span>
+                </label>
+                <span>Shuffle Maps (Random)</span>
+            </div>
+        </div>
+
+        <div id="buttonContainer" class="hud-bottom-bar">
+            <div class="hud-bracket left-bracket"></div>
+            <div class="main-menu-buttons">
+                <button id="startShootoutButton" class="game-over-button action-primary">DEPLOY</button>
+                <button id="toggleDevModeButton" class="game-over-button action-secondary dev-mode-toggle">DEV MODE: OFF</button>
+                <button id="backFromShootoutButton" class="game-over-button action-secondary">BACK TO MENU</button>
+            </div>
+            <div class="hud-bracket right-bracket"></div>
+        </div>
+
+        <div class="background-effects">
+            <div class="vignette-overlay"></div>
+            <div class="scanline-overlay"></div>
         </div>
     </div>
 
@@ -557,6 +596,7 @@
     <script src="js/possumRevolver.js"></script>
     <script src="js/possumElite.js"></script>
     <script src="js/flyingBird.js"></script>
+    <script src="js/ufo.js"></script>
     <script src="js/IntelConsole.js"></script>
     <script src="js/levelGenerator.js"></script>
     <script src="js/level.js"></script>

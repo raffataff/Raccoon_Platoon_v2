@@ -46,12 +46,16 @@ class Level {
                 if (obstacle.isFlippedHorizontally) {
                     offsetX = obsCurrentWidth - offsetX - (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
                 }
+                const rotation = shapeDef.rotation !== undefined ? shapeDef.rotation : 0;
+                const width = (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
+                const height = (typeof shapeDef.height === 'function' ? shapeDef.height(obsCurrentWidth, obsCurrentHeight) : (shapeDef.height || obsCurrentHeight));
                 return {
                     type: 'rectangle',
                     x: obstacle.x + offsetX,
                     y: obstacle.y + offsetY,
-                    width: (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth)),
-                    height: (typeof shapeDef.height === 'function' ? shapeDef.height(obsCurrentWidth, obsCurrentHeight) : (shapeDef.height || obsCurrentHeight))
+                    width: width,
+                    height: height,
+                    rotation: rotation
                 };
             } else if (shapeDef.type === 'circle') {
                 let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2);
@@ -81,9 +85,9 @@ class Level {
         if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || 
             obstacle.type === 'border_wall' || 
             obstacle.type === 'extraction_zone') { 
-             return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
+             return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height, rotation: 0 };
         }
-        return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height };
+        return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height, rotation: 0 };
     }
 
     _rectOverlap(rect1, rect2) {

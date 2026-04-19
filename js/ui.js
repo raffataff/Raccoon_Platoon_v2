@@ -702,7 +702,8 @@ class UI {
 
             this.populateShootoutMapList();
 
-            this.shootoutPreGameScreen.style.display = 'flex';
+            this.shootoutPreGameScreen.style.display = '';
+            this.shootoutPreGameScreen.classList.add('visible');
         }
         // Ensure dev overlay is hidden when showing pre-game screen
         if (this.shootoutDevOverlay) {
@@ -761,7 +762,10 @@ class UI {
     }
 
     hideShootoutPreGameScreen() {
-        if (this.shootoutPreGameScreen) this.shootoutPreGameScreen.style.display = 'none';
+        if (this.shootoutPreGameScreen) {
+            this.shootoutPreGameScreen.style.display = 'none';
+            this.shootoutPreGameScreen.classList.remove('visible');
+        }
     }
 
     showShootoutGameOver(stats) {
@@ -948,7 +952,12 @@ class UI {
         // When entering dev mode, hide the pre-game screen to show only canvas + spawn boxes
         // When exiting dev mode, show the pre-game screen again
         if (this.shootoutPreGameScreen) {
-            this.shootoutPreGameScreen.style.display = isDevMode ? 'none' : 'flex';
+            this.shootoutPreGameScreen.style.display = isDevMode ? 'none' : '';
+            if (isDevMode) {
+                this.shootoutPreGameScreen.classList.remove('visible');
+            } else {
+                this.shootoutPreGameScreen.classList.add('visible');
+            }
         }
 
         // Clear any status message

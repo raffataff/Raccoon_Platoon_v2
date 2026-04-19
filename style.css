@@ -3236,6 +3236,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* --- Shootout Mode Styles --- */
+/* Shootout Pre-Game Screen */
 #shootoutPreGameScreen {
     position: fixed;
     top: 0;
@@ -3243,57 +3244,74 @@ input[type="range"]::-moz-range-thumb {
     width: 100%;
     height: 100%;
     display: none;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
     z-index: 150;
-    backdrop-filter: blur(8px);
-    background-color: rgba(20, 18, 15, 0.92);
-    text-align: center;
+    backdrop-filter: blur(15px);
+    background: radial-gradient(circle at center, rgba(10, 15, 10, 0.7) 0%, rgba(5, 5, 5, 0.95) 100%);
+    pointer-events: auto;
+    overflow: hidden;
+    padding: 2vw 4vw;
 }
 
-#shootoutPreGameScreen {
-    display: none;
-}
-
-#shootoutGameOverScreen {
-    display: none;
+#shootoutPreGameScreen.visible {
+    display: flex;
 }
 
 #shootoutPreGameScreen h2 {
+    display: none;
+}
+
+#shootoutPreGameScreen .hud-panel {
+    height: 80vh;
+}
+
+#shootoutPreGameScreen .shootout-instructions {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 15px;
+    border-radius: 4px;
+    border-left: 3px solid rgba(76, 175, 80, 0.5);
+    margin: 0 0 15px 0;
+}
+
+#shootoutPreGameScreen .shootout-instructions p {
+    margin: 8px 0;
+    font-size: 1em;
+    color: #E2E0D8;
+}
+
+#shootoutPreGameScreen .mission-status-header h3 {
     font-family: 'Black Ops One', cursive;
-    font-size: 3em;
+    font-size: 2.5em;
     color: #4CAF50;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    margin-bottom: 10px;
+    text-shadow: 0 0 15px rgba(76, 175, 80, 0.4), 2px 2px 0px #000;
+    margin: 0;
+    letter-spacing: 2px;
 }
 
-.shootout-instructions {
-    background: rgba(0, 0, 0, 0.6);
-    padding: 20px;
-    border-radius: 10px;
-    margin: 10px auto;
-    max-width: 400px;
-}
-
-.shootout-instructions p {
-    margin: 10px 0;
-    font-size: 1.2em;
-}
-
-.shootout-high-score {
-    font-size: 1.2em;
-    color: #FFD700;
-    margin: 10px 0;
+#shootoutPreGameScreen .status-line {
+    width: 100%;
+    height: 1px;
+    background: repeating-linear-gradient(90deg, #4CAF50, #4CAF50 10px, transparent 10px, transparent 20px);
+    opacity: 0.5;
+    margin: 15px 0;
 }
 
 .shootout-mode-selection {
-    margin: 10px 0;
+    margin: 0;
     background: rgba(0, 0, 0, 0.4);
-    padding: 10px;
+    padding: 15px;
     border-radius: 4px;
-    border: 2px solid var(--panel-border);
-    width: 500px;
+    border-left: 3px solid rgba(76, 175, 80, 0.5);
+}
+
+.shootout-mode-selection p {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #A8A498;
+    letter-spacing: 1.5px;
+    margin: 0 0 10px 0;
 }
 
 .mode-buttons-container {
@@ -3305,10 +3323,10 @@ input[type="range"]::-moz-range-thumb {
 
 .mode-select-btn {
     padding: 10px 20px;
-    font-family: var(--font-ui);
-    font-size: 1.1em;
-    font-weight: 700;
+    font-family: 'Black Ops One', cursive;
+    font-size: 1em;
     text-transform: uppercase;
+    letter-spacing: 1px;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid #555;
     color: #888;
@@ -3324,17 +3342,304 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .mode-select-btn.active {
-    background: var(--brand-primary);
+    background: #4CAF50;
     color: #000;
     border-color: #fff;
-    box-shadow: 0 0 15px rgba(230, 157, 69, 0.5);
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
 }
 
 .mode-description {
     font-style: italic;
     font-size: 0.9em;
-    color: var(--text-muted);
+    color: #A8A498;
     margin-top: 10px;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+.core-score-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 15px 20px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    border-radius: 4px;
+    width: 100%;
+}
+
+.core-score-group .stat-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.9em;
+    color: #A8A498;
+    letter-spacing: 1.5px;
+    margin-bottom: 10px;
+}
+
+.high-score-grid {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+}
+
+.high-score-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.high-score-item .stat-label {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.75em;
+    color: #888;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+}
+
+.high-score-item .stat-value {
+    font-family: 'Black Ops One', cursive;
+    font-size: 1.5em;
+    color: #ffd700;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
+}
+
+#shootoutPreGameScreen .hud-right .telemetry-header h3 {
+    font-family: 'Rajdhani', sans-serif;
+    color: #4CAF50;
+    font-size: 1.1em;
+    letter-spacing: 2px;
+    margin: 0;
+}
+
+#shootoutPreGameScreen .shootout-map-selection-container {
+    margin-top: 0;
+}
+
+.shootout-map-selection-container p {
+    display: none;
+}
+
+#shootoutPreGameScreen .shootout-map-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 15px;
+    width: 100%;
+    max-height: 45vh;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+#shootoutPreGameScreen .shootout-map-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+#shootoutPreGameScreen .shootout-map-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+#shootoutPreGameScreen .shootout-map-list::-webkit-scrollbar-thumb {
+    background: #4CAF50;
+    border-radius: 3px;
+}
+
+.map-card {
+    background: rgba(10, 15, 10, 0.8);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    border-radius: 4px;
+    padding: 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    background-size: cover;
+    background-position: center;
+    min-height: 100px;
+}
+
+.map-card:hover {
+    border-color: #4CAF50;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);
+}
+
+.map-card.selected {
+    border-color: #4CAF50;
+    background: rgba(76, 175, 80, 0.2);
+    box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
+}
+
+.map-card-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.85em;
+    color: #E2E0D8;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.map-card.night-mode .map-card-name {
+    color: #4CAF50;
+}
+
+.night-toggle {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.75em;
+    color: #888;
+}
+
+.night-toggle input {
+    cursor: pointer;
+}
+
+#shootoutPreGameScreen .shootout-shuffle-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    padding: 10px 15px;
+    background: rgba(0, 0, 0, 0.4);
+    border-radius: 4px;
+    border-left: 3px solid rgba(76, 175, 80, 0.5);
+}
+
+#shootoutPreGameScreen .shootout-shuffle-toggle span {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.9em;
+    color: #A8A498;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 44px;
+    height: 22px;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-switch .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #333;
+    transition: 0.3s;
+    border-radius: 22px;
+}
+
+.toggle-switch .slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #888;
+    transition: 0.3s;
+    border-radius: 50%;
+}
+
+.toggle-switch input:checked + .slider {
+    background-color: #4CAF50;
+}
+
+.toggle-switch input:checked + .slider:before {
+    transform: translateX(22px);
+    background-color: #fff;
+}
+
+#shootoutPreGameScreen .hud-bottom-bar {
+    position: absolute;
+    bottom: 2vw;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 85%;
+    max-width: 800px;
+    background: rgba(10, 15, 10, 0.8);
+    border: 1px solid rgba(76, 175, 80, 0.4);
+    border-top: 2px solid #4CAF50;
+    padding: 20px 0 0 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+}
+
+#shootoutPreGameScreen .main-menu-buttons {
+    display: flex;
+    gap: 10px;
+    flex-wrap: nowrap;
+    justify-content: center;
+    width: 66%;
+}
+
+#shootoutPreGameScreen .game-over-button {
+    padding: 15px 30px;
+    font-family: 'Black Ops One', cursive;
+    font-size: 1em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    min-width: 180px;
+    border: none;
+    position: relative;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+#shootoutPreGameScreen .action-primary {
+    background: linear-gradient(135deg, #4CAF50, #2E7D32);
+    color: #050505;
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.4);
+}
+
+#shootoutPreGameScreen .action-primary:hover {
+    background: linear-gradient(135deg, #5fbf6f, #3d9350);
+    box-shadow: 0 0 25px rgba(76, 175, 80, 0.6);
+    transform: translateY(-2px);
+}
+
+#shootoutPreGameScreen .action-secondary {
+    background: rgba(50, 50, 50, 0.8);
+    color: #ccc;
+    border: 1px solid #555;
+}
+
+#shootoutPreGameScreen .action-secondary:hover {
+    background: rgba(70, 70, 70, 0.8);
+    color: #fff;
+    border-color: #777;
+}
+
+#shootoutPreGameScreen .background-effects {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.vignette-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.4) 100%);
 }
 
 #shootoutHud {
