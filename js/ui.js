@@ -566,8 +566,12 @@ class UI {
     }
 
     playExtractionVideo(videoPath) {
-        if (!this.extractionVideoScreen || !this.extractionVideoPlayer) return Promise.resolve();
+        if (!this.extractionVideoScreen || !this.extractionVideoPlayer) {
+            console.warn('[ExtractionVideo] Missing extraction video elements');
+            return Promise.resolve();
+        }
 
+        console.log('[ExtractionVideo] Loading video:', videoPath);
         this.extractionVideoPlayer.src = videoPath;
         this.extractionVideoPlayer.load();
 
@@ -582,8 +586,16 @@ class UI {
                 this.hideExtractionVideoScreen();
                 resolve();
             };
+            const handleError = (e) => {
+                console.error('[ExtractionVideo] Video error:', e);
+                this.extractionVideoPlayer.removeEventListener('error', handleError);
+                this.hideExtractionVideoScreen();
+                resolve();
+            };
             this.extractionVideoPlayer.addEventListener('ended', handleEnded);
-            this.extractionVideoPlayer.play().catch(() => {
+            this.extractionVideoPlayer.addEventListener('error', handleError);
+            this.extractionVideoPlayer.play().catch((err) => {
+                console.warn('[ExtractionVideo] Play failed:', err);
                 resolve();
             });
         });
@@ -1885,7 +1897,7 @@ class UI {
         // Build sprite URLs based on rank
         const spriteBaseName = recruit.spriteBaseName || 'raccoon';
         const spritePath = this._getSpritePathForRank(recruit.rank);
-        const directions = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+        const directions = ['se', 's', 'sw', 'w', 'nw', 'n', 'ne', 'e', ];
         
         // Store sprite URLs in CSS custom properties for animation
         directions.forEach(dir => {
@@ -2546,10 +2558,12 @@ class UI {
             if (isKIA) memberDiv.classList.add('kia');
             if (raccoon.faceImageUrl) memberDiv.style.backgroundImage = `url('${raccoon.faceImageUrl}')`;
 
+            const isSelected = selectedUnits.includes(raccoon);
+            if (isSelected) memberDiv.classList.add('selected');
             if (raccoon.isAimingGrenade) {
                 memberDiv.style.borderColor = (CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR.COLOR) || 'orange';
                 memberDiv.style.borderWidth = '2px'; memberDiv.style.borderStyle = 'solid';
-            } else if (!selectedUnits.includes(raccoon)) {
+            } else if (!isSelected) {
                 memberDiv.style.borderColor = ''; memberDiv.style.borderWidth = ''; memberDiv.style.borderStyle = '';
             }
 

@@ -30,6 +30,7 @@ class Game {
         this.selectedUnits = [];
         this.visualEffects = [];
         this.intelConsoles = [];
+        this.possumTurrets = [];
         this.preloadedImages = {};
         this.audioManager = new AudioManager();
         this.musicManager = new MusicManager(this.audioManager);
@@ -884,6 +885,30 @@ class Game {
             });
         }
 
+        if (CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES && CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH) {
+            const hutPath = CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH;
+            CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES.forEach(pair => {
+                const normalPath = hutPath + pair.normal;
+                const destroyedPath = hutPath + pair.destroyed;
+                if (pair.normal && !this.preloadedImages[normalPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                        img.src = normalPath;
+                    }));
+                }
+                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                        img.src = destroyedPath;
+                    }));
+                }
+            });
+        }
+
         // Intel Console Sprites
         if (CONFIG.INTEL && CONFIG.INTEL.SPRITE_PATH && CONFIG.INTEL.SPRITE_FILES) {
             CONFIG.INTEL.SPRITE_FILES.forEach(variant => {
@@ -906,6 +931,22 @@ class Game {
                     }));
                 }
             });
+        }
+
+        // Possum Turret Sprites
+        const turretDir = 'assets/images/objects/possums/turrets/';
+        const turretDirections = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+        for (const dir of turretDirections) {
+            const key = `possum_turret_1_${dir}`;
+            const fullPath = turretDir + `possum_turret_1_${dir}.png`;
+            if (!this.preloadedImages[fullPath]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
+                    img.onerror = () => { this.preloadedImages[fullPath] = null; resolve(); };
+                    img.src = fullPath;
+                }));
+            }
         }
 
         if (CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES && CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH) {
@@ -1330,6 +1371,7 @@ class Game {
             this.missionStartTime = performance.now();
             this.hostageUnits = [];
             this.intelConsoles = [];
+            this.possumTurrets = [];
 
             let worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1280) * (this.currentMissionParams.baseParams.worldWidthFactor || 1);
             let worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 720) * (this.currentMissionParams.baseParams.worldHeightFactor || 1);
@@ -1826,6 +1868,20 @@ class Game {
         const duration = (baseMin + Math.random() * (baseMax - baseMin)) + (bonusMin + Math.random() * (bonusMax - bonusMin)) * phase;
 
         console.startHack(null, duration);
+    }
+
+    handlePossumTurretShutdown() {
+        if (this.gameState !== 'RUNNING') return;
+        if (!this.possumTurrets || this.possumTurrets.length === 0) return;
+
+        for (const turret of this.possumTurrets) {
+            if (turret.isShutdown) continue;
+            const behind = turret.getNearestRaccoonBehind();
+            if (behind) {
+                turret.shutdown();
+                break;
+            }
+        }
     }
 
     spawnEnemyAtLocation(x, y, unitType, targetX, targetY) {
@@ -2824,6 +2880,7 @@ class Game {
             newlyRecruitedRaccoons: newlyRecruitedRaccoons,
             rescuedHostagesCount: rescuedHostagesCount,
             hostagesRecruitedCount: newlyRecruitedRaccoons.length,
+            isPhaseFinale: isLastMissionInPhase,
             // Ambush result info
             ambushResult: this.ambushResult,
             ambushesSurvived: this.ambushesSurvivedThisMission
@@ -2836,6 +2893,9 @@ class Game {
         if (isVictory) {
             this.pendingDebriefData = debriefData;
             if (isLastMissionInPhase) {
+                this.gameState = 'EXTRACTION_VIDEO';
+                this._playExtractionVideo();
+            } else if (rescuedHostagesCount > 0) {
                 this.gameState = 'EXTRACTION_VIDEO';
                 this._playExtractionVideo();
             } else {
@@ -2858,22 +2918,25 @@ class Game {
         }
 
         let videoPath;
-        const hasExtractionObjective = this.currentMissionParams && this.currentMissionParams.objectives &&
-            this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
         const hostageCount = this.pendingDebriefData?.rescuedHostagesCount || 0;
+        const isPhaseFinale = this.pendingDebriefData?.isPhaseFinale || false;
 
-        if (hasExtractionObjective && hostageCount > 0) {
+        console.log('[ExtractionVideo] hostageCount:', hostageCount, 'isPhaseFinale:', isPhaseFinale);
+
+        if (!isPhaseFinale && hostageCount > 0) {
             const hostageVideoPaths = [];
             for (let i = 1; i <= 3; i++) {
                 hostageVideoPaths.push(`assets/video/extraction/extraction_hostage_${i}.mp4`);
             }
             const targetCount = Math.min(hostageCount, 3);
             videoPath = hostageVideoPaths[targetCount - 1];
+            console.log('[ExtractionVideo] Playing hostage video for', targetCount, 'hostages:', videoPath);
         } else {
             const extractionVideoPaths = [
                 'assets/video/extraction/extraction_takeoff_1.mp4',
             ];
             videoPath = extractionVideoPaths[Math.floor(Math.random() * extractionVideoPaths.length)];
+            console.log('[ExtractionVideo] Playing default extraction video:', videoPath);
         }
 
         await this.ui.playExtractionVideo(videoPath);
@@ -3511,6 +3574,13 @@ class Game {
                     }
                 });
             }
+            if (this.possumTurrets && this.possumTurrets.length > 0) {
+                this.possumTurrets.forEach(turret => {
+                    if (turret && typeof turret.update === 'function') {
+                        turret.update(deltaTime);
+                    }
+                });
+            }
             if (this.ui) {
                 this.ui.updateObjective();
             }
@@ -3559,9 +3629,9 @@ class Game {
         }
 
         let sortableObjects = [];
-        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
-        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
-        if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); sortableObjects.push({ entity: unit, sortY: unit.y + (unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
                     // --- MODIFICATION START: Fix extraction zone not being drawn after isHidden=false ---
             // Added check for isHidden to allow extraction zones to appear when revealed
             if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { 
@@ -3573,12 +3643,19 @@ class Game {
                         shouldSort = false; 
                     } 
                 } 
-                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;                 if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { const isBehindLiving = !!obstacle.isDestroyed; sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving }); } } }); }
+                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;                 if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { const isBehindLiving = !!obstacle.isDestroyed; const isHelipad = obstacle.type && obstacle.type.startsWith('helipad'); sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving }); } } }); }
         // Add intel consoles to sortable objects for proper depth sorting
         if (this.intelConsoles) {
             this.intelConsoles.forEach(console => {
                 if (console && typeof console.y === 'number' && typeof console.height === 'number') {
                     sortableObjects.push({ entity: console, sortY: console.y + console.height, isUnit: false, isDestroyed: false });
+                }
+            });
+        }
+        if (this.possumTurrets) {
+            this.possumTurrets.forEach(turret => {
+                if (turret && typeof turret.y === 'number' && typeof turret.height === 'number') {
+                    sortableObjects.push({ entity: turret, sortY: turret.y + turret.height, isUnit: false, isDestroyed: false });
                 }
             });
         }
@@ -3594,7 +3671,7 @@ class Game {
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
         sortableObjects.forEach((item, index) => {
             const obj = item.entity; if (!obj) { return; } try {
-                if (item.isUnit || obj.type === 'intel_console') { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {
+                if (item.isUnit || obj.type === 'intel_console' || obj.type === 'possum_turret') { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {
                     // --- MODIFICATION START ---
                     this.ctx.save();
                     if (obj.isFlippedHorizontally) {
@@ -3864,7 +3941,8 @@ class Game {
 
             // Pass 1: Fill with full darkness
             octx.globalCompositeOperation = 'source-over';
-            octx.fillStyle = nightCfg.OVERLAY_COLOR;
+            const darknessAlpha = nightCfg.DARKNESS_ALPHA !== undefined ? nightCfg.DARKNESS_ALPHA : 0.92;
+            octx.fillStyle = `rgba(0, 0, 20, ${darknessAlpha})`;
             octx.fillRect(0, 0, oc.width, oc.height);
 
             // Pass 2: Cut vision holes (fully transparent inside each circle)

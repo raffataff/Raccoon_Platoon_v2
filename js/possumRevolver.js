@@ -27,6 +27,9 @@ class PossumRevolver extends Unit {
         this.reloadTimer = 0;
         
         this.xpValue = CONFIG.XP_FOR_REVOLVER_KILL || 150;
+        
+        this.STRAFE_COOLDOWN = this.revolverAIConfig.STRAFE_COOLDOWN || 0.5;
+        this.timeSinceLastStrafe = 0;
     }
 
     update(deltaTime) {
@@ -82,26 +85,27 @@ class PossumRevolver extends Unit {
     }
 
     _strafe(target, deltaTime) {
-        // --- MODIFIED MOVEMENT LOGIC ---
-        // Only decide to move if not already moving.
+        this.timeSinceLastStrafe += deltaTime;
+        
+        if (this.timeSinceLastStrafe < this.STRAFE_COOLDOWN) {
+            return;
+        }
+        
         if (!this.isMoving) {
-            // Use the new STRAFE_CHANCE from config to decide IF we should move.
             const shouldMove = this.game.level.rng.chance(this.revolverAIConfig.STRAFE_CHANCE || 0.85);
             
             if (shouldMove) {
-                // Use the new STRAFE_DISTANCE from config.
                 const strafeDist = this.revolverAIConfig.STRAFE_DISTANCE || 150;
                 const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
-                // Pick a perpendicular angle to move sideways
                 const strafeAngle = angleToTarget + (this.game.level.rng.chance(0.5) ? Math.PI / 2 : -Math.PI / 2);
 
                 const newX = this.x + Math.cos(strafeAngle) * strafeDist;
                 const newY = this.y + Math.sin(strafeAngle) * strafeDist;
                 
                 this.setMoveTarget(newX, newY);
+                this.timeSinceLastStrafe = 0;
             }
         }
-        // --- END MODIFIED MOVEMENT LOGIC ---
     }
     
     _executeFire(targetX, targetY) {

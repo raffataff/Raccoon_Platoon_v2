@@ -23,6 +23,7 @@ class PossumHeavy extends Unit {
         this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.heavyAIConfig.TARGET_DEVIATION_RECALC_THRESHOLD_CELLS * CONFIG.GRID_CELL_SIZE) ** 2 || (3 * CONFIG.GRID_CELL_SIZE) ** 2;
         this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY = this.heavyAIConfig.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY || 40;
         this.ENGAGE_RANGE_BUFFER = this.heavyAIConfig.ENGAGE_RANGE_BUFFER || 5;
+        this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.heavyAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
 
 
         this.STUCK_RECOVERY_COOLDOWN_INTERNAL = this.heavyAIConfig.STUCK_RECOVERY_COOLDOWN_SHORT || 0.75;
@@ -147,13 +148,15 @@ class PossumHeavy extends Unit {
                         shouldUpdateChaseDest = true;
                     } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
                         shouldUpdateChaseDest = true;
-                    } else if (distanceSq(currentTarget.x, currentTarget.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
+                    } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
+                        distanceSq(currentTarget.x, currentTarget.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
                         shouldUpdateChaseDest = true;
                     } else if (!this.isMoving && distance(this.x, this.y, currentTarget.x, currentTarget.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
                         shouldUpdateChaseDest = true;
                     }
 
                     if (shouldUpdateChaseDest) {
+                        this.timeSinceLastChaseDestUpdate = 0;
                         const predictionTime = this.heavyAIConfig.CHASE_PREDICTION_TIME_FACTOR || 0.15;
                         let predictedX = currentTarget.x + currentTarget.currentVelocity.x * predictionTime;
                         let predictedY = currentTarget.y + currentTarget.currentVelocity.y * predictionTime;

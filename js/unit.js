@@ -119,6 +119,15 @@ class Unit {
         return (rankData && rankData.nightVisionRadius) || CONFIG.NIGHT_MISSION.PLAYER_VISION_RADIUS || 220;
     }
 
+    getHitbox() {
+        return {
+            x: this.x - this.size / 2,
+            y: this.y - this.size / 2,
+            width: this.size,
+            height: this.size
+        };
+    }
+
     isIlluminated() {
         if (!this.game || !this.game.isNightMission) return true;
 
@@ -277,7 +286,12 @@ class Unit {
             this.facingAngle = this.gunAimAngle;
         } else if (isActuallyMovingForBobbing) {
             this.currentVisualState = 'walk';
-            this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
+            const movedDist = Math.hypot(this.lastDeltaX, this.lastDeltaY);
+            // Only turn the sprite if we moved more than a trivial snap distance.
+            // This prevents the 1-frame South flash when smoothing snaps us to the first grid center.
+            if (movedDist > 0.5) {
+                this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
+            }
         } else {
             this.currentVisualState = 'idle';
         }
@@ -347,6 +361,15 @@ class Unit {
             this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level);
             if (this.currentPath && this.currentPath.length > 0) {
                 this.currentPathNodeIndex = 0; this.isMoving = true;
+                // --- FIX: Skip the first path node if it's just the start grid center
+                // and we're already very close to it. This prevents a 1-frame snap
+                // that briefly faces the sprite in the wrong direction.
+                if (this.currentPath.length > 1) {
+                    const distToFirst = distance(this.x, this.y, this.currentPath[0].x, this.currentPath[0].y);
+                    if (distToFirst < this.size * 0.5) {
+                        this.currentPathNodeIndex = 1;
+                    }
+                }
                 if (!this.manualTarget && !this.autoTarget && !this.isPlayerDirectFiring) { this.gunAimAngle = this.facingAngle; }
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Path found (phasing: ${isPhasingOverride}). Smoothed len: ${this.currentPath.length}. isMoving=true.`);
                 return true;

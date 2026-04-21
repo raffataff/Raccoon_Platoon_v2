@@ -1159,6 +1159,15 @@ class LevelGenerator {
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
+            else if (template.type === 'empty_possum_hut_2') {
+                const hutSpritePairs = CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES || [];
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
             else if (template.type === 'possum_relay_tower') {
                 const towerSpritePairs = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
                 if (towerSpritePairs.length > 0) {
@@ -1167,6 +1176,9 @@ class LevelGenerator {
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
+            }
+            else if (template.type === 'possum_turret') {
+                actualSpritePath = 'assets/images/objects/possums/turrets/possum_turret_1_s.png';
             }
             
             else if (template.type === 'bush_large') { filesArray = CONFIG.TROPICAL_BUSH_LARGE_FILES || []; pathBase = CONFIG.TROPICAL_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
@@ -1320,7 +1332,7 @@ class LevelGenerator {
                         x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight, type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
                         blocksMovement: template.blocksMovement, providesCover: template.providesCover, pickupType: template.pickupType || null, pickupQuantity: template.pickupQuantity || 0,
-                        isPickup: !!template.pickupType, isDecoration: !!template.isDecoration,
+                        isPickup: !!template.pickupType, isDecoration: !!template.isDecoration || template.type === 'possum_turret',
                         spriteNormalPath: actualSpritePath,
                         spriteDestroyedPath: actualDestroyedSpritePath,
                         imageNormal: actualImageObject,
@@ -1336,6 +1348,17 @@ class LevelGenerator {
                     this.level.obstacles.push(newObstacle);
                     if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
                     this._spawnInitialGuardsForObject(newObstacle, template, allSpawnedEnemiesDuringGen);
+                    
+                    if (template.type === 'possum_turret') {
+                        const arc = (obsY < (this.level.playableMinY + this.level.playableMaxY) / 2) 
+                            ? ['w', 'sw', 's', 'se', 'e'] 
+                            : ['n', 'nw', 'w', 'sw', 's'];
+                        const turret = new PossumTurret(obsX, obsY, this.game, arc, newObstacle);
+                        this.game.possumTurrets.push(turret);
+                        newObstacle.render = function() {};
+                        console.log(`[LevelGen] Created possum_turret obstacle at (${obsX}, ${obsY}) with dimensions ${obsRenderWidth}x${obsRenderHeight}, spriteScale=${normalSpriteScale}, actualImageObject=${!!actualImageObject}`);
+                    }
+                    
                     placed = true;
                 }
                 attempts++;

@@ -171,7 +171,7 @@ const CONFIG = {
     POSSUM_SNIPER_COLOR: '#788270',
     POSSUM_SNIPER_DEFAULT_WEAPON: 'POSSUM_SNIPER_RIFLE',
     POSSUM_SNIPER_SPRITE_PATH: 'assets/images/units/possum_sniper/',
-    POSSUM_SNIPER_SPRITE_SCALE_FACTOR: 0.7,
+    POSSUM_SNIPER_SPRITE_SCALE_FACTOR: 0.6,
     POSSUM_SNIPER_DEAD_SPRITE_PATH: 'assets/images/units/possum_sniper/dead/',
     POSSUM_SNIPER_DEAD_SPRITE_FILES: ['possum_sniper_dead.png'],
     POSSUM_SNIPER_DEAD_SPRITE_SCALE: 0.5,
@@ -184,10 +184,10 @@ const CONFIG = {
     POSSUM_ELITE_COLOR: '#8B4513',
     POSSUM_ELITE_DEFAULT_WEAPON: 'POSSUM_ELITE_WEAPON',
     POSSUM_ELITE_SPRITE_PATH: 'assets/images/units/possum_elite/',
-    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.45,
+    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.5,
     POSSUM_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite/dead/',
     POSSUM_ELITE_DEAD_SPRITE_FILES: ['possum_elite_dead1.png', 'possum_elite_dead2.png'],
-    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.3,
+    POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.275,
     PROJECTILE_COLOR_POSSUM_ELITE: '#FF4500',
 
     // --- Possum Boss 1 ---
@@ -361,7 +361,7 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_RIFLE_FIRE',
             muzzleFlashScale: 0.9,
             bulletLifetime: 1.3,
-            isDefaultWeapon: false,
+            isDefaultWeapon: true,
             maxAmmo: Infinity
         },
         POSSUM_HEAVY_WEAPON: {
@@ -376,7 +376,7 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_HEAVY_MG_FIRE',
             muzzleFlashScale: 1.5,
             bulletLifetime: 1.4,
-            isDefaultWeapon: false,
+            isDefaultWeapon: true,
             maxAmmo: Infinity
         },
         POSSUM_BOSS_1_WEAPON: {
@@ -391,7 +391,7 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_BOSS_1_WEAPON_FIRE',
             muzzleFlashScale: 1.8,
             bulletLifetime: 2.2,
-            isDefaultWeapon: false,
+            isDefaultWeapon: true,
             maxAmmo: Infinity
         },
         POSSUM_BOSS_1_SECONDARY: {
@@ -399,14 +399,14 @@ const CONFIG = {
             damage: 15,
             rof: 4,
             range: 320,
-            projectileSpeed: 450,
+            projectileSpeed: 500,
             projectileColor: '#FF8C00',
             accuracyStationary: 0.80,
             accuracyMoving: 0.40,
             sfxFireKey: 'POSSUM_HEAVY_MG_FIRE',
             muzzleFlashScale: 1.3,
             bulletLifetime: 2.2,
-            isDefaultWeapon: false,
+            isDefaultWeapon: true,
             maxAmmo: Infinity
         },
         POSSUM_REVOLVER: {
@@ -421,14 +421,14 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_REVOLVER_FIRE',
             muzzleFlashScale: 1.1,
             bulletLifetime: 1.8,
-            isDefaultWeapon: false,
+            isDefaultWeapon: true,
             maxAmmo: Infinity
         },
         POSSUM_SNIPER_RIFLE: {
             name: "Possum Sniper Rifle",
             damage: 35,
             rof: 0.2,
-            range: 700,
+            range: 600,
             projectileSpeed: 900,
             projectileColor: '#FF2400',
             accuracyStationary: 1.0,
@@ -436,14 +436,14 @@ const CONFIG = {
             sfxFireKey: 'SNIPER_RIFLE_FIRE',
             muzzleFlashScale: 1.2,
             bulletLifetime: 2.0,
-            isDefaultWeapon: false,
+            isDefaultWeapon: true,
             maxAmmo: Infinity
         },
         POSSUM_ELITE_WEAPON: {
             name: "Possum Elite Rifle",
             damage: 12,
             rof: 7,
-            range: 650,
+            range: 550,
             projectileSpeed: 500,
             projectileColor: '#8B4513',
             accuracyStationary: 0.95,
@@ -451,8 +451,21 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_RIFLE_FIRE',
             muzzleFlashScale: 1.0,
             bulletLifetime: 1.2,
-            isDefaultWeapon: false,
+            isDefaultWeapon: true,
             maxAmmo: Infinity
+        },
+        POSSUM_TURRET_WEAPON: {
+            name: 'Possum Turret',
+            damage: 20,
+            rof: 1.5,
+            range: 400,
+            projectileSpeed: 500,
+            projectileColor: '#ff6600',
+            accuracyStationary: 0.85,
+            bulletLifetime: 2.0,
+            isDefaultWeapon: true,
+            sfxFireKey: 'SNIPER_RIFLE_FIRE',
+            muzzleFlashScale: 0.5
         },
 
         // =====================
@@ -480,9 +493,9 @@ const CONFIG = {
         },
         G14: {
             name: "G-14",
-            damage: 12,
+            damage: 32,
             rof: 1.5,
-            range: 200,
+            range: 300,
             projectileSpeed: 500,
             projectileColor: '#ffaa00',
             accuracyStationary: 0.4,
@@ -561,6 +574,14 @@ const CONFIG = {
         }
     },
 
+    // =====================
+    // STATIONARY TURRETS
+    // =====================
+    POSSUM_TURRET: {
+        spriteScale: 0.3,
+        muzzleOffset: 20
+    },
+
     // =============================================================================
     // AI_BEHAVIOR
     // =============================================================================
@@ -619,7 +640,7 @@ const CONFIG = {
             DETECTION_RANGE: 550,
             PREFERRED_GRENADE_RANGE_MAX: 450,
             MIN_ENGAGEMENT_DISTANCE: 120,
-            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 600,
+            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1500,
 
             GRENADE_COOLDOWN_BETWEEN_SHOTS: 0.6,
             GRENADES_PER_VOLLEY: 4,
@@ -853,12 +874,18 @@ const CONFIG = {
     EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES: [
         { normal: 'possum_hut_6.png', destroyed: 'possum_hut_4_destroyed.png' }
     ],
+    EMPTY_POSSUM_HUT_2_SPRITE_PATH: 'assets/images/objects/possums/huts/',
+    EMPTY_POSSUM_HUT_2_SPRITE_FILES: [
+        { normal: 'possum_hut_round_1_jungle.png', destroyed: 'possum_hut_2_destroyed.png' },
+        { normal: 'possum_hut_square_1_jungle.png', destroyed: 'possum_hut_2_destroyed.png' }
+    ],
 
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
     POSSUM_RELAY_TOWER_SPRITE_FILES: [
         { normal: 'possum_tower_2.png', destroyed: 'possum_tower_2_destroyed.png' },
         { normal: 'possum_tower_3.png', destroyed: 'possum_tower_3_destroyed.png' }
     ],
+
 
     HELIPAD_SQUARE_SPRITE_PATH: 'assets/images/objects/helipad/',
     HELIPAD_SQUARE_SPRITE_FILES: ['concrete_helipad_square_1.png'],
@@ -884,15 +911,15 @@ const CONFIG = {
 
 
     INTEL: {
-        INTERACTION_RADIUS: 80,
-        SPAWN_DISTANCE: 400,
+        INTERACTION_RADIUS: 100,
+        SPAWN_DISTANCE: 530,
         SPRITE_PATH: 'assets/images/objects/possums/intel/',
         SPRITE_FILES: [
             { on: 'intel_console_1_on.png', off: 'intel_console_1_off.png' },
             { on: 'intel_console_2_on.png', off: 'intel_console_2_off.png' },
             { on: 'intel_console_3_on.png', off: 'intel_console_3_off.png' },
         ],
-        SPRITE_SCALE: 0.2,
+        SPRITE_SCALE: 0.25,
     },
 
     OBSTACLE_DEFINITIONS: [
@@ -931,7 +958,7 @@ const CONFIG = {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -947,7 +974,7 @@ const CONFIG = {
             type: 'palm_bush_large', name: 'Large Palm Bush', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 4, isDecoration: false,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -955,7 +982,7 @@ const CONFIG = {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 4, isDecoration: false,
             spriteScale: 1,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 0.64), radiusX: (w => w * 0.43), radiusY: (h => h * 0.29) },
             canBeFlipped: true,
@@ -964,7 +991,7 @@ const CONFIG = {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 0.7,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: (h => h * 0.29) },
             canBeFlipped: true,
@@ -1006,7 +1033,7 @@ const CONFIG = {
             type: 'tree_palm2_single', name: 'Palm Tree 2 Single', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
+            spawnWeight: 6, isDecoration: false,
             spriteScale: 0.35,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -1017,7 +1044,7 @@ const CONFIG = {
             type: 'tree_palm2_double', name: 'Palm Tree 2 Double', color: '#005522',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 5, isDecoration: false,
             spriteScale: 0.4,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -1028,7 +1055,7 @@ const CONFIG = {
             type: 'tree_palm2_triple', name: 'Palm Tree 2 Triple', color: '#005522',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -1059,7 +1086,7 @@ const CONFIG = {
             type: 'tree_fan_single', name: 'Fan Tree Single', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 5, isDecoration: false,
             spriteScale: 0.35,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.75), radius: (w => w * 0.07) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -1070,7 +1097,7 @@ const CONFIG = {
             type: 'tree_fan_double', name: 'Fan Tree Double', color: '#005522',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
+            spawnWeight: 4, isDecoration: false,
             spriteScale: 0.35,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -1081,7 +1108,7 @@ const CONFIG = {
             type: 'tree_fan_triple', name: 'Fan Tree Triple', color: '#005522',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.35,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -1092,7 +1119,7 @@ const CONFIG = {
             type: 'tree_rubber_single', name: 'Rubber Tree Single', color: '#005522',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 3, isDecoration: false,
             spriteScale: 0.4,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
@@ -1154,7 +1181,7 @@ const CONFIG = {
             spawnWeight: 4,
             spriteScale: 0.60,
             spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.33), radiusY: (h => h * 0.15) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.38), radiusX: (w => w * 0.36), radiusY: (h => h * 0.17) },
             placementBuffer: 150,
             canBeFlipped: true,
             isDecoration: true
@@ -1171,7 +1198,7 @@ const CONFIG = {
             spawnWeight: 3,
             spriteScale: 0.5,
             spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.05), offsetY: (h => h * 0.35), radiusX: (w => w * 0.46), radiusY: (h => h * 0.19) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.46), radiusY: (h => h * 0.19) },
             placementBuffer: 150,
             canBeFlipped: true,
             isDecoration: true
@@ -1181,9 +1208,9 @@ const CONFIG = {
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1,
-            explosionDamage: 50, explosionAoeRadius: 80,
+            explosionDamage: 50, explosionAoeRadius: 100,
             spriteNormal: 'assets/images/objects/barrels/barrel_red_1.png',
-            spriteScale: 0.15,
+            spriteScale: 0.13,
             spriteDestroyed: 'assets/images/objects/barrels/barrel_red_1_destroyed.png',
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.048), offsetY: (h => h * 0.066), width: (w => w * 0.7), height: (h => h * 0.86) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_DESTROYED',
@@ -1259,7 +1286,20 @@ const CONFIG = {
             spawnWeight: 3, phaseUnlocked: 1,
             spriteScale: 0.6,
             spriteDestroyedScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.4), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+            canBeFlipped: true,
+            placementBuffer: 50,
+        },
+        {
+            type: 'empty_possum_hut_2', name: 'Empty Possum Hut', color: '#8B4513',
+            destructible: true, hp: 400, maxHp: 400,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 3, phaseUnlocked: 2,
+            spriteScale: 0.6,
+            spriteDestroyedScale: 0.6,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.48), radiusX: (w => w * 0.35), radiusY: (h => h * 0.35) },
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
@@ -1298,8 +1338,20 @@ const CONFIG = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false, placementBuffer: 100,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
             isIntelConsole: true
+        },
+        {
+            type: 'possum_turret', name: 'Possum Turret', color: '#8B4513',
+            destructible: true, hp: 150, maxHp: 150,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 1, phaseUnlocked: 3, spawnLimit: 1,
+            spriteScale: 0.3,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.53), offsetY: (h => h * 0.5), radius: (w => w * 0.2) },
+            isDecoration: false,
+            sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED',
+            canBeFlipped: false,
+            isPossumTurret: true
         },
         {
             type: 'extraction_zone', name: 'Extraction Zone', color: '#3cc1ff',
@@ -1314,9 +1366,10 @@ const CONFIG = {
             type: 'helipad_concrete_square_1', name: 'Square Concrete Helipad', color: '#afafaf',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 0.5, isDecoration: true,
+            spawnWeight: 0.5, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8), rotation: Math.PI / 4 },
+            placementBuffer: 100,
         },
         {
             type: 'tropical_ruins', name: 'Tropical Ruins', color: '#afafaf',
@@ -1324,7 +1377,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.5, isDecoration: true,
             spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.1), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: (h => h * 0.4) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: (h => h * 0.4) },
         },
     ],
 
@@ -1414,11 +1467,12 @@ const CONFIG = {
                 'tree_fan_double',
                 'tree_fan_triple',
                 'rainforest_patch_small_1',
-                'tropical_forest_patch_small_1'
+                'tropical_forest_patch_small_1',
+                'possum_turret'
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 60,
+            BASE_COUNT: 80,
             WORLD_SIZE_FALLBACK_FACTOR: 0.95,
             RANDOM_ADDITION_MAX: 10,
             PLACEMENT_MAX_ATTEMPTS: 15
@@ -1524,7 +1578,7 @@ const CONFIG = {
             TIME_BETWEEN_UNITS_IN_BURST_MAX: 1.9,
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.25,
             INITIAL_SPAWN_DELAY_SECONDS_MIN: 0,
-            INITIAL_SPAWN_DELAY_SECONDS_MAX: 2,
+            INITIAL_SPAWN_DELAY_SECONDS_MAX: 1,
             PLAYER_PROXIMITY_TRIGGER_RADIUS: 300,
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3,
@@ -1535,11 +1589,11 @@ const CONFIG = {
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
             MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5,
             INITIAL_MOVE_OUT_DISTANCE: 15,
-            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 1.5,
+            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 1.0,
             MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 2.0,
             UNITS_TO_SPAWN_ON_DAMAGE: 2,
-            SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 10,
-            SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 20,
+            SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 3.0,
+            SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 10,
             MAX_UNITS_PER_HUT_BASE: 6,
             MAX_UNITS_PER_HUT_PHASE_INCREMENT: 2,
         }
@@ -1598,7 +1652,7 @@ const CONFIG = {
                 FRAME_WIDTH: 205,
                 FRAME_HEIGHT: 205,
                 NUM_FRAMES: 25,
-                ANIMATION_SPEED: 0.1,
+                ANIMATION_SPEED: 0.15,
                 SCALE: 0.6
             },
             BARREL: {
@@ -1781,6 +1835,7 @@ const CONFIG = {
         CHANCE: 0.1,
         UNLOCKS_PHASE: 2,
         OVERLAY_COLOR: 'rgba(0, 0, 20, 0.92)',
+        DARKNESS_ALPHA: 0.62,
         PLAYER_VISION_RADIUS: 220,
         VISION_EDGE_SOFTNESS: 60,
         VISION_TINT_OPACITY: 0.45,

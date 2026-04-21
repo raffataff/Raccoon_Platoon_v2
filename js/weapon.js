@@ -131,7 +131,7 @@ class Projectile {
                     this.isMarkedForDeletion = true;
                     return;
                 }
-            } else if (this.game.level.obstacles.includes(obj) && !obj.isDestroyed) {
+            } else if (this.game.level.obstacles.includes(obj) && !obj.isDestroyed && obj !== this.shooterObstacle) {
                 const obsCollisionShape = this.game.level._getObstacleCollisionShape(obj);
                 if (!obsCollisionShape) continue;
 

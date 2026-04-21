@@ -26,6 +26,10 @@ class PossumSniper extends Unit {
         
         this.aimTimer = 0;
         this.laserEffect = null;
+        
+        this.CHASE_DESTINATION_REFRESH_INTERVAL = this.sniperAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
+        this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.sniperAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
+        this.timeSinceLastChaseDestUpdate = 0;
     }
 
     update(deltaTime) {
@@ -106,6 +110,7 @@ class PossumSniper extends Unit {
                     } while (!this.game.level.isSpawnPointClear(newX, newY, this.size, obstacles) && attempts < 10);
                     
                     this.guardPost = { x: newX, y: newY };
+                    this.timeSinceLastChaseDestUpdate = 0;
                     this.setMoveTarget(this.guardPost.x, this.guardPost.y);
                 } else {
                     if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) < 10) {

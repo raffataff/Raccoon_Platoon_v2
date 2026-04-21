@@ -203,16 +203,29 @@ class PossumElite extends Unit {
             return;
         }
 
-        if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
-            this.timeSinceLastChaseDestUpdate = 0;
+        let shouldUpdateChaseDest = false;
+
+        if (!this.chaseDestination) {
+            shouldUpdateChaseDest = true;
+        } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
+            shouldUpdateChaseDest = true;
+        } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
+            distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
+            shouldUpdateChaseDest = true;
+        } else if (!this.isMoving && distToTarget > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
+            shouldUpdateChaseDest = true;
+        }
+
+        if (shouldUpdateChaseDest) {
             this.chaseDestination = { x: target.x, y: target.y };
+            this.timeSinceLastChaseDestUpdate = 0;
         }
 
         if (!this.chaseDestination) {
             this.chaseDestination = { x: target.x, y: target.y };
         }
 
-        if (!this.isMoving || (this.chaseDestination && distance(this.x, this.y, this.chaseDestination.x, this.chaseDestination.y) > 50)) {
+        if (shouldUpdateChaseDest && (!this.isMoving || distance(this.x, this.y, this.chaseDestination.x, this.chaseDestination.y) > 50)) {
             this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y);
         }
     }

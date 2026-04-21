@@ -2,8 +2,7 @@
 
 hut spawning position needs to flip when hut is flipped.
 
-why does it lag after start video when triggering ambush. something is causing a long pause between video ending and start ambush triggering.
-
+intel enemy spawning is spawning outside of playable area
 
 add more trees/forests
 

@@ -146,6 +146,10 @@ class IntelConsole {
         this.isHacked = true;
         this.isBeingHacked = false;
         this.hackingRaccoon = null;
+
+        if (this.game && this.game.ui) {
+            this.game.ui.showToast(`INTEL RECEIVED! (Console ${this.id})`, 'success');
+        }
     }
 
     spawnEnemiesDuringHack() {
@@ -197,10 +201,27 @@ class IntelConsole {
         const radius = this.spawnDistance;
         const centerX = this.x + this.width / 2;
         const centerY = this.y + this.height / 2;
-        return {
-            x: centerX + Math.cos(angle) * radius,
-            y: centerY + Math.sin(angle) * radius
-        };
+        const halfSize = 14;
+        const maxAttempts = 20;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            let spawnX = centerX + Math.cos(angle + attempt * 0.5) * radius;
+            let spawnY = centerY + Math.sin(angle + attempt * 0.5) * radius;
+            if (this.game && this.game.level) {
+                spawnX = Math.max(this.game.level.playableMinX + halfSize, Math.min(spawnX, this.game.level.playableMaxX - halfSize));
+                spawnY = Math.max(this.game.level.playableMinY + halfSize, Math.min(spawnY, this.game.level.playableMaxY - halfSize));
+            }
+            if (this.game && this.game.level && this.game.level.levelGenerator && this.game.level.isSpawnPointClear(spawnX, spawnY, halfSize * 2, this.game.level.obstacles, this.game.enemyUnits)) {
+                return { x: spawnX, y: spawnY };
+            }
+        }
+        let spawnX = centerX + Math.cos(angle) * radius;
+        let spawnY = centerY + Math.sin(angle) * radius;
+        if (this.game && this.game.level) {
+            spawnX = Math.max(this.game.level.playableMinX + halfSize, Math.min(spawnX, this.game.level.playableMaxX - halfSize));
+            spawnY = Math.max(this.game.level.playableMinY + halfSize, Math.min(spawnY, this.game.level.playableMaxY - halfSize));
+        }
+        return { x: spawnX, y: spawnY };
     }
 
     getRandomUnitType(phase) {

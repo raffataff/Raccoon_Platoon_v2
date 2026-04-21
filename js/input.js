@@ -158,6 +158,10 @@ class InputHandler {
                 if (this.game.handleIntelConsoleInteraction) {
                     this.game.handleIntelConsoleInteraction();
                 }
+                // Possum turret shutdown
+                if (this.game.handlePossumTurretShutdown) {
+                    this.game.handlePossumTurretShutdown();
+                }
             }
             if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {
                 const rescuedHostages = this.game.hostageUnits.filter(h => h.isRescued && h.isAlive());

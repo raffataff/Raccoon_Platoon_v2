@@ -1068,11 +1068,7 @@ canvas#gameCanvas {
     transition: all 0.2s ease;
 }
 
-.squad-member.selected {
-    border-color: var(--brand-secondary);
-    border-left: 5px solid var(--brand-primary);
-    box-shadow: 0 0 15px rgba(230, 157, 69, 0.3);
-}
+
 
 .squad-member-info-overlay {
     background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4) 60%, rgba(0, 0, 0, 0.9));
@@ -1126,6 +1122,12 @@ canvas#gameCanvas {
 .squad-member .status-kia .label .value {
     font-weight: bold;
     color: #242424;
+}
+
+.squad-member.selected {
+    border-color: var(--brand-secondary);
+    border-left: 5px solid var(--brand-primary);
+    box-shadow: 0 0 15px rgba(230, 157, 69, 0.3);
 }
 
 .health-bar-container {

@@ -33,13 +33,20 @@ class PossumBoss1 extends Unit {
         this.actionTimer = 0; // Changed from attackCooldown
         
         this.xpValue = CONFIG.XP_FOR_BOSS_KILL || 250;
+        
+        this.CHASE_DESTINATION_REFRESH_INTERVAL = this.bossAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
+        this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.bossAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
+        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.bossAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.GRID_CELL_SIZE) ** 2;
+        this.timeSinceLastChaseDestUpdate = 0;
     }
 
     update(deltaTime) {
         if (!this.isAlive()) return;
-        // We now handle actionTimer here, separate from the base unit's attackCooldown
         if (this.actionTimer > 0) {
             this.actionTimer -= deltaTime;
+        }
+        if (this.aiState === 'ENGAGING_CHASING') {
+            this.timeSinceLastChaseDestUpdate += deltaTime;
         }
         super.update(deltaTime); 
     }
@@ -92,24 +99,36 @@ class PossumBoss1 extends Unit {
 
         // MOVE: If we can't shoot, we need to move
         this.aiState = 'ENGAGING_CHASING';
-        if (!this.isMoving) {
-            let targetX, targetY;
-            if (dist < this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE) {
-                // Too close, move away
-                const angleAway = Math.atan2(this.y - target.y, this.x - target.x);
-                targetX = this.x + Math.cos(angleAway) * 150;
-                targetY = this.y + Math.sin(angleAway) * 150;
-            } else {
-                // Too far, move closer
-                targetX = target.x;
-                targetY = target.y;
-            }
+        
+        let shouldUpdateChaseDest = false;
+        const chaseTargetX = dist < this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE 
+            ? this.x + Math.cos(Math.atan2(this.y - target.y, this.x - target.x)) * 150
+            : target.x;
+        const chaseTargetY = dist < this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE 
+            ? this.y + Math.sin(Math.atan2(this.y - target.y, this.x - target.x)) * 150
+            : target.y;
+
+        if (!this.chaseDestination) {
+            shouldUpdateChaseDest = true;
+        } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
+            shouldUpdateChaseDest = true;
+        } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
+            distanceSq(chaseTargetX, chaseTargetY, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
+            shouldUpdateChaseDest = true;
+        } else if (!this.isMoving && dist > this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE * 1.5) {
+            shouldUpdateChaseDest = true;
+        }
+
+        if (shouldUpdateChaseDest) {
+            this.chaseDestination = { x: chaseTargetX, y: chaseTargetY };
+            this.timeSinceLastChaseDestUpdate = 0;
             
-            if (!this.setMoveTarget(targetX, targetY)) {
-                // If we can't path, reset to guarding to avoid getting stuck
-                this.manualTarget = null;
-                this.autoTarget = null;
-                this.aiState = 'GUARDING';
+            if (!this.isMoving) {
+                if (!this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y)) {
+                    this.manualTarget = null;
+                    this.autoTarget = null;
+                    this.aiState = 'GUARDING';
+                }
             }
         }
     }
