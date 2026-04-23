@@ -65,7 +65,7 @@ class Unit {
         this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5;
         this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5;
         this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.15;
-        this.lastImmediateBumpRepathTime = 0;
+        this.bumpRepathCooldown = 0;
 
         this.deadSpritePathKey = null;
         this.deadSpriteFilesKey = null;
@@ -261,7 +261,7 @@ class Unit {
                 if (this.weapon) isFiringThisFrame = true;
             } else {
                 const dist = distance(this.x, this.y, fireAtX, fireAtY);
-                const hasLOS = hasLineOfSight(this.x, this.y, fireAtX, fireAtY, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
+                const hasLOS = hasLineOfSight(this.x, this.y, fireAtX, fireAtY, this.game.level.activeObstacles, this.game.level);
 
                 if (this.weapon && dist <= this.weapon.range && hasLOS) {
                     isFiringThisFrame = true;
@@ -383,7 +383,7 @@ class Unit {
     _handleMovement(deltaTime) {
         const originalX = this.x;
         const originalY = this.y;
-        const currentTime = performance.now() / 1000;
+        if (this.bumpRepathCooldown > 0) this.bumpRepathCooldown -= deltaTime;
 
         if (this.team === 'player' && this.isHoldingPosition && !(this instanceof RaccoonHostage) && !this.isPhasing) {
             this.isMoving = false; this.currentPath = []; this.lastDeltaX = 0; this.lastDeltaY = 0; return;
@@ -438,8 +438,17 @@ class Unit {
 
         const nextNodeWorldCoords = this.currentPath[this.currentPathNodeIndex];
         const moveSpeed = this.speed * deltaTime;
-        const obstaclesForCollision = (this.game && this.game.level && this.game.level.obstacles)
-            ? this.game.level.obstacles.filter(obs => obs.blocksMovement && !obs.isDestroyed) : [];
+
+        let obstaclesForCollision = [];
+        if (this.game && this.game.level) {
+            if (this.game.spatialGrid && this.game.level.obstacleSet) {
+                const queryRadius = this.size / 2 + moveSpeed + 5;
+                const nearbyObjects = this.game.spatialGrid.queryRange(this.x, this.y, queryRadius);
+                obstaclesForCollision = nearbyObjects.filter(obj => this.game.level.obstacleSet.has(obj) && obj.blocksMovement && !obj.isDestroyed);
+            } else {
+                obstaclesForCollision = this.game.level.activeObstacles;
+            }
+        }
 
         const dxToNode = nextNodeWorldCoords.x - this.x; const dyToNode = nextNodeWorldCoords.y - this.y;
         const distToNextNode = Math.hypot(dxToNode, dyToNode);
@@ -588,9 +597,8 @@ class Unit {
             }
         }
         else if (fullBlockEncountered && !(this instanceof RaccoonHostage) && this.isMoving) {
-            if (currentTime - this.lastImmediateBumpRepathTime > this.IMMEDIATE_BUMP_REPATH_COOLDOWN) {
-                
-                this.lastImmediateBumpRepathTime = currentTime;
+            if (this.bumpRepathCooldown <= 0) {
+                this.bumpRepathCooldown = this.IMMEDIATE_BUMP_REPATH_COOLDOWN;
 
                 const vecToNodeX = nextNodeWorldCoords.x - originalX;
                 const vecToNodeY = nextNodeWorldCoords.y - originalY;

@@ -19,7 +19,7 @@ class PossumTurret {
         this.fireTimer = 0;
         this.weapon = WEAPONS.POSSUM_TURRET_WEAPON;
         
-        console.log(`[PossumTurret] Created at (${x}, ${y}) with arc: [${directionArc.join(', ')}]`);
+        //console.log(`[PossumTurret] Created at (${x}, ${y}) with arc: [${directionArc.join(', ')}]`);
         
         this._loadSprites();
     }
@@ -33,30 +33,30 @@ class PossumTurret {
         this.sprites = {};
         const turretDir = 'assets/images/objects/possums/turrets/';
         const possumTurretKeys = Object.keys(this.game.preloadedImages).filter(k => k.includes('possum_turret'));
-        console.log(`[PossumTurret._loadSprites] Available possum_turret keys: ${JSON.stringify(possumTurretKeys)}`);
+        //console.log(`[PossumTurret._loadSprites] Available possum_turret keys: ${JSON.stringify(possumTurretKeys)}`);
         
         let spritesLoadedCount = 0;
         for (const dir of ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']) {
             const key = `possum_turret_1_${dir}`;
             const fullPath = turretDir + key + '.png'; // assets/images/objects/possums/turrets/possum_turret_1_n.png
             const found = this.game.preloadedImages[fullPath];
-            console.log(`[PossumTurret._loadSprites] Looking for '${fullPath}', found: ${!!found}, sprite naturalWidth: ${found ? found.naturalWidth : 'N/A'}`);
+            //console.log(`[PossumTurret._loadSprites] Looking for '${fullPath}', found: ${!!found}, sprite naturalWidth: ${found ? found.naturalWidth : 'N/A'}`);
             this.sprites[dir] = found || null;
             if (found && found.naturalWidth > 0) spritesLoadedCount++;
         }
         
-        console.log(`[PossumTurret._loadSprites] Loaded ${spritesLoadedCount}/8 sprites`);
+        //console.log(`[PossumTurret._loadSprites] Loaded ${spritesLoadedCount}/8 sprites`);
         
         const currentSprite = this.sprites[this.facingDirection];
-        console.log(`[PossumTurret._loadSprites] facingDirection=${this.facingDirection}, currentSprite=${!!currentSprite}, width=${currentSprite ? currentSprite.naturalWidth : 'N/A'}`);
+        //console.log(`[PossumTurret._loadSprites] facingDirection=${this.facingDirection}, currentSprite=${!!currentSprite}, width=${currentSprite ? currentSprite.naturalWidth : 'N/A'}`);
         const turretConfig = CONFIG.POSSUM_TURRET || {};
         if (currentSprite && currentSprite.naturalWidth > 0) {
             const scale = turretConfig.spriteScale !== undefined ? turretConfig.spriteScale : 0.6;
             this.width = currentSprite.naturalWidth * scale;
             this.height = currentSprite.naturalHeight * scale;
-            console.log(`[PossumTurret._loadSprites] Set dimensions to ${this.width}x${this.height}`);
+            //console.log(`[PossumTurret._loadSprites] Set dimensions to ${this.width}x${this.height}`);
         } else {
-            console.log(`[PossumTurret._loadSprites] Using default dimensions ${this.width}x${this.height}`);
+            //console.log(`[PossumTurret._loadSprites] Using default dimensions ${this.width}x${this.height}`);
         }
     }
     
@@ -117,7 +117,7 @@ class PossumTurret {
     shutdown() {
         this.isShutdown = true;
         this.facingDirection = this.directionArc[Math.floor(this.directionArc.length / 2)];
-        console.log(`[POSSUM TURRET] Shutdown at (${this.x.toFixed(0)}, ${this.y.toFixed(0)})`);
+        //console.log(`[POSSUM TURRET] Shutdown at (${this.x.toFixed(0)}, ${this.y.toFixed(0)})`);
     }
     
     update(deltaTime) {
@@ -126,9 +126,10 @@ class PossumTurret {
         // Debug logging every few seconds to track update calls
         if (!this._updateLogCount) this._updateLogCount = 0;
         this._updateLogCount++;
-        if (this._updateLogCount % 100 === 0) {
-            console.log(`[PossumTurret.update] tick=${this._updateLogCount}, pos=(${this.x.toFixed(0)},${this.y.toFixed(0)}), range=${this.weapon.range}, shutdown=${this.isShutdown}`);
+       /* if (this._updateLogCount % 100 === 0) {
+            //console.log(`[PossumTurret.update] tick=${this._updateLogCount}, pos=(${this.x.toFixed(0)},${this.y.toFixed(0)}), range=${this.weapon.range}, shutdown=${this.isShutdown}`);
         }
+            */
         
         const nearestTarget = this._getNearestRaccoonInWeaponRange();
         if (!nearestTarget) return;
@@ -239,7 +240,7 @@ class PossumTurret {
             this._loadSprites();
             sprite = this.sprites[this.facingDirection];
         }
-        console.log(`[PossumTurret.render] x=${this.x}, y=${this.y}, width=${this.width}, height=${this.height}, sprite=${!!sprite}, isShutdown=${this.isShutdown}`);
+        //console.log(`[PossumTurret.render] x=${this.x}, y=${this.y}, width=${this.width}, height=${this.height}, sprite=${!!sprite}, isShutdown=${this.isShutdown}`);
         if (sprite && sprite.naturalWidth > 0) {
             ctx.drawImage(sprite, this.x, this.y, this.width, this.height);
         } else {

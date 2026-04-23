@@ -352,15 +352,15 @@ function heuristic(nodeA, nodeB) { /* ... (Unchanged from previous complete vers
 }
 
 function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUnitPhasing
-    const openList = new MinHeap(); 
-    const closedList = new Set();     
+    const openList = new MinHeap();
+    const closedList = new Set();
 
     const startNode = new PathNode(startPos.x, startPos.y, 0, heuristic(startPos, endPos));
-    
+
     // --- MODIFIED: Check start node based on phasing ---
     if (grid[startNode.y] === undefined || grid[startNode.y][startNode.x] === undefined) { // Out of bounds check
         // console.warn(`findPath: Start node (${startNode.x},${startNode.y}) is out of grid bounds.`);
-        return null; 
+        return null;
     }
     if (grid[startNode.y][startNode.x] === 1 && !isUnitPhasing) {
         // console.warn(`findPath: Start node (${startNode.x},${startNode.y}) is blocked and unit is not phasing.`);
@@ -373,14 +373,23 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
     openListGCosts.set(`${startNode.x},${startNode.y}`, startNode.g);
 
     const directions = [
-        { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 }, 
-        { x: -1, y: 0, cost: 1 }, { x: 1, y: 0, cost: 1 }, 
-        { x: -1, y: -1, cost: Math.SQRT2 }, { x: 1, y: -1, cost: Math.SQRT2 }, 
-        { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }  
+        { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 },
+        { x: -1, y: 0, cost: 1 }, { x: 1, y: 0, cost: 1 },
+        { x: -1, y: -1, cost: Math.SQRT2 }, { x: 1, y: -1, cost: Math.SQRT2 },
+        { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }
     ];
 
+    // --- PERFORMANCE FIX: Limit iterations to prevent freezes ---
+    // With GRID_CELL_SIZE = 4 and typical world size 1920x1080, max grid dimension is ~480 cells.
+    // A path could theoretically need to traverse the whole grid, so we set a generous limit.
+    // This prevents pathological cases (like clicking on the other side of a border wall)
+    // from exploring millions of nodes and freezing the game.
+    const MAX_ITERATIONS = (grid.length * grid[0].length) * 2; // ~2x total cells max
+    let iterations = 0;
+    // --- END FIX ---
+
     while (!openList.isEmpty()) {
-        const currentNode = openList.extractMin(); 
+        const currentNode = openList.extractMin();
 
         if (currentNode.x === endPos.x && currentNode.y === endPos.y) {
             const path = [];
@@ -395,6 +404,14 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
         closedList.add(`${currentNode.x},${currentNode.y}`);
 
         for (const direction of directions) {
+            // --- PERFORMANCE FIX: Check iteration limit ---
+            iterations++;
+            if (iterations > MAX_ITERATIONS) {
+                console.warn(`findPath: Max iterations (${MAX_ITERATIONS}) reached. Pathfinding aborted.`);
+                return null; // No path found within limit
+            }
+            // --- END FIX ---
+
             const neighborX = currentNode.x + direction.x;
             const neighborY = currentNode.y + direction.y;
             const neighborKey = `${neighborX},${neighborY}`;
@@ -410,16 +427,16 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
             if (closedList.has(neighborKey)) {
                 continue;
             }
-            
+
             // --- MODIFIED: Corner cutting check based on phasing ---
-            if (direction.x !== 0 && direction.y !== 0) { 
+            if (direction.x !== 0 && direction.y !== 0) {
                 const cardinalCell1X = currentNode.x + direction.x;
                 const cardinalCell1Y = currentNode.y;
                 const cardinalCell2X = currentNode.x;
                 const cardinalCell2Y = currentNode.y + direction.y;
                 // If not phasing, standard corner cutting check
                 if (!isUnitPhasing && grid[cardinalCell1Y][cardinalCell1X] === 1 && grid[cardinalCell2Y][cardinalCell2X] === 1) {
-                    continue; 
+                    continue;
                 }
                 // If phasing, allow corner cutting (effectively)
             }
@@ -428,14 +445,50 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
 
             const gCost = currentNode.g + direction.cost;
             if (!openListGCosts.has(neighborKey) || gCost < openListGCosts.get(neighborKey)) {
-                openListGCosts.set(neighborKey, gCost); 
+                openListGCosts.set(neighborKey, gCost);
                 const hCost = heuristic({ x: neighborX, y: neighborY }, endPos);
                 const neighborNode = new PathNode(neighborX, neighborY, gCost, hCost, currentNode);
-                openList.insert(neighborNode); 
+                openList.insert(neighborNode);
             }
         }
     }
-    return null; 
+    return null;
+}
+
+function _smoothPathCheckLOS(anchorWorld, candidateGrid, pathingRadius, levelInstance, obstaclesForLOS) {
+    const candidateWorld = levelInstance.gridToWorldCoords(candidateGrid.x, candidateGrid.y);
+    const dx = candidateWorld.x - anchorWorld.x;
+    const dy = candidateWorld.y - anchorWorld.y;
+    const len = Math.hypot(dx, dy);
+
+    if (len < 1e-6) return true;
+
+    const p_dx = -dy / len;
+    const p_dy = dx / len;
+
+    const centerLOS = hasLineOfSight(anchorWorld.x, anchorWorld.y, candidateWorld.x, candidateWorld.y, obstaclesForLOS, levelInstance);
+    if (!centerLOS) return false;
+
+    const leftShoulderLOS = hasLineOfSight(
+        anchorWorld.x + p_dx * pathingRadius,
+        anchorWorld.y + p_dy * pathingRadius,
+        candidateWorld.x + p_dx * pathingRadius,
+        candidateWorld.y + p_dy * pathingRadius,
+        obstaclesForLOS,
+        levelInstance
+    );
+    if (!leftShoulderLOS) return false;
+
+    const rightShoulderLOS = hasLineOfSight(
+        anchorWorld.x - p_dx * pathingRadius,
+        anchorWorld.y - p_dy * pathingRadius,
+        candidateWorld.x - p_dx * pathingRadius,
+        candidateWorld.y - p_dy * pathingRadius,
+        obstaclesForLOS,
+        levelInstance
+    );
+
+    return centerLOS && leftShoulderLOS && rightShoulderLOS;
 }
 
 function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
@@ -447,67 +500,58 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
     // The key change is to use a "corridor" check instead of a simple Line of Sight check.
     // This ensures there's enough room for the unit's entire body.
     const pathingRadius = (unitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
-    const obstaclesForLOS = levelInstance.obstacles.filter(obs => obs.blocksMovement && !obs.isDestroyed);
-    // --- MODIFICATION END ---
+    const obstaclesForLOS = levelInstance.activeObstacles || [];
+    // --- END MODIFICATION ---
 
     const smoothedPathWorldCoords = [];
     let currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[0].x, rawPathGridCoords[0].y);
     smoothedPathWorldCoords.push(currentAnchorWorld);
-    
+
     let i = 0;
+    // --- PERFORMANCE FIX: Limit iterations to prevent freezes ---
+    const maxIterations = rawPathGridCoords.length * rawPathGridCoords.length; // Quadratic safety limit
+    let iterations = 0;
+    // --- END FIX ---
+    
     while (i < rawPathGridCoords.length - 1) {
+        // --- PERFORMANCE FIX: Check iteration limit ---
+        iterations++;
+        if (iterations > maxIterations) {
+            console.warn(`smoothPath: Max iterations (${maxIterations}) reached. Aborting smoothing.`);
+            // Fall back to converting remaining raw path nodes to world coords
+            for (let k = i + 1; k < rawPathGridCoords.length; k++) {
+                smoothedPathWorldCoords.push(levelInstance.gridToWorldCoords(rawPathGridCoords[k].x, rawPathGridCoords[k].y));
+            }
+            return smoothedPathWorldCoords;
+        }
+        // --- END FIX ---
+
         let furthestVisibleIndex = -1; // Initialize to -1 to indicate no valid shortcut found yet
 
-        // Start checking from the end of the path for the longest possible shortcut
-        for (let j = rawPathGridCoords.length - 1; j > i; j--) {
-            const candidateWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[j].x, rawPathGridCoords[j].y);
+        // --- OPTIMIZATION: Coarse-step + fine search for long paths ---
+        const remainingNodes = rawPathGridCoords.length - 1 - i;
+        const coarseStep = (remainingNodes > 20) ? Math.max(1, Math.floor(remainingNodes / 15)) : 1;
+        let coarseFoundIndex = -1;
 
-            // --- MODIFICATION START ---
-            // Calculate the perpendicular vector for the path segment to create offsets.
-            const dx = candidateWorld.x - currentAnchorWorld.x;
-            const dy = candidateWorld.y - currentAnchorWorld.y;
-            const len = Math.hypot(dx, dy);
-            
-            if (len < 1e-6) { // If points are the same, it's clear
-                furthestVisibleIndex = j;
+        // Phase 1: Coarse backward search
+        for (let j = rawPathGridCoords.length - 1; j > i; j -= coarseStep) {
+            if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS)) {
+                coarseFoundIndex = j;
                 break;
             }
-
-            const p_dx = -dy / len; // Perpendicular vector component
-            const p_dy = dx / len;  // Perpendicular vector component
-
-            // Check center line
-            const centerLOS = hasLineOfSight(currentAnchorWorld.x, currentAnchorWorld.y, candidateWorld.x, candidateWorld.y, obstaclesForLOS, levelInstance);
-            if (!centerLOS) continue; // If center is blocked, no need to check sides
-
-            // Check left "shoulder" of the path
-            const leftShoulderLOS = hasLineOfSight(
-                currentAnchorWorld.x + p_dx * pathingRadius,
-                currentAnchorWorld.y + p_dy * pathingRadius,
-                candidateWorld.x + p_dx * pathingRadius,
-                candidateWorld.y + p_dy * pathingRadius,
-                obstaclesForLOS,
-                levelInstance
-            );
-            if (!leftShoulderLOS) continue;
-
-            // Check right "shoulder" of the path
-            const rightShoulderLOS = hasLineOfSight(
-                currentAnchorWorld.x - p_dx * pathingRadius,
-                currentAnchorWorld.y - p_dy * pathingRadius,
-                candidateWorld.x - p_dx * pathingRadius,
-                candidateWorld.y - p_dy * pathingRadius,
-                obstaclesForLOS,
-                levelInstance
-            );
-
-            // Only if all three lines are clear is the path valid
-            if (centerLOS && leftShoulderLOS && rightShoulderLOS) {
-                furthestVisibleIndex = j;
-                break; // Found the furthest visible point, stop searching for this anchor
-            }
-            // --- MODIFICATION END ---
         }
+
+        // Phase 2: Fine backward search in the window above the coarse hit
+        if (coarseFoundIndex !== -1) {
+            const fineSearchEnd = Math.min(rawPathGridCoords.length - 1, coarseFoundIndex + coarseStep - 1);
+            for (let j = fineSearchEnd; j > i; j--) {
+                if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS)) {
+                    furthestVisibleIndex = j;
+                    break;
+                }
+            }
+        }
+        // --- END OPTIMIZATION ---
 
         if (furthestVisibleIndex !== -1) {
             // A valid shortcut was found.

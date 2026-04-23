@@ -2597,11 +2597,9 @@ class UI {
             infoOverlay.innerHTML = `
                 <div><span class="label">Name:</span> <span class="value">${raccoon.name || raccoon.id}</span></div>
                 <div><span class="label">Rank:</span> <span class="value">${raccoon.rank || 'Recruit'}</span></div>
-                <div><span class="label">HP:</span> <span class="value">${Math.max(0, Math.round(raccoon.hp))} / ${raccoon.maxHp}</span></div>
                 <div><span class="label">Weapon:</span> <span class="value">${weaponName}</span></div>
                 <div><span class="label">Ammo:</span> <span class="value">${ammoState.currentMagazine} / ${ammoState.reserveAmmo}</span></div>
                 <div><span class="label">Grenades:</span> <span class="value">${raccoon.grenadeAmmo !== undefined ? raccoon.grenadeAmmo : 'N/A'}</span></div>
-                <div><span class="label">Status:</span> <span class="value ${statusClass}">${statusText}</span></div>
                 <div><span class="label">XP:</span> <span class="value">${raccoon.xp !== undefined ? raccoon.xp : 0}</span></div>
                 ${raccoon.xpToNextRank !== Infinity ? `<div><span class="label">Next:</span> <span class="value">${raccoon.xpToNextRank} XP</span></div>` : ''}
                 <div class="health-bar-container">

@@ -65,7 +65,7 @@ class PossumRevolver extends Unit {
 
         this.manualTarget = target;
         const dist = distance(this.x, this.y, target.x, target.y);
-        const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
+        const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level);
 
         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
         this.facingAngle = this.gunAimAngle;

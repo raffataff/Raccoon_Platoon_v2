@@ -837,6 +837,30 @@ class Game {
             });
         }
 
+        if (CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES && CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH) {
+            const hutPath = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH;
+            CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES.forEach(pair => {
+                const normalPath = hutPath + pair.normal;
+                const destroyedPath = hutPath + pair.destroyed;
+                if (pair.normal && !this.preloadedImages[normalPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                        img.src = normalPath;
+                    }));
+                }
+                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                        img.src = destroyedPath;
+                    }));
+                }
+            });
+        }
+
         if (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES && CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH) {
             const hutPath = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH;
             CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES.forEach(pair => {
@@ -1448,6 +1472,8 @@ class Game {
                     this.spatialGrid.addObject(obs);
                 }
             });
+            this.level.rebuildObstacleSet();
+            this.level.rebuildActiveObstacles();
             this.deployedSquadRoster.forEach(unit => this.spatialGrid.addObject(unit));
             this.enemyUnits.forEach(unit => this.spatialGrid.addObject(unit));
             this.hostageUnits.forEach(unit => this.spatialGrid.addObject(unit));
@@ -1916,6 +1942,32 @@ class Game {
         }
     }
 
+    snapToWalkableCell(worldX, worldY) {
+        if (!this.level || !this.level.getNavigationGrid) return { x: worldX, y: worldY };
+        const navGrid = this.level.getNavigationGrid();
+        if (!navGrid) return { x: worldX, y: worldY };
+
+        const grid = this.level.worldToGridCoords(worldX, worldY);
+        if (grid.y >= 0 && grid.y < this.level.gridHeight && grid.x >= 0 && grid.x < this.level.gridWidth && navGrid[grid.y][grid.x] === 0) {
+            return { x: worldX, y: worldY };
+        }
+
+        // Spiral search for nearest walkable cell
+        for (let r = 1; r <= 5; r++) {
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                    const cx = grid.x + dx;
+                    const cy = grid.y + dy;
+                    if (cx >= 0 && cx < this.level.gridWidth && cy >= 0 && cy < this.level.gridHeight && navGrid[cy][cx] === 0) {
+                        return this.level.gridToWorldCoords(cx, cy);
+                    }
+                }
+            }
+        }
+        return { x: worldX, y: worldY };
+    }
+
     handleRightClickCommand(worldX, worldY) {
         if (this.gameState !== 'RUNNING') return;
         if (this.inputHandler.isLMBHoldFiringActionActive) { this.handleLMBFireActionEnd(); this.inputHandler.isLMBHoldFiringActionActive = false; }
@@ -1928,7 +1980,8 @@ class Game {
             const formationPoints = this.calculateFormationPoints(worldX, worldY, this.selectedUnits, this.currentFormationType);
             this.selectedUnits.forEach((unit, index) => {
                 if (unit.isAlive() && unit.team === 'player') {
-                    const targetPoint = formationPoints[index] || { x: worldX, y: worldY };
+                    const rawPoint = formationPoints[index] || { x: worldX, y: worldY };
+                    const targetPoint = this.snapToWalkableCell(rawPoint.x, rawPoint.y);
                     unit.setMoveTarget(targetPoint.x, targetPoint.y);
                 }
             });
@@ -1968,7 +2021,8 @@ class Game {
         const formationPoints = this.calculateFormationPoints(centerX, centerY, nonSelectedTeammates, this.currentFormationType);
 
         nonSelectedTeammates.forEach((unit, index) => {
-            const targetPoint = formationPoints[index] || { x: centerX, y: centerY };
+            const rawPoint = formationPoints[index] || { x: centerX, y: centerY };
+            const targetPoint = this.snapToWalkableCell(rawPoint.x, rawPoint.y);
             unit.setMoveTarget(targetPoint.x, targetPoint.y);
         });
 

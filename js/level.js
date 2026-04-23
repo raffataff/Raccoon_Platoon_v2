@@ -22,7 +22,9 @@ class Level {
         this.HUT_ACTIVATION_CHECK_INTERVAL = 1.0;
         this.initialHostageCount = 0; 
         this.missionTargetObstacles = [];
-        
+        this.activeObstacles = [];
+        this.obstacleSet = new WeakSet();
+
         // --- NEW: Add property to store quadrant data ---
         this.quadrantBoundaries = null;
         // --- END NEW ---
@@ -196,6 +198,8 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                 this.updateNavigationGridForObstacle(obstacle, true);
             }
 
+            this.rebuildActiveObstacles();
+
             if (this.game && obstacleDef && obstacleDef.explosionDamage && obstacleDef.explosionAoeRadius) {
                 this.game.addVisualEffect('barrel_explosion', { x: obstacle.x + obstacle.width / 2, y: obstacle.y + obstacle.height / 2, radius: obstacleDef.explosionAoeRadius });
                 const explosionDmg = obstacleDef.explosionDamage;
@@ -264,8 +268,10 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         };
 
         this.obstacles.push(newLogObstacle);
+        this.obstacleSet.add(newLogObstacle);
         this.game.spatialGrid.addObject(newLogObstacle);
         this.updateNavigationGridForObstacle(newLogObstacle, false);
+        this.rebuildActiveObstacles();
     }
 
     generateNavigationGrid(worldWidth, worldHeight) {
@@ -410,6 +416,14 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
             }
         }
         return this.navGrid;
+    }
+
+    rebuildActiveObstacles() {
+        this.activeObstacles = this.obstacles.filter(obs => obs.blocksMovement && !obs.isDestroyed);
+    }
+
+    rebuildObstacleSet() {
+        this.obstacleSet = new WeakSet(this.obstacles);
     }
 
     worldToGridCoords(worldX, worldY) {

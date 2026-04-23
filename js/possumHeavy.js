@@ -65,7 +65,7 @@ class PossumHeavy extends Unit {
             this.autoTarget = null; // Also clear auto-target
         } else {
             const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
-            const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level);
+            const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.activeObstacles, this.game.level);
 
             if (distToTarget <= (this.weapon.range - this.ENGAGE_RANGE_BUFFER) && losToTarget) {
                 this.aiState = 'ENGAGING_SHOOTING_HEAVY';

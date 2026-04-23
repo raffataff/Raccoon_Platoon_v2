@@ -7,13 +7,14 @@ const CAMPAIGN_RULES = {
     BASE_PARAMETERS: {
         worldWidthFactor: { initial: 1.2, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness 
         worldHeightFactor: { initial: 1.1, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness
+        obstacleCountPhaseIncrement: { initial: 0, perPhaseIncrement: 15, max: 100 },
         enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.15, max: 5.0, randomnessFactor: 0.15 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
         sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
         eliteChance: { initial: 0.05, perPhaseGrowthFactor: 0.07, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 4 },
         numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
-        numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.4, max: 5, roundToInt: true, randomnessFactor: 0.1 },
-        minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
+        numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0.1 },
+        minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 4, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
         numIntelConsoles: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true },
         intelHackTimeBase: { initial: [10, 20], perPhaseBonus: [2, 4] },
         intelSpawnChance: { initial: 0.3, perPhaseGrowthFactor: 0.1, max: 0.8 },
@@ -58,7 +59,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_EXTERMINATE_TEXT", // e.g., "Eliminate Possums: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_ENEMIES_ELIMINATED",
             isPrimary: true, // Can be a primary objective on its own
-            canCoexistWith: ["DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION"], // Can be secondary to these
+            canCoexistWith: ["DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION", "INTERACT_INTEL"], // Can be secondary to these
             maxInstancesPerMission: 1
         },
         {
@@ -68,7 +69,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT", // e.g., "Destroy {targetNamePlural}: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_TARGET_TYPE_DESTROYED",
             isPrimary: true,
-            canCoexistWith: ["RESCUE_HOSTAGES", "ASSASSINATION", "EXTERMINATE"], // Can be secondary to these
+            canCoexistWith: ["RESCUE_HOSTAGES", "ASSASSINATION", "EXTERMINATE", "INTERACT_INTEL"], // Can be secondary to these
             // targetTypeKey is not here, it's defined in DESTROY_TARGET_TYPE_POOL. This entry is generic.
             // maxInstancesPerMission for "DESTROY_TARGET" itself might be high (e.g., 3) to allow
             // "Destroy Huts" AND "Destroy Towers" in one mission. The specific target types below
@@ -83,7 +84,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
             completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
             isPrimary: true,
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "EXTRACTION"],
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "INTERACT_INTEL", "EXTRACTION"],
             maxInstancesPerMission: 1
         },
         {
@@ -93,7 +94,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
             isPrimary: true,
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES"], // Can it co-exist with other objectives? Maybe just EXTERMINATE as a secondary.
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "INTERACT_INTEL"], // Can it co-exist with other objectives? Maybe just EXTERMINATE as a secondary.
             maxInstancesPerMission: 1,
             isPhaseFinaleCandidate: true, // GOOD!
             // isBossObjective: true // This can be inferred if the chosen target from ASSASSINATION_TARGET_POOL has isBoss: true
@@ -101,11 +102,11 @@ const CAMPAIGN_RULES = {
         },
         {
             type: "INTERACT_INTEL",
-            weight: 3,
-            unlocksPhase: 0,
+            weight: 2,
+            unlocksPhase: 3,
             descriptionTemplateKey: "OBJECTIVE_INTERACT_INTEL_TEXT",
             completionCondition: "ALL_INTEL_CONSOLES_CAPTURED",
-            isPrimary: true,
+            isPrimary: false,
             canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION"],
             maxInstancesPerMission: 3,
             targetTypeKeyPrefix: "intel_console"
@@ -118,7 +119,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_EXTRACTION_TEXT",
             completionCondition: "ALL_RACCOONS_EXTRACTED",
             isPrimary: false, // Added automatically, not counted as primary
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "RESCUE_HOSTAGES"],
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "RESCUE_HOSTAGES", "INTERACT_INTEL"],
             maxInstancesPerMission: 1,
             isPhaseFinaleOnly: true // Custom flag - only added for phase finales
         }

@@ -122,7 +122,7 @@ class PossumElite extends Unit {
 
         if (this.aiState === 'PATROLLING' || this.aiState === 'SUSPICIOUS') {
             if (distToTarget <= this.detectionRange) {
-                if (hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level)) {
+                if (hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.activeObstacles, this.game.level)) {
                     this.changeState('ENGAGING_SHOOTING');
                 } else {
                     this.changeState('ENGAGING_CHASING');
@@ -169,7 +169,7 @@ class PossumElite extends Unit {
         // Elite has better detection, shorter suspicious time
         this.suspiciousTimer -= deltaTime;
         if (this.suspiciousTimer <= 0) {
-            if (hasLineOfSight(this.x, this.y, target.x, target.y, obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level)) {
+            if (hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level)) {
                 this.changeState('ENGAGING_SHOOTING');
             } else {
                 this.changeState('ENGAGING_CHASING');
@@ -180,7 +180,7 @@ class PossumElite extends Unit {
     _updateEngagingShootingState(deltaTime, target, obstacles) {
         const distToTarget = distance(this.x, this.y, target.x, target.y);
 
-        if (distToTarget > this.weapon.range + this.ENGAGE_RANGE_BUFFER || !hasLineOfSight(this.x, this.y, target.x, target.y, obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level)) {
+        if (distToTarget > this.weapon.range + this.ENGAGE_RANGE_BUFFER || !hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level)) {
             this.changeState('ENGAGING_CHASING');
             return;
         }
@@ -193,7 +193,7 @@ class PossumElite extends Unit {
     }
 
     _updateEngagingChasingState(deltaTime, target, distToTarget, obstacles) {
-        if (distToTarget <= this.weapon.range * 0.85 && hasLineOfSight(this.x, this.y, target.x, target.y, obstacles.filter(o => o.blocksMovement && !o.isDestroyed), this.game.level)) {
+        if (distToTarget <= this.weapon.range * 0.85 && hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level)) {
             this.changeState('ENGAGING_SHOOTING');
             return;
         }

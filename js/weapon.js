@@ -142,7 +142,7 @@ class Projectile {
                 
                 if (hitObstacle) {
                     if (obj.destructible) {
-                        if (obj.type === 'explosive_barrel' || obj.type === 'explosive_barrel_cluster' || obj.type === 'possum_hut' || obj.type === 'possum_hut_round' || obj.type === 'possum_relay_tower') {
+                        if (obj.type === 'explosive_barrel' || obj.type === 'explosive_barrel_double' || obj.type === 'explosive_barrel_cluster' || obj.type === 'possum_hut' || obj.type === 'possum_hut_round' || obj.type === 'possum_relay_tower') {
                             // Apply bullet damage multiplier if defined (e.g., relay towers take reduced damage)
                             let actualBulletDamage = this.damage;
                             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obj.type);

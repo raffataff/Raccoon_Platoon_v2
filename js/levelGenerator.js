@@ -8,16 +8,26 @@ class LevelGenerator {
 
     }
 
-    /**
+/**
      * Checks if a new obstacle's shape collides with any existing, non-decoration obstacles.
      * @param {object} newObstacleShape - The collision shape of the new obstacle.
      * @param {boolean} newIsDecoration - Whether the new obstacle is just a decoration.
      * @param {Array} existingObstacles - The array of obstacles already placed.
-     * @param {Array} extraKeepOutZones - Additional rectangular zones to avoid.
      * @returns {boolean} - True if the placement is invalid (collides), false otherwise.
      */
+
+    _getShapeMaxExtent(shape) {
+        if (shape.type === 'circle') {
+            return shape.radius;
+        } else if (shape.type === 'ellipse') {
+            return Math.max(shape.radiusX, shape.radiusY);
+        } else if (shape.type === 'rectangle') {
+            return Math.sqrt(shape.width * shape.width + shape.height * shape.height) / 2;
+        }
+        return Math.max(shape.width || 0, shape.height || 0) / 2;
+    }
+
     _isPlacementInvalid(newObstacleShape, newObstacleTemplate, existingObstacles, extraKeepOutZones = []) {
-        // Check against extra keep-out zones first
         for (const zone of extraKeepOutZones) {
             const newHasRotation = newObstacleShape.type === 'rectangle' && newObstacleShape.rotation !== undefined && newObstacleShape.rotation !== 0;
             if (newObstacleShape.type === 'rectangle' && newHasRotation) {
@@ -31,6 +41,11 @@ class LevelGenerator {
             }
         }
 
+        const buffer = newObstacleTemplate.placementBuffer || 0;
+        const newMaxExtent = this._getShapeMaxExtent(newObstacleShape);
+        const newCenterX = newObstacleShape.x || 0;
+        const newCenterY = newObstacleShape.y || 0;
+
         for (const existing of existingObstacles) {
             if (newObstacleTemplate.isDecoration && existing.isDecoration) {
                 continue;
@@ -39,8 +54,14 @@ class LevelGenerator {
             let shapeToCheck = this.level._getObstacleCollisionShape(existing);
             if (!shapeToCheck) continue;
 
-            // --- MODIFICATION START: Inflate shape for buffer check ---
-            const buffer = newObstacleTemplate.placementBuffer || 0;
+            const existMaxExtent = this._getShapeMaxExtent(shapeToCheck);
+            const existCenterX = shapeToCheck.x || existing.x || 0;
+            const existCenterY = shapeToCheck.y || existing.y || 0;
+            const dx = newCenterX - existCenterX;
+            const dy = newCenterY - existCenterY;
+            const maxDist = newMaxExtent + existMaxExtent + buffer + 50;
+            if (dx * dx + dy * dy > maxDist * maxDist) continue;
+
             if (buffer > 0) {
                 let inflatedShape = { ...shapeToCheck };
                 if (inflatedShape.type === 'rectangle') {
@@ -56,7 +77,6 @@ class LevelGenerator {
                 }
                 shapeToCheck = inflatedShape;
             }
-            // --- MODIFICATION END ---
 
             let collision = false;
             const newHasRotation = newObstacleShape.type === 'rectangle' && newObstacleShape.rotation !== undefined && newObstacleShape.rotation !== 0;
@@ -606,6 +626,7 @@ class LevelGenerator {
         }
 
         const allSpawnedEnemiesDuringGen = [];
+        const pendingTurretObstacles = [];
 
         const missionObjectives = missionParamsContainer.objectives || [];
         const baseParams = missionParamsContainer.baseParams || {};
@@ -710,9 +731,45 @@ class LevelGenerator {
             height: topBottomBorderHeight
         });
 
+        // --- FIX: Top border segmented fences with collision stretching from y=0 to fence bottom ---
         if (borderObstacleTemplate && borderSpriteImage && borderSegmentWidth > 0 && borderSegmentHeight > 0) {
             const numSegments = Math.ceil(worldWidth / borderSegmentWidth);
-            const borderCollisionShape = borderObstacleTemplate.collisionShape ? {
+
+            // Collision shape for top border - stretches from y=0 to bottom of fence sprite
+            const topBorderCollisionShape = {
+                type: 'rectangle',
+                offsetX: 0,
+                offsetY: 0, // Start at top of screen
+                width: borderSegmentWidth,
+                height: topBottomBorderHeight // Covers from y=0 to fence bottom
+            };
+
+            // Top border - segmented fences with full collision coverage
+            for (let i = 0; i < numSegments; i++) {
+                const segmentX = i * borderSegmentWidth;
+                this.level.obstacles.push({
+                    type: borderObstacleTemplate.type,
+                    name: borderObstacleTemplate.name,
+                    destructible: borderObstacleTemplate.destructible || false,
+                    hp: borderObstacleTemplate.hp || Infinity,
+                    maxHp: borderObstacleTemplate.maxHp || Infinity,
+                    isDestroyed: false,
+                    blocksMovement: true,
+                    providesCover: true,
+                    isDecoration: false,
+                    spriteNormalPath: borderSpritePath,
+                    imageNormal: borderSpriteImage,
+                    spriteScale: borderSpriteScale,
+                    collisionShape: topBorderCollisionShape,
+                    x: segmentX,
+                    y: 0,
+                    width: borderSegmentWidth,
+                    height: topBottomBorderHeight
+                });
+            }
+
+            // Bottom border - segmented fence (kept as is, with original collision shape)
+            const bottomBorderCollisionShape = borderObstacleTemplate.collisionShape ? {
                 type: borderObstacleTemplate.collisionShape.type,
                 offsetX: borderObstacleTemplate.collisionShape.offsetX,
                 offsetY: borderObstacleTemplate.collisionShape.offsetY,
@@ -724,16 +781,26 @@ class LevelGenerator {
             } : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w => w, height: h => h };
             for (let i = 0; i < numSegments; i++) {
                 const segmentX = i * borderSegmentWidth;
-                const commonProps = {
-                    type: borderObstacleTemplate.type, name: borderObstacleTemplate.name,
+                this.level.obstacles.push({
+                    type: borderObstacleTemplate.type,
+                    name: borderObstacleTemplate.name,
                     destructible: borderObstacleTemplate.destructible || false,
-                    hp: borderObstacleTemplate.hp || Infinity, maxHp: borderObstacleTemplate.maxHp || Infinity,
-                    isDestroyed: false, blocksMovement: true, providesCover: true, isDecoration: false,
-                    spriteNormalPath: borderSpritePath, imageNormal: borderSpriteImage, spriteScale: borderSpriteScale,
-                    collisionShape: borderCollisionShape
-                };
-                this.level.obstacles.push({ ...commonProps, x: segmentX, y: 0, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Top)` });
-                this.level.obstacles.push({ ...commonProps, x: segmentX, y: worldHeight - topBottomBorderHeight, width: borderSegmentWidth, height: topBottomBorderHeight, name: `${borderObstacleTemplate.name} (Border Bottom)` });
+                    hp: borderObstacleTemplate.hp || Infinity,
+                    maxHp: borderObstacleTemplate.maxHp || Infinity,
+                    isDestroyed: false,
+                    blocksMovement: true,
+                    providesCover: true,
+                    isDecoration: false,
+                    spriteNormalPath: borderSpritePath,
+                    imageNormal: borderSpriteImage,
+                    spriteScale: borderSpriteScale,
+                    collisionShape: bottomBorderCollisionShape,
+                    x: segmentX,
+                    y: worldHeight - topBottomBorderHeight,
+                    width: borderSegmentWidth,
+                    height: topBottomBorderHeight,
+                    name: `${borderObstacleTemplate.name} (Border Bottom)`
+                });
             }
 
             // Add a single long fence at the top of the player spawn zone as a barrier
@@ -935,7 +1002,7 @@ class LevelGenerator {
 
                     let actualSpritePath = null;
                     let actualDestroyedSpritePath = null;
-                    if (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round') {
+                    if (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round' || targetTemplateOriginal.type === 'possum_barracks') {
                         const hutSpritePairs = targetTemplateOriginal.type === 'possum_hut' 
                             ? (CONFIG.POSSUM_HUT_SPRITE_FILES || [])
                             : (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || []);
@@ -989,7 +1056,7 @@ class LevelGenerator {
                                 spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
                                 collisionShape: targetTemplateOriginal.collisionShape,
                                 isMissionTarget: true, objectiveId: objective.id,
-                                isSpawner: (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round') && !targetTemplateOriginal.isDecoration,
+                                isSpawner: (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round' || targetTemplateOriginal.type === 'possum_barracks') && !targetTemplateOriginal.isDecoration,
                                 spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                                 delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
                             };
@@ -1120,8 +1187,10 @@ class LevelGenerator {
 
         const obsGenCfg = genConfig.OBSTACLES || {};
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
-        const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
-        const placementMaxAttempts = obsGenCfg.PLACEMENT_MAX_ATTEMPTS || 15;
+        const phaseObstacleIncrement = baseParams.obstacleCountPhaseIncrement || 0;
+        const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0)) + phaseObstacleIncrement + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
+        const placementMaxAttempts = obsGenCfg.PLACEMENT_MAX_ATTEMPTS || 5;
+        const turretPlacementMaxAttempts = 1;
 
         for (let i = 0; i < numInternalObstacles; i++) {
             const template = this._getRandomObstacleTemplate();
@@ -1168,6 +1237,16 @@ class LevelGenerator {
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
+            else if (template.type === 'possum_barracks_1') {
+                const hutSpritePairs = CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || [];
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+
             else if (template.type === 'possum_relay_tower') {
                 const towerSpritePairs = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
                 if (towerSpritePairs.length > 0) {
@@ -1339,30 +1418,41 @@ class LevelGenerator {
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false,
-                        collisionShape: template.collisionShape || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round') && !template.isDecoration,
+                        collisionShape: template.collisionShape || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round' || template.type === 'possum_barracks') && !template.isDecoration,
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
                         willSpawnLog: willSpawnLog,
                         precomputedLogSpawnData: precomputedLogSpawnData
                     };
-                    this.level.obstacles.push(newObstacle);
-                    if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
-                    this._spawnInitialGuardsForObject(newObstacle, template, allSpawnedEnemiesDuringGen);
-                    
                     if (template.type === 'possum_turret') {
-                        const arc = (obsY < (this.level.playableMinY + this.level.playableMaxY) / 2) 
-                            ? ['w', 'sw', 's', 'se', 'e'] 
+                        const turretArc = (obsY < (this.level.playableMinY + this.level.playableMaxY) / 2)
+                            ? ['w', 'sw', 's', 'se', 'e']
                             : ['n', 'nw', 'w', 'sw', 's'];
-                        const turret = new PossumTurret(obsX, obsY, this.game, arc, newObstacle);
-                        this.game.possumTurrets.push(turret);
-                        newObstacle.render = function() {};
-                        console.log(`[LevelGen] Created possum_turret obstacle at (${obsX}, ${obsY}) with dimensions ${obsRenderWidth}x${obsRenderHeight}, spriteScale=${normalSpriteScale}, actualImageObject=${!!actualImageObject}`);
+                        pendingTurretObstacles.push({
+                            obstacle: newObstacle,
+                            arc: turretArc,
+                            obsX: obsX,
+                            obsY: obsY,
+                            logMsg: `[LevelGen] Created possum_turret obstacle at (${obsX}, ${obsY}) with dimensions ${obsRenderWidth}x${obsRenderHeight}, spriteScale=${normalSpriteScale}, actualImageObject=${!!actualImageObject}`
+                        });
+                    } else {
+                        this.level.obstacles.push(newObstacle);
+                        if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
+                        this._spawnInitialGuardsForObject(newObstacle, template, allSpawnedEnemiesDuringGen);
                     }
-                    
+
                     placed = true;
                 }
                 attempts++;
-            } while (!placed && attempts < placementMaxAttempts);
+            } while (!placed && attempts < (template.type === 'possum_turret' ? turretPlacementMaxAttempts : placementMaxAttempts));
+        }
+
+        for (const pendingTurret of pendingTurretObstacles) {
+            this.level.obstacles.push(pendingTurret.obstacle);
+            const turret = new PossumTurret(pendingTurret.obsX, pendingTurret.obsY, this.game, pendingTurret.arc, pendingTurret.obstacle);
+            this.game.possumTurrets.push(turret);
+            pendingTurret.obstacle.render = function() {};
+            console.log(pendingTurret.logMsg);
         }
 
         if (needsExtractionZone) {
