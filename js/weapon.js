@@ -132,13 +132,16 @@ class Projectile {
                     return;
                 }
             } else if (this.game.level.obstacles.includes(obj) && !obj.isDestroyed && obj !== this.shooterObstacle) {
-                const obsCollisionShape = this.game.level._getObstacleCollisionShape(obj);
-                if (!obsCollisionShape) continue;
+                const obsCollisionShapes = this.game.level._getObstacleCollisionShape(obj);
+                if (!obsCollisionShapes) continue;
+                const shapesArray = Array.isArray(obsCollisionShapes) ? obsCollisionShapes : [obsCollisionShapes];
 
                 let hitObstacle = false;
-                if (obsCollisionShape.type === 'rectangle' && pointInRectangle(this.x, this.y, obsCollisionShape)) hitObstacle = true;
-                else if (obsCollisionShape.type === 'circle' && pointInCircle(this.x, this.y, obsCollisionShape)) hitObstacle = true;
-                else if (obsCollisionShape.type === 'ellipse' && pointInEllipse(this.x, this.y, obsCollisionShape)) hitObstacle = true;
+                for (const obsCollisionShape of shapesArray) {
+                    if (obsCollisionShape.type === 'rectangle' && pointInRectangle(this.x, this.y, obsCollisionShape)) { hitObstacle = true; break; }
+                    else if (obsCollisionShape.type === 'circle' && pointInCircle(this.x, this.y, obsCollisionShape)) { hitObstacle = true; break; }
+                    else if (obsCollisionShape.type === 'ellipse' && pointInEllipse(this.x, this.y, obsCollisionShape)) { hitObstacle = true; break; }
+                }
                 
                 if (hitObstacle) {
                     if (obj.destructible) {
@@ -335,34 +338,40 @@ class GrenadeProjectile {
                     obj.takeDamage(this.damage * damageMultiplier, this.shooterUnit);
                 }
             } else if (this.game.level.obstacles.includes(obj) && obj.destructible && !obj.isDestroyed && obj.hp > 0) {
-                // --- MODIFIED: Use collisionShape for AOE damage on obstacles ---
-                const obsCollisionShape = this.game.level._getObstacleCollisionShape(obj);
-                if (!obsCollisionShape) return;
+                const obsCollisionShapes = this.game.level._getObstacleCollisionShape(obj);
+                if (!obsCollisionShapes) return;
+                const shapesArray = Array.isArray(obsCollisionShapes) ? obsCollisionShapes : [obsCollisionShapes];
 
-                let shapeCenterX, shapeCenterY, shapeEffectiveSize;
+                let obstacleHit = false;
+                for (const obsCollisionShape of shapesArray) {
+                    let shapeCenterX, shapeCenterY, shapeEffectiveSize;
 
-                if (obsCollisionShape.type === 'rectangle') {
-                    shapeCenterX = obsCollisionShape.x + obsCollisionShape.width / 2;
-                    shapeCenterY = obsCollisionShape.y + obsCollisionShape.height / 2;
-                    shapeEffectiveSize = Math.max(obsCollisionShape.width, obsCollisionShape.height) / 2; // Use half of max dimension
-                } else if (obsCollisionShape.type === 'circle') {
-                    shapeCenterX = obsCollisionShape.x;
-                    shapeCenterY = obsCollisionShape.y;
-                    shapeEffectiveSize = obsCollisionShape.radius;
-                } else if (obsCollisionShape.type === 'ellipse') {
-                    shapeCenterX = obsCollisionShape.x;
-                    shapeCenterY = obsCollisionShape.y;
-                    shapeEffectiveSize = Math.max(obsCollisionShape.radiusX, obsCollisionShape.radiusY); // Use max radius
-                } else { // Fallback if somehow no proper shape
-                    shapeCenterX = obj.x + obj.width / 2;
-                    shapeCenterY = obj.y + obj.height / 2;
-                    shapeEffectiveSize = Math.max(obj.width, obj.height) / 4; // Original fallback
+                    if (obsCollisionShape.type === 'rectangle') {
+                        shapeCenterX = obsCollisionShape.x + obsCollisionShape.width / 2;
+                        shapeCenterY = obsCollisionShape.y + obsCollisionShape.height / 2;
+                        shapeEffectiveSize = Math.max(obsCollisionShape.width, obsCollisionShape.height) / 2;
+                    } else if (obsCollisionShape.type === 'circle') {
+                        shapeCenterX = obsCollisionShape.x;
+                        shapeCenterY = obsCollisionShape.y;
+                        shapeEffectiveSize = obsCollisionShape.radius;
+                    } else if (obsCollisionShape.type === 'ellipse') {
+                        shapeCenterX = obsCollisionShape.x;
+                        shapeCenterY = obsCollisionShape.y;
+                        shapeEffectiveSize = Math.max(obsCollisionShape.radiusX, obsCollisionShape.radiusY);
+                    } else {
+                        shapeCenterX = obj.x + obj.width / 2;
+                        shapeCenterY = obj.y + obj.height / 2;
+                        shapeEffectiveSize = Math.max(obj.width, obj.height) / 4;
+                    }
+
+                    if (distance(this.x, this.y, shapeCenterX, shapeCenterY) <= this.aoeRadius + shapeEffectiveSize) {
+                        obstacleHit = true;
+                        break;
+                    }
                 }
-
-                if (distance(this.x, this.y, shapeCenterX, shapeCenterY) <= this.aoeRadius + shapeEffectiveSize) {
+                if (obstacleHit) {
                      this.game.level.damageObstacle(obj, this.damage, this.shooterUnit);
                 }
-                // --- END MODIFIED ---
             }
         });
     }

@@ -28,88 +28,95 @@ class LevelGenerator {
     }
 
     _isPlacementInvalid(newObstacleShape, newObstacleTemplate, existingObstacles, extraKeepOutZones = []) {
+        const newShapesArray = Array.isArray(newObstacleShape) ? newObstacleShape : [newObstacleShape];
+
         for (const zone of extraKeepOutZones) {
-            const newHasRotation = newObstacleShape.type === 'rectangle' && newObstacleShape.rotation !== undefined && newObstacleShape.rotation !== 0;
-            if (newObstacleShape.type === 'rectangle' && newHasRotation) {
-                if (obbOverlap(newObstacleShape, zone)) {
-                    return true;
-                }
-            } else {
-                if (this.level._rectOverlap(newObstacleShape, zone)) {
-                    return true;
+            let zoneCollision = false;
+            for (const newShape of newShapesArray) {
+                const newHasRotation = newShape.type === 'rectangle' && newShape.rotation !== undefined && newShape.rotation !== 0;
+                if (newShape.type === 'rectangle' && newHasRotation) {
+                    if (obbOverlap(newShape, zone)) { zoneCollision = true; break; }
+                } else {
+                    if (this.level._rectOverlap(newShape, zone)) { zoneCollision = true; break; }
                 }
             }
+            if (zoneCollision) return true;
         }
 
         const buffer = newObstacleTemplate.placementBuffer || 0;
-        const newMaxExtent = this._getShapeMaxExtent(newObstacleShape);
-        const newCenterX = newObstacleShape.x || 0;
-        const newCenterY = newObstacleShape.y || 0;
 
         for (const existing of existingObstacles) {
             if (newObstacleTemplate.isDecoration && existing.isDecoration) {
                 continue;
             }
 
-            let shapeToCheck = this.level._getObstacleCollisionShape(existing);
-            if (!shapeToCheck) continue;
+            let shapesToCheck = this.level._getObstacleCollisionShape(existing);
+            if (!shapesToCheck) continue;
+            if (!Array.isArray(shapesToCheck)) shapesToCheck = [shapesToCheck];
 
-            const existMaxExtent = this._getShapeMaxExtent(shapeToCheck);
-            const existCenterX = shapeToCheck.x || existing.x || 0;
-            const existCenterY = shapeToCheck.y || existing.y || 0;
-            const dx = newCenterX - existCenterX;
-            const dy = newCenterY - existCenterY;
-            const maxDist = newMaxExtent + existMaxExtent + buffer + 50;
-            if (dx * dx + dy * dy > maxDist * maxDist) continue;
+            for (const shapeToCheck of shapesToCheck) {
+                for (const newShape of newShapesArray) {
+                    const newMaxExtent = this._getShapeMaxExtent(newShape);
+                    const existMaxExtent = this._getShapeMaxExtent(shapeToCheck);
+                    const newCenterX = newShape.x || 0;
+                    const newCenterY = newShape.y || 0;
+                    const existCenterX = shapeToCheck.x || existing.x || 0;
+                    const existCenterY = shapeToCheck.y || existing.y || 0;
+                    const dx = newCenterX - existCenterX;
+                    const dy = newCenterY - existCenterY;
+                    const maxDist = newMaxExtent + existMaxExtent + buffer + 50;
+                    if (dx * dx + dy * dy > maxDist * maxDist) continue;
 
-            if (buffer > 0) {
-                let inflatedShape = { ...shapeToCheck };
-                if (inflatedShape.type === 'rectangle') {
-                    inflatedShape.x -= buffer;
-                    inflatedShape.y -= buffer;
-                    inflatedShape.width += buffer * 2;
-                    inflatedShape.height += buffer * 2;
-                } else if (inflatedShape.type === 'circle') {
-                    inflatedShape.radius += buffer;
-                } else if (inflatedShape.type === 'ellipse') {
-                    inflatedShape.radiusX += buffer;
-                    inflatedShape.radiusY += buffer;
-                }
-                shapeToCheck = inflatedShape;
-            }
+                    let shapeForCollision = shapeToCheck;
+                    if (buffer > 0) {
+                        shapeForCollision = { ...shapeToCheck };
+                        if (shapeForCollision.type === 'rectangle') {
+                            shapeForCollision.x -= buffer;
+                            shapeForCollision.y -= buffer;
+                            shapeForCollision.width += buffer * 2;
+                            shapeForCollision.height += buffer * 2;
+                        } else if (shapeForCollision.type === 'circle') {
+                            shapeForCollision.radius += buffer;
+                        } else if (shapeForCollision.type === 'ellipse') {
+                            shapeForCollision.radiusX += buffer;
+                            shapeForCollision.radiusY += buffer;
+                        }
+                    }
 
-            let collision = false;
-            const newHasRotation = newObstacleShape.type === 'rectangle' && newObstacleShape.rotation !== undefined && newObstacleShape.rotation !== 0;
-            const checkHasRotation = shapeToCheck.type === 'rectangle' && shapeToCheck.rotation !== undefined && shapeToCheck.rotation !== 0;
-            if (newObstacleShape.type === 'circle') {
-                if (shapeToCheck.type === 'rectangle') collision = checkHasRotation ? obbCircleOverlap(shapeToCheck, newObstacleShape) : rectCircleOverlap(shapeToCheck, newObstacleShape);
-                else if (shapeToCheck.type === 'circle') collision = circleOverlap(shapeToCheck, newObstacleShape);
-                else if (shapeToCheck.type === 'ellipse') collision = circleEllipseOverlap(newObstacleShape, shapeToCheck);
-            } else if (newObstacleShape.type === 'rectangle') {
-                if (shapeToCheck.type === 'rectangle') {
-                    if (newHasRotation || checkHasRotation) {
-                        collision = obbOverlap(newObstacleShape, shapeToCheck);
-                    } else {
-                        collision = this.level._rectOverlap(shapeToCheck, newObstacleShape);
+                    let collision = false;
+                    const newHasRotation = newShape.type === 'rectangle' && newShape.rotation !== undefined && newShape.rotation !== 0;
+                    const checkHasRotation = shapeForCollision.type === 'rectangle' && shapeForCollision.rotation !== undefined && shapeForCollision.rotation !== 0;
+                    if (newShape.type === 'circle') {
+                        if (shapeForCollision.type === 'rectangle') collision = checkHasRotation ? obbCircleOverlap(shapeForCollision, newShape) : rectCircleOverlap(shapeForCollision, newShape);
+                        else if (shapeForCollision.type === 'circle') collision = circleOverlap(shapeForCollision, newShape);
+                        else if (shapeForCollision.type === 'ellipse') collision = circleEllipseOverlap(newShape, shapeForCollision);
+                    } else if (newShape.type === 'rectangle') {
+                        if (shapeForCollision.type === 'rectangle') {
+                            if (newHasRotation || checkHasRotation) {
+                                collision = obbOverlap(newShape, shapeForCollision);
+                            } else {
+                                collision = this.level._rectOverlap(shapeForCollision, newShape);
+                            }
+                        }
+                        else if (shapeForCollision.type === 'circle') collision = newHasRotation ? obbCircleOverlap(newShape, shapeForCollision) : rectCircleOverlap(newShape, shapeForCollision);
+                        else if (shapeForCollision.type === 'ellipse') collision = newHasRotation ? obbEllipseOverlap(newShape, shapeForCollision) : rectEllipseOverlap(newShape, shapeForCollision);
+                    } else if (newShape.type === 'ellipse') {
+                        if (shapeForCollision.type === 'rectangle') collision = checkHasRotation ? obbEllipseOverlap(shapeForCollision, newShape) : rectEllipseOverlap(shapeForCollision, newShape);
+                        else if (shapeForCollision.type === 'circle') collision = circleEllipseOverlap(shapeForCollision, newShape);
+                        else if (shapeForCollision.type === 'ellipse') {
+                            const r1 = { x: newShape.x - newShape.radiusX, y: newShape.y - newShape.radiusY, width: newShape.radiusX * 2, height: newShape.radiusY * 2 };
+                            const r2 = { x: shapeForCollision.x - shapeForCollision.radiusX, y: shapeForCollision.y - shapeForCollision.radiusY, width: shapeForCollision.radiusX * 2, height: shapeForCollision.radiusY * 2 };
+                            collision = this.level._rectOverlap(r1, r2);
+                        }
+                    }
+
+                    if (collision) {
+                        if (newObstacleTemplate.isDecoration && !existing.isDecoration && !existing.blocksMovement && existing.providesCover) {
+                            continue;
+                        }
+                        return true;
                     }
                 }
-                else if (shapeToCheck.type === 'circle') collision = newHasRotation ? obbCircleOverlap(newObstacleShape, shapeToCheck) : rectCircleOverlap(newObstacleShape, shapeToCheck);
-                else if (shapeToCheck.type === 'ellipse') collision = newHasRotation ? obbEllipseOverlap(newObstacleShape, shapeToCheck) : rectEllipseOverlap(newObstacleShape, shapeToCheck);
-            } else if (newObstacleShape.type === 'ellipse') {
-                if (shapeToCheck.type === 'rectangle') collision = checkHasRotation ? obbEllipseOverlap(shapeToCheck, newObstacleShape) : rectEllipseOverlap(shapeToCheck, newObstacleShape);
-                else if (shapeToCheck.type === 'circle') collision = circleEllipseOverlap(shapeToCheck, newObstacleShape);
-                else if (shapeToCheck.type === 'ellipse') {
-                    const r1 = { x: newObstacleShape.x - newObstacleShape.radiusX, y: newObstacleShape.y - newObstacleShape.radiusY, width: newObstacleShape.radiusX * 2, height: newObstacleShape.radiusY * 2 };
-                    const r2 = { x: shapeToCheck.x - shapeToCheck.radiusX, y: shapeToCheck.y - shapeToCheck.radiusY, width: shapeToCheck.radiusX * 2, height: shapeToCheck.radiusY * 2 };
-                    collision = this.level._rectOverlap(r1, r2);
-                }
-            }
-
-            if (collision) {
-                if (newObstacleTemplate.isDecoration && !existing.isDecoration && !existing.blocksMovement && existing.providesCover) {
-                    continue;
-                }
-                return true;
             }
         }
         return false;
@@ -747,6 +754,8 @@ class LevelGenerator {
             // Top border - segmented fences with full collision coverage
             for (let i = 0; i < numSegments; i++) {
                 const segmentX = i * borderSegmentWidth;
+                const segmentSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + this.rng.pickFrom(CONFIG.FENCE_BARBED_LONG_SPRITE_FILES);
+                const segmentImage = preloadedAssetImages[segmentSpritePath];
                 this.level.obstacles.push({
                     type: borderObstacleTemplate.type,
                     name: borderObstacleTemplate.name,
@@ -757,8 +766,8 @@ class LevelGenerator {
                     blocksMovement: true,
                     providesCover: true,
                     isDecoration: false,
-                    spriteNormalPath: borderSpritePath,
-                    imageNormal: borderSpriteImage,
+                    spriteNormalPath: segmentSpritePath,
+                    imageNormal: segmentImage,
                     spriteScale: borderSpriteScale,
                     collisionShape: topBorderCollisionShape,
                     x: segmentX,
@@ -781,6 +790,8 @@ class LevelGenerator {
             } : { type: 'rectangle', offsetX: 0, offsetY: 0, width: w => w, height: h => h };
             for (let i = 0; i < numSegments; i++) {
                 const segmentX = i * borderSegmentWidth;
+                const segmentSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + this.rng.pickFrom(CONFIG.FENCE_BARBED_LONG_SPRITE_FILES);
+                const segmentImage = preloadedAssetImages[segmentSpritePath];
                 this.level.obstacles.push({
                     type: borderObstacleTemplate.type,
                     name: borderObstacleTemplate.name,
@@ -791,8 +802,8 @@ class LevelGenerator {
                     blocksMovement: true,
                     providesCover: true,
                     isDecoration: false,
-                    spriteNormalPath: borderSpritePath,
-                    imageNormal: borderSpriteImage,
+                    spriteNormalPath: segmentSpritePath,
+                    imageNormal: segmentImage,
                     spriteScale: borderSpriteScale,
                     collisionShape: bottomBorderCollisionShape,
                     x: segmentX,
@@ -1039,7 +1050,8 @@ class LevelGenerator {
                         const tempTargetForShapeCheck = {
                             x: targetX, y: targetY,
                             width: targetWidth, height: targetHeight,
-                            collisionShape: targetTemplateOriginal.collisionShape
+                            collisionShape: targetTemplateOriginal.collisionShape,
+                            collisionShapes: targetTemplateOriginal.collisionShapes
                         };
                         const collisionShapeForPlacementCheck = this.level._getObstacleCollisionShape(tempTargetForShapeCheck);
 
@@ -1122,7 +1134,8 @@ class LevelGenerator {
                         const tempShape = {
                             x: consoleX, y: consoleY,
                             width: consoleWidth, height: consoleHeight,
-                            collisionShape: consoleTemplate.collisionShape
+                            collisionShape: consoleTemplate.collisionShape,
+                            collisionShapes: consoleTemplate.collisionShapes
                         };
                         const collisionShapeForCheck = this.level._getObstacleCollisionShape(tempShape);
 
@@ -1369,17 +1382,21 @@ class LevelGenerator {
 
                 let overlapsOuterSpawnZone = false;
                 if (isRestrictedType) {
-                    const shapeHasRotation = collisionCheckShape.type === 'rectangle' && collisionCheckShape.rotation !== undefined && collisionCheckShape.rotation !== 0;
-                    if (collisionCheckShape.type === 'rectangle') {
-                        if (shapeHasRotation) {
-                            overlapsOuterSpawnZone = obbOverlap(collisionCheckShape, this.level.playerSpawnZone);
-                        } else {
-                            overlapsOuterSpawnZone = this.level._rectOverlap(collisionCheckShape, this.level.playerSpawnZone);
+                    const shapesArray = Array.isArray(collisionCheckShape) ? collisionCheckShape : [collisionCheckShape];
+                    for (const checkShape of shapesArray) {
+                        const shapeHasRotation = checkShape.type === 'rectangle' && checkShape.rotation !== undefined && checkShape.rotation !== 0;
+                        if (checkShape.type === 'rectangle') {
+                            if (shapeHasRotation) {
+                                overlapsOuterSpawnZone = obbOverlap(checkShape, this.level.playerSpawnZone);
+                            } else {
+                                overlapsOuterSpawnZone = this.level._rectOverlap(checkShape, this.level.playerSpawnZone);
+                            }
+                        } else if (checkShape.type === 'circle') {
+                            overlapsOuterSpawnZone = rectCircleOverlap(this.level.playerSpawnZone, checkShape);
+                        } else if (checkShape.type === 'ellipse') {
+                            overlapsOuterSpawnZone = rectEllipseOverlap(this.level.playerSpawnZone, checkShape);
                         }
-                    } else if (collisionCheckShape.type === 'circle') {
-                        overlapsOuterSpawnZone = rectCircleOverlap(this.level.playerSpawnZone, collisionCheckShape);
-                    } else if (collisionCheckShape.type === 'ellipse') {
-                        overlapsOuterSpawnZone = rectEllipseOverlap(this.level.playerSpawnZone, collisionCheckShape);
+                        if (overlapsOuterSpawnZone) break;
                     }
                 }
 
@@ -1546,7 +1563,7 @@ class LevelGenerator {
                 pickupX = this.rng.nextFloat(playableMinX, playableMaxX - pickupWidth);
                 pickupY = this.rng.nextFloat(playableMinY, playableMaxY - pickupHeight);
 
-                const tempPickupForShape = { ...template, x: pickupX, y: pickupY, width: pickupWidth, height: pickupHeight };
+                const tempPickupForShape = { ...template, x: pickupX, y: pickupY, width: pickupWidth, height: pickupHeight, collisionShapes: template.collisionShapes };
                 const collisionCheckShape = this.level._getObstacleCollisionShape(tempPickupForShape);
 
                 if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, [])) {

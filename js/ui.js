@@ -2856,6 +2856,11 @@ class UI {
         const container = document.getElementById('toastContainer');
         if (!container) return;
 
+        // Play toast SFX
+        if (this.game && this.game.audioManager) {
+            this.game.audioManager.play('TOAST_NOTIFICATION');
+        }
+
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         toast.textContent = message;

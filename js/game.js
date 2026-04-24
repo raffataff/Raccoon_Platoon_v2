@@ -3697,7 +3697,41 @@ class Game {
                         shouldSort = false; 
                     } 
                 } 
-                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) { let sortYValue = obstacle.y + obstacle.height; const collisionShape = obstacle.collisionShape ? this.level._getObstacleCollisionShape(obstacle) : null;                 if (obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple') { if (collisionShape && (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse')) { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } } else if (collisionShape && collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; } else if (collisionShape && collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; } if (typeof sortYValue === 'number' && !isNaN(sortYValue)) { const isBehindLiving = !!obstacle.isDestroyed; const isHelipad = obstacle.type && obstacle.type.startsWith('helipad'); sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving }); } } }); }
+                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) {
+                    const collisionShapes = obstacle.collisionShape || obstacle.collisionShapes ? this.level._getObstacleCollisionShape(obstacle) : null;
+                    const shapesArray = Array.isArray(collisionShapes) ? collisionShapes : (collisionShapes ? [collisionShapes] : null);
+                    const isBehindLiving = !!obstacle.isDestroyed;
+                    const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
+                    const isTree = obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
+                    if (shapesArray && shapesArray.length > 1) {
+                        shapesArray.forEach((shape, shapeIndex) => {
+                            let sortYValue = obstacle.y + obstacle.height;
+                            if (isTree) {
+                                if (shape.type === 'rectangle' || shape.type === 'ellipse') { sortYValue = shape.y + (shape.height || shape.radiusY || obstacle.height * 0.1); }
+                                else if (shape.type === 'circle') { sortYValue = shape.y + shape.radius; }
+                            } else if (shape.type === 'ellipse') { sortYValue = shape.y + shape.radiusY; }
+                            else if (shape.type === 'circle') { sortYValue = shape.y + shape.radius; }
+                            else if (shape.type === 'rectangle') { sortYValue = shape.y + shape.height; }
+                            if (typeof sortYValue === 'number' && !isNaN(sortYValue)) {
+                                sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving, shapeIndex: shapeIndex, totalShapes: shapesArray.length });
+                            }
+                        });
+                    } else {
+                        let sortYValue = obstacle.y + obstacle.height;
+                        if (shapesArray && shapesArray.length === 1) {
+                            const collisionShape = shapesArray[0];
+                            if (isTree) {
+                                if (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); }
+                                else if (collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; }
+                            } else if (collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; }
+                            else if (collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; }
+                        }
+                        if (typeof sortYValue === 'number' && !isNaN(sortYValue)) {
+                            sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving });
+                        }
+                    }
+                }
+            }); }
         // Add intel consoles to sortable objects for proper depth sorting
         if (this.intelConsoles) {
             this.intelConsoles.forEach(console => {
@@ -3723,9 +3757,15 @@ class Game {
             }
         });
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
+        const renderedObstacles = new Set();
         sortableObjects.forEach((item, index) => {
             const obj = item.entity; if (!obj) { return; } try {
                 if (item.isUnit || obj.type === 'intel_console' || obj.type === 'possum_turret') { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {
+                    if (item.totalShapes > 1) {
+                        const obstacleKey = obj;
+                        if (renderedObstacles.has(obstacleKey)) { return; }
+                        renderedObstacles.add(obstacleKey);
+                    }
                     // --- MODIFICATION START ---
                     this.ctx.save();
                     if (obj.isFlippedHorizontally) {
@@ -3748,14 +3788,11 @@ class Game {
                     } else if (!obj.isDestroyed && obj.imageNormal) {
                         if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
                     } else if (obj.type === 'extraction_zone') {
-                        // Debug: extraction zone fallback draw
-                    //    console.log('[Game] Drawing extraction zone fallback: isHidden=' + obj.isHidden + ', isDecoration=' + obj.isDecoration + ', imageNormal=' + obj.imageNormal);
                         let obsColor = obj.color || '#3C78FF'; 
                         this.ctx.fillStyle = obsColor; 
                         this.ctx.globalAlpha = 0.35;
                         this.ctx.fillRect(obj.x, obj.y, obj.width, obj.height);
                         this.ctx.globalAlpha = 1.0;
-                        // Draw border
                         this.ctx.strokeStyle = '#00FFD4';
                         this.ctx.lineWidth = 3;
                         this.ctx.strokeRect(obj.x, obj.y, obj.width, obj.height);
@@ -3841,7 +3878,7 @@ class Game {
             }
 
             // Draw Obstacle Collision Shapes
-            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShape = this.level._getObstacleCollisionShape(obstacle); if (!collisionShape) return; if (obstacle.isDestroyed && !obstacle.blocksMovement) { } else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); if (collisionShape.rotation !== undefined && collisionShape.rotation !== 0) { const cx = collisionShape.x + collisionShape.width / 2; const cy = collisionShape.y + collisionShape.height / 2; this.ctx.save(); this.ctx.translate(cx, cy); this.ctx.rotate(collisionShape.rotation); this.ctx.strokeRect(-collisionShape.width / 2, -collisionShape.height / 2, collisionShape.width, collisionShape.height); this.ctx.restore(); } else { this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); } } else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); } else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } }); }
+            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShapeOrShapes = this.level._getObstacleCollisionShape(obstacle); if (!collisionShapeOrShapes) return; const shapesArray = Array.isArray(collisionShapeOrShapes) ? collisionShapeOrShapes : [collisionShapeOrShapes]; if (obstacle.isDestroyed && !obstacle.blocksMovement) { } else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { for (const collisionShape of shapesArray) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); if (collisionShape.rotation !== undefined && collisionShape.rotation !== 0) { const cx = collisionShape.x + collisionShape.width / 2; const cy = collisionShape.y + collisionShape.height / 2; this.ctx.save(); this.ctx.translate(cx, cy); this.ctx.rotate(collisionShape.rotation); this.ctx.strokeRect(-collisionShape.width / 2, -collisionShape.height / 2, collisionShape.width, collisionShape.height); this.ctx.restore(); } else { this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); } } else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); } else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } } }); }
 
             // Draw Hut Spawner Info
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_SPAWN_AREAS) { this.level.renderHutSpawnAreas(this.ctx); }

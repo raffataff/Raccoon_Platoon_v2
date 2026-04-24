@@ -56,25 +56,29 @@ class SpatialGrid {
                 maxY = obj.y + (obj.size || obj.height || 0) / 2;
             }
         } else if (obj.collisionShape && this.game && this.game.level) { // Check for this.game and this.game.level
-             const shape = this.game.level._getObstacleCollisionShape(obj);
-             if (shape.type === 'circle') {
-                minX = shape.x - shape.radius;
-                minY = shape.y - shape.radius;
-                maxX = shape.x + shape.radius;
-                maxY = shape.y + shape.radius;
-            } else if (shape.type === 'rectangle') {
-                minX = shape.x;
-                minY = shape.y;
-                maxX = shape.x + shape.width;
-                maxY = shape.y + shape.height;
-            } else if (shape.type === 'ellipse') {
-                minX = shape.x - shape.radiusX;
-                minY = shape.y - shape.radiusY;
-                maxX = shape.x + shape.radiusX;
-                maxY = shape.y + shape.radiusY;
-            } else {
-                minX = obj.x; minY = obj.y; maxX = obj.x + obj.width; maxY = obj.y + obj.height;
-            }
+             const shapeOrShapes = this.game.level._getObstacleCollisionShape(obj);
+             const shapes = Array.isArray(shapeOrShapes) ? shapeOrShapes : [shapeOrShapes];
+             let shapeMinX = Infinity, shapeMinY = Infinity, shapeMaxX = -Infinity, shapeMaxY = -Infinity;
+             for (const shape of shapes) {
+                 let sxMin, syMin, sxMax, syMax;
+                 if (shape.type === 'circle') {
+                     sxMin = shape.x - shape.radius; syMin = shape.y - shape.radius;
+                     sxMax = shape.x + shape.radius; syMax = shape.y + shape.radius;
+                 } else if (shape.type === 'rectangle') {
+                     sxMin = shape.x; syMin = shape.y;
+                     sxMax = shape.x + shape.width; syMax = shape.y + shape.height;
+                 } else if (shape.type === 'ellipse') {
+                     sxMin = shape.x - shape.radiusX; syMin = shape.y - shape.radiusY;
+                     sxMax = shape.x + shape.radiusX; syMax = shape.y + shape.radiusY;
+                 } else {
+                     sxMin = obj.x; syMin = obj.y; sxMax = obj.x + obj.width; syMax = obj.y + obj.height;
+                 }
+                 if (sxMin < shapeMinX) shapeMinX = sxMin;
+                 if (syMin < shapeMinY) shapeMinY = syMin;
+                 if (sxMax > shapeMaxX) shapeMaxX = sxMax;
+                 if (syMax > shapeMaxY) shapeMaxY = syMax;
+             }
+             minX = shapeMinX; minY = shapeMinY; maxX = shapeMaxX; maxY = shapeMaxY;
         } else { 
             minX = obj.x - (obj.size || obj.width || 0) / 2;
             minY = obj.y - (obj.size || obj.height || 0) / 2;

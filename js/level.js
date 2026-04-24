@@ -36,60 +36,75 @@ class Level {
         return this.levelGenerator.generate(worldWidth, worldHeight, missionParamsContainer, numPlayerSpawnsNeeded, preloadedAssetImages, missionSeed);
     }
     
-    _getObstacleCollisionShape(obstacle) {
-        if (obstacle.collisionShape) {
-            const shapeDef = obstacle.collisionShape;
-            const obsCurrentWidth = obstacle.width;
-            const obsCurrentHeight = obstacle.height;
+    _resolveSingleCollisionShape(shapeDef, obstacle) {
+        const obsCurrentWidth = obstacle.width;
+        const obsCurrentHeight = obstacle.height;
 
-            if (shapeDef.type === 'rectangle') {
-                let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || 0);
-                let offsetY = typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || 0);
-                if (obstacle.isFlippedHorizontally) {
-                    offsetX = obsCurrentWidth - offsetX - (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
-                }
-                const rotation = shapeDef.rotation !== undefined ? shapeDef.rotation : 0;
-                const width = (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
-                const height = (typeof shapeDef.height === 'function' ? shapeDef.height(obsCurrentWidth, obsCurrentHeight) : (shapeDef.height || obsCurrentHeight));
-                return {
-                    type: 'rectangle',
-                    x: obstacle.x + offsetX,
-                    y: obstacle.y + offsetY,
-                    width: width,
-                    height: height,
-                    rotation: rotation
-                };
-            } else if (shapeDef.type === 'circle') {
-                let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2);
-                if (obstacle.isFlippedHorizontally) {
-                    offsetX = obsCurrentWidth - offsetX;
-                }
-                return {
-                    type: 'circle',
-                    x: obstacle.x + offsetX,
-                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
-                    radius: (typeof shapeDef.radius === 'function' ? shapeDef.radius(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radius || Math.min(obsCurrentWidth, obsCurrentHeight) / 2))
-                };
-            } else if (shapeDef.type === 'ellipse') {
-                let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2);
-                if (obstacle.isFlippedHorizontally) {
-                    offsetX = obsCurrentWidth - offsetX;
-                }
-                return {
-                    type: 'ellipse',
-                    x: obstacle.x + offsetX,
-                    y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
-                    radiusX: (typeof shapeDef.radiusX === 'function' ? shapeDef.radiusX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusX || obsCurrentWidth / 2)),
-                    radiusY: (typeof shapeDef.radiusY === 'function' ? shapeDef.radiusY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusY || obsCurrentHeight / 2))
-                };
+        if (shapeDef.type === 'rectangle') {
+            let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || 0);
+            let offsetY = typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || 0);
+            if (obstacle.isFlippedHorizontally) {
+                offsetX = obsCurrentWidth - offsetX - (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
             }
+            const rotation = shapeDef.rotation !== undefined ? shapeDef.rotation : 0;
+            const width = (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
+            const height = (typeof shapeDef.height === 'function' ? shapeDef.height(obsCurrentWidth, obsCurrentHeight) : (shapeDef.height || obsCurrentHeight));
+            return {
+                type: 'rectangle',
+                x: obstacle.x + offsetX,
+                y: obstacle.y + offsetY,
+                width: width,
+                height: height,
+                rotation: rotation
+            };
+        } else if (shapeDef.type === 'circle') {
+            let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2);
+            if (obstacle.isFlippedHorizontally) {
+                offsetX = obsCurrentWidth - offsetX;
+            }
+            return {
+                type: 'circle',
+                x: obstacle.x + offsetX,
+                y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
+                radius: (typeof shapeDef.radius === 'function' ? shapeDef.radius(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radius || Math.min(obsCurrentWidth, obsCurrentHeight) / 2))
+            };
+        } else if (shapeDef.type === 'ellipse') {
+            let offsetX = typeof shapeDef.offsetX === 'function' ? shapeDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetX || obsCurrentWidth / 2);
+            if (obstacle.isFlippedHorizontally) {
+                offsetX = obsCurrentWidth - offsetX;
+            }
+            return {
+                type: 'ellipse',
+                x: obstacle.x + offsetX,
+                y: obstacle.y + (typeof shapeDef.offsetY === 'function' ? shapeDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.offsetY || obsCurrentHeight / 2)),
+                radiusX: (typeof shapeDef.radiusX === 'function' ? shapeDef.radiusX(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusX || obsCurrentWidth / 2)),
+                radiusY: (typeof shapeDef.radiusY === 'function' ? shapeDef.radiusY(obsCurrentWidth, obsCurrentHeight) : (shapeDef.radiusY || obsCurrentHeight / 2))
+            };
         }
+        return null;
+    }
+
+    _getObstacleCollisionShape(obstacle) {
+        if (obstacle.collisionShapes && Array.isArray(obstacle.collisionShapes) && obstacle.collisionShapes.length > 0) {
+            const shapes = [];
+            for (const shapeDef of obstacle.collisionShapes) {
+                const resolved = this._resolveSingleCollisionShape(shapeDef, obstacle);
+                if (resolved) shapes.push(resolved);
+            }
+            if (shapes.length > 0) return shapes;
+        }
+
+        if (obstacle.collisionShape) {
+            const resolved = this._resolveSingleCollisionShape(obstacle.collisionShape, obstacle);
+            if (resolved) return [resolved];
+        }
+
         if (obstacle.type === (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE) || 
             obstacle.type === 'border_wall' || 
             obstacle.type === 'extraction_zone') { 
-             return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height, rotation: 0 };
+             return [{ type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height, rotation: 0 }];
         }
-        return { type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height, rotation: 0 };
+        return [{ type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height, rotation: 0 }];
     }
 
     _rectOverlap(rect1, rect2) {
@@ -292,33 +307,41 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
                 for (const obs of this.obstacles) {
                     if (obs.blocksMovement && !obs.isDestroyed) { 
-                        const obsShape = this._getObstacleCollisionShape(obs);
-                        if (!obsShape) continue;
+                        const obsShapeOrShapes = this._getObstacleCollisionShape(obs);
+                        if (!obsShapeOrShapes) continue;
+                        const shapesArray = Array.isArray(obsShapeOrShapes) ? obsShapeOrShapes : [obsShapeOrShapes];
 
-                        let inflatedObsShape = {...obsShape};
+                        let cellBlocked = false;
+                        for (const obsShape of shapesArray) {
+                            let inflatedObsShape = {...obsShape};
 
-                        if (inflatedObsShape.type === 'rectangle') {
-                            inflatedObsShape.x -= unitClearanceRadius;
-                            inflatedObsShape.y -= unitClearanceRadius;
-                            inflatedObsShape.width += 2 * unitClearanceRadius;
-                            inflatedObsShape.height += 2 * unitClearanceRadius;
-                        } else if (inflatedObsShape.type === 'circle') {
-                            inflatedObsShape.radius = (inflatedObsShape.radius || 0) + unitClearanceRadius;
-                        } else if (inflatedObsShape.type === 'ellipse') {
-                            inflatedObsShape.radiusX = (inflatedObsShape.radiusX || 0) + unitClearanceRadius;
-                            inflatedObsShape.radiusY = (inflatedObsShape.radiusY || 0) + unitClearanceRadius;
+                            if (inflatedObsShape.type === 'rectangle') {
+                                inflatedObsShape.x -= unitClearanceRadius;
+                                inflatedObsShape.y -= unitClearanceRadius;
+                                inflatedObsShape.width += 2 * unitClearanceRadius;
+                                inflatedObsShape.height += 2 * unitClearanceRadius;
+                            } else if (inflatedObsShape.type === 'circle') {
+                                inflatedObsShape.radius = (inflatedObsShape.radius || 0) + unitClearanceRadius;
+                            } else if (inflatedObsShape.type === 'ellipse') {
+                                inflatedObsShape.radiusX = (inflatedObsShape.radiusX || 0) + unitClearanceRadius;
+                                inflatedObsShape.radiusY = (inflatedObsShape.radiusY || 0) + unitClearanceRadius;
+                            }
+                            
+                            let collision = false;
+                            if (inflatedObsShape.type === 'rectangle') {
+                                collision = pointInRectangle(cellCenterX, cellCenterY, inflatedObsShape);
+                            } else if (inflatedObsShape.type === 'circle') {
+                                collision = pointInCircle(cellCenterX, cellCenterY, inflatedObsShape);
+                            } else if (inflatedObsShape.type === 'ellipse') {
+                                collision = pointInEllipse(cellCenterX, cellCenterY, inflatedObsShape);
+                            }
+                            
+                            if (collision) {
+                                cellBlocked = true;
+                                break;
+                            }
                         }
-                        
-                        let collision = false;
-                        if (inflatedObsShape.type === 'rectangle') {
-                            collision = pointInRectangle(cellCenterX, cellCenterY, inflatedObsShape);
-                        } else if (inflatedObsShape.type === 'circle') {
-                            collision = pointInCircle(cellCenterX, cellCenterY, inflatedObsShape);
-                        } else if (inflatedObsShape.type === 'ellipse') {
-                            collision = pointInEllipse(cellCenterX, cellCenterY, inflatedObsShape);
-                        }
-                        
-                        if (collision) {
+                        if (cellBlocked) {
                             this.navGrid[y][x] = 1;
                             break; 
                         }
@@ -333,24 +356,35 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         
         const unitClearanceRadius = (CONFIG.RACCOON_SIZE / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 12);
 
-        const obsShapeForBounds = this._getObstacleCollisionShape(obstacle);
+        const obsShapesForBounds = this._getObstacleCollisionShape(obstacle);
         let minObsX, maxObsX, minObsY, maxObsY;
 
-        if (!obsShapeForBounds) { 
+        if (!obsShapesForBounds || (Array.isArray(obsShapesForBounds) && obsShapesForBounds.length === 0)) { 
             minObsX = obstacle.x; maxObsX = obstacle.x + obstacle.width;
             minObsY = obstacle.y; maxObsY = obstacle.y + obstacle.height;
-        } else if (obsShapeForBounds.type === 'rectangle') {
-            minObsX = obsShapeForBounds.x; maxObsX = obsShapeForBounds.x + obsShapeForBounds.width;
-            minObsY = obsShapeForBounds.y; maxObsY = obsShapeForBounds.y + obsShapeForBounds.height;
-        } else if (obsShapeForBounds.type === 'circle') {
-            minObsX = obsShapeForBounds.x - obsShapeForBounds.radius; maxObsX = obsShapeForBounds.x + obsShapeForBounds.radius;
-            minObsY = obsShapeForBounds.y - obsShapeForBounds.radius; maxY = obsShapeForBounds.y + obsShapeForBounds.radius;
-        } else if (obsShapeForBounds.type === 'ellipse') {
-            minObsX = obsShapeForBounds.x - obsShapeForBounds.radiusX; maxObsX = obsShapeForBounds.x + obsShapeForBounds.radiusX;
-            minObsY = obsShapeForBounds.y - obsShapeForBounds.radiusY; maxObsY = obsShapeForBounds.y + obsShapeForBounds.radiusY;
-        } else { 
-            minObsX = obstacle.x; maxObsX = obstacle.x + obstacle.width;
-            minObsY = obstacle.y; maxObsY = obstacle.y + obstacle.height;
+        } else {
+            const shapesArray = Array.isArray(obsShapesForBounds) ? obsShapesForBounds : [obsShapesForBounds];
+            minObsX = Infinity; maxObsX = -Infinity; minObsY = Infinity; maxObsY = -Infinity;
+            for (const obsShapeForBounds of shapesArray) {
+                let sMinX, sMaxX, sMinY, sMaxY;
+                if (obsShapeForBounds.type === 'rectangle') {
+                    sMinX = obsShapeForBounds.x; sMaxX = obsShapeForBounds.x + obsShapeForBounds.width;
+                    sMinY = obsShapeForBounds.y; sMaxY = obsShapeForBounds.y + obsShapeForBounds.height;
+                } else if (obsShapeForBounds.type === 'circle') {
+                    sMinX = obsShapeForBounds.x - obsShapeForBounds.radius; sMaxX = obsShapeForBounds.x + obsShapeForBounds.radius;
+                    sMinY = obsShapeForBounds.y - obsShapeForBounds.radius; sMaxY = obsShapeForBounds.y + obsShapeForBounds.radius;
+                } else if (obsShapeForBounds.type === 'ellipse') {
+                    sMinX = obsShapeForBounds.x - obsShapeForBounds.radiusX; sMaxX = obsShapeForBounds.x + obsShapeForBounds.radiusX;
+                    sMinY = obsShapeForBounds.y - obsShapeForBounds.radiusY; sMaxY = obsShapeForBounds.y + obsShapeForBounds.radiusY;
+                } else {
+                    sMinX = obstacle.x; sMaxX = obstacle.x + obstacle.width;
+                    sMinY = obstacle.y; sMaxY = obstacle.y + obstacle.height;
+                }
+                if (sMinX < minObsX) minObsX = sMinX;
+                if (sMaxX > maxObsX) maxObsX = sMaxX;
+                if (sMinY < minObsY) minObsY = sMinY;
+                if (sMaxY > maxObsY) maxObsY = sMaxY;
+            }
         }
 
         const updateMargin = Math.ceil(unitClearanceRadius / this.gridCellSize) + 1;
@@ -374,28 +408,36 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                         : (otherObs.blocksMovement && !otherObs.isDestroyed);
 
                     if (currentObsBlocks) { 
-                        const otherObsShape = this._getObstacleCollisionShape(otherObs);
-                        if (!otherObsShape) continue;
+                        const otherObsShapeOrShapes = this._getObstacleCollisionShape(otherObs);
+                        if (!otherObsShapeOrShapes) continue;
+                        const otherShapesArray = Array.isArray(otherObsShapeOrShapes) ? otherObsShapeOrShapes : [otherObsShapeOrShapes];
 
-                        let inflatedOtherObsShape = {...otherObsShape};
-                        if (inflatedOtherObsShape.type === 'rectangle') {
-                            inflatedOtherObsShape.x -= unitClearanceRadius;
-                            inflatedOtherObsShape.y -= unitClearanceRadius;
-                            inflatedOtherObsShape.width += 2 * unitClearanceRadius;
-                            inflatedOtherObsShape.height += 2 * unitClearanceRadius;
-                        } else if (inflatedOtherObsShape.type === 'circle') {
-                            inflatedOtherObsShape.radius = (inflatedOtherObsShape.radius || 0) + unitClearanceRadius;
-                        } else if (inflatedOtherObsShape.type === 'ellipse') {
-                            inflatedOtherObsShape.radiusX = (inflatedOtherObsShape.radiusX || 0) + unitClearanceRadius;
-                            inflatedOtherObsShape.radiusY = (inflatedOtherObsShape.radiusY || 0) + unitClearanceRadius;
+                        let cellBlockedByOther = false;
+                        for (const otherObsShape of otherShapesArray) {
+                            let inflatedOtherObsShape = {...otherObsShape};
+                            if (inflatedOtherObsShape.type === 'rectangle') {
+                                inflatedOtherObsShape.x -= unitClearanceRadius;
+                                inflatedOtherObsShape.y -= unitClearanceRadius;
+                                inflatedOtherObsShape.width += 2 * unitClearanceRadius;
+                                inflatedOtherObsShape.height += 2 * unitClearanceRadius;
+                            } else if (inflatedOtherObsShape.type === 'circle') {
+                                inflatedOtherObsShape.radius = (inflatedOtherObsShape.radius || 0) + unitClearanceRadius;
+                            } else if (inflatedOtherObsShape.type === 'ellipse') {
+                                inflatedOtherObsShape.radiusX = (inflatedOtherObsShape.radiusX || 0) + unitClearanceRadius;
+                                inflatedOtherObsShape.radiusY = (inflatedOtherObsShape.radiusY || 0) + unitClearanceRadius;
+                            }
+                            
+                            let collisionWithOther = false;
+                            if (inflatedOtherObsShape.type === 'rectangle') collisionWithOther = pointInRectangle(cellCenterX, cellCenterY, inflatedOtherObsShape);
+                            else if (inflatedOtherObsShape.type === 'circle') collisionWithOther = pointInCircle(cellCenterX, cellCenterY, inflatedOtherObsShape);
+                            else if (inflatedOtherObsShape.type === 'ellipse') collisionWithOther = pointInEllipse(cellCenterX, cellCenterY, inflatedOtherObsShape);
+
+                            if (collisionWithOther) {
+                                cellBlockedByOther = true;
+                                break;
+                            }
                         }
-                        
-                        let collisionWithOther = false;
-                        if (inflatedOtherObsShape.type === 'rectangle') collisionWithOther = pointInRectangle(cellCenterX, cellCenterY, inflatedOtherObsShape);
-                        else if (inflatedOtherObsShape.type === 'circle') collisionWithOther = pointInCircle(cellCenterX, cellCenterY, inflatedOtherObsShape);
-                        else if (inflatedOtherObsShape.type === 'ellipse') collisionWithOther = pointInEllipse(cellCenterX, cellCenterY, inflatedOtherObsShape);
-
-                        if (collisionWithOther) {
+                        if (cellBlockedByOther) {
                             cellIsBlocked = true;
                             break; 
                         }

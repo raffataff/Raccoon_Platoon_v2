@@ -23,23 +23,26 @@ function hasLineOfSight(x1, y1, x2, y2, obstacles /* May become legacy */, gameL
 
         if (relevantObstacleProperty && !obs.isDestroyed) {
             let collisionDetected = false;
-            const obsShape = (gameLevelInstance && typeof gameLevelInstance._getObstacleCollisionShape === 'function')
+            const obsShapeOrShapes = (gameLevelInstance && typeof gameLevelInstance._getObstacleCollisionShape === 'function')
                            ? gameLevelInstance._getObstacleCollisionShape(obs)
-                           : {type:'rectangle', x:obs.x, y:obs.y, width:obs.width, height:obs.height}; 
+                           : {type:'rectangle', x:obs.x, y:obs.y, width:obs.width, height:obs.height};
 
-            if (!obsShape) continue; // Should not happen if _getObstacleCollisionShape is robust
+            if (!obsShapeOrShapes) continue;
 
-            if (obsShape.type === 'rectangle') {
-                if (lineIntersectsRect(x1, y1, x2, y2, obsShape)) {
-                    collisionDetected = true;
-                }
-            } else if (obsShape.type === 'circle') {
-                if (lineIntersectsCircle(x1, y1, x2, y2, obsShape)) {
-                    collisionDetected = true;
-                }
-            } else if (obsShape.type === 'ellipse') { 
-                if (lineIntersectsEllipse(x1, y1, x2, y2, obsShape)) {
-                    collisionDetected = true;
+            const shapesArray = Array.isArray(obsShapeOrShapes) ? obsShapeOrShapes : [obsShapeOrShapes];
+            for (const obsShape of shapesArray) {
+                if (obsShape.type === 'rectangle') {
+                    if (lineIntersectsRect(x1, y1, x2, y2, obsShape)) {
+                        collisionDetected = true; break;
+                    }
+                } else if (obsShape.type === 'circle') {
+                    if (lineIntersectsCircle(x1, y1, x2, y2, obsShape)) {
+                        collisionDetected = true; break;
+                    }
+                } else if (obsShape.type === 'ellipse') {
+                    if (lineIntersectsEllipse(x1, y1, x2, y2, obsShape)) {
+                        collisionDetected = true; break;
+                    }
                 }
             }
             if (collisionDetected) return false;

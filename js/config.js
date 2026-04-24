@@ -768,7 +768,7 @@ const CONFIG = {
     FENCE_BARBED_SHORT_SPRITE_FILES: [
         'fence_barbed_straight_short_1.png', 'fence_barbed_straight_short_2.png', 'fence_barbed_straight_short_3.png', 'fence_barbed_straight_short_4.png', 'fence_barbed_straight_short_5.png', 'fence_barbed_straight_short_6.png'
     ],
-    FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png'],
+    FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png', 'fence_barbed_straight_long_3.png', 'fence_barbed_straight_long_4.png', 'fence_barbed_straight_long_5.png', 'fence_barbed_straight_long_6.png'],
 
     WORLD_MUD_NOISE_SCALE_X: 0.015,
     WORLD_MUD_NOISE_SCALE_Y: 0.01,
@@ -1051,7 +1051,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
             spriteScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.065) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -1473,6 +1473,44 @@ const CONFIG = {
             isPickup: true,
             canBeFlipped: true,
         },
+        {
+            type: 'building_c_shape', name: 'C-Shaped Building', color: '#808080',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, isDecoration: false,
+            spriteScale: 1,
+            collisionShapes: [
+                { type: 'rectangle', offsetX: 0, offsetY: 0, width: (w => w * 0.2), height: (h => h) },
+                { type: 'rectangle', offsetX: (w => w * 0.8), offsetY: 0, width: (w => w * 0.2), height: (h => h) },
+                { type: 'rectangle', offsetX: 0, offsetY: 0, width: (w => w), height: (h => h * 0.2) },
+            ],
+            canBeFlipped: true,
+        },
+        {
+            type: 'building_u_shape', name: 'U-Shaped Building', color: '#707070',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, isDecoration: false,
+            spriteScale: 1,
+            collisionShapes: [
+                { type: 'rectangle', offsetX: 0, offsetY: 0, width: (w => w * 0.15), height: (h => h) },
+                { type: 'rectangle', offsetX: (w => w * 0.85), offsetY: 0, width: (w => w * 0.15), height: (h => h) },
+                { type: 'rectangle', offsetX: 0, offsetY: (h => h * 0.8), width: (w => w), height: (h => h * 0.2) },
+            ],
+            canBeFlipped: true,
+        },
+        {
+            type: 'building_l_shape', name: 'L-Shaped Building', color: '#787878',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, isDecoration: false,
+            spriteScale: 1,
+            collisionShapes: [
+                { type: 'rectangle', offsetX: 0, offsetY: 0, width: (w => w * 0.2), height: (h => h) },
+                { type: 'rectangle', offsetX: 0, offsetY: (h => h * 0.8), width: (w => w), height: (h => h * 0.2) },
+            ],
+            canBeFlipped: true,
+        },
     ],
 
     // =============================================================================
@@ -1700,7 +1738,7 @@ const CONFIG = {
                 FRAME_HEIGHT: 205,
                 NUM_FRAMES: 25,
                 ANIMATION_SPEED: 0.15,
-                SCALE: 0.6
+                SCALE: 0.8
             },
             BARREL: {
                 SPRITE_PATH: 'assets/images/effects/explosion_16.png',
@@ -1727,7 +1765,7 @@ const CONFIG = {
             LINE_WIDTH: 2
         },
         PICKUP: {
-            LIFETIME: 1.7,
+            LIFETIME: 2.7,
             TEXT: "+{QTY}",
             FONT: "bold 18px 'Consolas', 'Lucida Console', monospace",
             VELOCITY_Y: -25,
@@ -1751,8 +1789,8 @@ const CONFIG = {
             FLOCK_SIZE_MAX: 6,
             FLOCK_SPACING_X: 50,
             FLOCK_SPACING_Y: 20,
-            SPAWN_INTERVAL_MIN_SECONDS: 20,
-            SPAWN_INTERVAL_MAX_SECONDS: 60,
+            SPAWN_INTERVAL_MIN_SECONDS: 5,
+            SPAWN_INTERVAL_MAX_SECONDS: 30,
             SCALE: 0.45,
         },
         UFO: {
@@ -1910,6 +1948,7 @@ const CONFIG = {
         GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.ogg', defaultVolume: 0.3, pitchVariation: 0.4 },
         UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.ogg', defaultVolume: 0.1 },
         UI_BUTTON_HOVER: { path: 'assets/audio/sfx/ui_hover_gentle.mp3', defaultVolume: 0.3, pitchVariation: 0.1 },
+        TOAST_NOTIFICATION: { path: 'assets/audio/sfx/ui_sfx_1.mp3', defaultVolume: 0.2 },
 
         AMBIENT_FOREST_1: { path: 'assets/audio/ambience/tropical_forest_ambient_1.mp3', defaultVolume: 0.45 },
         AMBIENT_FOREST_2: { path: 'assets/audio/ambience/tropical_forest_ambient_2.mp3', defaultVolume: 0.45 },
