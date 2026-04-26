@@ -145,10 +145,7 @@ class UI {
                 const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
                 const currentCount = this.game.tempSelectedForDeployment ? this.game.tempSelectedForDeployment.length : 0;
                 if (currentCount > 0 && currentCount <= maxSquadSize) {
-                    // Auto-save before mission
-                    if (!this._autoSaveBeforeMission()) {
-                        return; // Auto-save failed (user needs to pick a slot), abort start
-                    }
+                    
                     this.game.confirmSquadAndStartMission(this.game.tempSelectedForDeployment);
                 } else if (currentCount > maxSquadSize) {
                     alert((this.uiText.START_MISSION_BUTTON_ALERT_MAX_SIZE || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()));
@@ -167,6 +164,12 @@ class UI {
                             this.game.currentMissionParams,
                             this.game.getAvailableRecruits()
                         );
+                        // Autosave after retry so player can leave and resume
+                        if (this.game.currentSaveSlot !== -1) {
+                            if (SaveManager.autoSave(this.game)) {
+                                this.showToast(`Auto-saved to Slot ${this.game.currentSaveSlot + 1}`, 'success');
+                            }
+                        }
                     } else {
 //                        console.error("UI: Failed to get phase data or mission params for retry pre-mission screen.");
                         this.game.quitToMainMenu();
@@ -186,8 +189,12 @@ class UI {
                 } else {
                     // Proceed to next mission first (which updates indices and shows pre-mission screen)
                     this.game.proceedToNextLogicalStep();
-                    // THEN auto-save after the transition is complete (with correct updated indices)
-                    if (!this._autoSaveBeforeMission()) return;
+                    // Autosave AFTER mission index advances so reload picks up the new mission
+                    if (this.game && this.game.currentSaveSlot !== -1) {
+                        if (SaveManager.autoSave(this.game)) {
+                            this.showToast(`Auto-saved to Slot ${this.game.currentSaveSlot + 1}`, 'success');
+                        }
+                    }
                 }
             }
         });
@@ -2126,11 +2133,6 @@ class UI {
 
         this.postMissionScreen.style.display = 'flex';
         this.setCursor('default');
-        if (this.game && this.game.currentSaveSlot !== -1) {
-            if (SaveManager.saveToSlot(this.game, this.game.currentSaveSlot)) {
-                this.showToast(`Auto-saved to Slot ${this.game.currentSaveSlot + 1}`, 'success');
-            }
-        }
     }
 
     showGameOverScreen(message, isCampaignVictory = false) {

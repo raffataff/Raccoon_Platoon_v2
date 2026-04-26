@@ -2920,7 +2920,7 @@ input[type="range"]::-moz-range-thumb {
 .toast-container {
     position: fixed;
     bottom: 20px;
-    left: 50%;
+    right: 20px;
     transform: translateX(-50%);
     z-index: 300;
     display: flex;
@@ -3255,7 +3255,7 @@ input[type="range"]::-moz-range-thumb {
     background: radial-gradient(circle at center, rgba(10, 15, 10, 0.7) 0%, rgba(5, 5, 5, 0.95) 100%);
     pointer-events: auto;
     overflow: hidden;
-    padding: 2vw 4vw;
+    padding: 1vw 2vw;
 }
 
 #shootoutPreGameScreen.visible {
@@ -3562,9 +3562,6 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #shootoutPreGameScreen .hud-bottom-bar {
-    position: absolute;
-    bottom: 2vw;
-    left: 50%;
     transform: translateX(-50%);
     width: 85%;
     max-width: 800px;

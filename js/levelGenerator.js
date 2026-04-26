@@ -122,6 +122,35 @@ class LevelGenerator {
         return false;
     }
 
+    _isClearOfMovementBlockingDecorations(x, y, radius, existingObstacles, extraBuffer = 0) {
+        const movementBlockingDecorations = existingObstacles.filter(obs => 
+            obs.isDecoration && obs.blocksMovement && !obs.isDestroyed
+        );
+        
+        for (const decoration of movementBlockingDecorations) {
+            const shapesToCheck = this.level._getObstacleCollisionShape(decoration);
+            if (!shapesToCheck) continue;
+            
+            const decorationShapes = Array.isArray(shapesToCheck) ? shapesToCheck : [shapesToCheck];
+            const spawnCircle = { type: 'circle', x: x, y: y, radius: radius + extraBuffer };
+            
+            for (const decoShape of decorationShapes) {
+                let collision = false;
+                if (decoShape.type === 'rectangle') {
+                    const hasRotation = decoShape.rotation !== undefined && decoShape.rotation !== 0;
+                    collision = hasRotation ? obbCircleOverlap(decoShape, spawnCircle) : rectCircleOverlap(decoShape, spawnCircle);
+                } else if (decoShape.type === 'circle') {
+                    collision = circleOverlap(decoShape, spawnCircle);
+                } else if (decoShape.type === 'ellipse') {
+                    collision = circleEllipseOverlap(spawnCircle, decoShape);
+                }
+                
+                if (collision) return false;
+            }
+        }
+        return true;
+    }
+
     _getRandomObstacleTemplate() {
         const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
@@ -1013,15 +1042,27 @@ class LevelGenerator {
 
                     let actualSpritePath = null;
                     let actualDestroyedSpritePath = null;
-                    if (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round' || targetTemplateOriginal.type === 'possum_barracks') {
-                        const hutSpritePairs = targetTemplateOriginal.type === 'possum_hut' 
-                            ? (CONFIG.POSSUM_HUT_SPRITE_FILES || [])
-                            : (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || []);
-                        const pathBase = targetTemplateOriginal.type === 'possum_hut'
-                            ? (CONFIG.POSSUM_HUT_SPRITE_PATH || '')
-                            : (CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '');
+                    if (targetTemplateOriginal.type === 'possum_hut') {
+                        const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
+                        const pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
                         if (hutSpritePairs.length > 0) {
                             const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                            actualSpritePath = pathBase + selectedPair.normal;
+                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                        }
+                    } else if (targetTemplateOriginal.type === 'possum_hut_round') {
+                        const hutSpritePairs = CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || [];
+                        const pathBase = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '';
+                        if (hutSpritePairs.length > 0) {
+                            const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                            actualSpritePath = pathBase + selectedPair.normal;
+                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                        }
+                    } else if (targetTemplateOriginal.type === 'possum_barracks_1') {
+                        const barracksSpritePairs = CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || [];
+                        const pathBase = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH || '';
+                        if (barracksSpritePairs.length > 0) {
+                            const selectedPair = this.rng.pickFrom(barracksSpritePairs);
                             actualSpritePath = pathBase + selectedPair.normal;
                             actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                         }
@@ -1068,7 +1109,7 @@ class LevelGenerator {
                                 spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
                                 collisionShape: targetTemplateOriginal.collisionShape,
                                 isMissionTarget: true, objectiveId: objective.id,
-                                isSpawner: (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round' || targetTemplateOriginal.type === 'possum_barracks') && !targetTemplateOriginal.isDecoration,
+                                isSpawner: (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round' || targetTemplateOriginal.type === 'possum_barracks_1') && !targetTemplateOriginal.isDecoration,
                                 spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                                 delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
                             };
@@ -1173,6 +1214,7 @@ class LevelGenerator {
                             intelConsoleInstance.height = consoleHeight;
                             intelConsoleInstance.isHacked = false;
                             intelConsoleInstance.isBeingHacked = false;
+                            intelConsoleInstance.objectiveId = objective.id;
                             this.game.intelConsoles.push(intelConsoleInstance);
 
                             placedConsole = true;
@@ -1193,15 +1235,16 @@ class LevelGenerator {
 
         const spawnedMissionTargets = this.level.missionTargetObstacles || [];
         const hutsSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_hut')).length;
+        const barracksSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_barracks')).length;
         const towersSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_relay_tower')).length;
-        if (hutsSpawned === 0 && towersSpawned === 0) {
+        if (hutsSpawned === 0 && barracksSpawned === 0 && towersSpawned === 0) {
 //            console.error(`[Level Gen] CRITICAL: No mission targets (huts/towers) were spawned! This will lock the mission!`);
         }
 
         const obsGenCfg = genConfig.OBSTACLES || {};
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
         const phaseObstacleIncrement = baseParams.obstacleCountPhaseIncrement || 0;
-        const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0)) + phaseObstacleIncrement + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
+        const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0) * (1 + phaseObstacleIncrement)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
         const placementMaxAttempts = obsGenCfg.PLACEMENT_MAX_ATTEMPTS || 5;
         const turretPlacementMaxAttempts = 1;
 
@@ -1250,6 +1293,17 @@ class LevelGenerator {
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
+            
+            else if (template.type === 'general_possum_building_large') {
+                const hutSpritePairs = CONFIG.POSSUM_BUILDING_LARGE_SPRITE_FILES || [];
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = CONFIG.POSSUM_BUILDING_LARGE_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            
             else if (template.type === 'possum_barracks_1') {
                 const hutSpritePairs = CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || [];
                 if (hutSpritePairs.length > 0) {
@@ -1259,7 +1313,7 @@ class LevelGenerator {
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
-
+            
             else if (template.type === 'possum_relay_tower') {
                 const towerSpritePairs = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
                 if (towerSpritePairs.length > 0) {
@@ -1269,11 +1323,39 @@ class LevelGenerator {
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
+            else if (template.type === 'explosive_barrel') {
+                const barrelSpritePairs = CONFIG.SINGLE_EXPLOSIVE_BARREL_SPRITE_FILES || [];
+                if (barrelSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(barrelSpritePairs);
+                    pathBase = CONFIG.SINGLE_EXPLOSIVE_BARREL_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'explosive_barrel_double') {
+                const barrelSpritePairs = CONFIG.DOUBLE_EXPLOSIVE_BARREL_SPRITE_FILES || [];
+                if (barrelSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(barrelSpritePairs);
+                    pathBase = CONFIG.DOUBLE_EXPLOSIVE_BARREL_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'explosive_barrel_cluster') {
+                const barrelSpritePairs = CONFIG.TRIPLE_EXPLOSIVE_BARREL_SPRITE_FILES || [];
+                if (barrelSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(barrelSpritePairs);
+                    pathBase = CONFIG.TRIPLE_EXPLOSIVE_BARREL_SPRITE_PATH || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
             else if (template.type === 'possum_turret') {
                 actualSpritePath = 'assets/images/objects/possums/turrets/possum_turret_1_s.png';
             }
             
             else if (template.type === 'bush_large') { filesArray = CONFIG.TROPICAL_BUSH_LARGE_FILES || []; pathBase = CONFIG.TROPICAL_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
+            else if (template.type === 'tropical_wall_angled_long') { filesArray = CONFIG.TROPICAL_WALL_ANGLED_LONG_FILES || []; pathBase = CONFIG.TROPICAL_WALL_ANGLED_LONG_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'fence_barbed_straight_short') { filesArray = CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'fence_barbed_straight_long') { filesArray = CONFIG.FENCE_BARBED_LONG_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
             else if (template.type === 'rock_medium') { filesArray = CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_FILES || []; pathBase = CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_PATH || ''; useRandomSpriteFromList = true; }
@@ -1336,12 +1418,7 @@ class LevelGenerator {
             actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
             if (actualDestroyedSpritePath) actualDestroyedImageObject = preloadedAssetImages[actualDestroyedSpritePath] || null;
 
-            if (template.isDecoration && template.type === 'decoration_grass') {
-                const grassConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.GRASS_CLUTTER) || {};
-                normalSpriteScale = this.rng.nextFloat(grassConfig.MIN_SCALE || 0.8, grassConfig.MAX_SCALE || 1.2);
-                obsRenderWidth = actualImageObject ? actualImageObject.naturalWidth * normalSpriteScale : (template.width || 16) * normalSpriteScale;
-                obsRenderHeight = actualImageObject ? actualImageObject.naturalHeight * normalSpriteScale : (template.height || 16) * normalSpriteScale;
-            } else if (template.type.startsWith('tree_')) {
+            if (template.type.startsWith('tree_')) {
                 const treeConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.TREES) || {};
                 const baseScale = template.spriteScale || 1.0;
                 const variation = this.rng.nextFloat(treeConfig.MIN_SCALE || 0.8, treeConfig.MAX_SCALE || 1.2);
@@ -1435,7 +1512,7 @@ class LevelGenerator {
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false,
-                        collisionShape: template.collisionShape || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round' || template.type === 'possum_barracks') && !template.isDecoration,
+                        collisionShape: template.collisionShape || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round' || template.type === 'possum_barracks_1') && !template.isDecoration,
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
                         willSpawnLog: willSpawnLog,
@@ -1809,7 +1886,9 @@ class LevelGenerator {
                         const buffer = hostageConf.HOSTAGE_SPAWN_BUFFER || 20;
                         hostageX = Math.max(playableMinX + buffer + hostageSize / 2, Math.min(hostageX, playableMaxX - buffer - hostageSize / 2));
                         hostageY = Math.max(playableMinY + buffer + hostageSize / 2, Math.min(hostageY, playableMaxY - buffer - hostageSize / 2));
-                        if (this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
+                        const decorationBuffer = hostageConf.HOSTAGE_DECORATION_SPAWN_BUFFER || 15;
+                        if (this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || [])) &&
+                            this._isClearOfMovementBlockingDecorations(hostageX, hostageY, hostageSize / 2, this.level.obstacles, decorationBuffer)) {
                             const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
                             hutHostageCounts.set(hut.name || hut.type + hut.x + hut.y, (currentHutHostageCount + 1));
@@ -1855,8 +1934,10 @@ class LevelGenerator {
                             hostageX = groupLeader.x + Math.cos(angle) * radius; hostageY = groupLeader.y + Math.sin(angle) * radius;
                             const buffer = hostageConf.HOSTAGE_SPAWN_BUFFER || 20;
                             hostageX = Math.max(playableMinX + buffer + hostageSize / 2, Math.min(hostageX, playableMaxX - buffer - hostageSize / 2)); hostageY = Math.max(playableMinY + buffer + hostageSize / 2, Math.min(hostageY, playableMaxY - buffer - hostageSize / 2));
+                            const decorationBuffer = hostageConf.HOSTAGE_DECORATION_SPAWN_BUFFER || 15;
                             if (!this._isPlacementInvalid({ x: hostageX - hostageSize / 2, y: hostageY - hostageSize / 2, width: hostageSize, height: hostageSize }, { isDecoration: false }, [], extraKeepOutZones) &&
-                                this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
+                                this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || [])) &&
+                                this._isClearOfMovementBlockingDecorations(hostageX, hostageY, hostageSize / 2, this.level.obstacles, decorationBuffer)) {
                                 const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
                                 this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++; break;
                             }
@@ -1872,9 +1953,11 @@ class LevelGenerator {
                         hostageX = this.rng.nextFloat(playableMinX + buffer, playableMaxX - buffer - hostageSize);
                         hostageY = this.rng.nextFloat(playableMinY + buffer, playableMinY + (playableHeight * 0.6 - buffer - hostageSize));
                         const tempHostageShapeForPlayerZone = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
+                        const decorationBuffer = hostageConf.HOSTAGE_DECORATION_SPAWN_BUFFER || 15;
                         if (!this._isPlacementInvalid(tempHostageShapeForPlayerZone, { isDecoration: false }, [], extraKeepOutZones) &&
                             distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2) > 150 &&
-                            this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
+                            this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || [])) &&
+                            this._isClearOfMovementBlockingDecorations(hostageX, hostageY, hostageSize / 2, this.level.obstacles, decorationBuffer)) {
                             const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${i}`);
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
                         } attempts++;

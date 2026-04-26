@@ -18,6 +18,9 @@ class Level {
         this.hutSpawnConfig = (CONFIG.ENEMY_SPAWNING && CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING)
                             ? CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING
                             : {};
+        this.barracksSpawnConfig = (CONFIG.ENEMY_SPAWNING && CONFIG.ENEMY_SPAWNING.POSSUM_BARRACKS_SPAWNING)
+                            ? CONFIG.ENEMY_SPAWNING.POSSUM_BARRACKS_SPAWNING
+                            : {};
         this.timeSinceLastHutActivationCheck = 0;
         this.HUT_ACTIVATION_CHECK_INTERVAL = 1.0;
         this.initialHostageCount = 0; 
@@ -46,7 +49,10 @@ class Level {
             if (obstacle.isFlippedHorizontally) {
                 offsetX = obsCurrentWidth - offsetX - (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
             }
-            const rotation = shapeDef.rotation !== undefined ? shapeDef.rotation : 0;
+            let rotation = shapeDef.rotation !== undefined ? shapeDef.rotation : 0;
+            if (obstacle.isFlippedHorizontally) {
+                rotation = -rotation;
+            }
             const width = (typeof shapeDef.width === 'function' ? shapeDef.width(obsCurrentWidth, obsCurrentHeight) : (shapeDef.width || obsCurrentWidth));
             const height = (typeof shapeDef.height === 'function' ? shapeDef.height(obsCurrentWidth, obsCurrentHeight) : (shapeDef.height || obsCurrentHeight));
             return {
@@ -113,7 +119,8 @@ class Level {
     
     isSpawnPointClear(x, y, unitSize, existingObstacles, existingUnits = []) {
         const unitShape = { type: 'circle', x: x, y: y, radius: unitSize / 2 };
-        if (this.levelGenerator._isPlacementInvalid(unitShape, false, existingObstacles)) {
+        const movementBlockingObstacles = existingObstacles.filter(obs => obs.blocksMovement && !obs.isDestroyed);
+        if (this.levelGenerator._isPlacementInvalid(unitShape, { isDecoration: false }, movementBlockingObstacles)) {
             return false;
         }
 
@@ -143,18 +150,21 @@ class Level {
 
         obstacle.hp -= amount;
 
-        if (wasAlive && (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round') && obstacle.hp > 0 && !obstacle.isDestroyed) {
+        if (wasAlive && (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round' || obstacle.type === 'possum_barracks_1') && obstacle.hp > 0 && !obstacle.isDestroyed) {
             const isSpawner = this.potentialSpawnerHuts.includes(obstacle) || this.activeSpawningHuts.includes(obstacle);
             if (obstacle.isMissionTarget || isSpawner) {
                 if (!obstacle.damageSpawnCooldown || obstacle.damageSpawnCooldown <= 0) {
-                    obstacle.delayedDamageSpawnTimer = (this.hutSpawnConfig.INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE || 0.5) + (Math.random() * 0.3 - 0.15);
-                    obstacle.damageSpawnCooldown = (this.hutSpawnConfig.MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS || 5.0);
+                    const spawnerConfig = this.getSpawnerConfig(obstacle);
+                    obstacle.delayedDamageSpawnTimer = (spawnerConfig.INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE || 0.5) + (Math.random() * 0.3 - 0.15);
+                    obstacle.damageSpawnCooldown = (spawnerConfig.MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS || 5.0);
                     
-                    if(CONFIG.DEBUG_LOGGING) console.log(`[Level] Hut ${obstacle.name || obstacle.id} shot! Scheduling damage spawn in ${obstacle.delayedDamageSpawnTimer.toFixed(1)}s.`);
+                    if(CONFIG.DEBUG_LOGGING) console.log(`[Level] ${obstacle.type} ${obstacle.name || obstacle.id} shot! Scheduling damage spawn in ${obstacle.delayedDamageSpawnTimer.toFixed(1)}s.`);
 
                     if (!this.activeSpawningHuts.includes(obstacle) && this.potentialSpawnerHuts.includes(obstacle)) {
-                        const maxAllowedActive = Math.floor(this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_BASE +
-                            (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
+                        const isBarracks = obstacle.type === 'possum_barracks_1';
+                        const maxAllowedActive = isBarracks
+                            ? Math.floor((spawnerConfig.MAX_ACTIVE_SPAWNING_BARRACKS_BASE || 0) + (this.game.currentPhaseIndex * (spawnerConfig.MAX_ACTIVE_SPAWNING_BARRACKS_INCREMENT_PER_PHASE || 0)))
+                            : Math.floor(this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_BASE + (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
                         if (this.activeSpawningHuts.length < maxAllowedActive) {
                             obstacle.isActivelySpawning = true;
                             this.activeSpawningHuts.push(obstacle);
@@ -179,11 +189,11 @@ class Level {
             if (obstacleDef && obstacleDef.sfxOnDestroy && this.game && this.game.audioManager) {
                 this.game.audioManager.play(obstacleDef.sfxOnDestroy);
             } 
-            else if ((obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round') && this.game && this.game.audioManager && !obstacleDef?.sfxOnDestroy) {
+            else if ((obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'possum_barracks_1') && this.game && this.game.audioManager && !obstacleDef?.sfxOnDestroy) {
                 this.game.audioManager.play('POSSUM_HUT_DESTROYED');
             }
             
-if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round') { 
+if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round' || obstacle.type === 'possum_barracks_1') { 
                 this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== obstacle);
                 const potIndex = this.potentialSpawnerHuts.indexOf(obstacle);
                 if (potIndex > -1) this.potentialSpawnerHuts.splice(potIndex, 1);
@@ -482,6 +492,13 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         };
     }
 
+    getSpawnerConfig(spawner) {
+        if (spawner.type === 'possum_barracks_1') {
+            return this.barracksSpawnConfig;
+        }
+        return this.hutSpawnConfig;
+    }
+
     updateHutSpawning(deltaTime) {
         if (!this.game || !this.game.deployedSquadRoster || this.game.deployedSquadRoster.length === 0 || !this.rng) {
             return;
@@ -492,31 +509,42 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
         if (this.timeSinceLastHutActivationCheck >= this.HUT_ACTIVATION_CHECK_INTERVAL) {
             this.timeSinceLastHutActivationCheck = 0;
-            const maxAllowedActive = Math.floor(this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_BASE +
-                                   (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
+
+            const hutMaxActive = Math.floor(this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_BASE +
+                (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE || 0)));
+            const barracksMaxActive = Math.floor((this.barracksSpawnConfig.MAX_ACTIVE_SPAWNING_BARRACKS_BASE || 0) +
+                (this.game.currentPhaseIndex * (this.barracksSpawnConfig.MAX_ACTIVE_SPAWNING_BARRACKS_INCREMENT_PER_PHASE || 0)));
+
+            const activeHuts = this.activeSpawningHuts.filter(h => h.type !== 'possum_barracks_1');
+            const activeBarracks = this.activeSpawningHuts.filter(h => h.type === 'possum_barracks_1');
 
             for (const hut of this.potentialSpawnerHuts) {
                 if (hut.isDestroyed || hut.isActivelySpawning || hut.isMissionTarget) continue;
 
-                if (this.activeSpawningHuts.length < maxAllowedActive) {
+                const isBarracks = hut.type === 'possum_barracks_1';
+                const spawnerConfig = this.getSpawnerConfig(hut);
+                const currentActiveCount = isBarracks ? activeBarracks.length : activeHuts.length;
+                const maxAllowedActive = isBarracks ? barracksMaxActive : hutMaxActive;
+
+                if (currentActiveCount < maxAllowedActive) {
                     let playerNearby = false;
                     for (const playerUnit of this.game.deployedSquadRoster) {
-                        if (playerUnit.isAlive() && distance(playerUnit.x, playerUnit.y, hut.x + hut.width / 2, hut.y + hut.height / 2) < (this.hutSpawnConfig.PLAYER_PROXIMITY_TRIGGER_RADIUS || 300)) {
+                        if (playerUnit.isAlive() && distance(playerUnit.x, playerUnit.y, hut.x + hut.width / 2, hut.y + hut.height / 2) < (spawnerConfig.PLAYER_PROXIMITY_TRIGGER_RADIUS || 300)) {
                             playerNearby = true;
                             break;
                         }
                     }
                     if (playerNearby) {
                         hut.isActivelySpawning = true;
-                        const numToSpawnBaseMin = this.hutSpawnConfig.UNITS_PER_SPAWN_MIN || 1;
-                        const numToSpawnBaseMax = this.hutSpawnConfig.UNITS_PER_SPAWN_MAX || 2;
-                        const phaseIncrement = this.hutSpawnConfig.UNITS_PER_SPAWN_PHASE_INCREMENT || 0;
-                        let currentMinUnits = Math.max(1, Math.floor(numToSpawnBaseMin + (this.game.currentPhaseIndex * phaseIncrement)));
-                        let currentMaxUnits = Math.max(currentMinUnits, Math.floor(numToSpawnBaseMax + (this.game.currentPhaseIndex * phaseIncrement)));
+                        const numToSpawnBaseMin = spawnerConfig.UNITS_PER_SPAWN_MIN || 1;
+                        const numToSpawnBaseMax = spawnerConfig.UNITS_PER_SPAWN_MAX || 2;
+                        const phaseIncrement = spawnerConfig.UNITS_PER_SPAWN_PHASE_INCREMENT || 0;
+                        let currentMinUnits = Math.max(1, Math.floor(numToSpawnBaseMin * (1 + this.game.currentPhaseIndex * phaseIncrement)));
+                        let currentMaxUnits = Math.max(currentMinUnits, Math.floor(numToSpawnBaseMax * (1 + this.game.currentPhaseIndex * phaseIncrement)));
                         hut.unitsToSpawnThisBurst = this.rng.nextInt(currentMinUnits, currentMaxUnits);
                         hut.timeUntilNextUnitInBurst = this.rng.nextFloat(
-                            (this.hutSpawnConfig.INITIAL_SPAWN_DELAY_SECONDS_MIN || 5),
-                            (this.hutSpawnConfig.INITIAL_SPAWN_DELAY_SECONDS_MAX || 10)
+                            (spawnerConfig.INITIAL_SPAWN_DELAY_SECONDS_MIN || 5),
+                            (spawnerConfig.INITIAL_SPAWN_DELAY_SECONDS_MAX || 10)
                         );
                         hut.spawnCooldownTimer = hut.timeUntilNextUnitInBurst; 
                         this.activeSpawningHuts.push(hut);
@@ -532,18 +560,20 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                 continue;
             }
 
+            const spawnerConfig = this.getSpawnerConfig(hut);
+
             if (hut.delayedDamageSpawnTimer && hut.delayedDamageSpawnTimer > 0) {
                 hut.delayedDamageSpawnTimer -= deltaTime;
                 if (hut.delayedDamageSpawnTimer <= 0) {
                     hut.delayedDamageSpawnTimer = 0;
-                    const damageSpawnCount = this.hutSpawnConfig.UNITS_TO_SPAWN_ON_DAMAGE || this.rng.nextInt(1,2);
-                    if(CONFIG.DEBUG_LOGGING) console.log(`[Level] Hut ${hut.name || hut.id} damage spawn: ${damageSpawnCount} units.`);
+                    const damageSpawnCount = spawnerConfig.UNITS_TO_SPAWN_ON_DAMAGE || this.rng.nextInt(1,2);
+                    if(CONFIG.DEBUG_LOGGING) console.log(`[Level] ${hut.type} ${hut.name || hut.id} damage spawn: ${damageSpawnCount} units.`);
                     for (let k = 0; k < damageSpawnCount; k++) {
                         this.attemptSingleSpawnFromHut(hut);
                     }
                      hut.spawnCooldownTimer = this.rng.nextFloat(
-                            (this.hutSpawnConfig.SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE || 10),
-                            (this.hutSpawnConfig.SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE || 20)
+                            (spawnerConfig.SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE || 10),
+                            (spawnerConfig.SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE || 20)
                         );
                     hut.unitsToSpawnThisBurst = 0;
                 }
@@ -563,28 +593,28 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                     }
                     if (hut.unitsToSpawnThisBurst > 0) {
                         hut.timeUntilNextUnitInBurst = this.rng.nextFloat(
-                            (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MIN || 0.2),
-                            (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MAX || 0.5)
+                            (spawnerConfig.TIME_BETWEEN_UNITS_IN_BURST_MIN || 0.2),
+                            (spawnerConfig.TIME_BETWEEN_UNITS_IN_BURST_MAX || 0.5)
                         );
                     } else {
                         hut.spawnCooldownTimer = this.rng.nextFloat(
-                            (this.hutSpawnConfig.SPAWN_COOLDOWN_MIN_SECONDS || 15),
-                            (this.hutSpawnConfig.SPAWN_COOLDOWN_MAX_SECONDS || 30)
+                            (spawnerConfig.SPAWN_COOLDOWN_MIN_SECONDS || 15),
+                            (spawnerConfig.SPAWN_COOLDOWN_MAX_SECONDS || 30)
                         );
                     }
                 }
             } else if (hut.delayedDamageSpawnTimer <= 0) {
                 hut.spawnCooldownTimer -= deltaTime;
                 if (hut.spawnCooldownTimer <= 0) {
-                    const numToSpawnBaseMin = this.hutSpawnConfig.UNITS_PER_SPAWN_MIN || 1;
-                    const numToSpawnBaseMax = this.hutSpawnConfig.UNITS_PER_SPAWN_MAX || 2;
-                    const phaseIncrement = this.hutSpawnConfig.UNITS_PER_SPAWN_PHASE_INCREMENT || 0;
-                    let currentMinUnits = Math.max(1, Math.floor(numToSpawnBaseMin + (this.game.currentPhaseIndex * phaseIncrement)));
-                    let currentMaxUnits = Math.max(currentMinUnits, Math.floor(numToSpawnBaseMax + (this.game.currentPhaseIndex * phaseIncrement)));
+                    const numToSpawnBaseMin = spawnerConfig.UNITS_PER_SPAWN_MIN || 1;
+                    const numToSpawnBaseMax = spawnerConfig.UNITS_PER_SPAWN_MAX || 2;
+                    const phaseIncrement = spawnerConfig.UNITS_PER_SPAWN_PHASE_INCREMENT || 0;
+                    let currentMinUnits = Math.max(1, Math.floor(numToSpawnBaseMin * (1 + this.game.currentPhaseIndex * phaseIncrement)));
+                    let currentMaxUnits = Math.max(currentMinUnits, Math.floor(numToSpawnBaseMax * (1 + this.game.currentPhaseIndex * phaseIncrement)));
                     hut.unitsToSpawnThisBurst = this.rng.nextInt(currentMinUnits, currentMaxUnits);
                     hut.timeUntilNextUnitInBurst = this.rng.nextFloat(
-                        (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MIN || 0.2),
-                        (this.hutSpawnConfig.TIME_BETWEEN_UNITS_IN_BURST_MAX || 0.2) 
+                        (spawnerConfig.TIME_BETWEEN_UNITS_IN_BURST_MIN || 0.2),
+                        (spawnerConfig.TIME_BETWEEN_UNITS_IN_BURST_MAX || 0.2) 
                     ); 
                 }
             }
@@ -594,9 +624,13 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
     attemptSingleSpawnFromHut(hut) {
         if (hut.isDestroyed || !this.rng) return false;
 
-        const maxUnitsPerHut = Math.floor((this.hutSpawnConfig.MAX_UNITS_PER_HUT_BASE || 10) + (this.game.currentPhaseIndex * (this.hutSpawnConfig.MAX_UNITS_PER_HUT_PHASE_INCREMENT || 2)));
-        if (hut.unitsSpawnedFromHut >= maxUnitsPerHut) {
-            if (CONFIG.DEBUG_LOGGING) console.log(`[Level] Hut ${hut.name || hut.id} has reached max units spawned (${hut.unitsSpawnedFromHut}/${maxUnitsPerHut}).`);
+        const spawnerConfig = this.getSpawnerConfig(hut);
+        const isBarracks = hut.type === 'possum_barracks_1';
+        const maxUnitsKey = isBarracks ? 'MAX_UNITS_PER_BARRACKS_BASE' : 'MAX_UNITS_PER_HUT_BASE';
+        const phaseIncKey = isBarracks ? 'MAX_UNITS_PER_BARRACKS_PHASE_INCREMENT' : 'MAX_UNITS_PER_HUT_PHASE_INCREMENT';
+        const maxUnitsPerSpawner = Math.floor((spawnerConfig[maxUnitsKey] || 10) + (this.game.currentPhaseIndex * (spawnerConfig[phaseIncKey] || 2)));
+        if (hut.unitsSpawnedFromHut >= maxUnitsPerSpawner) {
+            if (CONFIG.DEBUG_LOGGING) console.log(`[Level] ${hut.type} ${hut.name || hut.id} has reached max units spawned (${hut.unitsSpawnedFromHut}/${maxUnitsPerSpawner}).`);
             hut.isActivelySpawning = false;
             this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== hut);
             return false;
@@ -604,14 +638,14 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
         const hutCenterX = hut.x + hut.width / 2;
         const hutBottomEdgeY = hut.y + hut.height;
-        const spawnOffsetX = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
-        const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
-        const spawnAreaWidth = this.hutSpawnConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
+        const spawnOffsetX = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
+        const spawnOffsetY = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
+        const spawnAreaWidth = spawnerConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
         const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
         const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
         const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
         const gruntSize = CONFIG.POSSUM_GRUNT_SIZE || 14;
-        const maxPlacementAttempts = this.hutSpawnConfig.MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT || 3;
+        const maxPlacementAttempts = spawnerConfig.MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT || 3;
 
         let spawnX, spawnClear = false;
         for (let attempt = 0; attempt < maxPlacementAttempts; attempt++) {
@@ -629,8 +663,8 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         if (spawnClear) {
             const newGrunt = new PossumGrunt(spawnX, spawnCenterY, this.game, `PSM-HUT-${this.game.enemyUnits.length + 1}`);
             newGrunt.isPhasing = true;
-            newGrunt.phasingTimer = this.hutSpawnConfig.SPAWN_PHASING_DURATION || 1.0;
-            const moveOutDist = this.hutSpawnConfig.INITIAL_MOVE_OUT_DISTANCE || 50;
+            newGrunt.phasingTimer = spawnerConfig.SPAWN_PHASING_DURATION || 1.0;
+            const moveOutDist = spawnerConfig.INITIAL_MOVE_OUT_DISTANCE || 50;
             let angleFromSpawn = Math.PI / 2; 
             if (distance(spawnX, spawnCenterY, hutCenterX, hut.y + hut.height / 2) > 10) {
                 angleFromSpawn = Math.atan2(spawnCenterY - (hut.y + hut.height / 2), spawnX - hutCenterX);
@@ -664,11 +698,12 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         ctx.fillStyle = 'rgba(255, 0, 255, 0.8)';
         for (const hut of this.potentialSpawnerHuts) {
             if (hut.isDestroyed) continue;
+            const spawnerConfig = this.getSpawnerConfig(hut);
             const hutCenterX = hut.x + hut.width / 2;
             const hutBottomEdgeY = hut.y + hut.height;
-            const spawnOffsetX = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
-            const spawnOffsetY = this.hutSpawnConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
-            const spawnAreaWidth = this.hutSpawnConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
+            const spawnOffsetX = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
+            const spawnOffsetY = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
+            const spawnAreaWidth = spawnerConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
             const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
 const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
             const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;

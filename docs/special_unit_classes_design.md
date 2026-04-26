@@ -370,6 +370,9 @@ CLASS_DEFINITIONS: {
         
         canUseGrenades: true,
         promotionTree: 'REDBERET_STANDARD'
+    },
+    MARINE: {
+        
     }
 }
 ```

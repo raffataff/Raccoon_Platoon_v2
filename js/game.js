@@ -322,15 +322,16 @@ class Game {
 
     async preloadMiscAssets() {
         const imagePromises = [];
-        if (this.birdSpawnConfig && this.birdSpawnConfig.TILE_SHEET_PATH) {
-            const path = this.birdSpawnConfig.TILE_SHEET_PATH;
-            if (!this.preloadedImages[path]) {
-                imagePromises.push(new Promise((resolve) => {
-                    const img = new Image();
-                    img.onload = () => { this.preloadedImages[path] = img; resolve(); };
-                    img.onerror = () => { console.warn(`[Preload FAILED - Misc] Bird sheet: '${path}'`); this.preloadedImages[path] = null; resolve(); };
-                    img.src = path;
-                }));
+        if (this.birdSpawnConfig && this.birdSpawnConfig.TILE_SHEET_PATHS) {
+            for (const path of this.birdSpawnConfig.TILE_SHEET_PATHS) {
+                if (!this.preloadedImages[path]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload FAILED - Misc] Bird sheet: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                        img.src = path;
+                    }));
+                }
             }
         }
         if (this.ufoSpawnConfig && this.ufoSpawnConfig.TILE_SHEET_PATH) {
@@ -512,6 +513,29 @@ class Game {
                     const img = new Image();
                     img.onload = () => { this.preloadedImages[path] = img; resolve(); };
                     img.onerror = () => { console.warn(`[Preload FAILED - Misc] Grenade sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                    img.src = path;
+                }));
+            }
+        }
+        const bulletSpriteConfig = CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET;
+        if (bulletSpriteConfig && bulletSpriteConfig.SPRITE_PATH) {
+            const path = bulletSpriteConfig.SPRITE_PATH;
+            if (!this.preloadedImages[path]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                    img.onerror = () => { console.warn(`[Preload FAILED - Misc] Bullet sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                    img.src = path;
+                }));
+            }
+        }
+        for (const weaponDef of Object.values(CONFIG.WEAPON_DEFINITIONS || {})) {
+            if (weaponDef.bulletSpritePath && !this.preloadedImages[weaponDef.bulletSpritePath]) {
+                const path = weaponDef.bulletSpritePath;
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                    img.onerror = () => { console.warn(`[Preload FAILED - Misc] Weapon bullet sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
                     img.src = path;
                 }));
             }
@@ -810,224 +834,240 @@ class Game {
     }
 
     async preloadLevelAssets() {
-        const obstacleDefs = CONFIG.OBSTACLE_DEFINITIONS || [];
         const imagePromises = [];
+        
+        // Master list of ALL sprite sets to preload
+        const spriteSets = [
+            // ====================
+            // POSSUM STRUCTURES (normal/destroyed pairs)
+            // ====================
+            {
+                name: 'possum_hut',
+                files: CONFIG.POSSUM_HUT_SPRITE_FILES,
+                path: CONFIG.POSSUM_HUT_SPRITE_PATH,
+                type: 'paired' // Each entry: {normal: 'x.png', destroyed: 'x_d.png'}
+            },
+            {
+                name: 'possum_barracks_1',
+                files: CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES,
+                path: CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'possum_hut_round',
+                files: CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES,
+                path: CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'possum_building_large',
+                files: CONFIG.POSSUM_BUILDING_LARGE_SPRITE_FILES,
+                path: CONFIG.POSSUM_BUILDING_LARGE_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'empty_possum_hut_round',
+                files: CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES,
+                path: CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'empty_possum_hut_2',
+                files: CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES,
+                path: CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'possum_relay_tower',
+                files: CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES,
+                path: CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH,
+                type: 'paired'
+            },
 
-        if (CONFIG.POSSUM_HUT_SPRITE_FILES && CONFIG.POSSUM_HUT_SPRITE_PATH) {
-            const hutPath = CONFIG.POSSUM_HUT_SPRITE_PATH;
-            CONFIG.POSSUM_HUT_SPRITE_FILES.forEach(pair => {
-                const normalPath = hutPath + pair.normal;
-                const destroyedPath = hutPath + pair.destroyed;
-                if (pair.normal && !this.preloadedImages[normalPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
-                        img.src = normalPath;
-                    }));
-                }
-                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
-                        img.src = destroyedPath;
-                    }));
-                }
-            });
-        }
+            // ====================
+            // PICKUPS (normal/destroyed pairs)
+            // ====================
+            {
+                name: 'health_pickup',
+                files: CONFIG.HEALTH_PICKUP_SPRITE_FILES,
+                path: CONFIG.HEALTH_PICKUP_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'ammo_pickup',
+                files: CONFIG.AMMO_PICKUP_SPRITE_FILES,
+                path: CONFIG.AMMO_PICKUP_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'grenade_pickup',
+                files: CONFIG.GRENADE_PICKUP_SPRITE_FILES,
+                path: CONFIG.GRENADE_PICKUP_SPRITE_PATH,
+                type: 'paired'
+            },
 
-        if (CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES && CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH) {
-            const hutPath = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH;
-            CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES.forEach(pair => {
-                const normalPath = hutPath + pair.normal;
-                const destroyedPath = hutPath + pair.destroyed;
-                if (pair.normal && !this.preloadedImages[normalPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
-                        img.src = normalPath;
-                    }));
-                }
-                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
-                        img.src = destroyedPath;
-                    }));
-                }
-            });
-        }
+            // ====================
+            // EXPLOSIVE BARRELS (normal/destroyed pairs)
+            // ====================
+            {
+                name: 'explosive_barrel',
+                files: CONFIG.SINGLE_EXPLOSIVE_BARREL_SPRITE_FILES,
+                path: CONFIG.SINGLE_EXPLOSIVE_BARREL_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'explosive_barrel_double',
+                files: CONFIG.DOUBLE_EXPLOSIVE_BARREL_SPRITE_FILES,
+                path: CONFIG.DOUBLE_EXPLOSIVE_BARREL_SPRITE_PATH,
+                type: 'paired'
+            },
+            {
+                name: 'explosive_barrel_cluster',
+                files: CONFIG.TRIPLE_EXPLOSIVE_BARREL_SPRITE_FILES,
+                path: CONFIG.TRIPLE_EXPLOSIVE_BARREL_SPRITE_PATH,
+                type: 'paired'
+            },
 
-        if (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES && CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH) {
-            const hutPath = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH;
-            CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES.forEach(pair => {
-                const normalPath = hutPath + pair.normal;
-                const destroyedPath = hutPath + pair.destroyed;
-                if (pair.normal && !this.preloadedImages[normalPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
-                        img.src = normalPath;
-                    }));
-                }
-                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
-                        img.src = destroyedPath;
-                    }));
-                }
-            });
-        }
+            // ====================
+            // TERRAIN (single files from lists)
+            // ====================
+            { name: 'grass', files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, type: 'single' },
+            { name: 'tropical_wall_angled_long', files: CONFIG.TROPICAL_WALL_ANGLED_LONG_FILES, path: CONFIG.TROPICAL_WALL_ANGLED_LONG_PATH, type: 'single' },
+            { name: 'fence_barbed_short', files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
+            { name: 'fence_barbed_long', files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
+            { name: 'bush_large', files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, type: 'single' },
+            { name: 'rock_medium', files: CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_FILES, path: CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_PATH, type: 'single' },
+            { name: 'rock_large', files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, type: 'single' },
+            { name: 'palm_single', files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, type: 'single' },
+            { name: 'palm_double', files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, type: 'single' },
+            { name: 'palm_triple', files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, type: 'single' },
+            { name: 'palm_fallen', files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, type: 'single' },
+            { name: 'palm2_fallen', files: CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH, type: 'single' },
+            { name: 'palm2_single', files: CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_SINGLE_SPRITE_PATH, type: 'single' },
+            { name: 'palm2_double', files: CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_DOUBLE_SPRITE_PATH, type: 'single' },
+            { name: 'palm2_triple', files: CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH, type: 'single' },
+            { name: 'deciduous_fallen', files: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH, type: 'single' },
+            { name: 'deciduous_single', files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, type: 'single' },
+            { name: 'tree4_deciduous', files: CONFIG.TREE4_SINGLE_SPRITE_FILES, path: CONFIG.TREE4_SINGLE_SPRITE_PATH, type: 'single' },
+            { name: 'tree5_deciduous', files: CONFIG.TREE5_SINGLE_SPRITE_FILES, path: CONFIG.TREE5_SINGLE_SPRITE_PATH, type: 'single' },
+            { name: 'tree_fan_single', files: CONFIG.FAN_TREE_SINGLE_SPRITE_FILES, path: CONFIG.FAN_TREE_SINGLE_SPRITE_PATH, type: 'single' },
+            { name: 'tree_fan_double', files: CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH, type: 'single' },
+            { name: 'tree_fan_triple', files: CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH, type: 'single' },
+            { name: 'tree_rubber_single', files: CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES, path: CONFIG.RUBBER_TREE_SINGLE_SPRITE_PATH, type: 'single' },
+            { name: 'palm_bush_small', files: CONFIG.PALM_BUSH_SMALL_FILES, path: CONFIG.PALM_BUSH_SMALL_PATH, type: 'single' },
+            { name: 'palm_bush_large', files: CONFIG.PALM_BUSH_LARGE_FILES, path: CONFIG.PALM_BUSH_LARGE_PATH, type: 'single' },
+            { name: 'mud', files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, type: 'single' },
+            { name: 'rainforest_small', files: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_PATH, type: 'single' },
+            { name: 'rainforest_large', files: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_PATH, type: 'single' },
+            { name: 'helipad_square', files: CONFIG.HELIPAD_SQUARE_SPRITE_FILES, path: CONFIG.HELIPAD_SQUARE_SPRITE_PATH, type: 'single' },
+            { name: 'tropical_ruins', files: CONFIG.TROPICAL_RUINS_SPRITE_FILES, path: CONFIG.TROPICAL_RUINS_SPRITE_PATH, type: 'single' },
 
-        if (CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES && CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH) {
-            const hutPath = CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH;
-            CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES.forEach(pair => {
-                const normalPath = hutPath + pair.normal;
-                const destroyedPath = hutPath + pair.destroyed;
-                if (pair.normal && !this.preloadedImages[normalPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
-                        img.src = normalPath;
-                    }));
-                }
-                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
-                        img.src = destroyedPath;
-                    }));
-                }
-            });
-        }
+            // ====================
+            // INTEL CONSOLES (on/off pairs)
+            // ====================
+            {
+                name: 'intel_consoles',
+                files: CONFIG.INTEL.SPRITE_FILES,
+                path: CONFIG.INTEL.SPRITE_PATH,
+                type: 'intel' // Each entry: {on: 'x_on.png', off: 'x_off.png'}
+            },
 
-        if (CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES && CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH) {
-            const hutPath = CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH;
-            CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES.forEach(pair => {
-                const normalPath = hutPath + pair.normal;
-                const destroyedPath = hutPath + pair.destroyed;
-                if (pair.normal && !this.preloadedImages[normalPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
-                        img.src = normalPath;
-                    }));
-                }
-                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
-                        img.src = destroyedPath;
-                    }));
-                }
-            });
-        }
-
-        // Intel Console Sprites
-        if (CONFIG.INTEL && CONFIG.INTEL.SPRITE_PATH && CONFIG.INTEL.SPRITE_FILES) {
-            CONFIG.INTEL.SPRITE_FILES.forEach(variant => {
-                const onPath = CONFIG.INTEL.SPRITE_PATH + variant.on;
-                const offPath = CONFIG.INTEL.SPRITE_PATH + variant.off;
-                if (!this.preloadedImages[onPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[onPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[onPath] = null; resolve(); };
-                        img.src = onPath;
-                    }));
-                }
-                if (!this.preloadedImages[offPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[offPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[offPath] = null; resolve(); };
-                        img.src = offPath;
-                    }));
-                }
-            });
-        }
-
-        // Possum Turret Sprites
-        const turretDir = 'assets/images/objects/possums/turrets/';
-        const turretDirections = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
-        for (const dir of turretDirections) {
-            const key = `possum_turret_1_${dir}`;
-            const fullPath = turretDir + `possum_turret_1_${dir}.png`;
-            if (!this.preloadedImages[fullPath]) {
-                imagePromises.push(new Promise((resolve) => {
-                    const img = new Image();
-                    img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
-                    img.onerror = () => { this.preloadedImages[fullPath] = null; resolve(); };
-                    img.src = fullPath;
-                }));
+            // ====================
+            // POSSUM TURRETS (direction-based)
+            // ====================
+            {
+                name: 'possum_turrets',
+                dir: 'assets/images/objects/possums/turrets/',
+                directions: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
+                type: 'turret'
             }
-        }
-
-        if (CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES && CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH) {
-            const towerPath = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH;
-            CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES.forEach(pair => {
-                const normalPath = towerPath + pair.normal;
-                const destroyedPath = towerPath + pair.destroyed;
-                if (pair.normal && !this.preloadedImages[normalPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
-                        img.src = normalPath;
-                    }));
-                }
-                if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
-                        img.src = destroyedPath;
-                    }));
-                }
-            });
-        }
-
-        const pickupSpritePairs = [
-            { files: CONFIG.HEALTH_PICKUP_SPRITE_FILES, path: CONFIG.HEALTH_PICKUP_SPRITE_PATH },
-            { files: CONFIG.AMMO_PICKUP_SPRITE_FILES, path: CONFIG.AMMO_PICKUP_SPRITE_PATH },
-            { files: CONFIG.GRENADE_PICKUP_SPRITE_FILES, path: CONFIG.GRENADE_PICKUP_SPRITE_PATH }
         ];
-        pickupSpritePairs.forEach(pickup => {
-            if (pickup.files && pickup.path) {
-                pickup.files.forEach(pair => {
-                    const normalPath = pickup.path + pair.normal;
-                    const destroyedPath = pickup.path + pair.destroyed;
-                    if (pair.normal && !this.preloadedImages[normalPath]) {
-                        imagePromises.push(new Promise((resolve) => {
-                            const img = new Image();
-                            img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
-                            img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
-                            img.src = normalPath;
-                        }));
-                    }
-                    if (pair.destroyed && !this.preloadedImages[destroyedPath]) {
-                        imagePromises.push(new Promise((resolve) => {
-                            const img = new Image();
-                            img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
-                            img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
-                            img.src = destroyedPath;
-                        }));
-                    }
-                });
+
+        // Preload all sprite sets
+        spriteSets.forEach(set => {
+            if (!set.files || !set.path) return;
+
+            switch (set.type) {
+                case 'paired':
+                    // Handles {normal, destroyed} pairs (possum buildings, pickups)
+                    set.files.forEach(pair => {
+                        if (pair.normal) {
+                            const normalPath = set.path + pair.normal;
+                            if (!this.preloadedImages[normalPath]) {
+                                imagePromises.push(new Promise((resolve) => {
+                                    const img = new Image();
+                                    img.onload = () => { this.preloadedImages[normalPath] = img; resolve(); };
+                                    img.onerror = () => { this.preloadedImages[normalPath] = null; resolve(); };
+                                    img.src = normalPath;
+                                }));
+                            }
+                        }
+                        if (pair.destroyed) {
+                            const destroyedPath = set.path + pair.destroyed;
+                            if (!this.preloadedImages[destroyedPath]) {
+                                imagePromises.push(new Promise((resolve) => {
+                                    const img = new Image();
+                                    img.onload = () => { this.preloadedImages[destroyedPath] = img; resolve(); };
+                                    img.onerror = () => { this.preloadedImages[destroyedPath] = null; resolve(); };
+                                    img.src = destroyedPath;
+                                }));
+                            }
+                        }
+                    });
+                    break;
+
+                case 'single':
+                    // Handles single filename lists (terrain)
+                    set.files.forEach(fileName => {
+                        const fullPath = set.path + fileName;
+                        if (!this.preloadedImages[fullPath]) {
+                            imagePromises.push(new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
+                                img.onerror = () => { this.preloadedImages[fullPath] = null; resolve(); };
+                                img.src = fullPath;
+                            }));
+                        }
+                    });
+                    break;
+
+                case 'intel':
+                    // Handles {on, off} pairs
+                    set.files.forEach(variant => {
+                        const onPath = set.path + variant.on;
+                        const offPath = set.path + variant.off;
+                        [onPath, offPath].forEach(path => {
+                            if (!this.preloadedImages[path]) {
+                                imagePromises.push(new Promise((resolve) => {
+                                    const img = new Image();
+                                    img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                                    img.onerror = () => { this.preloadedImages[path] = null; resolve(); };
+                                    img.src = path;
+                                }));
+                            }
+                        });
+                    });
+                    break;
+
+                case 'turret':
+                    // Handles direction-based sprites
+                    set.directions.forEach(dir => {
+                        const fileName = `possum_turret_1_${dir}.png`;
+                        const fullPath = set.dir + fileName;
+                        if (!this.preloadedImages[fullPath]) {
+                            imagePromises.push(new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
+                                img.onerror = () => { this.preloadedImages[fullPath] = null; resolve(); };
+                                img.src = fullPath;
+                            }));
+                        }
+                    });
+                    break;
             }
         });
 
-        // Preload weapon crate sprites from WEAPON_DEFINITIONS
+        // Keep weapon crate preloading (from WEAPON_DEFINITIONS)
         const weaponDefs = CONFIG.WEAPON_DEFINITIONS || {};
         Object.values(weaponDefs).forEach(weaponDef => {
             if (weaponDef.crateSpriteWithWeapon && !this.preloadedImages[weaponDef.crateSpriteWithWeapon]) {
@@ -1046,113 +1086,16 @@ class Game {
                     img.src = weaponDef.crateSpriteWithoutWeapon;
                 }));
             }
-        });
-
-        obstacleDefs.forEach(def => {
-            let handledByDedicatedList = false;
-            if (
-                (def.type === 'decoration_grass' && CONFIG.GRASS_SPRITE_FILES) ||
-                (def.type === 'fence_barbed_straight_short' && CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES) ||
-                (def.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES) ||
-                (def.type === 'bush_medium' && CONFIG.BUSH_SPRITES_32PX_FILES) ||
-                (def.type === 'bush_large' && CONFIG.TROPICAL_BUSH_LARGE_FILES) ||
-                (def.type === 'rock_medium' && CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_FILES) ||
-                (def.type === 'rock_large' && CONFIG.ROCK_SPRITES_64PX_FILES) ||
-                (def.type === 'tree_palm_single' && CONFIG.PALM_TREE_SINGLE_SPRITE_FILES) ||
-                (def.type === 'tree_palm_double' && CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES) ||
-                (def.type === 'tree_palm_triple' && CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES) ||
-                (def.type === 'tree_palm_fallen' && CONFIG.PALM_TREE_FALLEN_SPRITE_FILES) ||
-                (def.type === 'tree_palm2_fallen' && CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES) ||
-                (def.type === 'tree_deciduous_fallen' && CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES) ||
-                (def.type === 'tree_palm2_single' && CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES) ||
-                (def.type === 'tree_palm2_double' && CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES) ||
-                (def.type === 'tree_palm2_triple' && CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES) ||
-                (def.type === 'tree_deciduous_single' && CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES) ||
-                (def.type === 'tree4_deciduous_single' && CONFIG.TREE4_SINGLE_SPRITE_FILES) ||
-                (def.type === 'tree5_deciduous_single' && CONFIG.TREE5_SINGLE_SPRITE_FILES) ||
-                (def.type === 'tree_fan_single' && CONFIG.FAN_TREE_SINGLE_SPRITE_FILES) ||
-                (def.type === 'tree_fan_double' && CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES) ||
-                (def.type === 'tree_fan_triple' && CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES) ||
-                (def.type === 'tree_rubber_single' && CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES) ||
-                (def.type === 'palm_bush_small' && CONFIG.PALM_BUSH_SMALL_FILES) ||
-                (def.type === 'palm_bush_large' && CONFIG.PALM_BUSH_LARGE_FILES) ||
-                (def.type === 'pickup_health' && CONFIG.HEALTH_PICKUP_SPRITE_FILES) ||
-                (def.type === 'pickup_ammo_crate' && CONFIG.AMMO_PICKUP_SPRITE_FILES) ||
-                (def.type === 'pickup_grenade_crate' && CONFIG.GRENADE_PICKUP_SPRITE_FILES) ||
-                (def.type === 'possum_hut' && CONFIG.POSSUM_HUT_SPRITE_FILES) ||
-                (def.type === 'possum_hut_round' && CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES) ||
-                (def.type === 'empty_possum_hut_round' && CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES) ||
-                (def.type === 'possum_relay_tower' && CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES) ||
-                (def.type === 'helipad_concrete_square_1' && CONFIG.HELIPAD_SQUARE_SPRITE_FILES)) {
-                handledByDedicatedList = true;
-            }
-
-            const spritesToLoadOnTemplate = [];
-            if (!handledByDedicatedList) {
-                if (def.spriteNormal) spritesToLoadOnTemplate.push({ path: def.spriteNormal, key: def.spriteNormal });
-            }
-            if (def.spriteDestroyed) {
-                spritesToLoadOnTemplate.push({ path: def.spriteDestroyed, key: def.spriteDestroyed });
-            }
-            spritesToLoadOnTemplate.forEach(spriteInfo => {
-                if (spriteInfo.path && !this.preloadedImages[spriteInfo.key]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[spriteInfo.key] = img; resolve(); };
-                        img.onerror = () => { this.preloadedImages[spriteInfo.key] = null; resolve(); };
-                        img.src = spriteInfo.path;
-                    }));
-                }
-            });
-        });
-        const listBasedSprites = [
-            { files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, name: "grass" },
-            { files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_short" },
-            { files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, name: "fence_barbed_straight_long" },
-            { files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, name: "bush_large" },
-            { files: CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_FILES, path: CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_PATH, name: "rock32" },
-            { files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, name: "rock64" },
-            { files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, name: "palm_single" },
-            { files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, name: "palm_double" },
-            { files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, name: "palm_triple" },
-            { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, name: "palm_fallen" },
-            { files: CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH, name: "palm2_fallen" },
-            { files: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH, name: "deciduous_fallen" },
-            { files: CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_SINGLE_SPRITE_PATH, name: "palm2_single" },
-            { files: CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_DOUBLE_SPRITE_PATH, name: "palm2_double" },
-            { files: CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH, name: "palm2_triple" },
-            { files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, name: "deciduous_single" },
-            { files: CONFIG.TREE4_SINGLE_SPRITE_FILES, path: CONFIG.TREE4_SINGLE_SPRITE_PATH, name: "tree4_deciduous_single" },
-            { files: CONFIG.TREE5_SINGLE_SPRITE_FILES, path: CONFIG.TREE5_SINGLE_SPRITE_PATH, name: "tree5_deciduous_single" },
-            { files: CONFIG.FAN_TREE_SINGLE_SPRITE_FILES, path: CONFIG.FAN_TREE_SINGLE_SPRITE_PATH, name: "tree_fan_single" },
-            { files: CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH, name: "tree_fan_double" },
-            { files: CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH, name: "tree_fan_triple" },
-            { files: CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES, path: CONFIG.RUBBER_TREE_SINGLE_SPRITE_PATH, name: "tree_rubber_single" },
-            { files: CONFIG.PALM_BUSH_SMALL_FILES, path: CONFIG.PALM_BUSH_SMALL_PATH, name: "palm_bush_small" },
-            { files: CONFIG.PALM_BUSH_LARGE_FILES, path: CONFIG.PALM_BUSH_LARGE_PATH, name: "palm_bush_large" },
-            { files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, name: "mud" },
-            { files: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_PATH, name: "rainforest_small" },
-            { files: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_PATH, name: "rainforest_large" },
-            { files: CONFIG.HELIPAD_SQUARE_SPRITE_FILES, path: CONFIG.HELIPAD_SQUARE_SPRITE_PATH, name: "helipad_concrete_square_1" },
-            { files: CONFIG.TROPICAL_RUINS_SPRITE_FILES, path: CONFIG.TROPICAL_RUINS_SPRITE_PATH, name: "tropical_ruins" }
-        ];
-
-        listBasedSprites.forEach(spriteSet => {
-            const spriteFiles = spriteSet.files || []; const spritePathBase = spriteSet.path || '';
-            if (spritePathBase && spriteFiles.length > 0) {
-                spriteFiles.forEach(fileName => {
-                    const fullPath = spritePathBase + fileName;
-                    if (!this.preloadedImages[fullPath]) {
-                        imagePromises.push(new Promise((resolve) => {
-                            const img = new Image();
-                            img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
-                            img.onerror = () => { this.preloadedImages[fullPath] = null; resolve(); };
-                            img.src = fullPath;
-                        }));
-                    }
-                });
+            if (weaponDef.grenadeSpritePath && !this.preloadedImages[weaponDef.grenadeSpritePath]) {
+                imagePromises.push(new Promise((resolve) => {
+                    const img = new Image();
+                    img.onload = () => { this.preloadedImages[weaponDef.grenadeSpritePath] = img; resolve(); };
+                    img.onerror = () => { console.warn(`[Preload FAILED - Misc] Weapon grenade sprite: '${weaponDef.grenadeSpritePath}'`); this.preloadedImages[weaponDef.grenadeSpritePath] = null; resolve(); };
+                    img.src = weaponDef.grenadeSpritePath;
+                }));
             }
         });
+
         await Promise.all(imagePromises);
     }
 
@@ -2844,9 +2787,6 @@ class Game {
         // this.lastPlayedMusicKey = null;
         this.gameState = 'POST_MISSION_DEBRIEF';
         
-        // Auto-save campaign progress after mission ends
-        SaveManager.autoSave(this);
-        
         this.missionEndMessage = "";
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
         let enemiesKilledThisMission = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
@@ -3305,7 +3245,7 @@ class Game {
                             }
                         }
                     } else if (obj.type === 'INTERACT_INTEL') {
-                        const hackedCount = this.intelConsoles ? this.intelConsoles.filter(c => c.isHacked).length : 0;
+                        const hackedCount = this.intelConsoles ? this.intelConsoles.filter(c => c.isHacked && c.objectiveId === obj.id).length : 0;
                         obj.currentProgress = hackedCount;
                         if (hackedCount >= obj.totalToAchieve) {
                             obj.isComplete = true;
@@ -3419,9 +3359,16 @@ class Game {
     }
 
     spawnFlyingBirdFlock() {
-        if (!this.birdSpawnConfig || !this.preloadedImages[this.birdSpawnConfig.TILE_SHEET_PATH] || !(this.level && this.level.rng)) return;
+        if (!this.birdSpawnConfig || !this.birdSpawnConfig.TILE_SHEET_PATHS || !(this.level && this.level.rng)) return;
 
         const rng = this.level.rng;
+        const sheetPaths = this.birdSpawnConfig.TILE_SHEET_PATHS;
+
+        const availableSheets = sheetPaths.filter(path => this.preloadedImages[path]);
+        if (availableSheets.length === 0) return;
+
+        const chosenSheet = availableSheets[rng.nextInt(0, availableSheets.length)];
+
         const direction = rng.chance(0.5) ? 1 : -1;
         const flockSize = rng.nextInt(this.birdSpawnConfig.FLOCK_SIZE_MIN, this.birdSpawnConfig.FLOCK_SIZE_MAX);
 
@@ -3441,7 +3388,7 @@ class Game {
             }
             const startY = baseSpawnY + (rng.nextFloat(-1, 1)) * (this.birdSpawnConfig.FLOCK_SPACING_Y || 10) * 2 * i;
 
-            const bird = new FlyingBird(this, startX, startY, direction);
+            const bird = new FlyingBird(this, startX, startY, direction, chosenSheet);
             this.gameObjects.push(bird);
         }
     }
@@ -3703,32 +3650,23 @@ class Game {
                     const isBehindLiving = !!obstacle.isDestroyed;
                     const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
                     const isTree = obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
-                    if (shapesArray && shapesArray.length > 1) {
-                        shapesArray.forEach((shape, shapeIndex) => {
-                            let sortYValue = obstacle.y + obstacle.height;
-                            if (isTree) {
-                                if (shape.type === 'rectangle' || shape.type === 'ellipse') { sortYValue = shape.y + (shape.height || shape.radiusY || obstacle.height * 0.1); }
-                                else if (shape.type === 'circle') { sortYValue = shape.y + shape.radius; }
-                            } else if (shape.type === 'ellipse') { sortYValue = shape.y + shape.radiusY; }
-                            else if (shape.type === 'circle') { sortYValue = shape.y + shape.radius; }
-                            else if (shape.type === 'rectangle') { sortYValue = shape.y + shape.height; }
-                            if (typeof sortYValue === 'number' && !isNaN(sortYValue)) {
-                                sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving, shapeIndex: shapeIndex, totalShapes: shapesArray.length });
+                    let sortYValue = obstacle.y + obstacle.height;
+                    if (shapesArray && shapesArray.length > 0) {
+                        let maxBottom = -Infinity;
+                        shapesArray.forEach(shape => {
+                            let bottom;
+                            if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
+                            else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
+                            else if (shape.type === 'rectangle') {
+                                bottom = isTree ? shape.y + (shape.height || shape.radiusY || obstacle.height * 0.1) : shape.y + shape.height;
                             }
+                            else { bottom = shape.y + (shape.height || 0); }
+                            if (bottom > maxBottom) maxBottom = bottom;
                         });
-                    } else {
-                        let sortYValue = obstacle.y + obstacle.height;
-                        if (shapesArray && shapesArray.length === 1) {
-                            const collisionShape = shapesArray[0];
-                            if (isTree) {
-                                if (collisionShape.type === 'rectangle' || collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + (collisionShape.height || collisionShape.radiusY || obstacle.height * 0.1); }
-                                else if (collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; }
-                            } else if (collisionShape.type === 'ellipse') { sortYValue = collisionShape.y + collisionShape.radiusY; }
-                            else if (collisionShape.type === 'circle') { sortYValue = collisionShape.y + collisionShape.radius; }
-                        }
-                        if (typeof sortYValue === 'number' && !isNaN(sortYValue)) {
-                            sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving });
-                        }
+                        if (maxBottom !== -Infinity) sortYValue = maxBottom;
+                    }
+                    if (typeof sortYValue === 'number' && !isNaN(sortYValue)) {
+                        sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving });
                     }
                 }
             }); }
@@ -3757,15 +3695,9 @@ class Game {
             }
         });
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
-        const renderedObstacles = new Set();
         sortableObjects.forEach((item, index) => {
             const obj = item.entity; if (!obj) { return; } try {
                 if (item.isUnit || obj.type === 'intel_console' || obj.type === 'possum_turret') { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {
-                    if (item.totalShapes > 1) {
-                        const obstacleKey = obj;
-                        if (renderedObstacles.has(obstacleKey)) { return; }
-                        renderedObstacles.add(obstacleKey);
-                    }
                     // --- MODIFICATION START ---
                     this.ctx.save();
                     if (obj.isFlippedHorizontally) {
@@ -3878,7 +3810,48 @@ class Game {
             }
 
             // Draw Obstacle Collision Shapes
-            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) { this.ctx.globalAlpha = 0.5; this.ctx.lineWidth = 1; this.level.obstacles.forEach(obstacle => { if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) { const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; if (borderObstacleType && obstacle.type === borderObstacleType) { return; } } const collisionShapeOrShapes = this.level._getObstacleCollisionShape(obstacle); if (!collisionShapeOrShapes) return; const shapesArray = Array.isArray(collisionShapeOrShapes) ? collisionShapeOrShapes : [collisionShapeOrShapes]; if (obstacle.isDestroyed && !obstacle.blocksMovement) { } else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) { for (const collisionShape of shapesArray) { if (collisionShape.type === 'rectangle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); if (collisionShape.rotation !== undefined && collisionShape.rotation !== 0) { const cx = collisionShape.x + collisionShape.width / 2; const cy = collisionShape.y + collisionShape.height / 2; this.ctx.save(); this.ctx.translate(cx, cy); this.ctx.rotate(collisionShape.rotation); this.ctx.strokeRect(-collisionShape.width / 2, -collisionShape.height / 2, collisionShape.width, collisionShape.height); this.ctx.restore(); } else { this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height); } } else if (collisionShape.type === 'circle') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta'); this.ctx.beginPath(); this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2); this.ctx.stroke(); } else if (collisionShape.type === 'ellipse') { this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange'); this.ctx.beginPath(); this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2); this.ctx.stroke(); } } } }); }
+            if (CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES && this.level && this.level.obstacles) {
+                this.ctx.globalAlpha = 0.5;
+                this.ctx.lineWidth = 1;
+                this.level.obstacles.forEach(obstacle => {
+                    if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
+                        const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
+                        if (borderObstacleType && obstacle.type === borderObstacleType) { return; }
+                    }
+                    const collisionShapeOrShapes = this.level._getObstacleCollisionShape(obstacle);
+                    if (!collisionShapeOrShapes) return;
+                    const shapesArray = Array.isArray(collisionShapeOrShapes) ? collisionShapeOrShapes : [collisionShapeOrShapes];
+                    if (obstacle.isDestroyed && !obstacle.blocksMovement) { }
+                    else if (obstacle.blocksMovement || obstacle.providesCover || obstacle.isPickup) {
+                        for (const collisionShape of shapesArray) {
+                            if (collisionShape.type === 'rectangle') {
+                                this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta');
+                                if (collisionShape.rotation !== undefined && collisionShape.rotation !== 0) {
+                                    const cx = collisionShape.x + collisionShape.width / 2;
+                                    const cy = collisionShape.y + collisionShape.height / 2;
+                                    this.ctx.save();
+                                    this.ctx.translate(cx, cy);
+                                    this.ctx.rotate(collisionShape.rotation);
+                                    this.ctx.strokeRect(-collisionShape.width / 2, -collisionShape.height / 2, collisionShape.width, collisionShape.height);
+                                    this.ctx.restore();
+                                } else {
+                                    this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height);
+                                }
+                            } else if (collisionShape.type === 'circle') {
+                                this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta');
+                                this.ctx.beginPath();
+                                this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2);
+                                this.ctx.stroke();
+                            } else if (collisionShape.type === 'ellipse') {
+                                this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange');
+                                this.ctx.beginPath();
+                                this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2);
+                                this.ctx.stroke();
+                            }
+                        }
+                    }
+                });
+            }
 
             // Draw Hut Spawner Info
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_SPAWN_AREAS) { this.level.renderHutSpawnAreas(this.ctx); }
@@ -3904,6 +3877,78 @@ class Game {
                             this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2);
                             this.ctx.fill();
                         });
+                    }
+                });
+            }
+
+            // Draw Unit Hitboxes for Projectile Collision
+            const projectileSize = CONFIG.PROJECTILE_SIZE || 3;
+
+            // Draw deployed squad units (green hitboxes)
+            if (this.deployedSquadRoster) {
+                this.ctx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+                this.ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                this.ctx.lineWidth = 2;
+                this.deployedSquadRoster.forEach(unit => {
+                    if (unit && unit.isAlive()) {
+                        const hitRadius = unit.size + projectileSize;
+                        this.ctx.beginPath();
+                        this.ctx.arc(unit.x, unit.y, hitRadius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.stroke();
+
+                        // Draw center dot
+                        this.ctx.fillStyle = 'yellow';
+                        this.ctx.beginPath();
+                        this.ctx.arc(unit.x, unit.y, 2, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = 'rgba(0, 255, 0, 0.2)';
+                    }
+                });
+            }
+
+            // Draw enemy units (red hitboxes)
+            if (this.enemyUnits) {
+                this.ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+                this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                this.ctx.lineWidth = 2;
+                this.enemyUnits.forEach(unit => {
+                    if (unit && unit.isAlive()) {
+                        const hitRadius = unit.size + projectileSize;
+                        this.ctx.beginPath();
+                        this.ctx.arc(unit.x, unit.y, hitRadius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.stroke();
+
+                        // Draw center dot
+                        this.ctx.fillStyle = 'yellow';
+                        this.ctx.beginPath();
+                        this.ctx.arc(unit.x, unit.y, 2, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+                    }
+                });
+            }
+
+            // Draw hostage units (blue hitboxes)
+            if (this.hostageUnits) {
+                this.ctx.strokeStyle = 'rgba(0, 150, 255, 0.8)';
+                this.ctx.fillStyle = 'rgba(0, 150, 255, 0.2)';
+                this.ctx.lineWidth = 2;
+                this.hostageUnits.forEach(unit => {
+                    if (unit && unit.isAlive()) {
+                        const hitRadius = unit.size + projectileSize;
+                        this.ctx.beginPath();
+                        this.ctx.arc(unit.x, unit.y, hitRadius, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.stroke();
+
+                        // Draw center dot
+                        this.ctx.fillStyle = 'yellow';
+                        this.ctx.beginPath();
+                        this.ctx.arc(unit.x, unit.y, 2, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.fillStyle = 'rgba(0, 150, 255, 0.2)';
                     }
                 });
             }

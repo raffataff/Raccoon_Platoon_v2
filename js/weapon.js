@@ -1,6 +1,6 @@
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
-                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null, muzzleFlashScale = 1.0, bulletLifetime = 0.7) {
+                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null, muzzleFlashScale = 1.0, bulletLifetime = 0.7, bulletSpritePath = null, bulletSpriteScale = 1.0, grenadeSpritePath = null, grenadeSpriteScale = 1.0) {
         this.name = name;
         this.damage = damage;
         this.rof = rof;
@@ -12,6 +12,10 @@ class Weapon {
         this.sfxFireKey = sfxFireKey;
         this.muzzleFlashScale = muzzleFlashScale;
         this.bulletLifetime = bulletLifetime;
+        this.bulletSpritePath = bulletSpritePath;
+        this.bulletSpriteScale = bulletSpriteScale;
+        this.grenadeSpritePath = grenadeSpritePath;
+        this.grenadeSpriteScale = grenadeSpriteScale;
     }
 }
 
@@ -31,7 +35,11 @@ function buildWEAPONSFromConfig() {
             def.accuracyMoving !== undefined ? def.accuracyMoving : def.accuracyStationary * 0.75,
             def.sfxFireKey,
             def.muzzleFlashScale,
-            def.bulletLifetime
+            def.bulletLifetime,
+            def.bulletSpritePath,
+            def.bulletSpriteScale,
+            def.grenadeSpritePath,
+            def.grenadeSpriteScale
         );
     }
     
@@ -65,6 +73,14 @@ class Projectile {
         this.size = CONFIG.PROJECTILE_SIZE || 2;
 
         const bulletConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET) ? CONFIG.PROJECTILES.BULLET : {};
+
+        if (shooterUnit && shooterUnit.weapon) {
+            this.bulletSpritePath = shooterUnit.weapon.bulletSpritePath || bulletConfig.SPRITE_PATH || null;
+            this.bulletSpriteScale = shooterUnit.weapon.bulletSpriteScale || bulletConfig.SPRITE_SCALE || 1.0;
+        } else {
+            this.bulletSpritePath = bulletConfig.SPRITE_PATH || null;
+            this.bulletSpriteScale = bulletConfig.SPRITE_SCALE || 1.0;
+        }
 
         let actualTargetX = targetX;
         let actualTargetY = targetY;
@@ -145,7 +161,7 @@ class Projectile {
                 
                 if (hitObstacle) {
                     if (obj.destructible) {
-                        if (obj.type === 'explosive_barrel' || obj.type === 'explosive_barrel_double' || obj.type === 'explosive_barrel_cluster' || obj.type === 'possum_hut' || obj.type === 'possum_hut_round' || obj.type === 'possum_relay_tower') {
+                        if (obj.type === 'explosive_barrel' || obj.type === 'explosive_barrel_double' || obj.type === 'explosive_barrel_cluster' || obj.type === 'possum_hut' || obj.type === 'possum_hut_round' || obj.type === 'possum_relay_tower' || obj.type === 'possum_barracks_1') {
                             // Apply bullet damage multiplier if defined (e.g., relay towers take reduced damage)
                             let actualBulletDamage = this.damage;
                             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obj.type);
@@ -202,6 +218,20 @@ class Projectile {
     }
 
     render(ctx) {
+        if (this.bulletSpritePath && this.game && this.game.preloadedImages) {
+            const sprite = this.game.preloadedImages[this.bulletSpritePath];
+            if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+                const w = sprite.naturalWidth * this.bulletSpriteScale;
+                const h = sprite.naturalHeight * this.bulletSpriteScale;
+                const angle = Math.atan2(this.velocityY, this.velocityX) + Math.PI / 2;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(angle);
+                ctx.drawImage(sprite, -w / 2, -h / 2, w, h);
+                ctx.restore();
+                return;
+            }
+        }
         ctx.fillStyle = this.color;
         ctx.beginPath();
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
@@ -238,8 +268,16 @@ class GrenadeProjectile {
 
         this.color = grenadeMainConfig.GRENADE_PROJECTILE_COLOR || '#228B22';
         this.size = grenadeVisualConfig.SIZE || 8;
-        this.sprite = this.game.preloadedImages[grenadeVisualConfig.SPRITE_PATH] || null;
-        this.spriteScale = grenadeVisualConfig.SPRITE_SCALE || 1.0;
+
+        let grenadeSpritePath = grenadeVisualConfig.SPRITE_PATH;
+        let grenadeSpriteScale = grenadeVisualConfig.SPRITE_SCALE || 1.0;
+        if (shooterUnit && shooterUnit.weapon && shooterUnit.weapon.grenadeSpritePath) {
+            grenadeSpritePath = shooterUnit.weapon.grenadeSpritePath;
+            grenadeSpriteScale = shooterUnit.weapon.grenadeSpriteScale || 1.0;
+        }
+
+        this.sprite = this.game.preloadedImages[grenadeSpritePath] || null;
+        this.spriteScale = grenadeSpriteScale;
         this.spriteWidth = 0;
         this.spriteHeight = 0;
         if (this.sprite) {

@@ -7,7 +7,7 @@ const CAMPAIGN_RULES = {
     BASE_PARAMETERS: {
         worldWidthFactor: { initial: 1.2, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness 
         worldHeightFactor: { initial: 1.1, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness
-        obstacleCountPhaseIncrement: { initial: 0, perPhaseIncrement: 15, max: 100 },
+        obstacleCountPhaseIncrement: { initial: 1.0, perPhaseIncrement: 0.15, max: 8.0,randomnessFactor: 0.3  }, // 15% increase per phase, max 200% (3x)
         enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.15, max: 5.0, randomnessFactor: 0.15 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
         sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
@@ -18,7 +18,7 @@ const CAMPAIGN_RULES = {
         numIntelConsoles: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true },
         intelHackTimeBase: { initial: [10, 20], perPhaseBonus: [2, 4] },
         intelSpawnChance: { initial: 0.3, perPhaseGrowthFactor: 0.1, max: 0.8 },
-        intelSpawnCountMin: { initial: 1, perPhaseIncrement: 0.5, max: 2 },
+        intelSpawnCountMin: { initial: 1, perPhaseIncrement: 0.2, max: 1 },
         intelSpawnCountMax: { initial: 2, perPhaseIncrement: 1, max: 4 },
         intelSpawnInterval: { initial: 5.0, perPhaseDecrement: 0.2, min: 1.0 },
         intelSpawnTotalLimit: { initial: 3, perPhaseIncrement: 1, max: 20 },
@@ -140,6 +140,12 @@ const CAMPAIGN_RULES = {
             nameSingular: "Possum Hut", namePlural: "Possum Huts",
             weight: 4, unlocksPhase: 1,
             maxInstancesPerMission: 3
+        },
+        {
+            targetTypeKeyPrefix: "possum_barracks",
+            nameSingular: "Possum Barracks", namePlural: "Possum Barracks",
+            weight: 3, unlocksPhase: 2,
+            maxInstancesPerMission: 2
         },
         {
             targetTypeKeyPrefix: "possum_relay_tower",

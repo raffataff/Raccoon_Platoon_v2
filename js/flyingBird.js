@@ -1,10 +1,10 @@
 // js/flyingBird.js
 // complete
 class FlyingBird {
-    constructor(game, startX, startY, direction) { // direction is 1 for right, -1 for left
+    constructor(game, startX, startY, direction, sheetPath) { // direction is 1 for right, -1 for left
         this.game = game;
         this.config = CONFIG.AMBIENT_EFFECTS.FLYING_BIRD;
-        this.image = this.game.preloadedImages[this.config.TILE_SHEET_PATH];
+        this.image = this.game.preloadedImages[sheetPath];
 
         this.x = startX;
         this.y = startY;
