@@ -1212,6 +1212,7 @@ class LevelGenerator {
                             const intelConsoleInstance = new IntelConsole(consoleX, consoleY, this.game, `intel_${this.game.intelConsoles.length}`, selectedVariant);
                             intelConsoleInstance.width = consoleWidth;
                             intelConsoleInstance.height = consoleHeight;
+                            intelConsoleInstance.collisionShape = consoleTemplate.collisionShape;
                             intelConsoleInstance.isHacked = false;
                             intelConsoleInstance.isBeingHacked = false;
                             intelConsoleInstance.objectiveId = objective.id;
@@ -1512,7 +1513,7 @@ class LevelGenerator {
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false,
-                        collisionShape: template.collisionShape || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round' || template.type === 'possum_barracks_1') && !template.isDecoration,
+                        collisionShape: template.collisionShape || null, spawnArea: template.spawnArea || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round' || template.type === 'possum_barracks_1') && !template.isDecoration,
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
                         willSpawnLog: willSpawnLog,
@@ -1544,6 +1545,7 @@ class LevelGenerator {
         for (const pendingTurret of pendingTurretObstacles) {
             this.level.obstacles.push(pendingTurret.obstacle);
             const turret = new PossumTurret(pendingTurret.obsX, pendingTurret.obsY, this.game, pendingTurret.arc, pendingTurret.obstacle);
+            turret.collisionShape = pendingTurret.obstacle.collisionShape;
             this.game.possumTurrets.push(turret);
             pendingTurret.obstacle.render = function() {};
             console.log(pendingTurret.logMsg);

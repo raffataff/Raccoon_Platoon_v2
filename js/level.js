@@ -113,6 +113,35 @@ class Level {
         return [{ type: 'rectangle', x: obstacle.x, y: obstacle.y, width: obstacle.width, height: obstacle.height, rotation: 0 }];
     }
 
+    _resolveSpawnArea(spawnAreaDef, obstacle) {
+        if (!spawnAreaDef) return null;
+        const obsCurrentWidth = obstacle.width;
+        const obsCurrentHeight = obstacle.height;
+
+        if (spawnAreaDef.type === 'rectangle') {
+            let offsetX = typeof spawnAreaDef.offsetX === 'function' ? spawnAreaDef.offsetX(obsCurrentWidth, obsCurrentHeight) : (spawnAreaDef.offsetX || 0);
+            let offsetY = typeof spawnAreaDef.offsetY === 'function' ? spawnAreaDef.offsetY(obsCurrentWidth, obsCurrentHeight) : (spawnAreaDef.offsetY || 0);
+            if (obstacle.isFlippedHorizontally) {
+                offsetX = obsCurrentWidth - offsetX - (typeof spawnAreaDef.width === 'function' ? spawnAreaDef.width(obsCurrentWidth, obsCurrentHeight) : (spawnAreaDef.width || obsCurrentWidth));
+            }
+            const width = (typeof spawnAreaDef.width === 'function' ? spawnAreaDef.width(obsCurrentWidth, obsCurrentHeight) : (spawnAreaDef.width || obsCurrentWidth));
+            const height = (typeof spawnAreaDef.height === 'function' ? spawnAreaDef.height(obsCurrentWidth, obsCurrentHeight) : (spawnAreaDef.height || obsCurrentHeight));
+            return {
+                type: 'rectangle',
+                x: obstacle.x + offsetX,
+                y: obstacle.y + offsetY,
+                width: width,
+                height: height
+            };
+        }
+        return null;
+    }
+
+    getObstacleSpawnArea(obstacle) {
+        if (!obstacle.spawnArea) return null;
+        return this._resolveSpawnArea(obstacle.spawnArea, obstacle);
+    }
+
     _rectOverlap(rect1, rect2) {
         return !(rect1.x >= rect2.x + rect2.width || rect1.x + rect1.width <= rect2.x || rect1.y >= rect2.y + rect2.height || rect1.y + rect1.height <= rect2.y);
     }
@@ -299,13 +328,21 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         this.rebuildActiveObstacles();
     }
 
-    generateNavigationGrid(worldWidth, worldHeight) {
+     generateNavigationGrid(worldWidth, worldHeight) {
         this.gridCellSize = CONFIG.GRID_CELL_SIZE || 16;
         this.gridWidth = Math.floor(worldWidth / this.gridCellSize);
         this.gridHeight = Math.floor(worldHeight / this.gridCellSize);
         this.navGrid = [];
 
-        const unitClearanceRadius = (CONFIG.RACCOON_SIZE / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
+        // Calculate max unit size to ensure all units can pathfind correctly
+        const maxUnitSize = Math.max(
+            CONFIG.RACCOON_SIZE || 12,
+            CONFIG.POSSUM_GRUNT_SIZE || 14,
+            CONFIG.POSSUM_HEAVY_SIZE || 18,
+            CONFIG.POSSUM_SNIPER_SIZE || 14,
+            CONFIG.POSSUM_ELITE_SIZE || 15
+        );
+        const unitClearanceRadius = (maxUnitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
 
         for (let y = 0; y < this.gridHeight; y++) {
             this.navGrid[y] = [];
@@ -361,10 +398,18 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         }
     }
 
-    updateNavigationGridForObstacle(obstacle, isDestroyedAndNowWalkable) {
+     updateNavigationGridForObstacle(obstacle, isDestroyedAndNowWalkable) {
         if (!this.navGrid || !obstacle) return;
-        
-        const unitClearanceRadius = (CONFIG.RACCOON_SIZE / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 12);
+
+        // Calculate max unit size to ensure all units can pathfind correctly
+        const maxUnitSize = Math.max(
+            CONFIG.RACCOON_SIZE || 12,
+            CONFIG.POSSUM_GRUNT_SIZE || 14,
+            CONFIG.POSSUM_HEAVY_SIZE || 18,
+            CONFIG.POSSUM_SNIPER_SIZE || 14,
+            CONFIG.POSSUM_ELITE_SIZE || 15
+        );
+        const unitClearanceRadius = (maxUnitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 12);
 
         const obsShapesForBounds = this._getObstacleCollisionShape(obstacle);
         let minObsX, maxObsX, minObsY, maxObsY;
@@ -638,39 +683,56 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
         const hutCenterX = hut.x + hut.width / 2;
         const hutBottomEdgeY = hut.y + hut.height;
-        const spawnOffsetX = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
-        const spawnOffsetY = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
-        const spawnAreaWidth = spawnerConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
-        const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
-        const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
-        const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
         const gruntSize = CONFIG.POSSUM_GRUNT_SIZE || 14;
         const maxPlacementAttempts = spawnerConfig.MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT || 3;
 
-        let spawnX, spawnClear = false;
-        for (let attempt = 0; attempt < maxPlacementAttempts; attempt++) {
-            spawnX = this.rng.nextFloat(spawnLineMinX, spawnLineMinX + spawnAreaWidth);
-            spawnX = Math.max(gruntSize / 2, Math.min(spawnX, (CONFIG.WORLD_WIDTH || 0) - gruntSize / 2));
-            const clampedSpawnY = Math.max(gruntSize / 2, Math.min(spawnCenterY, (CONFIG.WORLD_HEIGHT || 0) - gruntSize / 2));
-            if (this.playableMinY !== undefined && clampedSpawnY < this.playableMinY + gruntSize / 2) continue;
+        const spawnArea = this.getObstacleSpawnArea(hut);
+        let getSpawnPoint;
 
-            if (this.isSpawnPointClear(spawnX, clampedSpawnY, gruntSize, this.obstacles, this.game.enemyUnits)) {
+        if (spawnArea && spawnArea.type === 'rectangle') {
+            getSpawnPoint = () => {
+                const x = this.rng.nextFloat(spawnArea.x, spawnArea.x + spawnArea.width);
+                const y = this.rng.nextFloat(spawnArea.y, spawnArea.y + spawnArea.height);
+                return { x, y };
+            };
+        } else {
+            const spawnOffsetX = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
+            const spawnOffsetY = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
+            const spawnAreaWidth = spawnerConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
+            const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
+            const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
+            const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
+            getSpawnPoint = () => {
+                const x = this.rng.nextFloat(spawnLineMinX, spawnLineMinX + spawnAreaWidth);
+                const y = spawnCenterY;
+                return { x, y };
+            };
+        }
+
+        let spawnX, spawnY, spawnClear = false;
+        for (let attempt = 0; attempt < maxPlacementAttempts; attempt++) {
+            const point = getSpawnPoint();
+            spawnX = Math.max(gruntSize / 2, Math.min(point.x, (CONFIG.WORLD_WIDTH || 0) - gruntSize / 2));
+            spawnY = Math.max(gruntSize / 2, Math.min(point.y, (CONFIG.WORLD_HEIGHT || 0) - gruntSize / 2));
+            if (this.playableMinY !== undefined && spawnY < this.playableMinY + gruntSize / 2) continue;
+
+            if (this.isSpawnPointClear(spawnX, spawnY, gruntSize, this.obstacles, this.game.enemyUnits)) {
                 spawnClear = true;
                 break;
             }
         }
 
         if (spawnClear) {
-            const newGrunt = new PossumGrunt(spawnX, spawnCenterY, this.game, `PSM-HUT-${this.game.enemyUnits.length + 1}`);
+            const newGrunt = new PossumGrunt(spawnX, spawnY, this.game, `PSM-HUT-${this.game.enemyUnits.length + 1}`);
             newGrunt.isPhasing = true;
             newGrunt.phasingTimer = spawnerConfig.SPAWN_PHASING_DURATION || 1.0;
             const moveOutDist = spawnerConfig.INITIAL_MOVE_OUT_DISTANCE || 50;
             let angleFromSpawn = Math.PI / 2; 
-            if (distance(spawnX, spawnCenterY, hutCenterX, hut.y + hut.height / 2) > 10) {
-                angleFromSpawn = Math.atan2(spawnCenterY - (hut.y + hut.height / 2), spawnX - hutCenterX);
+            if (distance(spawnX, spawnY, hutCenterX, hut.y + hut.height / 2) > 10) {
+                angleFromSpawn = Math.atan2(spawnY - (hut.y + hut.height / 2), spawnX - hutCenterX);
             }
             let initialTargetX = spawnX + Math.cos(angleFromSpawn) * moveOutDist;
-            let initialTargetY = spawnCenterY + Math.sin(angleFromSpawn) * moveOutDist;
+            let initialTargetY = spawnY + Math.sin(angleFromSpawn) * moveOutDist;
             initialTargetX = Math.max(gruntSize / 2, Math.min(initialTargetX, (CONFIG.WORLD_WIDTH || 0) - gruntSize / 2));
             initialTargetY = Math.max(gruntSize / 2, Math.min(initialTargetY, (CONFIG.WORLD_HEIGHT || 0) - gruntSize / 2));
             newGrunt.setMoveTarget(initialTargetX, initialTargetY);
@@ -699,16 +761,22 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         for (const hut of this.potentialSpawnerHuts) {
             if (hut.isDestroyed) continue;
             const spawnerConfig = this.getSpawnerConfig(hut);
-            const hutCenterX = hut.x + hut.width / 2;
-            const hutBottomEdgeY = hut.y + hut.height;
-            const spawnOffsetX = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
-            const spawnOffsetY = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
-            const spawnAreaWidth = spawnerConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
-            const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
-const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
-            const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
-            const debugSpawnHeight = (CONFIG.POSSUM_GRUNT_SIZE || 14) * 0.5;
-            ctx.fillRect(spawnLineMinX, spawnCenterY - debugSpawnHeight / 2, spawnAreaWidth, debugSpawnHeight);
+            const spawnArea = this.getObstacleSpawnArea(hut);
+
+            if (spawnArea && spawnArea.type === 'rectangle') {
+                ctx.fillRect(spawnArea.x, spawnArea.y, spawnArea.width, spawnArea.height);
+            } else {
+                const hutCenterX = hut.x + hut.width / 2;
+                const hutBottomEdgeY = hut.y + hut.height;
+                const spawnOffsetX = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X || 0;
+                const spawnOffsetY = spawnerConfig.SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y || 0;
+                const spawnAreaWidth = spawnerConfig.SPAWN_AREA_WIDTH || (CONFIG.POSSUM_GRUNT_SIZE || 14) * 1.5;
+                const spawnCenterY = hutBottomEdgeY + spawnOffsetY;
+                const spawnLineCenterX = hut.isFlippedHorizontally ? hutCenterX - spawnOffsetX : hutCenterX + spawnOffsetX;
+                const spawnLineMinX = spawnLineCenterX - spawnAreaWidth / 2;
+                const debugSpawnHeight = (CONFIG.POSSUM_GRUNT_SIZE || 14) * 0.5;
+                ctx.fillRect(spawnLineMinX, spawnCenterY - debugSpawnHeight / 2, spawnAreaWidth, debugSpawnHeight);
+            }
             if (hut.isActivelySpawning) {
                 ctx.fillStyle = 'rgba(255, 165, 0, 0.8)';
                 ctx.beginPath();

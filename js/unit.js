@@ -461,7 +461,7 @@ class Unit {
 
         if (this.isMoving && this.game) {
             const SEPARATION_CHECK_RADIUS = this.size * 1.5; const SEPARATION_FORCE_FACTOR = 0.9;
-            const MIN_SEPARATION_DISTANCE_FACTOR = 0.95;
+            const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.MIN_SEPARATION_DISTANCE_FACTOR || 1.2;
             let separationDX = 0; let separationDY = 0; let unitsInSeparationRange = 0;
             let unitsToConsiderForSeparation = [];
 
@@ -473,15 +473,18 @@ class Unit {
                 const gridObjects = this.game.spatialGrid.queryRange(this.x, this.y, queryRadius);
                 nearbyUnits = gridObjects.filter(o => o instanceof Unit);
             } else {
-                if (this.team === 'player') unitsToConsiderForSeparation = this.game.getLivingPlayerControlledUnits();
-                else if (this.team === 'enemy') unitsToConsiderForSeparation = this.game.enemyUnits || [];
-                nearbyUnits = unitsToConsiderForSeparation;
+                // Get all living units for separation (player + enemy + hostages)
+                const allUnits = [
+                    ...(this.game.getLivingPlayerControlledUnits?.() || []),
+                    ...(this.game.enemyUnits || []),
+                    ...(this.game.hostageUnits || [])
+                ];
+                nearbyUnits = allUnits;
             }
 
             for (const otherUnit of nearbyUnits) {
                 if (otherUnit === this || !otherUnit.isAlive() || otherUnit.isPhasing) continue;
-                if (this.team === 'player' && otherUnit.team !== 'player') continue;
-                if (this.team === 'enemy' && otherUnit.team !== 'enemy') continue;
+                // Removed team restrictions - all units should separate from each other
                 const distSq = (this.x - otherUnit.x) ** 2 + (this.y - otherUnit.y) ** 2;
                 if (distSq === 0) continue;
                 const combinedRadii = (this.size / 2) + (otherUnit.size / 2);

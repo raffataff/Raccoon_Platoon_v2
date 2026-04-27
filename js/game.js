@@ -3674,14 +3674,48 @@ class Game {
         if (this.intelConsoles) {
             this.intelConsoles.forEach(console => {
                 if (console && typeof console.y === 'number' && typeof console.height === 'number') {
-                    sortableObjects.push({ entity: console, sortY: console.y + console.height, isUnit: false, isDestroyed: false });
+                    let sortYValue = console.y + console.height;
+                    if (this.level && typeof this.level._getObstacleCollisionShape === 'function') {
+                        const shapes = this.level._getObstacleCollisionShape(console);
+                        const shapesArray = Array.isArray(shapes) ? shapes : (shapes ? [shapes] : null);
+                        if (shapesArray && shapesArray.length > 0) {
+                            let maxBottom = -Infinity;
+                            shapesArray.forEach(shape => {
+                                let bottom;
+                                if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
+                                else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
+                                else if (shape.type === 'rectangle') { bottom = shape.y + shape.height; }
+                                else { bottom = shape.y + (shape.height || 0); }
+                                if (bottom > maxBottom) maxBottom = bottom;
+                            });
+                            if (maxBottom !== -Infinity) sortYValue = maxBottom;
+                        }
+                    }
+                    sortableObjects.push({ entity: console, sortY: sortYValue, isUnit: false, isDestroyed: false });
                 }
             });
         }
         if (this.possumTurrets) {
             this.possumTurrets.forEach(turret => {
                 if (turret && typeof turret.y === 'number' && typeof turret.height === 'number') {
-                    sortableObjects.push({ entity: turret, sortY: turret.y + turret.height, isUnit: false, isDestroyed: false });
+                    let sortYValue = turret.y + turret.height;
+                    if (this.level && typeof this.level._getObstacleCollisionShape === 'function') {
+                        const shapes = this.level._getObstacleCollisionShape(turret);
+                        const shapesArray = Array.isArray(shapes) ? shapes : (shapes ? [shapes] : null);
+                        if (shapesArray && shapesArray.length > 0) {
+                            let maxBottom = -Infinity;
+                            shapesArray.forEach(shape => {
+                                let bottom;
+                                if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
+                                else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
+                                else if (shape.type === 'rectangle') { bottom = shape.y + shape.height; }
+                                else { bottom = shape.y + (shape.height || 0); }
+                                if (bottom > maxBottom) maxBottom = bottom;
+                            });
+                            if (maxBottom !== -Infinity) sortYValue = maxBottom;
+                        }
+                    }
+                    sortableObjects.push({ entity: turret, sortY: sortYValue, isUnit: false, isDestroyed: false });
                 }
             });
         }
