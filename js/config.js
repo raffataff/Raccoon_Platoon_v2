@@ -31,10 +31,10 @@ const CONFIG = {
     DEBUG_DRAW_NAV_GRID_BLOCKED: false,
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true,
     DEBUG_DRAW_UNIT_PATHING_BOUNDS: false,
-    UNIT_PATHING_RADIUS_BUFFER: 15,
+    UNIT_PATHING_RADIUS_BUFFER: 10,
     MIN_SEPARATION_DISTANCE_FACTOR: 3.0, // Prevents unit clumping (1.0 = touch, >1.0 = spacing)
     UNIT_STUCK_FRAMES_THRESHOLD: 2,
-    STUCK_FRAMES_THRESHOLD_PATHING: 2,
+    STUCK_FRAMES_THRESHOLD_PATHING: 30,
     REPATH_STUCK_COOLDOWN: 0.3,
 
     ENEMY_ALERT_PROPAGATION_RADIUS: 200,
@@ -786,7 +786,7 @@ const CONFIG = {
     // =============================================================================
     // ROSTER_CAMPAIGN
     // =============================================================================
-    INITIAL_ROSTER_SIZE: 5,
+    INITIAL_ROSTER_SIZE: 3,
     NEW_RECRUITS_PER_MISSION_WIN: 1,
     MAX_SQUAD_SIZE_MVP: 4,
     MAX_TOTAL_ROSTER_SIZE: 100,
@@ -795,120 +795,20 @@ const CONFIG = {
     INITIAL_FORMATION_SPACING: 3.0,
 
     // =============================================================================
-    // WORLD_TERRAIN
+    // WORLD_TERRAIN (generic settings - biome-specific terrain moved to js/biomes/)
     // =============================================================================
-    WORLD_BASE_MUD_COLOR: '#483524',
-    WORLD_BASE_DIRT_COLOR: '#5C4033',
-    WORLD_GRASS_TILE_SIZE: 54,
-    WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.6,
-    WORLD_GRASS_SKIP_CHANCE: 0.5,
-    WORLD_GRASS_SKIP_MIN: 3,
-    WORLD_GRASS_SKIP_MAX: 12,
 
-    MUD_SPRITE_PATH: 'assets/images/objects/biomes/tropical/mud/',
-    MUD_SPRITE_FILES: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'],
+    // =============================================================================
+    // OBSTACLES (generic only - biome-specific obstacles moved to js/biomes/)
+    // =============================================================================
 
-    
+    // Fences (generic - used by borders across all biomes)
     FENCE_BARBED_SPRITE_PATH: 'assets/images/objects/fences/barbed/',
     FENCE_BARBED_SHORT_SPRITE_FILES: [
         'fence_barbed_straight_short_1.png', 'fence_barbed_straight_short_2.png', 'fence_barbed_straight_short_3.png', 'fence_barbed_straight_short_4.png', 'fence_barbed_straight_short_5.png', 'fence_barbed_straight_short_6.png'
     ],
     FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png', 'fence_barbed_straight_long_3.png', 'fence_barbed_straight_long_4.png', 'fence_barbed_straight_long_5.png', 'fence_barbed_straight_long_6.png'],
 
-    WORLD_MUD_NOISE_SCALE_X: 0.015,
-    WORLD_MUD_NOISE_SCALE_Y: 0.01,
-    WORLD_MUD_NOISE_THRESHOLD: 0.3,
-    WORLD_MUD_NOISE_OCTAVES: 3,
-
-    GRASS_SPRITE_PATH: 'assets/images/objects/biomes/tropical/grass2/',
-    GRASS_SPRITE_FILES: [
-        'grass1.png', 'grass2.png', 'grass3.png', 'grass4.png', 'grass5.png',
-        'grass6.png', 'grass7.png', 'grass8.png', 'grass9.png', 'grass10.png'
-    ],
-
-    // =============================================================================
-    // BIOME_TROPICAL
-    // =============================================================================
-
-    // Walls
-    TROPICAL_WALL_ANGLED_LONG_PATH: 'assets/images/objects/biomes/tropical/walls/',
-    TROPICAL_WALL_ANGLED_LONG_FILES: ['tropical_wall_angled_long_1.png', 'tropical_wall_angled_long_2.png', 'tropical_wall_angled_long_3.png', ],
-    
-    TROPICAL_BUSH_LARGE_PATH: 'assets/images/objects/biomes/tropical/bushes/',
-    TROPICAL_BUSH_LARGE_FILES: [
-        'fern_large_1.png', 'fern_large_2.png', 'fern_large_3.png', 'fern_large_4.png', 'fern_large_5.png',
-        'plant_red_large_1.png', 'plant_red_large_2.png', 'plant_red_large_3.png'
-    ],
-
-    PALM_BUSH_SMALL_PATH: 'assets/images/objects/biomes/tropical/bushes/',
-    PALM_BUSH_SMALL_FILES: ['palm_bush_small_1.png', 'palm_bush_small_2.png', 'palm_bush_small_3.png', 'palm_bush_small_4.png'],
-
-    PALM_BUSH_LARGE_PATH: 'assets/images/objects/biomes/tropical/bushes/',
-    PALM_BUSH_LARGE_FILES: ['palm_bush_large_1.png', 'palm_bush_large_2.png'],
-
-    ROCK_SPRITES_TRIPICAL_MEDIUM_PATH: 'assets/images/objects/rocks/grassy/medium/',
-    ROCK_SPRITES_TRIPICAL_MEDIUM_FILES: ['rock_medium_tropical_1.png', 'rock_medium_tropical_2.png', 'rock_medium_tropical_3.png', 'rock_medium_tropical_4.png', 'rock_medium_tropical_5.png', 'rock_medium_tropical_6.png'],
-
-    ROCK_SPRITES_64PX_PATH: 'assets/images/objects/rocks/grassy/large/',
-    ROCK_SPRITES_64PX_FILES: ['rock_large_tropical_1.png', 'rock_large_tropical_2.png', 'rock_large_tropical_3.png', 'rock_large_tropical_4.png', 'rock_large_tropical_5.png', 'rock_large_tropical_6.png'],
-
-    PALM_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/fullSize/',
-    PALM_TREE_SINGLE_SPRITE_FILES: ['palm1_single_1.png', 'palm1_single_2.png', 'palm1_single_3.png'],
-
-    PALM_TREE_DOUBLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/fullSize/',
-    PALM_TREE_DOUBLE_SPRITE_FILES: ['palm1_double.png'],
-
-    PALM_TREE_TRIPLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/fullSize/',
-    PALM_TREE_TRIPLE_SPRITE_FILES: ['palm1_triple.png'],
-
-    PALM_TREE2_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    PALM_TREE2_SINGLE_SPRITE_FILES: ['palm2_single_1.png', 'palm2_single_2.png', 'palm2_single_3.png'],
-
-    PALM_TREE2_DOUBLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    PALM_TREE2_DOUBLE_SPRITE_FILES: ['palm2_double_1.png', 'palm2_double_2.png', 'palm2_double_3.png'],
-
-    PALM_TREE2_TRIPLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    PALM_TREE2_TRIPLE_SPRITE_FILES: ['palm2_triple_1.png'],
-
-    PALM_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
-    PALM_TREE_FALLEN_SPRITE_FILES: ['palm_fallen_log_1.png'],
-
-    PALM2_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
-    PALM2_TREE_FALLEN_SPRITE_FILES: ['palm_fallen_log_2.png'],
-
-    FAN_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    FAN_TREE_SINGLE_SPRITE_FILES: ['tropical_fan_single_1.png', 'tropical_fan_single_2.png', 'tropical_fan_single_3.png'],
-
-    FAN_TREE_DOUBLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    FAN_TREE_DOUBLE_SPRITE_FILES: ['tropical_fan_double_1.png', 'tropical_fan_double_2.png', 'tropical_fan_double_3.png'],
-
-    FAN_TREE_TRIPLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    FAN_TREE_TRIPLE_SPRITE_FILES: ['tropical_fan_triple_1.png'],
-
-    RUBBER_TREE_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/rubber/',
-    RUBBER_TREE_SINGLE_SPRITE_FILES: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png'],
-
-    DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES: ['tree2_single_tall.png'],
-
-    TREE4_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    TREE4_SINGLE_SPRITE_FILES: ['tree4_single_large_1.png', 'tree4_single_large_2.png', 'tree4_single_large_3.png'],
-
-    TREE5_SINGLE_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/',
-    TREE5_SINGLE_SPRITE_FILES: ['tree5_single_1.png', 'tree5_single_2.png', 'tree5_single_3.png'],
-
-    DECIDUOUS_TREE_FALLEN_SPRITE_PATH: 'assets/images/objects/biomes/tropical/logs/',
-    DECIDUOUS_TREE_FALLEN_SPRITE_FILES: ['tree_fallen_log_1.png'],
-
-    RAINFOREST_SMALL_PATCH_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/forests/',
-    RAINFOREST_SMALL_PATCH_SPRITE_FILES: ['rainforest_small_1.png'],
-
-    RAINFOREST_LARGE_PATCH_SPRITE_PATH: 'assets/images/objects/biomes/tropical/trees/forests/',
-    RAINFOREST_LARGE_PATCH_SPRITE_FILES: ['rainforest_large_1.png', 'rainforest_large_3.png', 'rainforest_large_4.png', 'rainforest_large_5.png', ],
-
-    // =============================================================================
-    // OBSTACLES
-    // =============================================================================
     POSSUM_BARRACKS_1_SPRITE_PATH: 'assets/images/objects/possums/barracks/',
     POSSUM_BARRACKS_1_SPRITE_FILES: [
         { normal: 'possum_barracks_1.png', destroyed: 'possum_barracks_1_destroyed.png' },
@@ -950,11 +850,6 @@ const CONFIG = {
     // Helipads
     HELIPAD_SQUARE_SPRITE_PATH: 'assets/images/objects/helipad/',
     HELIPAD_SQUARE_SPRITE_FILES: ['concrete_helipad_square_1.png'],
-    
-    // Ruins
-    TROPICAL_RUINS_SPRITE_PATH: 'assets/images/objects/BIOMES/tropical/ruins/',
-    TROPICAL_RUINS_SPRITE_FILES: ['ruins_arch.png'],
-
 
     // Barrels
     SINGLE_EXPLOSIVE_BARREL_SPRITE_PATH: 'assets/images/objects/barrels/',
@@ -997,16 +892,6 @@ const CONFIG = {
 
     OBSTACLE_DEFINITIONS: [
         {
-            type: 'tropical_wall_angled_long', name: 'Tropical Wall Angled Long',
-            color: '#93a5a7', destructible: false,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0, isDecoration: false,
-            spriteScale: 0.3,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.42), width: (w => w * 0.95), height: (h => h * 0.15), rotation: -Math.PI / 6.3 },
-            canBeFlipped: true,
-            placementBuffer: 90,
-        },
-        {
             type: 'fence_barbed_straight_short', name: 'Barbed Wire Fence Straight Short',
             color: '#a7a7a7', destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
@@ -1025,272 +910,7 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.98), height: (h => h * 0.03) },
             canBeFlipped: true
         },
-        {
-            type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
-            destructible: true, hp: 200, maxHp: 200,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
-            spriteScale: 1,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 0.64), radiusX: (w => w * 0.41), radiusY: (h => h * 0.2) },
-            canBeFlipped: true,
-        },
-        {
-            type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
-            destructible: false, hp: Infinity, maxHp: Infinity,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
-            spriteScale: 0.7,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: (h => h * 0.27) },
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
 
-        {
-            type: 'bush_medium', name: 'Medium Bush', color: '#228B22',
-            destructible: true, hp: 30, maxHp: 30,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 0, isDecoration: false,
-            spriteScale: 0.4,
-            canBeFlipped: true,
-        },
-        {
-            type: 'bush_large', name: 'Large Bush', color: '#006400',
-            destructible: true, hp: 50, maxHp: 50,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.6,
-            canBeFlipped: true,
-        },
-        {
-            type: 'palm_bush_small', name: 'Small Palm Bush', color: '#228B22',
-            destructible: true, hp: 30, maxHp: 30,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 4, isDecoration: false,
-            spriteScale: 0.6,
-            canBeFlipped: true,
-        },
-        {
-            type: 'palm_bush_large', name: 'Large Palm Bush', color: '#228B22',
-            destructible: true, hp: 50, maxHp: 50,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 4, isDecoration: false,
-            spriteScale: 0.6,
-            canBeFlipped: true,
-        },
-        
-        {
-            type: 'tree_palm_single', name: 'Palm Tree Single', color: '#005522',
-            destructible: true, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.6,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.39), offsetY: (h => h * 1.25), radius: (w => w * 0.09) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.5,
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
-        {
-            type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
-            destructible: true, hp: 150, maxHp: 150,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.25), radiusX: (w => w * 0.17), radiusY: (h => h * 0.09) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.5,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
-            destructible: true, hp: 200, maxHp: 200,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: false,
-            spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.3), radiusX: (w => w * 0.2), radiusY: (h => h * 0.10) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.5,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree_palm2_single', name: 'Palm Tree 2 Single', color: '#005522',
-            destructible: true, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 6, isDecoration: false,
-            spriteScale: 0.35,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.5,
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
-        {
-            type: 'tree_palm2_double', name: 'Palm Tree 2 Double', color: '#005522',
-            destructible: true, hp: 150, maxHp: 150,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
-            spriteScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.51), offsetY: (h => h * 0.75), radiusX: (w => w * 0.08), radiusY: (h => h * 0.065) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.5,
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
-        {
-            type: 'tree_palm2_triple', name: 'Palm Tree 2 Triple', color: '#005522',
-            destructible: true, hp: 200, maxHp: 200,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.45,
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
-        {
-            type: 'tree_palm_fallen', name: 'Fallen Palm Tree', color: '#005522',
-            destructible: false, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
-            isDecoration: false,
-            spriteScale: 1.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
-        {
-            type: 'tree_palm2_fallen', name: 'Fallen Palm2 Tree', color: '#005522',
-            destructible: true, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
-            isDecoration: false,
-            spriteScale: 0.8,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
-        {
-            type: 'tree_fan_single', name: 'Fan Tree Single', color: '#005522',
-            destructible: true, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
-            spriteScale: 0.35,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.75), radius: (w => w * 0.07) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.4,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree_fan_double', name: 'Fan Tree Double', color: '#005522',
-            destructible: true, hp: 150, maxHp: 150,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
-            spriteScale: 0.35,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.4,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree_fan_triple', name: 'Fan Tree Triple', color: '#005522',
-            destructible: true, hp: 200, maxHp: 200,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.35,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
-            spriteDestroyedScale: 0.45,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree_rubber_single', name: 'Rubber Tree Single', color: '#005522',
-            destructible: true, hp: 150, maxHp: 150,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
-            spriteScale: 0.4,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radius: (w => w * 0.08) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.2,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree_deciduous_single', name: 'Deciduous Tree Single', color: '#228B22',
-            destructible: true, hp: 50, maxHp: 50,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.93), radius: (w => w * 0.08) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.2,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree4_deciduous_single', name: 'Deciduous Tree Large', color: '#228B22',
-            destructible: true, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0, isDecoration: false,
-            spriteScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.2,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree5_deciduous_single', name: 'Deciduous Tree Medium', color: '#228B22',
-            destructible: true, hp: 75, maxHp: 75,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 1.5), radiusX: (w => w * 0.12), radiusY: (h => h * 0.15) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.2,
-            canBeFlipped: true,
-        },
-        {
-            type: 'tree_deciduous_fallen', name: 'Fallen Deciduous Tree', color: '#228B22',
-            destructible: false, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
-            isDecoration: false,
-            spriteScale: 0.6,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
-            canBeFlipped: true,
-        },
-        {
-            type: 'rainforest_patch_small_1',
-            name: 'Small Rainforest Patch',
-            color: '#0E2908',
-            destructible: false,
-            hp: Infinity,
-            maxHp: Infinity,
-            blocksMovement: true,
-            providesCover: true,
-            spawnWeight: 8,
-            spriteScale: 0.60,
-            spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.38), radiusX: (w => w * 0.36), radiusY: (h => h * 0.17) },
-            placementBuffer: 150,
-            canBeFlipped: true,
-            isDecoration: true
-        },
-        {
-            type: 'rainforest_patch_large_1',
-            name: 'Large Rainforest Patch',
-            color: '#0E2908',
-            destructible: false,
-            hp: Infinity,
-            maxHp: Infinity,
-            blocksMovement: true,
-            providesCover: true,
-            spawnWeight: 10,
-            spriteScale: 0.5,
-            spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.46), radiusY: (h => h * 0.19) },
-            placementBuffer: 150,
-            canBeFlipped: true,
-            isDecoration: true
-        },
         {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
@@ -1522,15 +1142,6 @@ const CONFIG = {
             placementBuffer: 100,
         },
         {
-            type: 'tropical_ruins', name: 'Tropical Ruins', color: '#afafaf',
-            destructible: false, hp: Infinity, maxHp: Infinity,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: true,
-            spriteScale: 0.5,
-            placementBuffer: 80,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: (h => h * 0.2) },
-        },
-        {
             type: 'building_c_shape', name: 'C-Shaped Building', color: '#808080',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
@@ -1633,38 +1244,20 @@ const CONFIG = {
             MIN_HEIGHT: 180,
             HEIGHT_FACTOR: 0.2,
             INTERNAL_PADDING_FACTOR: 80.0,
-            PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES: [
+            PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES_GENERIC: [
                 'possum_hut',
                 'possum_hut_round',
                 'empty_possum_hut_round',
                 'possum_relay_tower',
-                'rock_large',
-                'rock_medium',
                 'fence_barbed_straight_short',
                 'fence_barbed_straight_long',
-                'tree5_deciduous_single',
-                'tree4_deciduous_single',
-                'tree_deciduous_single',
-                'tree_palm_fallen',
-                'tree_palm2_fallen',
-                'tree_palm_triple',
-                'tree_palm2_triple',
-                'tree_palm_double',
-                'tree_palm2_double',
-                'tree_palm_single',
-                'tree_palm2_single',
-                'tree_fan_single',
-                'tree_fan_double',
-                'tree_fan_triple',
-                'rainforest_patch_small_1',
-                'tropical_forest_patch_small_1',
                 'empty_possum_hut_2',
                 'general_possum_building_large',
                 'possum_turret'
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 80,
+            BASE_COUNT: 70,
             WORLD_SIZE_FALLBACK_FACTOR: 0.95,
             RANDOM_ADDITION_MAX: 10,
             PLACEMENT_MAX_ATTEMPTS: 2
@@ -2130,6 +1723,12 @@ const CONFIG = {
 
         BIOME_TRACKS: {
             TROPICAL: {
+                ambient: ['AMBIENT_FOREST_1', 'AMBIENT_FOREST_2', 'AMBIENT_FOREST_3', 'AMBIENT_FOREST_4', 'AMBIENT_FOREST_5'],
+                combat: ['MUSIC_COMBAT_1'],
+                victory: 'MUSIC_VICTORY_DEFAULT',
+                defeat: 'MUSIC_DEFEAT'
+            },
+            TEMPERATE: {
                 ambient: ['AMBIENT_FOREST_1', 'AMBIENT_FOREST_2', 'AMBIENT_FOREST_3', 'AMBIENT_FOREST_4', 'AMBIENT_FOREST_5'],
                 combat: ['MUSIC_COMBAT_1'],
                 victory: 'MUSIC_VICTORY_DEFAULT',

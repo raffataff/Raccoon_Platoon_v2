@@ -24,6 +24,22 @@ class InputHandler {
         this.canvas.addEventListener('mousemove', (event) => this.handleMouseMove(event));
         this.canvas.addEventListener('mouseup', (event) => this.handleMouseUp(event));
         this.canvas.addEventListener('mouseleave', (event) => this.handleMouseLeave(event));
+        this.canvas.addEventListener('wheel', (event) => {
+            if (this.game && this.game.gameState === 'RUNNING') {
+                event.preventDefault();
+                const scrollDelta = event.deltaY > 0 ? -0.2 : 0.2;
+                const currentSpacing = this.game.formationSpacingMultiplier || CONFIG.INITIAL_FORMATION_SPACING || 3.5;
+                const newSpacing = Math.max(1.5, Math.min(6.0, currentSpacing + scrollDelta));
+                this.game.setFormationSpacing(newSpacing);
+                if (this.game.ui && this.game.ui.formationSpacingSlider) {
+                    this.game.ui.formationSpacingSlider.value = newSpacing.toString();
+                }
+                if (this.game.ui && this.game.ui.spacingValueDisplay) {
+                    this.game.ui.spacingValueDisplay.textContent = newSpacing.toFixed(1);
+                }
+            }
+        }, { passive: false });
+
         this.canvas.addEventListener('contextmenu', (event) => {
             // --- MODIFIED: Added mission ending states to the condition ---
             const isGameplayActive = this.game && (

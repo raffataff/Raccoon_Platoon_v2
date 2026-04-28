@@ -1134,6 +1134,7 @@ class Unit {
                 const randomDeadFile = deadSpriteConfigFiles[Math.floor(Math.random() * deadSpriteConfigFiles.length)];
                 this.assignedDeadSpritePath = deadSpriteConfigPath + randomDeadFile;
                 this.deathRotationAngle = (Math.random() - 0.5) * 0.5;
+                this.deadSpriteFlipped = Math.random() < 0.5;
             }
 
             if (this.assignedDeadSpritePath) {
@@ -1150,7 +1151,14 @@ class Unit {
         }
 
         if (spriteToDraw) {
-            ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
+            if (!this.isAlive() && this.deadSpriteFlipped) {
+                ctx.save();
+                ctx.scale(-1, 1);
+                ctx.drawImage(spriteToDraw, -drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
+                ctx.restore();
+            } else {
+                ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
+            }
         } else {
             let originalAlpha = ctx.globalAlpha;
             if (!this.isAlive()) {

@@ -32,11 +32,12 @@ const CAMPAIGN_RULES = {
 
     // --- Pools of Options ---
     BIOME_POOL: [
-        { name: "TROPICAL", weight: 4, unlocksPhase: 0, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
+        { name: "TROPICAL", weight: 4, unlocksPhase: 2, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
+        { name: "TEMPERATE", weight: 4, unlocksPhase: 0, description: "a temperate deciduous forest", themeAdjectives: ["Autumn", "Golden", "Crisp", "Wooded", "Serene"] },
     /*    { name: "JUNKYARD", weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
         { name: "SWAMP", weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY", weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
- */   ],
+    */   ],
 
     OBJECTIVE_POOL: [
         // --- MODIFIED OBJECTIVE STRUCTURE ---
@@ -260,12 +261,14 @@ const CAMPAIGN_RULES = {
         ENEMY_ADJECTIVES: ["light", "moderate", "heavy", "significant", "entrenched", "scattered", "unconfirmed", "dug-in", "roaming", "well-equipped", "elite", "veteran", "desperate", "fanatical"],
         BIOME_ADJECTIVES: {
             TROPICAL: ["dense", "ancient", "sun-dappled", "misty", "overgrown", "impenetrable", "shadowy", "primeval"],
+            TEMPERATE: ["golden", "autumn", "crisp", "woodland", "rural", "harvest", "amber", "barren"],
             JUNKYARD: ["sprawling", "rusting", "treacherous", "cluttered", "metallic", "toxic", "labyrinthine", "forgotten"],
             SWAMP: ["murky", "fetid", "stagnant", "treacherous", "gator-infested", "mist-shrouded", "suffocating", "malarial"],
             URBAN_DECAY: ["ruined", "war-torn", "abandoned", "crumbling", "concrete", "ghost-ridden", "skeletal", "desolate"],
         },
         LOCATION_NOUNS: {
             TROPICAL: ["clearing", "thicket", "outpost", "logging camp", "riverbend", "hidden grove", "ancient ruin", "waterfall base"],
+            TEMPERATE: ["clearing", "grove", "meadow", "orchard", "hilltop", "woodland path", "old farmstead", "stone wall"],
             JUNKYARD: ["scrap pile", "main yard", "crusher zone", "storage sector", "derelict maze", "vehicle graveyard", "collapsed overpass", "chemical spill"],
             SWAMP: ["bog", "mire", "flooded village", "gator nest", "hidden islet", "mangrove cluster", "sunken shrine", "rickety boardwalk"],
             URBAN_DECAY: ["ruined square", "collapsed structure", "abandoned factory", "sewer entrance", "rooftop network", "bombed-out street", "subway station", "fortified checkpoint"],

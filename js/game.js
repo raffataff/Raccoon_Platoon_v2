@@ -929,38 +929,38 @@ class Game {
             },
 
             // ====================
-            // TERRAIN (single files from lists)
+            // TERRAIN (single files from lists - biome-specific, using TROPICAL_BIOME for now)
             // ====================
-            { name: 'grass', files: CONFIG.GRASS_SPRITE_FILES, path: CONFIG.GRASS_SPRITE_PATH, type: 'single' },
-            { name: 'tropical_wall_angled_long', files: CONFIG.TROPICAL_WALL_ANGLED_LONG_FILES, path: CONFIG.TROPICAL_WALL_ANGLED_LONG_PATH, type: 'single' },
+            { name: 'grass', files: TROPICAL_BIOME.spritePaths.grass?.files, path: TROPICAL_BIOME.spritePaths.grass?.path, type: 'single' },
+            { name: 'tropical_wall_angled_long', files: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.files, path: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.path, type: 'single' },
             { name: 'fence_barbed_short', files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
             { name: 'fence_barbed_long', files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
-            { name: 'bush_large', files: CONFIG.TROPICAL_BUSH_LARGE_FILES, path: CONFIG.TROPICAL_BUSH_LARGE_PATH, type: 'single' },
-            { name: 'rock_medium', files: CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_FILES, path: CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_PATH, type: 'single' },
-            { name: 'rock_large', files: CONFIG.ROCK_SPRITES_64PX_FILES, path: CONFIG.ROCK_SPRITES_64PX_PATH, type: 'single' },
-            { name: 'palm_single', files: CONFIG.PALM_TREE_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE_SINGLE_SPRITE_PATH, type: 'single' },
-            { name: 'palm_double', files: CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH, type: 'single' },
-            { name: 'palm_triple', files: CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH, type: 'single' },
-            { name: 'palm_fallen', files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH, type: 'single' },
-            { name: 'palm2_fallen', files: CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH, type: 'single' },
-            { name: 'palm2_single', files: CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_SINGLE_SPRITE_PATH, type: 'single' },
-            { name: 'palm2_double', files: CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_DOUBLE_SPRITE_PATH, type: 'single' },
-            { name: 'palm2_triple', files: CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES, path: CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH, type: 'single' },
-            { name: 'deciduous_fallen', files: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH, type: 'single' },
-            { name: 'deciduous_single', files: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH, type: 'single' },
-            { name: 'tree4_deciduous', files: CONFIG.TREE4_SINGLE_SPRITE_FILES, path: CONFIG.TREE4_SINGLE_SPRITE_PATH, type: 'single' },
-            { name: 'tree5_deciduous', files: CONFIG.TREE5_SINGLE_SPRITE_FILES, path: CONFIG.TREE5_SINGLE_SPRITE_PATH, type: 'single' },
-            { name: 'tree_fan_single', files: CONFIG.FAN_TREE_SINGLE_SPRITE_FILES, path: CONFIG.FAN_TREE_SINGLE_SPRITE_PATH, type: 'single' },
-            { name: 'tree_fan_double', files: CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES, path: CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH, type: 'single' },
-            { name: 'tree_fan_triple', files: CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES, path: CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH, type: 'single' },
-            { name: 'tree_rubber_single', files: CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES, path: CONFIG.RUBBER_TREE_SINGLE_SPRITE_PATH, type: 'single' },
-            { name: 'palm_bush_small', files: CONFIG.PALM_BUSH_SMALL_FILES, path: CONFIG.PALM_BUSH_SMALL_PATH, type: 'single' },
-            { name: 'palm_bush_large', files: CONFIG.PALM_BUSH_LARGE_FILES, path: CONFIG.PALM_BUSH_LARGE_PATH, type: 'single' },
-            { name: 'mud', files: CONFIG.MUD_SPRITE_FILES, path: CONFIG.MUD_SPRITE_PATH, type: 'single' },
-            { name: 'rainforest_small', files: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_PATH, type: 'single' },
-            { name: 'rainforest_large', files: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_FILES, path: CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_PATH, type: 'single' },
+            { name: 'bush_large', files: TROPICAL_BIOME.spritePaths.bush_large?.files, path: TROPICAL_BIOME.spritePaths.bush_large?.path, type: 'single' },
+            { name: 'rock_medium', files: TROPICAL_BIOME.spritePaths.rock_medium?.files, path: TROPICAL_BIOME.spritePaths.rock_medium?.path, type: 'single' },
+            { name: 'rock_large', files: TROPICAL_BIOME.spritePaths.rock_large?.files, path: TROPICAL_BIOME.spritePaths.rock_large?.path, type: 'single' },
+            { name: 'palm_single', files: TROPICAL_BIOME.spritePaths.tree_palm_single?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_single?.path, type: 'single' },
+            { name: 'palm_double', files: TROPICAL_BIOME.spritePaths.tree_palm_double?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_double?.path, type: 'single' },
+            { name: 'palm_triple', files: TROPICAL_BIOME.spritePaths.tree_palm_triple?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_triple?.path, type: 'single' },
+            { name: 'palm_fallen', files: TROPICAL_BIOME.spritePaths.tree_palm_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_fallen?.path, type: 'single' },
+            { name: 'palm2_fallen', files: TROPICAL_BIOME.spritePaths.tree_palm2_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_fallen?.path, type: 'single' },
+            { name: 'palm2_single', files: TROPICAL_BIOME.spritePaths.tree_palm2_single?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_single?.path, type: 'single' },
+            { name: 'palm2_double', files: TROPICAL_BIOME.spritePaths.tree_palm2_double?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_double?.path, type: 'single' },
+            { name: 'palm2_triple', files: TROPICAL_BIOME.spritePaths.tree_palm2_triple?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_triple?.path, type: 'single' },
+            { name: 'deciduous_fallen', files: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.path, type: 'single' },
+            { name: 'deciduous_single', files: TROPICAL_BIOME.spritePaths.tree_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree_deciduous_single?.path, type: 'single' },
+            { name: 'tree4_deciduous', files: TROPICAL_BIOME.spritePaths.tree4_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree4_deciduous_single?.path, type: 'single' },
+            { name: 'tree5_deciduous', files: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.path, type: 'single' },
+            { name: 'tree_fan_single', files: TROPICAL_BIOME.spritePaths.tree_fan_single?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_single?.path, type: 'single' },
+            { name: 'tree_fan_double', files: TROPICAL_BIOME.spritePaths.tree_fan_double?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_double?.path, type: 'single' },
+            { name: 'tree_fan_triple', files: TROPICAL_BIOME.spritePaths.tree_fan_triple?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_triple?.path, type: 'single' },
+            { name: 'tree_rubber_single', files: TROPICAL_BIOME.spritePaths.tree_rubber_single?.files, path: TROPICAL_BIOME.spritePaths.tree_rubber_single?.path, type: 'single' },
+            { name: 'palm_bush_small', files: TROPICAL_BIOME.spritePaths.palm_bush_small?.files, path: TROPICAL_BIOME.spritePaths.palm_bush_small?.path, type: 'single' },
+            { name: 'palm_bush_large', files: TROPICAL_BIOME.spritePaths.palm_bush_large?.files, path: TROPICAL_BIOME.spritePaths.palm_bush_large?.path, type: 'single' },
+            { name: 'mud', files: TROPICAL_BIOME.spritePaths.mud?.files, path: TROPICAL_BIOME.spritePaths.mud?.path, type: 'single' },
+            { name: 'rainforest_small', files: TROPICAL_BIOME.spritePaths.rainforest_patch_small_1?.files, path: TROPICAL_BIOME.spritePaths.rainforest_patch_small_1?.path, type: 'single' },
+            { name: 'rainforest_large', files: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.files, path: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.path, type: 'single' },
             { name: 'helipad_square', files: CONFIG.HELIPAD_SQUARE_SPRITE_FILES, path: CONFIG.HELIPAD_SQUARE_SPRITE_PATH, type: 'single' },
-            { name: 'tropical_ruins', files: CONFIG.TROPICAL_RUINS_SPRITE_FILES, path: CONFIG.TROPICAL_RUINS_SPRITE_PATH, type: 'single' },
+            { name: 'tropical_ruins', files: TROPICAL_BIOME.spritePaths.tropical_ruins?.files, path: TROPICAL_BIOME.spritePaths.tropical_ruins?.path, type: 'single' },
 
             // ====================
             // INTEL CONSOLES (on/off pairs)
@@ -1121,28 +1121,37 @@ class Game {
         const ctx = this.prerenderedBackgroundCtx;
         const localRng = new SeededRandom(seedForBackground);
 
-        ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+        // Get biome config for terrain settings
+        const biomeName = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+        const biome = CONFIG.BIOMES[biomeName] || CONFIG.BIOMES['TROPICAL'];
+        const biomeLevelGen = biome.levelGenSettings || {};
+
+        const baseMudColor = biomeLevelGen.WORLD_BASE_MUD_COLOR || CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+        const grassSpriteFiles = biome.spritePaths.grass?.files || CONFIG.GRASS_SPRITE_FILES;
+        const grassSpritePath = biome.spritePaths.grass?.path || CONFIG.GRASS_SPRITE_PATH;
+        const configuredTileSize = biomeLevelGen.WORLD_GRASS_TILE_SIZE || CONFIG.WORLD_GRASS_TILE_SIZE || 64;
+        const overlapFactor = biomeLevelGen.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? biomeLevelGen.WORLD_GRASS_TILE_OVERLAP_FACTOR : (CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR : 0.2);
+
+        ctx.fillStyle = baseMudColor;
         ctx.fillRect(0, 0, worldWidth, worldHeight);
 
-        if (CONFIG.GRASS_SPRITE_FILES && CONFIG.GRASS_SPRITE_FILES.length > 0 && CONFIG.GRASS_SPRITE_PATH) {
-            const configuredTileSize = CONFIG.WORLD_GRASS_TILE_SIZE || 64;
-            const overlapFactor = CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR : 0.2;
+        if (grassSpriteFiles && grassSpriteFiles.length > 0 && grassSpritePath) {
             const stepX = configuredTileSize * (1 - overlapFactor + 0.1);
             const stepY = configuredTileSize * (1 - overlapFactor);
 
             const mudParams = this.currentPhaseMudParams || {};
-            const skipChance = mudParams.grassSkipChance ?? CONFIG.WORLD_GRASS_SKIP_CHANCE ?? 0.0;
-            const skipMin = mudParams.grassSkipMin ?? CONFIG.WORLD_GRASS_SKIP_MIN ?? 1;
-            const skipMax = mudParams.grassSkipMax ?? CONFIG.WORLD_GRASS_SKIP_MAX ?? 1;
+            const skipChance = mudParams.grassSkipChance ?? biomeLevelGen.WORLD_GRASS_SKIP_CHANCE ?? CONFIG.WORLD_GRASS_SKIP_CHANCE ?? 0.0;
+            const skipMin = mudParams.grassSkipMin ?? biomeLevelGen.WORLD_GRASS_SKIP_MIN ?? CONFIG.WORLD_GRASS_SKIP_MIN ?? 1;
+            const skipMax = mudParams.grassSkipMax ?? biomeLevelGen.WORLD_GRASS_SKIP_MAX ?? CONFIG.WORLD_GRASS_SKIP_MAX ?? 1;
 
-            const mudSpritePath = CONFIG.MUD_SPRITE_PATH || '';
-            const mudSpriteFiles = CONFIG.MUD_SPRITE_FILES || [];
+            const mudSpritePath = biome.spritePaths.mud?.path || CONFIG.MUD_SPRITE_PATH || '';
+            const mudSpriteFiles = biome.spritePaths.mud?.files || CONFIG.MUD_SPRITE_FILES || [];
             const hasMudSprites = mudSpriteFiles.length > 0;
 
-            const noiseScaleX = (mudParams.noiseScaleX ?? CONFIG.WORLD_MUD_NOISE_SCALE_X) || 0.05;
-            const noiseScaleY = (mudParams.noiseScaleY ?? CONFIG.WORLD_MUD_NOISE_SCALE_Y) || 0.05;
-            const noiseThreshold = (mudParams.noiseThreshold ?? CONFIG.WORLD_MUD_NOISE_THRESHOLD) || 0.3;
-            const noiseOctaves = (mudParams.noiseOctaves ?? CONFIG.WORLD_MUD_NOISE_OCTAVES) || 4;
+            const noiseScaleX = mudParams.noiseScaleX ?? biomeLevelGen.WORLD_MUD_NOISE_SCALE_X ?? CONFIG.WORLD_MUD_NOISE_SCALE_X ?? 0.05;
+            const noiseScaleY = mudParams.noiseScaleY ?? biomeLevelGen.WORLD_MUD_NOISE_SCALE_Y ?? CONFIG.WORLD_MUD_NOISE_SCALE_Y ?? 0.05;
+            const noiseThreshold = mudParams.noiseThreshold ?? biomeLevelGen.WORLD_MUD_NOISE_THRESHOLD ?? CONFIG.WORLD_MUD_NOISE_THRESHOLD ?? 0.3;
+            const noiseOctaves = mudParams.noiseOctaves ?? biomeLevelGen.WORLD_MUD_NOISE_OCTAVES ?? CONFIG.WORLD_MUD_NOISE_OCTAVES ?? 4;
 
             for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
                 const rowOffset = (Math.floor((y + configuredTileSize * overlapFactor) / stepY) % 2 === 1) ? stepX / 2 : 0;
@@ -1171,16 +1180,16 @@ class Game {
                                 ctx.drawImage(mudImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
                                 ctx.restore();
                             } else {
-                                ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+                                ctx.fillStyle = baseMudColor;
                                 ctx.fillRect(effectiveX, y, configuredTileSize, configuredTileSize);
                             }
                         } else {
-                            ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
+                            ctx.fillStyle = baseMudColor;
                             ctx.fillRect(effectiveX, y, configuredTileSize, configuredTileSize);
                         }
                     } else {
-                            const randomSpriteName = localRng.pickFrom(CONFIG.GRASS_SPRITE_FILES);
-                            const spritePath = CONFIG.GRASS_SPRITE_PATH + randomSpriteName;
+                            const randomSpriteName = localRng.pickFrom(grassSpriteFiles);
+                            const spritePath = grassSpritePath + randomSpriteName;
                             const grassImg = this.preloadedImages[spritePath];
 
                             if (grassImg) {

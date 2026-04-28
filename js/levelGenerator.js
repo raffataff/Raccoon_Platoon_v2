@@ -151,8 +151,18 @@ class LevelGenerator {
         return true;
     }
 
+    _getAllObstacleDefinitions() {
+        if (!this._mergedObstacleDefs) {
+            this._mergedObstacleDefs = [
+                ...CONFIG.OBSTACLE_DEFINITIONS,
+                ...(this.currentBiome.obstacleDefinitions || [])
+            ];
+        }
+        return this._mergedObstacleDefs;
+    }
+
     _getRandomObstacleTemplate() {
-        const definitions = CONFIG.OBSTACLE_DEFINITIONS || [];
+        const definitions = this._getAllObstacleDefinitions() || [];
         if (definitions.length === 0) { console.warn("No obstacle definitions in CONFIG!"); return null; }
 
         const currentPhaseIdx = this.game.currentPhaseIndex || 0;
@@ -640,8 +650,13 @@ class LevelGenerator {
 
     generate(worldWidth, worldHeight, missionParamsContainer = {}, numPlayerSpawnsNeeded, preloadedAssetImages = {}, missionSeed) {
         this.rng = new SeededRandom(missionSeed);
-        this.preloadedAssetImages = preloadedAssetImages; // Store for access by helper methods
+        this.preloadedAssetImages = preloadedAssetImages;
         this.level.rng = this.rng;
+
+        // Capture current biome
+        this.currentBiomeName = (missionParamsContainer.baseParams && missionParamsContainer.baseParams.biome) || 'TROPICAL';
+        this.currentBiome = CONFIG.BIOMES[this.currentBiomeName] || CONFIG.BIOMES['TROPICAL'];
+        this._mergedObstacleDefs = null;
 
         this.level.obstacles = [];
         this.level.potentialSpawnerHuts = [];
@@ -1355,53 +1370,39 @@ class LevelGenerator {
                 actualSpritePath = 'assets/images/objects/possums/turrets/possum_turret_1_s.png';
             }
             
-            else if (template.type === 'bush_large') { filesArray = CONFIG.TROPICAL_BUSH_LARGE_FILES || []; pathBase = CONFIG.TROPICAL_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tropical_wall_angled_long') { filesArray = CONFIG.TROPICAL_WALL_ANGLED_LONG_FILES || []; pathBase = CONFIG.TROPICAL_WALL_ANGLED_LONG_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'fence_barbed_straight_short') { filesArray = CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'fence_barbed_straight_long') { filesArray = CONFIG.FENCE_BARBED_LONG_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'rock_medium') { filesArray = CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_FILES || []; pathBase = CONFIG.ROCK_SPRITES_TRIPICAL_MEDIUM_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'rock_large') { filesArray = CONFIG.ROCK_SPRITES_64PX_FILES || []; pathBase = CONFIG.ROCK_SPRITES_64PX_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm_single') { filesArray = CONFIG.PALM_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm_double') { filesArray = CONFIG.PALM_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm_triple') { filesArray = CONFIG.PALM_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'pickup_health') {
-                filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || [];
-                pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-                useSpritePair = true;
+            // Try biome sprite lookup first (handles all tropical/biome-specific obstacles)
+            else {
+                const biomeSpriteInfo = this.currentBiome.spritePaths[template.type];
+                if (biomeSpriteInfo) {
+                    filesArray = biomeSpriteInfo.files || [];
+                    pathBase = biomeSpriteInfo.path || '';
+                    useRandomSpriteFromList = true;
+                } else {
+                    // Generic obstacles with CONFIG-based sprite paths
+                    if (template.type === 'fence_barbed_straight_short') { filesArray = CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+                    else if (template.type === 'fence_barbed_straight_long') { filesArray = CONFIG.FENCE_BARBED_LONG_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+                    else if (template.type === 'pickup_health') {
+                        filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || [];
+                        pathBase = CONFIG.HEALTH_PICKUP_SPRITE_PATH || '';
+                        useRandomSpriteFromList = true;
+                        useSpritePair = true;
+                    }
+                    else if (template.type === 'pickup_ammo_crate') {
+                        filesArray = CONFIG.AMMO_PICKUP_SPRITE_FILES || [];
+                        pathBase = CONFIG.AMMO_PICKUP_SPRITE_PATH || '';
+                        useRandomSpriteFromList = true;
+                        useSpritePair = true;
+                    }
+                    else if (template.type === 'pickup_grenade_crate') {
+                        filesArray = CONFIG.GRENADE_PICKUP_SPRITE_FILES || [];
+                        pathBase = CONFIG.GRENADE_PICKUP_SPRITE_PATH || '';
+                        useRandomSpriteFromList = true;
+                        useSpritePair = true;
+                    }
+                    else if (template.type === 'helipad_concrete_square_1') { filesArray = CONFIG.HELIPAD_SQUARE_SPRITE_FILES || []; pathBase = CONFIG.HELIPAD_SQUARE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
+                    else { actualSpritePath = template.spriteNormal || null; }
+                }
             }
-            else if (template.type === 'pickup_ammo_crate') {
-                filesArray = CONFIG.AMMO_PICKUP_SPRITE_FILES || [];
-                pathBase = CONFIG.AMMO_PICKUP_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-                useSpritePair = true;
-            }
-            else if (template.type === 'pickup_grenade_crate') {
-                filesArray = CONFIG.GRENADE_PICKUP_SPRITE_FILES || [];
-                pathBase = CONFIG.GRENADE_PICKUP_SPRITE_PATH || '';
-                useRandomSpriteFromList = true;
-                useSpritePair = true;
-            }
-            else if (template.type === 'tree_palm_fallen') { filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm2_fallen') { filesArray = CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_deciduous_fallen') { filesArray = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm2_single') { filesArray = CONFIG.PALM_TREE2_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm2_double') { filesArray = CONFIG.PALM_TREE2_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_palm2_triple') { filesArray = CONFIG.PALM_TREE2_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.PALM_TREE2_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_deciduous_single') { filesArray = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_FILES || []; pathBase = CONFIG.DECIDUOUS_TREE2_SINGLE_TALL_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree4_deciduous_single') { filesArray = CONFIG.TREE4_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE4_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree5_deciduous_single') { filesArray = CONFIG.TREE5_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.TREE5_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_rubber_single') { filesArray = CONFIG.RUBBER_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.RUBBER_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_fan_single') { filesArray = CONFIG.FAN_TREE_SINGLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_SINGLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_fan_double') { filesArray = CONFIG.FAN_TREE_DOUBLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_DOUBLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tree_fan_triple') { filesArray = CONFIG.FAN_TREE_TRIPLE_SPRITE_FILES || []; pathBase = CONFIG.FAN_TREE_TRIPLE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'palm_bush_small') { filesArray = CONFIG.PALM_BUSH_SMALL_FILES || []; pathBase = CONFIG.PALM_BUSH_SMALL_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'palm_bush_large') { filesArray = CONFIG.PALM_BUSH_LARGE_FILES || []; pathBase = CONFIG.PALM_BUSH_LARGE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'rainforest_patch_small_1') { filesArray = CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_FILES || []; pathBase = CONFIG.RAINFOREST_SMALL_PATCH_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'rainforest_patch_large_1') { filesArray = CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_FILES || []; pathBase = CONFIG.RAINFOREST_LARGE_PATCH_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'helipad_concrete_square_1') { filesArray = CONFIG.HELIPAD_SQUARE_SPRITE_FILES || []; pathBase = CONFIG.HELIPAD_SQUARE_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else if (template.type === 'tropical_ruins') { filesArray = CONFIG.TROPICAL_RUINS_SPRITE_FILES || []; pathBase = CONFIG.TROPICAL_RUINS_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
-            else { actualSpritePath = template.spriteNormal || null; }
 
             if (useRandomSpriteFromList) {
                 if (filesArray.length > 0 && pathBase) {
@@ -1454,8 +1455,7 @@ class LevelGenerator {
                 const tempObstacleForShape = { ...template, x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight };
                 const collisionCheckShape = this.level._getObstacleCollisionShape(tempObstacleForShape);
 
-                const spawnZoneConfig = CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_ZONE || {};
-                const restrictedTypes = spawnZoneConfig.PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES || [];
+                const restrictedTypes = getAllRestrictedObstacleTypes(this.currentBiomeName);
                 const isRestrictedType = restrictedTypes.includes(template.type);
 
                 let overlapsOuterSpawnZone = false;
