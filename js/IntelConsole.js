@@ -192,7 +192,7 @@ class IntelConsole {
                 this.game.spawnEnemyAtLocation(spawnPos.x, spawnPos.y, unitType, this.x + this.width / 2, this.y + this.height / 2);
                 this.totalSpawnedThisHack++;
             }
-            console.log(`[INTEL HACK] Spawned ${spawnCount} enemies on console ${this.id}! Total on this console: ${this.totalSpawnedThisHack}/${spawnLimit}`);
+            //console.log(`[INTEL HACK] Spawned ${spawnCount} enemies on console ${this.id}! Total on this console: ${this.totalSpawnedThisHack}/${spawnLimit}`);
         }
     }
 

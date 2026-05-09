@@ -28,7 +28,7 @@ class RaccoonHostage extends Raccoon {
         this.FOLLOW_DISTANCE = hostageConfig.FOLLOW_DISTANCE || (this.size * 3.0);
         this.FOLLOW_STOP_DISTANCE_THRESHOLD = this.FOLLOW_DISTANCE * 0.7;
         this.REPATH_TARGET_MOVE_THRESHOLD = this.size * 7.5; 
-        this.minTimeBetweenRepath = 0.25; 
+        this.minTimeBetweenRepath = 0.85; 
         this.lastRepathTime = 0;          
 
         const possibleRanks = hostageConfig.POSSIBLE_RANKS_ON_RESCUE || [{ rankName: "Recruit", xpNeeded: 0, weight: 1 }];
@@ -230,18 +230,6 @@ class RaccoonHostage extends Raccoon {
         return Unit.prototype.setMoveTarget.call(this, worldX, worldY, this.isPhasing);
     }
 
-    addXp() {}
-    incrementKillCount() {}
-    checkPromotion() {}
-    applyRankBonuses() {} 
-    startGrenadeAim() {}
-    cancelGrenadeAim() {}
-    confirmThrowGrenade() { return false; }
-    moveToGrenadeRange() {}
-    checkForAndApplyPickups() {} 
-    _executeFire() {} 
-    _handlePlayerCombat() {} 
-    _handleEnemyCombat() {} 
 
     render(ctx) {
         if (!this.isRescued && this.isAlive() && this.unrescuedKneelingSprite) {

@@ -79,7 +79,7 @@ class ShootoutController {
 
         // Tweakable parameter: how far down the blood drops from the enemy's center
         this.BLOOD_VERTICAL_OFFSET = 35; // Pixels (positive is down)
-        this.BLOOD_UPWARD_FORCE = -70;  // Pixels per second (negative is up)
+        this.BLOOD_UPWARD_FORCE = -80;  // Pixels per second (negative is up)
 
         // Shuffle Mode
         this.isShuffleMode = false;

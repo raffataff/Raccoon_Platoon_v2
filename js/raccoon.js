@@ -65,7 +65,7 @@ class Raccoon extends Unit {
                 this.spriteScaleFactor = CONFIG.RACCOON_CORPORAL_SPRITE_SCALE_FACTOR || 0.5;
                 break;
             case 'Sergeant':
-                this.spriteBaseName = 'raccoon_sergeant';
+                this.spriteBaseName = 'raccoon_redBeret';
                 this.spriteScaleFactor = CONFIG.RACCOON_SERGEANT_SPRITE_SCALE_FACTOR || 0.5;
                 break;
             case 'Elite':

@@ -31,13 +31,13 @@ const CONFIG = {
     DEBUG_DRAW_NAV_GRID_BLOCKED: false,
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true,
     DEBUG_DRAW_UNIT_PATHING_BOUNDS: false,
-    UNIT_PATHING_RADIUS_BUFFER: 10,
+    UNIT_PATHING_RADIUS_BUFFER: 15,
     MIN_SEPARATION_DISTANCE_FACTOR: 3.0, // Prevents unit clumping (1.0 = touch, >1.0 = spacing)
     UNIT_STUCK_FRAMES_THRESHOLD: 2,
     STUCK_FRAMES_THRESHOLD_PATHING: 30,
     REPATH_STUCK_COOLDOWN: 0.3,
 
-    ENEMY_ALERT_PROPAGATION_RADIUS: 200,
+    ENEMY_ALERT_PROPAGATION_RADIUS: 150,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95,
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10,
 
@@ -93,23 +93,23 @@ const CONFIG = {
 
     // Sprites
     RACCOON_SPRITE_PATH: 'assets/images/units/raccoon/recruit/',
-    RACCOON_SPRITE_SCALE_FACTOR: 0.5,
+    RACCOON_SPRITE_SCALE_FACTOR: 0.45,
     RACCOON_PRIVATE_SPRITE_PATH: 'assets/images/units/raccoon/private/',
-    RACCOON_PRIVATE_SPRITE_SCALE_FACTOR: 0.55,
+    RACCOON_PRIVATE_SPRITE_SCALE_FACTOR: 0.47,
     RACCOON_CORPORAL_SPRITE_PATH: 'assets/images/units/raccoon/corporal/',
-    RACCOON_CORPORAL_SPRITE_SCALE_FACTOR: 0.6,
-    RACCOON_SERGEANT_SPRITE_PATH: 'assets/images/units/raccoon/sergeant/',
-    RACCOON_SERGEANT_SPRITE_SCALE_FACTOR: 0.62,
+    RACCOON_CORPORAL_SPRITE_SCALE_FACTOR: 0.5,
+    RACCOON_SERGEANT_SPRITE_PATH: 'assets/images/units/raccoon/redBeret/',
+    RACCOON_SERGEANT_SPRITE_SCALE_FACTOR: 0.57,
     RACCOON_ELITE_SPRITE_PATH: 'assets/images/units/raccoon/elite/',
-    RACCOON_ELITE_SPRITE_SCALE_FACTOR: 0.65,
+    RACCOON_ELITE_SPRITE_SCALE_FACTOR: 0.56,
     RACCOON_GHOST_SPRITE_PATH: 'assets/images/units/raccoon/ghost/',
-    RACCOON_GHOST_SPRITE_SCALE_FACTOR: 0.7,
+    RACCOON_GHOST_SPRITE_SCALE_FACTOR: 0.6,
     RACCOON_MAVERICK_SPRITE_PATH: 'assets/images/units/raccoon/maverick/',
     RACCOON_MAVERICK_SPRITE_SCALE_FACTOR: 0.55,
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
     RACCOON_DEAD_SPRITE_SCALE: 0.06,
-    RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 1.3,
+    RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 1.4,
 
     
     // =============================================================================
@@ -130,10 +130,11 @@ const CONFIG = {
     ],
     MAX_RANK_NAME: "Ghost",
 
-    GRENADE_BONUS_CORPORAL: 1,
-    GRENADE_BONUS_SERGEANT: 2,
-    GRENADE_BONUS_ELITE: 3,
-    GRENADE_BONUS_GHOST: 4,
+    GRENADE_BONUS_PRIVATE: 1,
+    GRENADE_BONUS_CORPORAL: 2,
+    GRENADE_BONUS_SERGEANT: 3,
+    GRENADE_BONUS_ELITE: 4,
+    GRENADE_BONUS_GHOST: 5,
 
 
     // =============================================================================
@@ -147,7 +148,7 @@ const CONFIG = {
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_GRUNT_DEFAULT_WEAPON: 'POSSUM_RIFLE',
         POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/',
-    POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.5,
+    POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.45,
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
     POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png', 'possum_grunt_dead_4.png'],
     POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.5,
@@ -162,7 +163,7 @@ const CONFIG = {
     POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.55,
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'],
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.7,
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.6,
     PROJECTILE_COLOR_POSSUM_HEAVY: '#ff47478e',
     
     // --- Possum Sniper ---
@@ -246,8 +247,8 @@ const CONFIG = {
             sfxFireKey: 'RACCOON_MG_FIRE',
             muzzleFlashScale: 1.0,
             bulletLifetime: 0.7,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.4,
+            bulletSpritePath: 'assets/images/projectiles/bullet_silver_1.png',
+            bulletSpriteScale: 0.5,
             isDefaultWeapon: true,
             magazineSize: 30,
             maxAmmo: 210
@@ -265,7 +266,7 @@ const CONFIG = {
             muzzleFlashScale: 1.0,
             bulletLifetime: 0.7,
             bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.45,
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             magazineSize: 35,
             maxAmmo: 240
@@ -282,8 +283,8 @@ const CONFIG = {
             sfxFireKey: 'RACCOON_MG_FIRE',
             muzzleFlashScale: 1.0,
             bulletLifetime: 0.7,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_goldRed_1.png',
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             magazineSize: 40,
             maxAmmo: 280
@@ -300,8 +301,8 @@ const CONFIG = {
             sfxFireKey: 'RACCOON_MG_FIRE',
             muzzleFlashScale: 1.0,
             bulletLifetime: 0.7,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_goldBlue_1.png',
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             magazineSize: 45,
             maxAmmo: 300
@@ -315,11 +316,11 @@ const CONFIG = {
             projectileColor: '#996600',
             accuracyStationary: 0.95,
             accuracyMoving: 0.8,
-            sfxFireKey: 'RACCOON_MG_FIRE',
+            sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.0,
             bulletLifetime: 0.7,
-            bulletSpritePath: 'assets/images/projectiles/bullet_blue_1.png',
-            bulletSpriteScale: 0.2,
+            bulletSpritePath: 'assets/images/projectiles/bullet_blackBlue_1.png',
+            bulletSpriteScale: 0.65,
             isDefaultWeapon: true,
             magazineSize: 55,
             maxAmmo: 400
@@ -336,8 +337,8 @@ const CONFIG = {
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.0,
             bulletLifetime: 0.7,
-            bulletSpritePath: 'assets/images/projectiles/bullet_blue_1.png',
-            bulletSpriteScale: 0.2,
+            bulletSpritePath: 'assets/images/projectiles/bullet_blue_2.png',
+            bulletSpriteScale: 0.65,
             isDefaultWeapon: true,
             magazineSize: 100,
             maxAmmo: 500
@@ -355,7 +356,7 @@ const CONFIG = {
             muzzleFlashScale: 1.0,
             bulletLifetime: 0.7,
             bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             magazineSize: 30,
             maxAmmo: 120
@@ -376,7 +377,7 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_RIFLE_FIRE',
             muzzleFlashScale: 0.9,
             bulletLifetime: 1.3,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
+            bulletSpritePath: 'assets/images/projectiles/bullet_silver_1.png',
             bulletSpriteScale: 0.4,
             isDefaultWeapon: true,
             maxAmmo: Infinity
@@ -386,15 +387,15 @@ const CONFIG = {
             damage: 18,
             rof: 2,
             range: 500,
-            projectileSpeed: 430,
+            projectileSpeed: 450,
             projectileColor: '#ff47478e',
             accuracyStationary: 0.85,
             accuracyMoving: 0.30,
             sfxFireKey: 'POSSUM_HEAVY_MG_FIRE',
             muzzleFlashScale: 1.5,
             bulletLifetime: 1.4,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_possumHeavy_1.png',
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             maxAmmo: Infinity
         },
@@ -430,7 +431,7 @@ const CONFIG = {
             muzzleFlashScale: 1.3,
             bulletLifetime: 2.2,
             bulletSpritePath: 'assets/images/projectiles/bullet_gold_boss.png',
-            bulletSpriteScale: 0.2,
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             maxAmmo: Infinity
         },
@@ -446,8 +447,8 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_REVOLVER_FIRE',
             muzzleFlashScale: 1.1,
             bulletLifetime: 1.8,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_possumRevolver_1.png',
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             maxAmmo: Infinity
         },
@@ -463,8 +464,8 @@ const CONFIG = {
             sfxFireKey: 'SNIPER_RIFLE_FIRE',
             muzzleFlashScale: 1.2,
             bulletLifetime: 2.0,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_possumSniper_1.png',
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             maxAmmo: Infinity
         },
@@ -480,24 +481,24 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_HEAVY_MG_FIRE',
             muzzleFlashScale: 1.0,
             bulletLifetime: 1.2,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_possumElite_1.png',
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
             maxAmmo: Infinity
         },
         POSSUM_TURRET_WEAPON: {
             name: 'Possum Turret',
-            damage: 20,
+            damage: 40,
             rof: 2.5,
             range: 400,
             projectileSpeed: 500,
             projectileColor: '#ff6600',
             accuracyStationary: 0.85,
             bulletLifetime: 2.0,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
-            bulletSpriteScale: 0.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_possumTurret_1.png',
+            bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
-            sfxFireKey: 'POSSUM_HEAVY_MG_FIRE',
+            sfxFireKey: 'POSSUM_BOSS_1_WEAPON_FIRE',
             isDefaultWeapon: true,
             maxAmmo: Infinity,
             muzzleFlashScale: 0.5
@@ -518,7 +519,7 @@ const CONFIG = {
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.2,
             bulletLifetime: 1.0,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
+            bulletSpritePath: 'assets/images/projectiles/bullet_plasmaRifle_1.png',
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 40,
@@ -530,22 +531,22 @@ const CONFIG = {
         },
         G14: {
             name: "G-14",
-            damage: 32,
-            rof: 1.5,
-            range: 300,
-            projectileSpeed: 500,
+            damage: 42,
+            rof: 6.5,
+            range: 400,
+            projectileSpeed: 550,
             projectileColor: '#ffaa00',
             accuracyStationary: 0.4,
             accuracyMoving: 0.2,
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.5,
-            bulletLifetime: 0.8,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
+            bulletLifetime: 1.8,
+            bulletSpritePath: 'assets/images/projectiles/bullet_g14_1.png',
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 8,
-            maxAmmo: 32,
-            phaseUnlocked: 8,
+            maxAmmo: 120,
+            phaseUnlocked: 3,
             pelletCount: 2,
             crateColor: '#ffaa00',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/g14.png',
@@ -563,33 +564,33 @@ const CONFIG = {
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 2.0,
             bulletLifetime: 1.5,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
+            bulletSpritePath: 'assets/images/projectiles/bullet_x1_1.png',
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 8,
             maxAmmo: 15,
-            phaseUnlocked: 3,
+            phaseUnlocked: 5,
             crateColor: '#ff00ff',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/x1.png',
             crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/x1_empty.png'
         },
         PW001: {
             name: "PW-001",
-            damage: 8,
+            damage: 18,
             rof: 20,
-            range: 150,
-            projectileSpeed: 300,
+            range: 250,
+            projectileSpeed: 650,
             projectileColor: '#ff4400',
             accuracyStationary: 0.6,
             accuracyMoving: 0.4,
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 2.0,
             bulletLifetime: 0.5,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
+            bulletSpritePath: 'assets/images/projectiles/bullet_pw001_1.png',
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 60,
-            maxAmmo: 180,
+            maxAmmo: 280,
             phaseUnlocked: 4,
             crateColor: '#ff4400',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/pw001.png',
@@ -599,19 +600,19 @@ const CONFIG = {
             name: "Mosin Sniper",
             damage: 80,
             rof: 0.5,
-            range: 600,
+            range: 900,
             projectileSpeed: 850,
             projectileColor: '#ff6600',
             accuracyStationary: 0.9,
             accuracyMoving: 0.5,
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 2.5,
-            bulletLifetime: 3.0,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
+            bulletLifetime: 4.0,
+            bulletSpritePath: 'assets/images/projectiles/bullet_mosin_1.png',
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
-            magazineSize: 4,
-            maxAmmo: 12,
+            magazineSize: 5,
+            maxAmmo: 22,
             phaseUnlocked: 5,
             crateColor: '#ff6600',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/mosin.png',
@@ -828,7 +829,8 @@ const CONFIG = {
 
     POSSUM_BUILDING_LARGE_SPRITE_PATH: 'assets/images/objects/possums/general/',
     POSSUM_BUILDING_LARGE_SPRITE_FILES: [
-        { normal: 'possum_building_large_1.png', destroyed: 'possum_building_large_1.png' }
+        { normal: 'possum_building_large_1.png', destroyed: 'possum_building_large_1.png' },
+        { normal: 'possum_warehouse.png', destroyed: 'possum_building_large_1.png' },
     ],
 
     EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH: 'assets/images/objects/possums/huts/',
@@ -838,7 +840,9 @@ const CONFIG = {
     EMPTY_POSSUM_HUT_2_SPRITE_PATH: 'assets/images/objects/possums/huts/',
     EMPTY_POSSUM_HUT_2_SPRITE_FILES: [
         { normal: 'possum_hut_round_1_jungle.png', destroyed: 'possum_hut_2_destroyed.png' },
-        { normal: 'possum_hut_square_1_jungle.png', destroyed: 'possum_hut_2_destroyed.png' }
+        { normal: 'possum_hut_square_1_jungle.png', destroyed: 'possum_hut_2_destroyed.png' },
+        { normal: 'possum_building_small_1.png', destroyed: 'possum_hut_2_destroyed.png' },
+        { normal: 'possum_building_small_2.png', destroyed: 'possum_hut_2_destroyed.png' },
     ],
 
     POSSUM_RELAY_TOWER_SPRITE_PATH: 'assets/images/objects/possums/towers/',
@@ -899,7 +903,7 @@ const CONFIG = {
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.3), width: (w => w * 0.97), height: (h => h * 0.1) },
             canBeFlipped: true,
-            placementBuffer: 60,
+            placementBuffer: 150,
         },
         {
             type: 'fence_barbed_straight_long', name: 'Barbed Wire Fence Straight Long',
@@ -908,7 +912,8 @@ const CONFIG = {
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.98), height: (h => h * 0.03) },
-            canBeFlipped: true
+            canBeFlipped: true,
+            placementBuffer: 160,
         },
 
         {
@@ -1005,8 +1010,9 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, phaseUnlocked: 1,
             spriteScale: 0.3,
+            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_4_destroyed.png',
             spriteDestroyedScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.42), radius: (w => w * 0.33) },
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.42), radius: (w => w * 0.3) },
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
@@ -1030,7 +1036,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, phaseUnlocked: 2,
             spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.5), radiusX: (w => w * 0.35), radiusY: (h => h * 0.24) },
             isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 150,
@@ -1053,6 +1059,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, phaseUnlocked: 1,
             spriteScale: 0.6,
+            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_4_destroyed.png',
             spriteDestroyedScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
             isDecoration: false,
@@ -1066,6 +1073,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, phaseUnlocked: 2,
             spriteScale: 0.6,
+            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_2_destroyed.png',
             spriteDestroyedScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.5), radiusX: (w => w * 0.35), radiusY: (h => h * 0.3) },
             isDecoration: false,
@@ -1083,10 +1091,11 @@ const CONFIG = {
             phaseUnlocked: 3,
             spawnWeight: 0.01,
             spriteScale: 0.6,
+            spriteDestroyed: 'assets/images/objects/possums/towers/possum_tower_2_destroyed.png',
             spriteDestroyedScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 1.15), radiusX: (w => w * 0.40), radiusY: (h => h * 0.33) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 1.1), radiusX: (w => w * 0.40), radiusY: (h => h * 0.25) },
             isDecoration: false,
-            sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED',
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
             placementBuffer: 150,
             initialGuardPack: {
@@ -1115,7 +1124,7 @@ const CONFIG = {
             type: 'possum_turret', name: 'Possum Turret', color: '#8B4513',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0, phaseUnlocked: 3, spawnLimit: 1,
+            spawnWeight: 1, phaseUnlocked: 3, spawnLimit: 3,
             spriteScale: 0.3,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.53), offsetY: (h => h * 0.5), radius: (w => w * 0.2) },
             isDecoration: false,
@@ -1128,7 +1137,7 @@ const CONFIG = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: false, providesCover: false,
             spriteNormal: null,
-            spawnWeight: 0, isDecoration: true,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8) },
         },
@@ -1136,8 +1145,9 @@ const CONFIG = {
             type: 'helipad_concrete_square_1', name: 'Square Concrete Helipad', color: '#afafaf',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 0.5, isDecoration: false,
-            spriteScale: 0.5,
+            spawnWeight: 2, isDecoration: false,
+            spawnLimit: 1,
+            spriteScale: 0.4,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8), rotation: Math.PI / 4 },
             placementBuffer: 100,
         },
@@ -1192,6 +1202,7 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84), rotation: Math.PI / 8 },
             isPickup: true,
             canBeFlipped: true,
+            isDecoration: false,
         },
         {
             type: 'pickup_ammo_crate', name: 'Ammo Crate', color: '#4169E1',
@@ -1203,6 +1214,7 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84), rotation: Math.PI / 8 },
             isPickup: true,
             canBeFlipped: true,
+            isDecoration: false,
         },
         {
             type: 'pickup_health', name: 'Health Crate', color: '#FF69B4',
@@ -1214,6 +1226,7 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84), rotation: Math.PI / 8 },
             isPickup: true,
             canBeFlipped: true,
+            isDecoration: false,
         },
         {
             type: 'pickup_weapon_crate', name: 'Weapon Crate', color: '#FFD700',
@@ -1226,6 +1239,7 @@ const CONFIG = {
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
+            isDecoration: false,
         },
         
     ],
@@ -1253,11 +1267,12 @@ const CONFIG = {
                 'fence_barbed_straight_long',
                 'empty_possum_hut_2',
                 'general_possum_building_large',
-                'possum_turret'
+                'possum_turret',
+                'pickup_health'
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 70,
+            BASE_COUNT: 80,
             WORLD_SIZE_FALLBACK_FACTOR: 0.95,
             RANDOM_ADDITION_MAX: 10,
             PLACEMENT_MAX_ATTEMPTS: 2
@@ -1299,7 +1314,7 @@ const CONFIG = {
             NAME: "Extraction Zone",
             PLACEMENT_MARGIN_FROM_EDGE: 30,
             MIN_DISTANCE_FROM_PLAYER_SPAWN: 900,
-            MAX_PLACEMENT_ATTEMPTS: 5,
+            MAX_PLACEMENT_ATTEMPTS: 1,
             REVEAL_DURATION: 1.5,
             PARTICLE_COUNT: 20,
             SCAN_LINE_SPEED: 80,
@@ -1315,7 +1330,7 @@ const CONFIG = {
         TREE_FALL_SETTINGS: {
             ENABLED: true,
             FALL_CHANCE: 0.45,
-            MAX_PLACEMENT_ATTEMPTS: 5,
+            MAX_PLACEMENT_ATTEMPTS: 1,
             PLACEMENT_DISTANCE_MIN: 5,
             PLACEMENT_DISTANCE_MAX: 20
         },
@@ -1355,8 +1370,8 @@ const CONFIG = {
         POSSUM_HUT_SPAWNING: {
             MAX_ACTIVE_SPAWNING_HUTS_BASE: 1,
             MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 1,
-            SPAWN_COOLDOWN_MIN_SECONDS: 30,
-            SPAWN_COOLDOWN_MAX_SECONDS: 120,
+            SPAWN_COOLDOWN_MIN_SECONDS: 10,
+            SPAWN_COOLDOWN_MAX_SECONDS: 60,
             UNITS_PER_SPAWN_MIN: 1,
             UNITS_PER_SPAWN_MAX: 3,
             TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.3,
@@ -1364,16 +1379,16 @@ const CONFIG = {
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.1, // 10% increase per phase
             INITIAL_SPAWN_DELAY_SECONDS_MIN: 0,
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 1,
-            PLAYER_PROXIMITY_TRIGGER_RADIUS: 300,
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 200,
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -65,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3,
-            SPAWN_AREA_WIDTH: 40,
+            SPAWN_AREA_WIDTH: 80,
             SPAWN_PHASING_DURATION: 0.25,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
-            MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5,
-            INITIAL_MOVE_OUT_DISTANCE: 35,
+            MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 2,
+            INITIAL_MOVE_OUT_DISTANCE: 25,
             INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 1.0,
             MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 1.0,
             UNITS_TO_SPAWN_ON_DAMAGE: 1,
@@ -1386,8 +1401,8 @@ const CONFIG = {
         POSSUM_BARRACKS_SPAWNING: {
             MAX_ACTIVE_SPAWNING_BARRACKS_BASE: 1,
             MAX_ACTIVE_SPAWNING_BARRACKS_INCREMENT_PER_PHASE: 1,
-            SPAWN_COOLDOWN_MIN_SECONDS: 30,
-            SPAWN_COOLDOWN_MAX_SECONDS: 120,
+            SPAWN_COOLDOWN_MIN_SECONDS: 10,
+            SPAWN_COOLDOWN_MAX_SECONDS: 60,
             UNITS_PER_SPAWN_MIN: 2,
             UNITS_PER_SPAWN_MAX: 4,
             TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.2,
@@ -1395,16 +1410,16 @@ const CONFIG = {
             UNITS_PER_SPAWN_PHASE_INCREMENT: 0.15, // 15% increase per phase
             INITIAL_SPAWN_DELAY_SECONDS_MIN: 0,
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 0.8,
-            PLAYER_PROXIMITY_TRIGGER_RADIUS: 350,
+            PLAYER_PROXIMITY_TRIGGER_RADIUS: 250,
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -80,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -3,
-            SPAWN_AREA_WIDTH: 50,
+            SPAWN_AREA_WIDTH: 150,
             SPAWN_PHASING_DURATION: 0.25,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 5,
-            MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 5,
-            INITIAL_MOVE_OUT_DISTANCE: 35,
+            MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 2,
+            INITIAL_MOVE_OUT_DISTANCE: 25,
             INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.8,
             MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.8,
             UNITS_TO_SPAWN_ON_DAMAGE: 2,
@@ -1424,7 +1439,7 @@ const CONFIG = {
         COLOR: '#ADD8E6',
         NEUTRAL_COLOR: '#FFD700',
         RESCUE_RADIUS: 60,
-        FOLLOW_DISTANCE: 80,
+        FOLLOW_DISTANCE: 60,
         FOLLOW_LERP_SPEED: 0.04,
         POSSIBLE_RANKS_ON_RESCUE: [
             { rankName: "Recruit", xpNeeded: 0, weight: 40 },
@@ -1433,25 +1448,25 @@ const CONFIG = {
             { rankName: "Sergeant", xpNeeded: 1200, weight: 12 },
             { rankName: "Elite", xpNeeded: 2400, weight: 5 }
         ],
-        MAX_HOSTAGES_PER_MISSION: 5,
+        MAX_HOSTAGES_PER_MISSION: 3,
         MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,
         SPAWN_WITH_ENEMY_GROUPS: true,
         SPAWN_NEAR_CAPTORS_RADIUS: 60,
-        MIN_CAPTORS_GROUP_SIZE: 3,
-        HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 30,
+        MIN_CAPTORS_GROUP_SIZE: 1,
+        HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 2,
         SPAWN_AT_HUTS: true,
         MAX_HOSTAGES_PER_HUT: 2,
         SPAWN_OFFSET_FROM_HUT_X: -30,
         SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30),
         MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 500,
-        HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 5,
-        HOSTAGE_SPAWN_BUFFER: 20,
-        HOSTAGE_DECORATION_SPAWN_BUFFER: 25,
-        INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 3,
-        INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 5,
+        HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 1,
+        HOSTAGE_SPAWN_BUFFER: 80,
+        HOSTAGE_DECORATION_SPAWN_BUFFER: 125,
+        INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 1,
+        INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 4,
         INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20,
-        INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 60,
-        INITIAL_GUARD_PLACEMENT_ATTEMPTS: 5
+        INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 30,
+        INITIAL_GUARD_PLACEMENT_ATTEMPTS: 1
     },
 
     // =============================================================================
@@ -1459,7 +1474,7 @@ const CONFIG = {
     // =============================================================================
     VISUAL_EFFECTS: {
         PROMOTION: {
-            LIFETIME: 1.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
+            LIFETIME: 2.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
             COLOR_RGB_FADE_START: [255, 223, 0], VELOCITY_Y: -20
         },
         EXPLOSION: {
@@ -1482,7 +1497,7 @@ const CONFIG = {
             }
         },
         HOSTAGE_HELP_TEXT: {
-            TEXT_OPTIONS: ['Help!', 'Over here!', 'Psst!', 'Save me!'],
+            TEXT_OPTIONS: ['Help!', 'Over here!', 'Psst!', 'Save me!', 'Oi!'],
             LIFETIME_SECONDS: 2.0,
             INTERVAL_MIN_SECONDS: 4.0,
             INTERVAL_MAX_SECONDS: 9.0,
@@ -1536,13 +1551,13 @@ const CONFIG = {
             NUM_FRAMES: 4,
             ANIMATION_SPEED: 0.08,
             SPEED_MIN: 1000,
-            SPEED_MAX: 1200,
+            SPEED_MAX: 1800,
             MIN_Y_SPAWN_FACTOR: 0.05,
             MAX_Y_SPAWN_FACTOR: 0.35,
             SPAWN_INTERVAL_MIN_SECONDS: 300,
             SPAWN_INTERVAL_MAX_SECONDS: 1200,
             SCALE: 0.2,
-            PHASE_UNLOCK: 4,
+            PHASE_UNLOCK: 3,
         }
     },
 
@@ -1577,7 +1592,7 @@ const CONFIG = {
 
     UI_SETTINGS: {
         HEALTH_BAR: {
-            WIDTH_MULTIPLIER: 3, HEIGHT: 4, Y_OFFSET_BASE: 10, BG_COLOR: '#333333',
+            WIDTH_MULTIPLIER: 3, HEIGHT: 4, Y_OFFSET_BASE: 50, BG_COLOR: '#333333',
             HP_COLOR_FULL: '#00CC00', HP_COLOR_MEDIUM: '#CCCC00', HP_COLOR_LOW: '#CC0000',
             LOW_HP_THRESHOLD_PERCENT: 0.3, MEDIUM_HP_THRESHOLD_PERCENT: 0.6
         },
@@ -1809,9 +1824,9 @@ const CONFIG = {
         VISIBILITY_THRESHOLD_WHEN_EXPOSED: 0.3,
 
         ENEMY_TILESHEET: {
-            PATH: 'assets/images/shootouts/enemies/possum_grunt_tile.png',
-            FRAME_WIDTH: 128,
-            FRAME_HEIGHT: 128,
+            PATH: 'assets/images/shootouts/enemies/possum_grunt_tile_large.png',
+            FRAME_WIDTH: 512,
+            FRAME_HEIGHT: 512,
             NUM_FRAMES: 4,
             SCALE: 1.0,
             TILE_SCALE: 0.7
@@ -1822,7 +1837,7 @@ const CONFIG = {
             FRAME_HEIGHT: 128,
             NUM_FRAMES: 4,
             SCALE: 1.0,
-            TILE_SCALE: 0.9
+            TILE_SCALE: 1.0
         },
 
         BULLET_MARKS: {
@@ -1841,7 +1856,7 @@ const CONFIG = {
                 enabled: true,
                 weight: 60,
                 peekOffset: 40,
-                scale: 1.0,
+                scale: 0.5,
                 bulletOffset: { x: -3, y: 14 },
                 showInDevMode: true
             },
@@ -1849,7 +1864,7 @@ const CONFIG = {
                 enabled: false,
                 weight: 25,
                 peekOffset: 50,
-                scale: 1.2,
+                scale: 1.0,
                 bulletOffset: { x: 5, y: 2 },
                 showInDevMode: true
             },
@@ -1902,50 +1917,52 @@ const CONFIG = {
         },
 
         BACKGROUNDS: {
-            JUNGLE_AMBUSH: {
-                NAME: 'Jungle Ambush',
-                IMAGE: 'assets/images/shootouts/Shootout_Jungle_3.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":345,"y":905,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":1.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
-                    {"x":469,"y":744,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":70,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":true,"weight":16,"peekOffset":70,"scale":1.5,"showInDevMode":true}}},
-                    {"x":567,"y":608,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":60,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},
-                    {"x":1540,"y":609,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":90,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},
-                    {"x":1393,"y":776,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":65,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},
-                    {"x":1560,"y":814,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":145,"scale":1.9,"showInDevMode":true},"heavy":{"enabled":true,"weight":40,"peekOffset":115,"scale":1.9,"showInDevMode":true}}},
-                    {"x":663,"y":778,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":130,"scale":1.5,"showInDevMode":true},"heavy":{"enabled":true,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},
-                    {"x":90,"y":422,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":75,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},
-                    {"x":1030,"y":581,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}}
-                ]
-            },
             JUNGLE_ATTACK: {
                 NAME: 'Jungle Attack',
                 IMAGE: 'assets/images/shootouts/Shootout_Jungle_1.png',
                 TREE_SPAWN_POSITIONS: [
-                    {"x":358,"y":904,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":1.9,"showInDevMode":true},"heavy":{"enabled":true,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
-                    {"x":453,"y":721,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":95,"scale":1.1,"showInDevMode":true},"heavy":{"enabled":true,"weight":16,"peekOffset":100,"scale":1.5,"showInDevMode":false}}},
-                    {"x":567,"y":608,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":60,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},
-                    {"x":1245,"y":886,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":90,"scale":1.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},
-                    {"x":1393,"y":776,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":65,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},
-                    {"x":1560,"y":815,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":100,"scale":1.6,"showInDevMode":true},"heavy":{"enabled":true,"weight":40,"peekOffset":130,"scale":1.8,"showInDevMode":true}}},
-                    {"x":663,"y":778,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":130,"scale":1.5,"showInDevMode":true},"heavy":{"enabled":true,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},
-                    {"x":99,"y":425,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":75,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},
-                    {"x":1030,"y":580,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}}
+                    {"x":355,"y":1087,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":100,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":false}}},
+                    {"x":435,"y":908,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":100,"scale":1.5,"showInDevMode":false}}},
+                    {"x":867,"y":1095,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":110,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},
+                    {"x":1109,"y":880,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},
+                    {"x":1403,"y":803,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":65,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},
+                    {"x":1635,"y":932,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":200,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":40,"peekOffset":130,"scale":1.8,"showInDevMode":true}}},
+                    {"x":516,"y":896,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":175,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},
+                    {"x":212,"y":196,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":90,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},
+                    {"x":745,"y":337,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}},
+                    {"x":1064,"y":407,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":40,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":912,"y":891,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":1604,"y":853,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":100,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
                 ]
             },
+            
             JUNGLE_RUINS: {
                 NAME: 'Jungle Ruins',
                 IMAGE: 'assets/images/shootouts/Shootout_Jungle_2.png',
                 TREE_SPAWN_POSITIONS: [
-                    {"x":1084,"y":753,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":95,"scale":1.5,"showInDevMode":true},"heavy":{"enabled":true,"weight":0,"peekOffset":130,"scale":1.6,"showInDevMode":true}}},
-                    {"x":476,"y":765,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":1.1,"showInDevMode":true},"heavy":{"enabled":true,"weight":0,"peekOffset":90,"scale":1.5,"showInDevMode":true}}},
-                    {"x":1184,"y":603,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":65,"scale":1.2,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":1.2,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":1364,"y":739,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":85,"scale":1.2,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":true,"weight":30,"peekOffset":100,"scale":1.4,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":1596,"y":889,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":80,"scale":1.9,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":true,"weight":30,"peekOffset":100,"scale":1.8,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":680,"y":768,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":95,"scale":1.6,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":true,"weight":30,"peekOffset":85,"scale":1.4,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":925,"y":532,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":40,"scale":0.6,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":0.7,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":1010,"y":531,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":45,"scale":0.7,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":55,"scale":0.8,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}}
+                    {"x":1013,"y":762,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":95,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":130,"scale":1.6,"showInDevMode":false}}},
+                    {"x":476,"y":765,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":90,"scale":1.5,"showInDevMode":false}}},
+                    {"x":1184,"y":603,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":65,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":1.2,"showInDevMode":true}}},
+                    {"x":1264,"y":766,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":125,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":100,"scale":1.4,"showInDevMode":true}}},
+                    {"x":1053,"y":1070,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":80,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":100,"scale":1.8,"showInDevMode":true}}},
+                    {"x":674,"y":780,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":95,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":85,"scale":1.4,"showInDevMode":true}}},
+                    {"x":918,"y":543,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":50,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":0.7,"showInDevMode":true}}},
+                    {"x":1015,"y":542,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":45,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":55,"scale":0.8,"showInDevMode":true}}},
+                    {"x":701,"y":1056,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":1038,"y":711,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":50,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":1654,"y":761,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":100,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":110,"y":430,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
                 ]
             },
+
+            JUNGLE_AMBUSH: {
+                NAME: 'Jungle Ambush',
+                IMAGE: 'assets/images/shootouts/Shootout_Jungle_3.png',
+                TREE_SPAWN_POSITIONS: [
+                    {"x":382,"y":1107,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},{"x":566,"y":860,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":70,"scale":1.5,"showInDevMode":true}}},{"x":760,"y":829,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":160,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},{"x":1295,"y":87,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":60,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},{"x":1276,"y":956,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":195,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},{"x":1744,"y":926,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":200,"scale":1.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":40,"peekOffset":115,"scale":1.9,"showInDevMode":true}}},{"x":759,"y":916,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":130,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},{"x":347,"y":245,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":100,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},{"x":1046,"y":771,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}},{"x":600,"y":523,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
+                ]
+            },
+            
             JUNGLE_RUINS_2: {
                 NAME: 'Jungle Ruins 2',
                 IMAGE: 'assets/images/shootouts/Shootout_Jungle_4.png',
@@ -1961,15 +1978,24 @@ const CONFIG = {
                 ]
             },
             RAINFOREST_BATTLE_1: {
-                NAME: 'Rainforest Battle 1',
-                IMAGE: 'assets/images/shootouts/Shootout_Jungle_5.png',
+                NAME: 'Rainforest Battle',
+                IMAGE: 'assets/images/shootouts/Shootout_Jungle_6.png',
                 TREE_SPAWN_POSITIONS: [
-                    {"x":360,"y":241,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":75,"scale":1.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":769,"y":887,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":60,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":80,"scale":1.6,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":1266,"y":974,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":2.1,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":170,"scale":2.1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":999,"y":785,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":60,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":60,"scale":0.7,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":631,"y":696,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":80,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":357,"y":1017,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":155,"scale":1.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":1254,"y":808,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":120,"scale":1.1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":1069,"y":844,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":70,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":608,"y":533,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":40,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},{"x":840,"y":1101,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":1.9,"showInDevMode":true},"heavy":{"enabled":true,"weight":25,"peekOffset":105,"scale":2.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
+                    {"x":558,"y":852,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":746,"y":890,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":80,"scale":1.6,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":1504,"y":1075,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":2.1,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":170,"scale":2.1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":1120,"y":755,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":60,"scale":0.7,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":663,"y":436,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":80,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":365,"y":1106,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":195,"scale":1.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":1455,"y":715,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":false},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":1167,"y":888,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":120,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":807,"y":781,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":115,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                    {"x":841,"y":1107,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":130,"scale":1.9,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":105,"scale":2.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
                 ]
             },
         },
 
-        DEFAULT_BACKGROUND: 'RAINFOREST_BATTLE_1',
+        DEFAULT_BACKGROUND: 'JUNGLE_ATTACK',
 
         AMBUSH_START_CHANCE: 0.2,
         AMBUSH_EXTRACTION_CHANCE: 0.6,
@@ -1979,7 +2005,7 @@ const CONFIG = {
         AMBUSH_TIME_LIMIT: 45,
         AMBUSH_ELIMINATION_COUNT: 15,
         AMBUSH_NIGHT_MODE_ENABLED: true,
-        AMBUSH_BACKGROUNDS: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK'],
+        AMBUSH_BACKGROUNDS: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK', 'JUNGLE_RUINS_2', 'JUNGLE_AMBUSH', 'JUNGLE_RUINS',],
         AMBUSH_UNLOCKS_PHASE: 2,
 
         XP_PER_AMBUSH_SURVIVED: 100,

@@ -20,8 +20,8 @@ const CAMPAIGN_RULES = {
         intelSpawnChance: { initial: 0.3, perPhaseGrowthFactor: 0.1, max: 0.8 },
         intelSpawnCountMin: { initial: 1, perPhaseIncrement: 0.2, max: 1 },
         intelSpawnCountMax: { initial: 2, perPhaseIncrement: 1, max: 4 },
-        intelSpawnInterval: { initial: 5.0, perPhaseDecrement: 0.2, min: 1.0 },
-        intelSpawnTotalLimit: { initial: 3, perPhaseIncrement: 1, max: 20 },
+        intelSpawnInterval: { initial: 3.0, perPhaseDecrement: 0.2, min: 1.0 },
+        intelSpawnTotalLimit: { initial: 3, perPhaseIncrement: 1, max: 10 },
         numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
         numSecondaryObjectives: {
             baseRange: [0, 0],          // At Phase 0, select between 0 and 1 secondary objectives.
@@ -32,8 +32,8 @@ const CAMPAIGN_RULES = {
 
     // --- Pools of Options ---
     BIOME_POOL: [
-        { name: "TROPICAL", weight: 4, unlocksPhase: 2, description: "a dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
-        { name: "TEMPERATE", weight: 4, unlocksPhase: 0, description: "a temperate deciduous forest", themeAdjectives: ["Autumn", "Golden", "Crisp", "Wooded", "Serene"] },
+        { name: "TROPICAL", weight: 4, unlocksPhase: 0, description: "dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
+        { name: "TEMPERATE", weight: 4, unlocksPhase: 2, description: "temperate forest", themeAdjectives: ["Autumn", "Golden", "Crisp", "Wooded", "Serene"] },
     /*    { name: "JUNKYARD", weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
         { name: "SWAMP", weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY", weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
@@ -75,7 +75,7 @@ const CAMPAIGN_RULES = {
             // maxInstancesPerMission for "DESTROY_TARGET" itself might be high (e.g., 3) to allow
             // "Destroy Huts" AND "Destroy Towers" in one mission. The specific target types below
             // will have their own maxInstances.
-            maxInstancesPerMission: 3, // Max distinct "destroy X" objectives in one mission
+            maxInstancesPerMission: 2, // Max distinct "destroy X" objectives in one mission
             isPhaseFinaleCandidate: true
         },
         {
@@ -90,7 +90,7 @@ const CAMPAIGN_RULES = {
         },
         {
             type: "ASSASSINATION",
-            weight: 1, // Keep this relatively low if it's mainly for phase finales
+            weight: 0.1, // Keep this relatively low if it's mainly for phase finales
             unlocksPhase: 3, // Or 0 if you want non-boss assassinations earlier
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
@@ -109,7 +109,7 @@ const CAMPAIGN_RULES = {
             completionCondition: "ALL_INTEL_CONSOLES_CAPTURED",
             isPrimary: false,
             canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION"],
-            maxInstancesPerMission: 3,
+            maxInstancesPerMission: 1,
             targetTypeKeyPrefix: "intel_console"
         },
         // NEW: Extraction objective for phase finales
@@ -140,19 +140,19 @@ const CAMPAIGN_RULES = {
             targetTypeKeyPrefix: "possum_hut",
             nameSingular: "Possum Hut", namePlural: "Possum Huts",
             weight: 4, unlocksPhase: 1,
-            maxInstancesPerMission: 3
+            maxInstancesPerMission: 1
         },
         {
             targetTypeKeyPrefix: "possum_barracks",
             nameSingular: "Possum Barracks", namePlural: "Possum Barracks",
             weight: 3, unlocksPhase: 2,
-            maxInstancesPerMission: 2
+            maxInstancesPerMission: 1
         },
         {
             targetTypeKeyPrefix: "possum_relay_tower",
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
             weight: 1, unlocksPhase: 3,
-            maxInstancesPerMission: 2
+            maxInstancesPerMission: 1
         },
     ],
 
@@ -197,14 +197,14 @@ const CAMPAIGN_RULES = {
         missionsPerPhase: {
             baseRange: [3, 4],          // At Phase 0, it will be exactly 3 missions.
             incrementPerPhase: 0.4,     // Add 0.5 to both min and max of the range per phase.
-            maxRange: [4, 8]            // The range will not exceed a max of [4, 8].
+            maxRange: [4, 6]            // The range will not exceed a max of [4, 8].
         },
         NAME_PARTS: {
             PREFIXES: ["Operation", "Task Force", "Project", "Campaign", "Initiative", "Directive", "Protocol", "Vanguard", "Spearhead", "Crusade"],
             DESCRIPTORS: ["Fury", "Dawn", "Viper", "Thunder", "Silence", "Ghost", "Resolve", "Echo", "Retribution", "Genesis", "Last Stand", "Steel Rain", "Broken Fang", "Avalanche", "Quake"]
         },
         INTRODUCTION_TEMPLATES: [
-            "Phase {phaseNum} begins, Platoon. '{phaseName}' is our next objective. The Possums have entrenched themselves in {biomeDescription}. Your mission: {phaseObjectiveSummary}.",
+            "Phase {phaseNum} begins, Platoon. '{phaseName}' is our next objective. The Possum scum have entrenched themselves in {biomeDescription}. Your mission: {phaseObjectiveSummary}.",
             "Attention, Platoon! Phase {phaseNum} is upon us. '{phaseName}' is the name of the game. The enemy has fortified positions in {biomeDescription}. Your task: {phaseObjectiveSummary}.",
             "Platoon, we are entering Phase {phaseNum}. The operation is codenamed '{phaseName}'. Possum forces are heavily entrenched in {biomeDescription}. Your orders: {phaseObjectiveSummary}.",
             "Platoon, brace yourselves! Phase {phaseNum} is here. The operation, '{phaseName}', will take us into {biomeDescription}. Your objective: {phaseObjectiveSummary}. Prepare for heavy resistance.",
@@ -274,7 +274,7 @@ const CAMPAIGN_RULES = {
             URBAN_DECAY: ["ruined square", "collapsed structure", "abandoned factory", "sewer entrance", "rooftop network", "bombed-out street", "subway station", "fortified checkpoint"],
         },
         ENEMY_COMPOSITION_HINTS: [
-            "mostly grunts with light support", "a mix of grunts and several heavy units", "heavies providing suppressing fire from fortified positions",
+            "mostly stupid grunts with light support", "a mix of brain-dead grunts and several heavy units", "dumb heavies providing suppressing fire from fortified positions",
             "dug-in riflemen with overlapping fields of fire", "patrols with heavy support and possible spotters", "well-armed possums, likely veterans",
             "entrenched enemy positions with good cover", "multiple enemy squads coordinating their defense", "a strong defensive line, possibly with makeshift traps",
             "elite Possum units leading the charge", "a desperate last stand with whatever they can find"

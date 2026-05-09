@@ -334,7 +334,11 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         this.gridHeight = Math.floor(worldHeight / this.gridCellSize);
         this.navGrid = [];
 
-        // Calculate max unit size to ensure all units can pathfind correctly
+        // Initialize grid with all walkable cells
+        for (let y = 0; y < this.gridHeight; y++) {
+            this.navGrid[y] = new Uint8Array(this.gridWidth);
+        }
+
         const maxUnitSize = Math.max(
             CONFIG.RACCOON_SIZE || 12,
             CONFIG.POSSUM_GRUNT_SIZE || 14,
@@ -344,53 +348,84 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         );
         const unitClearanceRadius = (maxUnitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
 
-        for (let y = 0; y < this.gridHeight; y++) {
-            this.navGrid[y] = [];
-            for (let x = 0; x < this.gridWidth; x++) {
-                this.navGrid[y][x] = 0;
-                
-                const cellCenterX = x * this.gridCellSize + this.gridCellSize / 2;
-                const cellCenterY = y * this.gridCellSize + this.gridCellSize / 2;
+        // OPTIMIZED: Rasterize each obstacle onto the grid instead of checking every cell
+        for (const obs of this.obstacles) {
+            if (!obs.blocksMovement || obs.isDestroyed) continue;
 
-                for (const obs of this.obstacles) {
-                    if (obs.blocksMovement && !obs.isDestroyed) { 
-                        const obsShapeOrShapes = this._getObstacleCollisionShape(obs);
-                        if (!obsShapeOrShapes) continue;
-                        const shapesArray = Array.isArray(obsShapeOrShapes) ? obsShapeOrShapes : [obsShapeOrShapes];
+            const obsShapeOrShapes = this._getObstacleCollisionShape(obs);
+            if (!obsShapeOrShapes) continue;
+            const shapesArray = Array.isArray(obsShapeOrShapes) ? obsShapeOrShapes : [obsShapeOrShapes];
 
-                        let cellBlocked = false;
-                        for (const obsShape of shapesArray) {
-                            let inflatedObsShape = {...obsShape};
+            for (const obsShape of shapesArray) {
+                // Inflate shape by unit clearance radius and calculate bounds
+                let inflatedShape;
+                let minX, maxX, minY, maxY;
 
-                            if (inflatedObsShape.type === 'rectangle') {
-                                inflatedObsShape.x -= unitClearanceRadius;
-                                inflatedObsShape.y -= unitClearanceRadius;
-                                inflatedObsShape.width += 2 * unitClearanceRadius;
-                                inflatedObsShape.height += 2 * unitClearanceRadius;
-                            } else if (inflatedObsShape.type === 'circle') {
-                                inflatedObsShape.radius = (inflatedObsShape.radius || 0) + unitClearanceRadius;
-                            } else if (inflatedObsShape.type === 'ellipse') {
-                                inflatedObsShape.radiusX = (inflatedObsShape.radiusX || 0) + unitClearanceRadius;
-                                inflatedObsShape.radiusY = (inflatedObsShape.radiusY || 0) + unitClearanceRadius;
-                            }
-                            
-                            let collision = false;
-                            if (inflatedObsShape.type === 'rectangle') {
-                                collision = pointInRectangle(cellCenterX, cellCenterY, inflatedObsShape);
-                            } else if (inflatedObsShape.type === 'circle') {
-                                collision = pointInCircle(cellCenterX, cellCenterY, inflatedObsShape);
-                            } else if (inflatedObsShape.type === 'ellipse') {
-                                collision = pointInEllipse(cellCenterX, cellCenterY, inflatedObsShape);
-                            }
-                            
-                            if (collision) {
-                                cellBlocked = true;
-                                break;
-                            }
+                if (obsShape.type === 'rectangle') {
+                    inflatedShape = {
+                        type: 'rectangle',
+                        x: obsShape.x - unitClearanceRadius,
+                        y: obsShape.y - unitClearanceRadius,
+                        width: obsShape.width + 2 * unitClearanceRadius,
+                        height: obsShape.height + 2 * unitClearanceRadius,
+                        rotation: obsShape.rotation || 0
+                    };
+                    minX = inflatedShape.x;
+                    maxX = inflatedShape.x + inflatedShape.width;
+                    minY = inflatedShape.y;
+                    maxY = inflatedShape.y + inflatedShape.height;
+                } else if (obsShape.type === 'circle') {
+                    inflatedShape = {
+                        type: 'circle',
+                        x: obsShape.x,
+                        y: obsShape.y,
+                        radius: (obsShape.radius || 0) + unitClearanceRadius
+                    };
+                    minX = inflatedShape.x - inflatedShape.radius;
+                    maxX = inflatedShape.x + inflatedShape.radius;
+                    minY = inflatedShape.y - inflatedShape.radius;
+                    maxY = inflatedShape.y + inflatedShape.radius;
+                } else if (obsShape.type === 'ellipse') {
+                    inflatedShape = {
+                        type: 'ellipse',
+                        x: obsShape.x,
+                        y: obsShape.y,
+                        radiusX: (obsShape.radiusX || 0) + unitClearanceRadius,
+                        radiusY: (obsShape.radiusY || 0) + unitClearanceRadius
+                    };
+                    minX = inflatedShape.x - inflatedShape.radiusX;
+                    maxX = inflatedShape.x + inflatedShape.radiusX;
+                    minY = inflatedShape.y - inflatedShape.radiusY;
+                    maxY = inflatedShape.y + inflatedShape.radiusY;
+                } else {
+                    continue;
+                }
+
+                // Convert bounds to grid coordinates
+                const startGridX = Math.max(0, Math.floor(minX / this.gridCellSize));
+                const endGridX = Math.min(this.gridWidth - 1, Math.ceil(maxX / this.gridCellSize));
+                const startGridY = Math.max(0, Math.floor(minY / this.gridCellSize));
+                const endGridY = Math.min(this.gridHeight - 1, Math.ceil(maxY / this.gridCellSize));
+
+                // Mark blocked cells
+                for (let gy = startGridY; gy <= endGridY; gy++) {
+                    for (let gx = startGridX; gx <= endGridX; gx++) {
+                        if (this.navGrid[gy][gx] === 1) continue; // Already blocked
+
+                        const cellCenterX = gx * this.gridCellSize + this.gridCellSize / 2;
+                        const cellCenterY = gy * this.gridCellSize + this.gridCellSize / 2;
+
+                        let collision = false;
+                        if (inflatedShape.type === 'rectangle') {
+                            collision = pointInRectangle(cellCenterX, cellCenterY, inflatedShape);
+                        } else if (inflatedShape.type === 'circle') {
+                            collision = pointInCircle(cellCenterX, cellCenterY, inflatedShape);
+                        } else if (inflatedShape.type === 'ellipse') {
+                            collision = pointInEllipse(cellCenterX, cellCenterY, inflatedShape);
                         }
-                        if (cellBlocked) {
-                            this.navGrid[y][x] = 1;
-                            break; 
+
+                        if (collision) {
+                            this.navGrid[gy][gx] = 1;
                         }
                     }
                 }
@@ -456,6 +491,12 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                 const cellCenterX = x * this.gridCellSize + this.gridCellSize / 2;
                 const cellCenterY = y * this.gridCellSize + this.gridCellSize / 2;
                 
+                // Bounding box of the cell plus unit clearance
+                const cellMinX = cellCenterX - unitClearanceRadius;
+                const cellMaxX = cellCenterX + unitClearanceRadius;
+                const cellMinY = cellCenterY - unitClearanceRadius;
+                const cellMaxY = cellCenterY + unitClearanceRadius;
+                
                 let cellIsBlocked = false;
                 for (const otherObs of this.obstacles) {
                     const currentObsBlocks = (otherObs === obstacle)
@@ -463,6 +504,17 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                         : (otherObs.blocksMovement && !otherObs.isDestroyed);
 
                     if (currentObsBlocks) { 
+                        // Quick bounding box check to skip distant obstacles
+                        const obsMinX = otherObs.x;
+                        const obsMaxX = otherObs.x + otherObs.width;
+                        const obsMinY = otherObs.y;
+                        const obsMaxY = otherObs.y + otherObs.height;
+                        
+                        // If bounding boxes don't overlap, skip this obstacle
+                        if (obsMaxX < cellMinX || obsMinX > cellMaxX || obsMaxY < cellMinY || obsMinY > cellMaxY) {
+                            continue;
+                        }
+                        
                         const otherObsShapeOrShapes = this._getObstacleCollisionShape(otherObs);
                         if (!otherObsShapeOrShapes) continue;
                         const otherShapesArray = Array.isArray(otherObsShapeOrShapes) ? otherObsShapeOrShapes : [otherObsShapeOrShapes];

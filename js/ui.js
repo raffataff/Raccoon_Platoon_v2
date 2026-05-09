@@ -1258,8 +1258,8 @@ class UI {
 
         const scaleSlider = document.createElement('input');
         scaleSlider.type = 'range';
-        scaleSlider.min = '0.2';
-        scaleSlider.max = '4.0';
+        scaleSlider.min = '0.1';
+        scaleSlider.max = '1.0';
         scaleSlider.step = '0.1';
         scaleSlider.value = config.scale;
         scaleSlider.addEventListener('input', (e) => {
@@ -1998,7 +1998,7 @@ class UI {
         const rankPaths = {
             'Private': CONFIG.RACCOON_PRIVATE_SPRITE_PATH || 'assets/images/units/raccoon/private/',
             'Corporal': CONFIG.RACCOON_CORPORAL_SPRITE_PATH || 'assets/images/units/raccoon/corporal/',
-            'Sergeant': CONFIG.RACCOON_SERGEANT_SPRITE_PATH || 'assets/images/units/raccoon/sergeant/',
+            'Sergeant': CONFIG.RACCOON_SERGEANT_SPRITE_PATH || 'assets/images/units/raccoon/redBeret/',
             'Elite': CONFIG.RACCOON_ELITE_SPRITE_PATH || 'assets/images/units/raccoon/elite/',
             'Ghost': CONFIG.RACCOON_GHOST_SPRITE_PATH || 'assets/images/units/raccoon/ghost/',
             'Maverick': CONFIG.RACCOON_MAVERICK_SPRITE_PATH || 'assets/images/units/raccoon/maverick/'

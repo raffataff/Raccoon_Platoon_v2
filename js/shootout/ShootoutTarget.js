@@ -6,7 +6,7 @@ class ShootoutTarget extends Unit {
     static DEBUG_SHOW_HITBOX = false;
 
     // Hitbox size multiplier - increase this to make hitboxes larger
-    static HITBOX_SIZE_MULTIPLIER = 2.5;
+    static HITBOX_SIZE_MULTIPLIER = 7;
 
     constructor(treePosition, game, id, enemyType = 'grunt') {
         // Use different stats based on enemy type (must be determined before super())
@@ -312,9 +312,9 @@ class ShootoutTarget extends Unit {
         // Return hitbox for shooting detection
         // Apply size multiplier to make hitbox larger and more forgiving
         // Width is the base size, height is 2x width for a taller hitbox
-        const offsetX = 10;
+        const offsetX = 0;
         const width = this.size * this.scale * ShootoutTarget.HITBOX_SIZE_MULTIPLIER + offsetX;
-        const height = (width ) * 2; // Twice as tall as wide
+        const height = (width ) * 2.2; // Twice as tall as wide
         return {
             x: this.x - width / 2,
             y: this.y - height / 2,

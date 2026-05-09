@@ -4,7 +4,7 @@
 const TROPICAL_BIOME = {
     name: "TROPICAL",
     displayName: "Tropical Jungle",
-    description: "a dense, overgrown jungle region",
+    description: "dense, overgrown jungle region",
     themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"],
 
     // =========================================================================
@@ -30,7 +30,7 @@ const TROPICAL_BIOME = {
         // Bushes
         bush_large: {
             path: 'assets/images/objects/biomes/tropical/bushes/',
-            files: ['fern_large_1.png', 'fern_large_2.png', 'fern_large_3.png', 'fern_large_4.png', 'fern_large_5.png', 'plant_red_large_1.png', 'plant_red_large_2.png', 'plant_red_large_3.png']
+            files: ['fern_large_6.png', 'fern_large_2.png', 'fern_large_3.png', 'fern_large_4.png', 'fern_large_5.png', 'plant_red_large_1.png', 'plant_red_large_2.png', 'plant_red_large_3.png']
         },
         palm_bush_small: {
             path: 'assets/images/objects/biomes/tropical/bushes/',
@@ -138,7 +138,7 @@ const TROPICAL_BIOME = {
         // Ruins
         tropical_ruins: {
             path: 'assets/images/objects/BIOMES/tropical/ruins/',
-            files: ['ruins_arch.png']
+            files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',]
         },
     },
 
@@ -160,7 +160,7 @@ const TROPICAL_BIOME = {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 4, isDecoration: true,
             spriteScale: 1,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 0.64), radiusX: (w => w * 0.41), radiusY: (h => h * 0.2) },
             canBeFlipped: true,
@@ -169,8 +169,8 @@ const TROPICAL_BIOME = {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
-            spriteScale: 0.7,
+            spawnWeight: 3, isDecoration: true,
+            spriteScale: 0.8,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: (h => h * 0.27) },
             canBeFlipped: true,
             placementBuffer: 60,
@@ -179,23 +179,23 @@ const TROPICAL_BIOME = {
             type: 'bush_medium', name: 'Medium Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 0, isDecoration: false,
-            spriteScale: 0.4,
+            spawnWeight: 0, isDecoration: true,
+            spriteScale: 0.2,
             canBeFlipped: true,
         },
         {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.6,
+            spawnWeight: 1, isDecoration: true,
+            spriteScale: 0.3,
             canBeFlipped: true,
         },
         {
             type: 'palm_bush_small', name: 'Small Palm Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 4, isDecoration: true,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -203,7 +203,7 @@ const TROPICAL_BIOME = {
             type: 'palm_bush_large', name: 'Large Palm Bush', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 4, isDecoration: false,
+            spawnWeight: 4, isDecoration: true,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -211,7 +211,7 @@ const TROPICAL_BIOME = {
             type: 'tree_palm_single', name: 'Palm Tree Single', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.39), offsetY: (h => h * 1.25), radius: (w => w * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -223,7 +223,7 @@ const TROPICAL_BIOME = {
             type: 'tree_palm_double', name: 'Palm Tree Double', color: '#005522',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.25), radiusX: (w => w * 0.17), radiusY: (h => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -234,7 +234,7 @@ const TROPICAL_BIOME = {
             type: 'tree_palm_triple', name: 'Palm Tree Triple', color: '#005522',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: false,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.3), radiusX: (w => w * 0.2), radiusY: (h => h * 0.10) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -398,7 +398,7 @@ const TROPICAL_BIOME = {
             spawnWeight: 10,
             spriteScale: 0.60,
             spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.38), radiusX: (w => w * 0.36), radiusY: (h => h * 0.25) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.36), radiusY: (h => h * 0.2) },
             placementBuffer: 150,
             canBeFlipped: true,
             isDecoration: true
@@ -424,7 +424,7 @@ const TROPICAL_BIOME = {
             type: 'tropical_ruins', name: 'Tropical Ruins', color: '#afafaf',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: true,
+            spawnWeight: 1.5, isDecoration: false, canBeFlipped: true,
             spriteScale: 0.5,
             placementBuffer: 80,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: (h => h * 0.2) },
@@ -437,13 +437,13 @@ const TROPICAL_BIOME = {
     levelGenSettings: {
         WORLD_BASE_MUD_COLOR: '#483524',
         WORLD_BASE_DIRT_COLOR: '#5C4033',
-        WORLD_GRASS_TILE_SIZE: 54,
+        WORLD_GRASS_TILE_SIZE: 48,
         WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.6,
         WORLD_GRASS_SKIP_CHANCE: 0.5,
         WORLD_GRASS_SKIP_MIN: 3,
         WORLD_GRASS_SKIP_MAX: 12,
         WORLD_MUD_NOISE_SCALE_X: 0.015,
-        WORLD_MUD_NOISE_SCALE_Y: 0.01,
+        WORLD_MUD_NOISE_SCALE_Y: 0.001,
         WORLD_MUD_NOISE_THRESHOLD: 0.3,
         WORLD_MUD_NOISE_OCTAVES: 3,
     },
@@ -479,7 +479,7 @@ const TROPICAL_BIOME = {
         { name: 'tropical_wall_angled_long', files: [
             'tropical_wall_angled_long_1.png', 'tropical_wall_angled_long_2.png', 'tropical_wall_angled_long_3.png'], path: 'assets/images/objects/biomes/tropical/walls/', type: 'single' },
         { name: 'bush_large', files: [
-            'fern_large_1.png', 'fern_large_2.png', 'fern_large_3.png', 'fern_large_4.png', 'fern_large_5.png', 'plant_red_large_1.png', 'plant_red_large_2.png', 'plant_red_large_3.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
+            'fern_large_6.png', 'fern_large_2.png', 'fern_large_3.png', 'fern_large_4.png', 'fern_large_5.png', 'plant_red_large_1.png', 'plant_red_large_2.png', 'plant_red_large_3.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
         { name: 'rock_medium', files: ['rock_medium_tropical_1.png', 'rock_medium_tropical_2.png', 'rock_medium_tropical_3.png', 'rock_medium_tropical_4.png', 'rock_medium_tropical_5.png', 'rock_medium_tropical_6.png'], path: 'assets/images/objects/rocks/grassy/medium/', type: 'single' },
         { name: 'rock_large', files: ['rock_large_tropical_1.png', 'rock_large_tropical_2.png', 'rock_large_tropical_3.png', 'rock_large_tropical_4.png', 'rock_large_tropical_5.png', 'rock_large_tropical_6.png'], path: 'assets/images/objects/rocks/grassy/large/', type: 'single' },
         { name: 'palm_single', files: ['palm1_single_1.png', 'palm1_single_2.png', 'palm1_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/fullSize/', type: 'single' },
@@ -504,6 +504,6 @@ const TROPICAL_BIOME = {
         { name: 'grass', files: ['grass1.png', 'grass2.png', 'grass3.png', 'grass4.png', 'grass5.png', 'grass6.png', 'grass7.png', 'grass8.png', 'grass9.png', 'grass10.png'], path: 'assets/images/objects/biomes/tropical/grass2/', type: 'single' },
         { name: 'rainforest_small', files: ['rainforest_small_1.png'], path: 'assets/images/objects/biomes/tropical/trees/forests/', type: 'single' },
         { name: 'rainforest_large', files: ['rainforest_large_1.png', 'rainforest_large_3.png', 'rainforest_large_4.png', 'rainforest_large_5.png'], path: 'assets/images/objects/biomes/tropical/trees/forests/', type: 'single' },
-        { name: 'tropical_ruins', files: ['ruins_arch.png'], path: 'assets/images/objects/BIOMES/tropical/ruins/', type: 'single' },
+        { name: 'tropical_ruins', files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',], path: 'assets/images/objects/BIOMES/tropical/ruins/', type: 'single' },
     ],
 };

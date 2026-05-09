@@ -659,7 +659,7 @@ class Game {
                 deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
             },
             {
-                name: 'raccoon_sergeant',
+                name: 'raccoon_redBeret',
                 basePath: CONFIG.RACCOON_SERGEANT_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
@@ -931,6 +931,7 @@ class Game {
             // ====================
             // TERRAIN (single files from lists - biome-specific, using TROPICAL_BIOME for now)
             // ====================
+            // TROPICAL
             { name: 'grass', files: TROPICAL_BIOME.spritePaths.grass?.files, path: TROPICAL_BIOME.spritePaths.grass?.path, type: 'single' },
             { name: 'tropical_wall_angled_long', files: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.files, path: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.path, type: 'single' },
             { name: 'fence_barbed_short', files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
@@ -962,6 +963,18 @@ class Game {
             { name: 'helipad_square', files: CONFIG.HELIPAD_SQUARE_SPRITE_FILES, path: CONFIG.HELIPAD_SQUARE_SPRITE_PATH, type: 'single' },
             { name: 'tropical_ruins', files: TROPICAL_BIOME.spritePaths.tropical_ruins?.files, path: TROPICAL_BIOME.spritePaths.tropical_ruins?.path, type: 'single' },
 
+            //TEMPERATE
+            { name: 'grass', files: TEMPERATE_BIOME.spritePaths.grass?.files, path: TEMPERATE_BIOME.spritePaths.grass?.path, type: 'single' },
+            { name: 'bush_medium', files: TEMPERATE_BIOME.spritePaths.bush_medium?.files, path: TEMPERATE_BIOME.spritePaths.bush_medium?.path, type: 'single' },
+            { name: 'bush_large', files: TEMPERATE_BIOME.spritePaths.bush_large?.files, path: TEMPERATE_BIOME.spritePaths.bush_large?.path, type: 'single' },
+            { name: 'oak_single', files: TEMPERATE_BIOME.spritePaths.tree_oak_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_single?.path, type: 'single' },
+            { name: 'tree_willow_single', files: TEMPERATE_BIOME.spritePaths.tree_willow_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow_single?.path, type: 'single' },
+            { name: 'tree_birch', files: TEMPERATE_BIOME.spritePaths.tree_birch?.files, path: TEMPERATE_BIOME.spritePaths.tree_birch?.path, type: 'single' },
+            { name: 'tree_pine', files: TEMPERATE_BIOME.spritePaths.tree_pine?.files, path: TEMPERATE_BIOME.spritePaths.tree_pine?.path, type: 'single' },
+            { name: 'tree_maple_single', files: TEMPERATE_BIOME.spritePaths.tree_maple_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_single?.path, type: 'single' },
+            { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
+
+
             // ====================
             // INTEL CONSOLES (on/off pairs)
             // ====================
@@ -977,7 +990,7 @@ class Game {
             // ====================
             {
                 name: 'possum_turrets',
-                dir: 'assets/images/objects/possums/turrets/',
+                path: 'assets/images/objects/possums/turrets/',
                 directions: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
                 type: 'turret'
             }
@@ -985,7 +998,11 @@ class Game {
 
         // Preload all sprite sets
         spriteSets.forEach(set => {
-            if (!set.files || !set.path) return;
+            if (set.type === 'turret') {
+                if (!set.path) return;
+            } else {
+                if (!set.files || !set.path) return;
+            }
 
             switch (set.type) {
                 case 'paired':
@@ -1053,7 +1070,7 @@ class Game {
                     // Handles direction-based sprites
                     set.directions.forEach(dir => {
                         const fileName = `possum_turret_1_${dir}.png`;
-                        const fullPath = set.dir + fileName;
+                        const fullPath = set.path + fileName;
                         if (!this.preloadedImages[fullPath]) {
                             imagePromises.push(new Promise((resolve) => {
                                 const img = new Image();
@@ -1326,6 +1343,7 @@ class Game {
 
             this.deployedSquadRoster.forEach(r => {
                 r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
+                if (r.rank === "private") startGrenades += (CONFIG.GRENADE_BONUS_PRIVATE || 0);
                 if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0);
                 if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
                 if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0);
@@ -2800,6 +2818,8 @@ class Game {
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
         let enemiesKilledThisMission = this.enemyUnits ? this.enemyUnits.filter(e => !e.isAlive()).length : 0;
 
+        const maxRoster = CONFIG.MAX_TOTAL_ROSTER_SIZE || Infinity;
+
         if (isVictory) {
             const survivalXp = CONFIG.XP_PER_MISSION_SURVIVED || 0;
             if (survivalXp > 0 && this.deployedSquadRoster) {
@@ -2813,8 +2833,7 @@ class Game {
 //                console.log(`[Game] Ambush survival bonus: +${totalAmbushXp} XP (${this.ambushesSurvivedThisMission.length} ambush(es))`);
             }
             const recruitsToAdd = CONFIG.NEW_RECRUITS_PER_MISSION_WIN || 0;
-            const maxRoster = CONFIG.MAX_TOTAL_ROSTER_SIZE || Infinity;
-            for (let i = 0; i < recruitsToAdd && this.masterRoster.length < maxRoster; i++) this.addNewRecruitToMasterRoster();
+            for (let i = 0; i < recruitsToAdd && this.getAvailableRecruits().length < maxRoster; i++) this.addNewRecruitToMasterRoster();
         }
 
         let newlyRecruitedRaccoons = [];
@@ -2854,7 +2873,7 @@ class Game {
                         newRecruit.setRankBasedSprite();
                         newRecruit.updateXpToNextRank();
 
-                        if (this.masterRoster.length < (CONFIG.MAX_TOTAL_ROSTER_SIZE || 20)) {
+                        if (this.getAvailableRecruits().length < maxRoster) {
                             this.masterRoster.push(newRecruit);
                             newlyRecruitedRaccoons.push(newRecruit);
                         }
