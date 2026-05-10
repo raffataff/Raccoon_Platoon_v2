@@ -7,6 +7,19 @@ const TROPICAL_BIOME = {
     description: "dense, overgrown jungle region",
     themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"],
 
+    landingVideos: [
+        'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
+        'assets/video/landing/Helicopter_Landing_6.mp4',
+    ],
+    extractionVideos: [
+        'assets/video/extraction/extraction_takeoff_1.mp4',
+    ],
+    extractionHostageVideos: [
+        'assets/video/extraction/extraction_hostage_1.mp4',
+        'assets/video/extraction/extraction_hostage_2.mp4',
+        'assets/video/extraction/extraction_hostage_3.mp4',
+    ],
+
     // =========================================================================
     // SPRITE PATH MAPPINGS (keyed by obstacle type for levelGenerator lookup)
     // =========================================================================
@@ -17,8 +30,8 @@ const TROPICAL_BIOME = {
             files: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png']
         },
         grass: {
-            path: 'assets/images/objects/biomes/tropical/grass2/',
-            files: ['grass1.png', 'grass2.png', 'grass3.png', 'grass4.png', 'grass5.png', 'grass6.png', 'grass7.png', 'grass8.png', 'grass9.png', 'grass10.png']
+            path: 'assets/images/objects/biomes/tropical/grass/',
+            files: ['tropical_grass_1.png', 'tropical_grass_2.png', 'tropical_grass_3.png', 'tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_14.png', 'tropical_grass_15.png', 'tropical_grass_16.png', 'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png', 'tropical_grass_24.png', 'tropical_grass_25.png', 'tropical_grass_26.png', 'tropical_grass_27.png', 'tropical_grass_28.png', 'tropical_grass_29.png', 'tropical_grass_30.png', 'tropical_grass_31.png',  ]
         },
 
         // Walls
@@ -435,10 +448,10 @@ const TROPICAL_BIOME = {
     // LEVEL GENERATION SETTINGS (biome-specific)
     // =========================================================================
     levelGenSettings: {
-        WORLD_BASE_MUD_COLOR: '#483524',
-        WORLD_BASE_DIRT_COLOR: '#5C4033',
+        WORLD_BASE_MUD_COLOR: '#324824',
+        WORLD_BASE_DIRT_COLOR: '#505c33',
         WORLD_GRASS_TILE_SIZE: 48,
-        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.6,
+        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.8,
         WORLD_GRASS_SKIP_CHANCE: 0.5,
         WORLD_GRASS_SKIP_MIN: 3,
         WORLD_GRASS_SKIP_MAX: 12,

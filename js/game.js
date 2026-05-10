@@ -968,11 +968,14 @@ class Game {
             { name: 'bush_medium', files: TEMPERATE_BIOME.spritePaths.bush_medium?.files, path: TEMPERATE_BIOME.spritePaths.bush_medium?.path, type: 'single' },
             { name: 'bush_large', files: TEMPERATE_BIOME.spritePaths.bush_large?.files, path: TEMPERATE_BIOME.spritePaths.bush_large?.path, type: 'single' },
             { name: 'oak_single', files: TEMPERATE_BIOME.spritePaths.tree_oak_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_single?.path, type: 'single' },
+            { name: 'oak_double', files: TEMPERATE_BIOME.spritePaths.tree_oak_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_double?.path, type: 'single' },
             { name: 'tree_willow_single', files: TEMPERATE_BIOME.spritePaths.tree_willow_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow_single?.path, type: 'single' },
             { name: 'tree_birch', files: TEMPERATE_BIOME.spritePaths.tree_birch?.files, path: TEMPERATE_BIOME.spritePaths.tree_birch?.path, type: 'single' },
             { name: 'tree_pine', files: TEMPERATE_BIOME.spritePaths.tree_pine?.files, path: TEMPERATE_BIOME.spritePaths.tree_pine?.path, type: 'single' },
             { name: 'tree_maple_single', files: TEMPERATE_BIOME.spritePaths.tree_maple_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_single?.path, type: 'single' },
             { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
+            { name: 'forest_small', files: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.path, type: 'single' },
+            { name: 'forest_large', files: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.path, type: 'single' },
 
 
             // ====================
@@ -1212,8 +1215,8 @@ class Game {
                             if (grassImg) {
                                 const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
                                 const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                                const drawX = effectiveX + offsetX;
-                                const drawY = y + offsetY;
+                                const drawX = effectiveX + offsetX - configuredTileSize / 2;
+                                const drawY = y + offsetY - configuredTileSize / 2;
                                 ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
                             }
                         }
@@ -1275,13 +1278,10 @@ class Game {
         let videoPathToShow;
         if (this.ui) {
             if (this.currentMissionIndex === 0) {
-                const phaseStartVideoPaths = [
+                const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+                const biomeConfig = CONFIG.BIOMES[biome];
+                const phaseStartVideoPaths = (biomeConfig && biomeConfig.landingVideos) ? biomeConfig.landingVideos : [
                     'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
-                //    'assets/video/landing/Helicopter_Landing_1.mp4',
-                //    'assets/video/landing/Helicopter_Landing_2.mp4',
-                //    'assets/video/landing/Helicopter_Landing_3.mp4',
-                //    'assets/video/landing/Helicopter_Landing_4.mp4',
-                //    'assets/video/landing/Helicopter_Landing_5.mp4',
                     'assets/video/landing/Helicopter_Landing_6.mp4',
                 ];
                 videoPathToShow = phaseStartVideoPaths[Math.floor(Math.random() * phaseStartVideoPaths.length)];
@@ -2946,15 +2946,21 @@ class Game {
         console.log('[ExtractionVideo] hostageCount:', hostageCount, 'isPhaseFinale:', isPhaseFinale);
 
         if (!isPhaseFinale && hostageCount > 0) {
-            const hostageVideoPaths = [];
-            for (let i = 1; i <= 3; i++) {
-                hostageVideoPaths.push(`assets/video/extraction/extraction_hostage_${i}.mp4`);
+            const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+            const biomeConfig = CONFIG.BIOMES[biome];
+            const hostageVideoPaths = (biomeConfig && biomeConfig.extractionHostageVideos) ? biomeConfig.extractionHostageVideos : [];
+            if (hostageVideoPaths.length === 0) {
+                for (let i = 1; i <= 3; i++) {
+                    hostageVideoPaths.push(`assets/video/extraction/extraction_hostage_${i}.mp4`);
+                }
             }
-            const targetCount = Math.min(hostageCount, 3);
+            const targetCount = Math.min(hostageCount, hostageVideoPaths.length);
             videoPath = hostageVideoPaths[targetCount - 1];
             console.log('[ExtractionVideo] Playing hostage video for', targetCount, 'hostages:', videoPath);
         } else {
-            const extractionVideoPaths = [
+            const biome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+            const biomeConfig = CONFIG.BIOMES[biome];
+            const extractionVideoPaths = (biomeConfig && biomeConfig.extractionVideos && biomeConfig.extractionVideos.length > 0) ? biomeConfig.extractionVideos : [
                 'assets/video/extraction/extraction_takeoff_1.mp4',
             ];
             videoPath = extractionVideoPaths[Math.floor(Math.random() * extractionVideoPaths.length)];

@@ -47,3 +47,33 @@ function getBiomeLevelGenSettings(biomeName) {
     const biome = getBiomeConfig(biomeName);
     return biome.levelGenSettings || {};
 }
+
+// Helper: get landing videos for a biome
+function getBiomeLandingVideos(biomeName) {
+    const biome = getBiomeConfig(biomeName);
+    return biome.landingVideos || [
+        'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
+        'assets/video/landing/Helicopter_Landing_6.mp4',
+    ];
+}
+
+// Helper: get extraction videos for a biome
+function getBiomeExtractionVideos(biomeName) {
+    const biome = getBiomeConfig(biomeName);
+    return biome.extractionVideos || [
+        'assets/video/extraction/extraction_takeoff_1.mp4',
+    ];
+}
+
+// Helper: get extraction hostage videos for a biome
+function getBiomeExtractionHostageVideos(biomeName) {
+    const biome = getBiomeConfig(biomeName);
+    if (biome.extractionHostageVideos && biome.extractionHostageVideos.length > 0) {
+        return biome.extractionHostageVideos;
+    }
+    const defaults = [];
+    for (let i = 1; i <= 3; i++) {
+        defaults.push(`assets/video/extraction/extraction_hostage_${i}.mp4`);
+    }
+    return defaults;
+}

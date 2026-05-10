@@ -648,7 +648,7 @@ class Unit {
                 }
             }
         }
-        else if (fullBlockEncountered && !(this instanceof RaccoonHostage) && this.isMoving) {
+        else if (fullBlockEncountered && this.isMoving) {
             if (this.bumpRepathCooldown <= 0) {
                 this.bumpRepathCooldown = this.IMMEDIATE_BUMP_REPATH_COOLDOWN;
 

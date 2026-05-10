@@ -29,7 +29,9 @@ class RaccoonHostage extends Raccoon {
         this.FOLLOW_STOP_DISTANCE_THRESHOLD = this.FOLLOW_DISTANCE * 0.7;
         this.REPATH_TARGET_MOVE_THRESHOLD = this.size * 7.5; 
         this.minTimeBetweenRepath = 0.85; 
-        this.lastRepathTime = 0;          
+        this.lastRepathTime = Math.random() * this.minTimeBetweenRepath;          
+
+        this.followSpreadSeed = this._hashIdToSpread(id);
 
         const possibleRanks = hostageConfig.POSSIBLE_RANKS_ON_RESCUE || [{ rankName: "Recruit", xpNeeded: 0, weight: 1 }];
         const totalWeight = possibleRanks.reduce((sum, r) => sum + (r.weight || 1), 0);
@@ -75,6 +77,26 @@ class RaccoonHostage extends Raccoon {
         }
     }
 
+    _hashIdToSpread(id) {
+        let hash = 0;
+        for (let i = 0; i < id.length; i++) {
+            hash = ((hash << 5) - hash) + id.charCodeAt(i);
+            hash |= 0;
+        }
+        return ((Math.abs(hash) % 1000) / 1000);
+    }
+
+    _getFollowSpreadOffset(followTarget) {
+        const arcSpan = Math.PI * 0.7;
+        const baseAngle = followTarget.facingAngle + Math.PI;
+        const spreadAngle = baseAngle + (this.followSpreadSeed - 0.5) * arcSpan;
+        const spreadDist = this.FOLLOW_DISTANCE * (0.6 + this.followSpreadSeed * 0.6);
+        return {
+            x: followTarget.x + Math.cos(spreadAngle) * spreadDist,
+            y: followTarget.y + Math.sin(spreadAngle) * spreadDist
+        };
+    }
+
     getAngleFromDirection(dirStr) {
         switch (dirStr) {
             case 's': return Math.PI / 2;
@@ -95,7 +117,6 @@ class RaccoonHostage extends Raccoon {
             return;
         }
 
-        this._updateVelocity(deltaTime); 
         if (this.isPhasing) { 
             this.phasingTimer -= deltaTime;
             if (this.phasingTimer <= 0) this.isPhasing = false;
@@ -141,13 +162,9 @@ class RaccoonHostage extends Raccoon {
                  if (this.followTarget && this.followTarget.isAlive()) {
                     const distToFollowTarget = distance(this.x, this.y, this.followTarget.x, this.followTarget.y);
                     
-                    let desiredFollowX = this.followTarget.x;
-                    let desiredFollowY = this.followTarget.y;
-                    if (distToFollowTarget > 1e-5) {
-                        let behindAngle = this.followTarget.facingAngle + Math.PI; 
-                        desiredFollowX = this.followTarget.x + Math.cos(behindAngle) * (this.FOLLOW_DISTANCE * 0.8);
-                        desiredFollowY = this.followTarget.y + Math.sin(behindAngle) * (this.FOLLOW_DISTANCE * 0.8);
-                    }
+                    const spreadOffset = this._getFollowSpreadOffset(this.followTarget);
+                    let desiredFollowX = spreadOffset.x;
+                    let desiredFollowY = spreadOffset.y;
 
                     const distToDesiredFollowPoint = distance(this.x, this.y, desiredFollowX, desiredFollowY);
 
