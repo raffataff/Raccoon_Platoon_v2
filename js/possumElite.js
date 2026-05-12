@@ -2,11 +2,11 @@
 
 class PossumElite extends Unit {
     constructor(x, y, game, id) {
-        super(x, y, game, 'enemy', 
-              CONFIG.POSSUM_ELITE_HP, 
-              CONFIG.POSSUM_ELITE_SPEED, 
-              CONFIG.POSSUM_ELITE_SIZE, 
-              CONFIG.POSSUM_ELITE_COLOR, 
+        super(x, y, game, 'enemy',
+              CONFIG.POSSUM_ELITE_HP,
+              CONFIG.POSSUM_ELITE_SPEED,
+              CONFIG.POSSUM_ELITE_SIZE,
+              CONFIG.POSSUM_ELITE_COLOR,
               id || `PSME-${Date.now().toString(36).slice(-4)}`);
 
         this.deadSpritePathKey = 'POSSUM_ELITE_DEAD_SPRITE_PATH';
@@ -14,10 +14,10 @@ class PossumElite extends Unit {
         this.deadSpriteScaleKey = 'POSSUM_ELITE_DEAD_SPRITE_SCALE';
         this.spriteBaseName = 'possum_elite';
         this.spriteScaleFactor = CONFIG.POSSUM_ELITE_SPRITE_SCALE_FACTOR;
-        
+
         this.weaponName = CONFIG.POSSUM_ELITE_DEFAULT_WEAPON || 'POSSUM_ELITE_WEAPON';
         this.detectionRange = CONFIG.AI.POSSUM_ELITE?.DETECTION_RANGE || 320;
-        
+
         this.eliteAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_ELITE) ? CONFIG.AI.POSSUM_ELITE : {};
 
         this.aiState = 'PATROLLING';
@@ -40,6 +40,30 @@ class PossumElite extends Unit {
         this.STUCK_RECOVERY_COOLDOWN_INTERNAL = this.eliteAIConfig.STUCK_RECOVERY_COOLDOWN_SHORT || 1.5;
         this.GRUNT_MAX_STUCK_ATTEMPTS_BEFORE_DESPERATE = this.eliteAIConfig.MAX_CONSECUTIVE_STUCK_ATTEMPTS || 3;
         this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL = this.eliteAIConfig.DESPERATE_STUCK_MOVE_RADIUS_CELLS || 5;
+
+        // --- Elite-specific tactical properties ---
+        this.STRAFE_COOLDOWN = this.eliteAIConfig.STRAFE_COOLDOWN || 0.4;
+        this.STRAFE_DISTANCE = this.eliteAIConfig.STRAFE_DISTANCE || 120;
+        this.STRAFE_CHANCE = this.eliteAIConfig.STRAFE_CHANCE || 0.7;
+        this.timeSinceLastStrafe = 0;
+
+        this.SHOTS_BEFORE_REPOSITION = this.eliteAIConfig.SHOTS_BEFORE_REPOSITION || 12;
+        this.REPOSITION_DISTANCE = this.eliteAIConfig.REPOSITION_DISTANCE || 150;
+        this.shotsFired = 0;
+
+        this.RETREAT_HP_THRESHOLD = this.eliteAIConfig.RETREAT_HP_THRESHOLD || 0.35;
+        this.RETREAT_MIN_ENEMIES = this.eliteAIConfig.RETREAT_MIN_ENEMIES || 2;
+        this.RETREAT_DISTANCE = this.eliteAIConfig.RETREAT_DISTANCE || 200;
+
+        this.FLANK_ENABLED = this.eliteAIConfig.FLANK_ENABLED !== undefined ? this.eliteAIConfig.FLANK_ENABLED : true;
+
+        // --- Grenade detection & avoidance ---
+        this.GRENADE_DETECTION_RANGE = this.eliteAIConfig.GRENADE_DETECTION_RANGE || 250;
+        this.GRENADE_DODGE_COOLDOWN = this.eliteAIConfig.GRENADE_DODGE_COOLDOWN || 1.5;
+        this.GRENADE_DODGE_DISTANCE = this.eliteAIConfig.GRENADE_DODGE_DISTANCE || 120;
+        this.GRENADE_IMMINENT_FUSE_THRESHOLD = this.eliteAIConfig.GRENADE_IMMINENT_FUSE_THRESHOLD || 1.2;
+        this.grenadeDodgeCooldownTimer = 0;
+        this.lastDodgeTarget = null;
 
         this.isMoving = false;
         this.suspiciousTimer = 0;
@@ -93,7 +117,79 @@ class PossumElite extends Unit {
         if (this.aiState === 'ENGAGING_CHASING') {
             this.timeSinceLastChaseDestUpdate += deltaTime;
         }
+
+        // --- Grenade detection & avoidance (highest priority) ---
+        if (this.grenadeDodgeCooldownTimer > 0) {
+            this.grenadeDodgeCooldownTimer -= deltaTime;
+        }
+        const incomingGrenade = this._detectIncomingGrenade();
+        if (incomingGrenade && this.grenadeDodgeCooldownTimer <= 0) {
+            this._dodgeGrenade(incomingGrenade);
+            super.update(deltaTime);
+            return;
+        }
+
+        // --- Tactical retreat check ---
+        if (this.aiState.startsWith('ENGAGING') && this.hp < this.maxHp * this.RETREAT_HP_THRESHOLD) {
+            const nearbyPlayerUnits = this.game.getLivingPlayerControlledUnits().filter(
+                u => distance(this.x, this.y, u.x, u.y) < this.detectionRange
+            );
+            if (nearbyPlayerUnits.length >= this.RETREAT_MIN_ENEMIES) {
+                const currentTarget = this.manualTarget || this.autoTarget;
+                if (currentTarget) {
+                    this._retreatFrom(currentTarget);
+                    super.update(deltaTime);
+                    return;
+                }
+            }
+        }
+
         super.update(deltaTime);
+    }
+
+    findAutoTarget(potentialTargets, obstacles) {
+        let closestTarget = null;
+        let engagementRange = (this.weapon ? this.weapon.range : (this.detectionRange || 150));
+
+        if (this.game && this.game.isNightMission && CONFIG.NIGHT_MISSION) {
+            const nightCfg = CONFIG.NIGHT_MISSION;
+            const enemyMult = nightCfg.ENEMY_DETECTION_MULTIPLIER !== undefined ? nightCfg.ENEMY_DETECTION_MULTIPLIER : 0.45;
+            engagementRange *= enemyMult;
+        }
+
+        let minDistanceSq = engagementRange ** 2;
+        if (!potentialTargets || !Array.isArray(potentialTargets)) { this.autoTarget = null; return; }
+        const activeObstacles = Array.isArray(obstacles) ? obstacles.filter(o => !o.isDestroyed && o.blocksMovement) : [];
+
+        const validTargets = [];
+        potentialTargets.forEach(target => {
+            if (target && target.isAlive() && target.team !== this.team && target.team !== 'neutral') {
+                const dx = target.x - this.x; const dy = target.y - this.y;
+                const dSq = dx * dx + dy * dy;
+                if (dSq <= minDistanceSq) {
+                    if (hasLineOfSight(this.x, this.y, target.x, target.y, activeObstacles, this.game.level, false)) {
+                        validTargets.push({ target, dSq });
+                    }
+                }
+            }
+        });
+
+        if (validTargets.length === 0) {
+            this.autoTarget = null;
+            return;
+        }
+
+        // Elite prioritization: prefer low-HP targets to finish them off
+        validTargets.sort((a, b) => {
+            const aHpRatio = a.target.hp / a.target.maxHp;
+            const bHpRatio = b.target.hp / b.target.maxHp;
+            if (Math.abs(aHpRatio - bHpRatio) > 0.15) {
+                return aHpRatio - bHpRatio;
+            }
+            return a.dSq - b.dSq;
+        });
+
+        this.autoTarget = validTargets[0].target;
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
@@ -102,7 +198,8 @@ class PossumElite extends Unit {
 
         if (this.actionTimer > 0) { return; }
 
-        if (!currentTarget) {
+        if (!currentTarget || !currentTarget.isAlive()) {
+            this.manualTarget = null;
             this.findAutoTarget(playerUnitsOnMap, obstacles);
             currentTarget = this.autoTarget;
         }
@@ -118,15 +215,31 @@ class PossumElite extends Unit {
             return;
         }
 
+        this.manualTarget = currentTarget;
         const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
+        const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.activeObstacles, this.game.level);
 
+        // --- Dynamic state transitions every frame (like grunt) ---
         if (this.aiState === 'PATROLLING' || this.aiState === 'SUSPICIOUS') {
-            if (distToTarget <= this.detectionRange) {
-                if (hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.activeObstacles, this.game.level)) {
+            if (distToTarget <= this.detectionRange && losToTarget) {
+                if (distToTarget <= (this.weapon.range - this.ENGAGE_RANGE_BUFFER)) {
                     this.changeState('ENGAGING_SHOOTING');
                 } else {
                     this.changeState('ENGAGING_CHASING');
                 }
+            } else if (distToTarget <= this.detectionRange) {
+                this.changeState('ENGAGING_CHASING');
+            }
+        } else if (this.aiState === 'ENGAGING_SHOOTING') {
+            if (distToTarget > this.weapon.range + this.ENGAGE_RANGE_BUFFER || !losToTarget) {
+                this.changeState('ENGAGING_CHASING');
+            }
+        } else if (this.aiState === 'ENGAGING_CHASING') {
+            if (distToTarget <= this.weapon.range * 0.85 && losToTarget) {
+                this.changeState('ENGAGING_SHOOTING');
+            } else if (distToTarget > this.detectionRange * 1.2) {
+                this.returnToPatrol();
+                return;
             }
         }
 
@@ -166,7 +279,6 @@ class PossumElite extends Unit {
     }
 
     _updateSuspiciousState(deltaTime, target, obstacles) {
-        // Elite has better detection, shorter suspicious time
         this.suspiciousTimer -= deltaTime;
         if (this.suspiciousTimer <= 0) {
             if (hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level)) {
@@ -187,9 +299,45 @@ class PossumElite extends Unit {
 
         this.isMoving = false;
 
+        // --- Strafe while shooting ---
+        this._strafeEngaging(target, deltaTime);
+
         if (this.canShootWhileMoving || !this.isMoving) {
             this._executeFire(target.x, target.y);
+            this.shotsFired++;
+
+            // --- Reposition after burst ---
+            if (this.shotsFired >= this.SHOTS_BEFORE_REPOSITION) {
+                this.shotsFired = 0;
+                this._repositionAfterBurst(target);
+            }
         }
+    }
+
+    _strafeEngaging(target, deltaTime) {
+        this.timeSinceLastStrafe += deltaTime;
+        if (this.timeSinceLastStrafe < this.STRAFE_COOLDOWN) return;
+
+        if (!this.isMoving && this.game.level.rng.chance(this.STRAFE_CHANCE)) {
+            const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
+            const strafeAngle = angleToTarget + (this.game.level.rng.chance(0.5) ? Math.PI / 2 : -Math.PI / 2);
+
+            const newX = this.x + Math.cos(strafeAngle) * this.STRAFE_DISTANCE;
+            const newY = this.y + Math.sin(strafeAngle) * this.STRAFE_DISTANCE;
+
+            this.setMoveTarget(newX, newY);
+            this.timeSinceLastStrafe = 0;
+        }
+    }
+
+    _repositionAfterBurst(target) {
+        const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
+        const reposAngle = angleToTarget + (this.game.level.rng.chance(0.5) ? Math.PI / 3 : -Math.PI / 3);
+
+        const newX = this.x + Math.cos(reposAngle) * this.REPOSITION_DISTANCE;
+        const newY = this.y + Math.sin(reposAngle) * this.REPOSITION_DISTANCE;
+
+        this.setMoveTarget(newX, newY);
     }
 
     _updateEngagingChasingState(deltaTime, target, distToTarget, obstacles) {
@@ -217,7 +365,25 @@ class PossumElite extends Unit {
         }
 
         if (shouldUpdateChaseDest) {
-            this.chaseDestination = { x: target.x, y: target.y };
+            let destX, destY;
+
+            // --- Flanking logic ---
+            if (this.FLANK_ENABLED && this._shouldFlank(target)) {
+                const flankAngle = this._calculateFlankAngle(target);
+                const flankDist = this.weapon.range * 0.7;
+                destX = target.x + Math.cos(flankAngle) * flankDist;
+                destY = target.y + Math.sin(flankAngle) * flankDist;
+            } else {
+                // --- Predictive chase (was missing before) ---
+                const predictionTime = this.eliteAIConfig.CHASE_PREDICTION_TIME_FACTOR || 0.30;
+                destX = target.x + target.currentVelocity.x * predictionTime;
+                destY = target.y + target.currentVelocity.y * predictionTime;
+            }
+
+            destX = Math.max(this.size, Math.min(destX, CONFIG.WORLD_WIDTH - this.size));
+            destY = Math.max(this.size, Math.min(destY, CONFIG.WORLD_HEIGHT - this.size));
+
+            this.chaseDestination = { x: destX, y: destY };
             this.timeSinceLastChaseDestUpdate = 0;
         }
 
@@ -230,6 +396,106 @@ class PossumElite extends Unit {
         }
     }
 
+    _shouldFlank(target) {
+        if (!this.game.enemyUnits) return false;
+        const alliesEngaging = this.game.enemyUnits.filter(e =>
+            e !== this && e.isAlive() &&
+            (e.aiState === 'ENGAGING_SHOOTING' || e.aiState === 'ENGAGING_CHASING') &&
+            e.manualTarget === target
+        );
+        return alliesEngaging.length > 0;
+    }
+
+    _calculateFlankAngle(target) {
+        const alliesEngaging = this.game.enemyUnits.filter(e =>
+            e !== this && e.isAlive() &&
+            (e.aiState === 'ENGAGING_SHOOTING' || e.aiState === 'ENGAGING_CHASING') &&
+            e.manualTarget === target
+        );
+        if (alliesEngaging.length === 0) {
+            return Math.atan2(this.y - target.y, this.x - target.x);
+        }
+
+        const avgAngle = alliesEngaging.reduce((sum, e) =>
+            sum + Math.atan2(e.y - target.y, e.x - target.x), 0) / alliesEngaging.length;
+
+        return avgAngle + Math.PI / 2;
+    }
+
+    _retreatFrom(target) {
+        const awayAngle = Math.atan2(this.y - target.y, this.x - target.x);
+        const retreatX = this.x + Math.cos(awayAngle) * this.RETREAT_DISTANCE;
+        const retreatY = this.y + Math.sin(awayAngle) * this.RETREAT_DISTANCE;
+        this.setMoveTarget(retreatX, retreatY);
+    }
+
+    _detectIncomingGrenade() {
+        if (!this.game || !this.game.gameObjects) return null;
+
+        let mostThreatening = null;
+        let shortestTimeToImpact = Infinity;
+
+        for (let i = 0; i < this.game.gameObjects.length; i++) {
+            const obj = this.game.gameObjects[i];
+            if (!(obj instanceof GrenadeProjectile)) continue;
+            if (obj.exploded || obj.isMarkedForDeletion) continue;
+            if (obj.shooterTeam === this.team) continue;
+
+            const isLanded = obj.flightTimeElapsed >= obj.flightTimeTotal;
+            const distToGrenade = distance(this.x, this.y, obj.x, obj.y);
+            const distToTarget = distance(this.x, this.y, obj.targetX, obj.targetY);
+
+            if (isLanded) {
+                if (distToGrenade > this.GRENADE_DETECTION_RANGE) continue;
+                const blastDist = distToGrenade - obj.aoeRadius - this.size;
+                if (blastDist > this.GRENADE_DODGE_DISTANCE * 1.5) continue;
+                if (obj.fuseTimer < this.GRENADE_IMMINENT_FUSE_THRESHOLD) {
+                    if (obj.fuseTimer < shortestTimeToImpact) {
+                        shortestTimeToImpact = obj.fuseTimer;
+                        mostThreatening = obj;
+                    }
+                }
+            } else {
+                if (distToTarget > this.GRENADE_DETECTION_RANGE) continue;
+                const predictedBlastDist = distToTarget - obj.aoeRadius - this.size;
+                if (predictedBlastDist > this.GRENADE_DODGE_DISTANCE * 1.5) continue;
+                const timeToLand = obj.flightTimeTotal - obj.flightTimeElapsed;
+                const totalTimeToImpact = timeToLand + obj.fuseTimer;
+                if (totalTimeToImpact < shortestTimeToImpact) {
+                    shortestTimeToImpact = totalTimeToImpact;
+                    mostThreatening = obj;
+                }
+            }
+        }
+
+        return mostThreatening;
+    }
+
+    _dodgeGrenade(grenade) {
+        const isLanded = grenade.flightTimeElapsed >= grenade.flightTimeTotal;
+        const threatX = isLanded ? grenade.x : grenade.targetX;
+        const threatY = isLanded ? grenade.y : grenade.targetY;
+
+        const awayAngle = Math.atan2(this.y - threatY, this.x - threatX);
+        const dodgeDist = this.GRENADE_DODGE_DISTANCE + grenade.aoeRadius * 0.5;
+
+        let dodgeAngle;
+        if (this.lastDodgeTarget &&
+            Math.abs(this.lastDodgeTarget.x - threatX) < 10 &&
+            Math.abs(this.lastDodgeTarget.y - threatY) < 10) {
+            dodgeAngle = awayAngle + Math.PI / 2;
+        } else {
+            dodgeAngle = awayAngle + (this.game.level.rng.chance(0.5) ? Math.PI / 3 : -Math.PI / 3);
+        }
+
+        const dodgeX = this.x + Math.cos(dodgeAngle) * dodgeDist;
+        const dodgeY = this.y + Math.sin(dodgeAngle) * dodgeDist;
+
+        this.setMoveTarget(dodgeX, dodgeY);
+        this.grenadeDodgeCooldownTimer = this.GRENADE_DODGE_COOLDOWN;
+        this.lastDodgeTarget = { x: threatX, y: threatY };
+    }
+
     changeState(newState) {
         if (this.aiState === newState) return;
 
@@ -239,9 +505,11 @@ class PossumElite extends Unit {
             case 'PATROLLING':
                 this.manualTarget = null;
                 this.autoTarget = null;
+                this.shotsFired = 0;
                 break;
             case 'SUSPICIOUS':
                 this.suspiciousTimer = 0.5;
+                this.shotsFired = 0;
                 break;
             case 'ENGAGING_SHOOTING':
             case 'ENGAGING_CHASING':
@@ -254,6 +522,7 @@ class PossumElite extends Unit {
         this.manualTarget = null;
         this.autoTarget = null;
         this.chaseDestination = null;
+        this.shotsFired = 0;
         if (distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y) > 5) {
             this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
         }

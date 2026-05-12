@@ -56,7 +56,7 @@ Add entry:
 **c) Depth sorting logic (around line 2681):**
 Add to the palm tree sorting condition:
 ```javascript
-obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single'
+obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single'
 ```
 
 ### 3. js/levelGenerator.js
@@ -76,8 +76,8 @@ After implementation, verify:
 
 ## Reference: Existing Palm Tree Implementation
 
-- Palm tree single: `tree_palm_single` type, spawnWeight: 5, spriteScale: 1.3
-- Palm tree double: `tree_palm_double` type, spawnWeight: 5, spriteScale: 1.2
+- Palm tree single: `tree_robusta_tall` type, spawnWeight: 5, spriteScale: 1.3
+- Palm tree double: `tree_robusta_small` type, spawnWeight: 5, spriteScale: 1.2
 - Palm tree triple: `tree_palm_triple` type, spawnWeight: 5, spriteScale: 1.2
 - All use collisionShape type: circle/ellipse at base of tree
 

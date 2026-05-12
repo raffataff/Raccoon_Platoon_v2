@@ -228,6 +228,14 @@ class RaccoonHostage extends Raccoon {
         this.spriteBaseName = 'raccoon_hostage'; 
         this.currentVisualState = 'idle';
 
+        // Phase the hostage briefly after rescue to prevent getting stuck on nearby obstacles
+        const hostageConfig = CONFIG.HOSTAGE_SETTINGS || {};
+        const rescuePhasingDuration = hostageConfig.RESCUE_PHASING_DURATION !== undefined ? hostageConfig.RESCUE_PHASING_DURATION : 1.5;
+        if (rescuePhasingDuration > 0) {
+            this.isPhasing = true;
+            this.phasingTimer = rescuePhasingDuration;
+        }
+
 //        console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);
 
         if (this.game.ui && typeof this.game.ui.updateHostageStatus === 'function') {

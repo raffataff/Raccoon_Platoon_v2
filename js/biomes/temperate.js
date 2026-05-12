@@ -9,16 +9,18 @@ const TEMPERATE_BIOME = {
     themeAdjectives: ["Crisp", "Wooded", "Serene"],
 
     landingVideos: [
-        'assets/video/landing/Raccoon_Combat_Team_Deploys.mp4',
-        'assets/video/landing/Helicopter_Landing_6.mp4',
+        'assets/video/landing/helicopter_landing_temperate_1.mp4',
+        'assets/video/landing/helicopter_landing_temperate_2.mp4',
     ],
     extractionVideos: [
-        'assets/video/extraction/extraction_takeoff_1.mp4',
+        'assets/video/extraction/helicopter_extraction_team_temperate_1.mp4',
+        'assets/video/extraction/helicopter_extraction_team_temperate_2.mp4',
     ],
     extractionHostageVideos: [
         'assets/video/extraction/extraction_hostage_1.mp4',
         'assets/video/extraction/extraction_hostage_2.mp4',
         'assets/video/extraction/extraction_hostage_3.mp4',
+        'assets/video/extraction/extraction_hostage_4.mp4',
     ],
 
     // =========================================================================
@@ -159,12 +161,52 @@ const TEMPERATE_BIOME = {
             path: 'assets/images/objects/BIOMES/tropical/ruins/',
             files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',]
         },
+
+        // Water bodies
+        pond: {
+            path: 'assets/images/objects/biomes/temperate/ponds/',
+            files: ['pond_temperate_1.png', 'pond_temperate_2.png', 'pond_temperate_3.png', 'pond_temperate_4.png',  ],
+        },
+        lake: {
+            path: 'assets/images/objects/biomes/temperate/ponds/',
+            files: ['lake_temperate_1.png', 'lake_temperate_2.png',]
+        },
     },
 
     // =========================================================================
     // FULL OBSTACLE DEFINITIONS (adapted from tropical)
     // =========================================================================
     obstacleDefinitions: [
+        {
+            type: 'pond',
+            name: 'Pond',
+            color: '#4A90D9',
+            destructible: false,
+            blocksMovement: true,
+            providesCover: false,
+            spawnWeight: 0.5,
+            isDecoration: false,
+            spriteScale: 0.8,
+            phaseUnlocked: 2,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
+            canBeFlipped: true,
+            placementBuffer: 80,
+        },
+        {
+            type: 'lake',
+            name: 'Lake',
+            color: '#4A90D9',
+            destructible: false,
+            blocksMovement: true,
+            providesCover: false,
+            spawnWeight: 0.5,
+            isDecoration: false,
+            spriteScale: 0.8,
+            phaseUnlocked: 2,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
+            canBeFlipped: true,
+            placementBuffer: 80,
+        },
         {
             type: 'temperate_wall_angled_long', name: 'Temperate Wall Angled Long',
             color: '#8B7355', destructible: false,
@@ -214,7 +256,7 @@ const TEMPERATE_BIOME = {
             type: 'oak_bush_small', name: 'Small Oak Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 1, isDecoration: true,
+            spawnWeight: 0, isDecoration: true,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -222,7 +264,7 @@ const TEMPERATE_BIOME = {
             type: 'oak_bush_large', name: 'Large Oak Bush', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.6,
             canBeFlipped: true,
         },
@@ -244,7 +286,7 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 0.5), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.3), offsetY: (h => h * 0.45), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -448,6 +490,7 @@ const TEMPERATE_BIOME = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
             canBeFlipped: true,
         },
+        
     ],
 
     // =========================================================================
@@ -456,7 +499,7 @@ const TEMPERATE_BIOME = {
     levelGenSettings: {
         WORLD_BASE_MUD_COLOR: '#5C4033',
         WORLD_BASE_DIRT_COLOR: '#6B4F34',
-        WORLD_GRASS_TILE_SIZE: 80,
+        WORLD_GRASS_TILE_SIZE: 70,
         WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.8,
         WORLD_GRASS_SKIP_CHANCE: 0.5,
         WORLD_GRASS_SKIP_MIN: 3,
@@ -478,6 +521,7 @@ const TEMPERATE_BIOME = {
         'tree_willow_single',
         'tree_oak_fallen',
         'tree_secondary_fallen',
+        'tree_deciduous_fallen',
         'tree_oak_single',
         'tree_oak_triple',
         'tree_oak_double',
@@ -489,6 +533,7 @@ const TEMPERATE_BIOME = {
         'forest_patch_small_1',
         'forest_patch_large_1',
         'temperate_ruins',
+        'pond',
     ],
 
     // =========================================================================
@@ -528,5 +573,8 @@ const TEMPERATE_BIOME = {
         { name: 'forest_large', files: ['temperate_forest_1.png', 'temperate_forest_2.png', 'temperate_forest_3.png', 'temperate_forest_4.png', 'temperate_forest_5.png', 'temperate_forest_6.png'], path: 'assets/images/objects/biomes/temperate/forests/', type: 'single' },
         //RUINS
         { name: 'temperate_ruins', files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',], path: 'assets/images/objects/BIOMES/tropical/ruins/', type: 'single' },
+        //WATER
+        { name: 'pond', files: ['pond_temperate_1.png', 'pond_temperate_2.png', 'pond_temperate_3.png', 'pond_temperate_4.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
+        { name: 'lake', files: ['lake_temperate_1.png', 'lake_temperate_2.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
     ],
 };

@@ -2,13 +2,11 @@
 
 * hut spawning position needs tweaking
 
-* grenades given when collecting weapon pickup
 
 * adjust collision position for oak double
 
 * make elite possum ai smarter
 
-* sort out proper videos for each biome
 
 * implement classes
 

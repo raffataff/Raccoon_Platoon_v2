@@ -309,57 +309,6 @@ function obbCircleOverlap(obb, circle) {
     return (distX * distX + distY * distY) <= circle.radius * circle.radius;
 }
 
-function obbCircleSeparation(obb, circle) {
-    const r = obb.rotation || 0;
-    const cx = obb.x + obb.width / 2;
-    const cy = obb.y + obb.height / 2;
-    const cosNeg = Math.cos(-r);
-    const sinNeg = Math.sin(-r);
-    const relX = circle.x - cx;
-    const relY = circle.y - cy;
-    const localX = cosNeg * relX - sinNeg * relY;
-    const localY = sinNeg * relX + cosNeg * relY;
-    const hw = obb.width / 2;
-    const hh = obb.height / 2;
-    const closestX = Math.max(-hw, Math.min(localX, hw));
-    const closestY = Math.max(-hh, Math.min(localY, hh));
-    const distX = localX - closestX;
-    const distY = localY - closestY;
-    const distSq = distX * distX + distY * distY;
-    const rSq = circle.radius * circle.radius;
-    if (distSq > rSq) return { x: 0, y: 0 };
-    if (distSq < 1e-9) {
-        const dxLeft = localX - (-hw);
-        const dxRight = hw - localX;
-        const dyTop = localY - (-hh);
-        const dyBottom = hh - localY;
-        let sepLX, sepLY;
-        if (dxLeft <= dxRight && dxLeft <= dyTop && dxLeft <= dyBottom) {
-            sepLX = -dxLeft - circle.radius;
-            sepLY = 0;
-        } else if (dxRight <= dxLeft && dxRight <= dyTop && dxRight <= dyBottom) {
-            sepLX = dxRight + circle.radius;
-            sepLY = 0;
-        } else if (dyTop <= dxLeft && dyTop <= dxRight && dyTop <= dyBottom) {
-            sepLX = 0;
-            sepLY = -dyTop - circle.radius;
-        } else {
-            sepLX = 0;
-            sepLY = dyBottom + circle.radius;
-        }
-        const sepX = Math.cos(r) * sepLX - Math.sin(r) * sepLY;
-        const sepY = Math.sin(r) * sepLX + Math.cos(r) * sepLY;
-        return { x: sepX, y: sepY };
-    }
-    const dist = Math.sqrt(distSq);
-    const penetration = circle.radius - dist + 2.0;
-    const sepLX = (distX / dist) * penetration;
-    const sepLY = (distY / dist) * penetration;
-    const sepX = Math.cos(r) * sepLX - Math.sin(r) * sepLY;
-    const sepY = Math.sin(r) * sepLX + Math.cos(r) * sepLY;
-    return { x: sepX, y: sepY };
-}
-
 function obbEllipseOverlap(obb, ellipse) {
     const r = obb.rotation || 0;
     if (r === 0) {
@@ -433,13 +382,21 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
         { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }
     ];
 
-    // --- PERFORMANCE FIX: Limit iterations to prevent freezes ---
-    // With GRID_CELL_SIZE = 4 and typical world size 1920x1080, max grid dimension is ~480 cells.
-    // A path could theoretically need to traverse the whole grid, so we set a generous limit.
-    // This prevents pathological cases (like clicking on the other side of a border wall)
-    // from exploring millions of nodes and freezing the game.
-    const MAX_ITERATIONS = (grid.length * grid[0].length) * 2; // ~2x total cells max
-    let iterations = 0;
+    // --- PERFORMANCE FIX: Abort early if destination is not walkable ---
+    if (!isUnitPhasing && grid[endPos.y] !== undefined && grid[endPos.y][endPos.x] !== undefined) {
+        if (grid[endPos.y][endPos.x] === 1) {
+            return null; // Target is blocked — no path possible
+        }
+    }
+    // --- END FIX ---
+
+    // --- PERFORMANCE FIX: Limit expansions to total cell count ---
+    // A* should never expand more cells than exist in the grid.
+    // The neighbor loop previously counted every neighbor check as an iteration,
+    // which could be 8× the grid size or more due to re-expansions.
+    // Counting actual expansions guarantees termination proportional to grid size.
+    const cellsInGrid = grid.length * grid[0].length;
+    let expansions = 0;
     // --- END FIX ---
 
     while (!openList.isEmpty()) {
@@ -457,14 +414,15 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
 
         closedList.add(`${currentNode.x},${currentNode.y}`);
 
+        // --- PERFORMANCE FIX: Check expansion limit per cell, not per neighbor ---
+        expansions++;
+        if (expansions > cellsInGrid) {
+            console.warn(`findPath: Expanded all ${cellsInGrid} reachable cells without finding target. Aborting.`);
+            return null;
+        }
+        // --- END FIX ---
+
         for (const direction of directions) {
-            // --- PERFORMANCE FIX: Check iteration limit ---
-            iterations++;
-            if (iterations > MAX_ITERATIONS) {
-                console.warn(`findPath: Max iterations (${MAX_ITERATIONS}) reached. Pathfinding aborted.`);
-                return null; // No path found within limit
-            }
-            // --- END FIX ---
 
             const neighborX = currentNode.x + direction.x;
             const neighborY = currentNode.y + direction.y;

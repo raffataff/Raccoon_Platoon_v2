@@ -934,13 +934,14 @@ class Game {
             // TROPICAL
             { name: 'grass', files: TROPICAL_BIOME.spritePaths.grass?.files, path: TROPICAL_BIOME.spritePaths.grass?.path, type: 'single' },
             { name: 'tropical_wall_angled_long', files: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.files, path: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.path, type: 'single' },
+            { name: 'tropical_pond', files: TROPICAL_BIOME.spritePaths.tropical_pond?.files, path: TROPICAL_BIOME.spritePaths.tropical_pond?.path, type: 'single' },
             { name: 'fence_barbed_short', files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
             { name: 'fence_barbed_long', files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
             { name: 'bush_large', files: TROPICAL_BIOME.spritePaths.bush_large?.files, path: TROPICAL_BIOME.spritePaths.bush_large?.path, type: 'single' },
             { name: 'rock_medium', files: TROPICAL_BIOME.spritePaths.rock_medium?.files, path: TROPICAL_BIOME.spritePaths.rock_medium?.path, type: 'single' },
             { name: 'rock_large', files: TROPICAL_BIOME.spritePaths.rock_large?.files, path: TROPICAL_BIOME.spritePaths.rock_large?.path, type: 'single' },
-            { name: 'palm_single', files: TROPICAL_BIOME.spritePaths.tree_palm_single?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_single?.path, type: 'single' },
-            { name: 'palm_double', files: TROPICAL_BIOME.spritePaths.tree_palm_double?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_double?.path, type: 'single' },
+            { name: 'tree_robusta_tall', files: TROPICAL_BIOME.spritePaths.tree_robusta_tall?.files, path: TROPICAL_BIOME.spritePaths.tree_robusta_tall?.path, type: 'single' },
+            { name: 'tree_robusta_small', files: TROPICAL_BIOME.spritePaths.tree_robusta_small?.files, path: TROPICAL_BIOME.spritePaths.tree_robusta_small?.path, type: 'single' },
             { name: 'palm_triple', files: TROPICAL_BIOME.spritePaths.tree_palm_triple?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_triple?.path, type: 'single' },
             { name: 'palm_fallen', files: TROPICAL_BIOME.spritePaths.tree_palm_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_palm_fallen?.path, type: 'single' },
             { name: 'palm2_fallen', files: TROPICAL_BIOME.spritePaths.tree_palm2_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_fallen?.path, type: 'single' },
@@ -976,6 +977,8 @@ class Game {
             { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
             { name: 'forest_small', files: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.path, type: 'single' },
             { name: 'forest_large', files: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.path, type: 'single' },
+            { name: 'pond', files: TEMPERATE_BIOME.spritePaths.pond?.files, path: TEMPERATE_BIOME.spritePaths.pond?.path, type: 'single'},
+            { name: 'lake', files: TEMPERATE_BIOME.spritePaths.lake?.files, path: TEMPERATE_BIOME.spritePaths.lake?.path, type: 'single' },
 
 
             // ====================
@@ -1038,6 +1041,21 @@ class Game {
 
                 case 'single':
                     // Handles single filename lists (terrain)
+                    set.files.forEach(fileName => {
+                        const fullPath = set.path + fileName;
+                        if (!this.preloadedImages[fullPath]) {
+                            imagePromises.push(new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => { this.preloadedImages[fullPath] = img; resolve(); };
+                                img.onerror = () => { this.preloadedImages[fullPath] = null; resolve(); };
+                                img.src = fullPath;
+                            }));
+                        }
+                    });
+                    break;
+
+                case 'tilesheet':
+                    // Handles tilesheet files (animated obstacles)
                     set.files.forEach(fileName => {
                         const fullPath = set.path + fileName;
                         if (!this.preloadedImages[fullPath]) {
@@ -2832,8 +2850,10 @@ class Game {
                 this.deployedSquadRoster.forEach(r => { if (r.isAlive()) r.addXp(totalAmbushXp); });
 //                console.log(`[Game] Ambush survival bonus: +${totalAmbushXp} XP (${this.ambushesSurvivedThisMission.length} ambush(es))`);
             }
-            const recruitsToAdd = CONFIG.NEW_RECRUITS_PER_MISSION_WIN || 0;
-            for (let i = 0; i < recruitsToAdd && this.getAvailableRecruits().length < maxRoster; i++) this.addNewRecruitToMasterRoster();
+            if (this.currentPhaseIndex < 10) {
+                const recruitsToAdd = CONFIG.NEW_RECRUITS_PER_MISSION_WIN || 0;
+                for (let i = 0; i < recruitsToAdd && this.getAvailableRecruits().length < maxRoster; i++) this.addNewRecruitToMasterRoster();
+            }
         }
 
         let newlyRecruitedRaccoons = [];
@@ -3616,6 +3636,17 @@ class Game {
                     }
                 });
             }
+            if (this.level && this.level.obstacles) {
+                for (const obstacle of this.level.obstacles) {
+                    if (obstacle.isAnimated && obstacle.numFrames && !obstacle.isDestroyed) {
+                        obstacle.animationTimer += deltaTime;
+                        if (obstacle.animationTimer >= obstacle.animationSpeed) {
+                            obstacle.animationTimer = 0;
+                            obstacle.currentFrame = (obstacle.currentFrame + 1) % obstacle.numFrames;
+                        }
+                    }
+                }
+            }
             if (this.ui) {
                 this.ui.updateObjective();
             }
@@ -3683,7 +3714,7 @@ class Game {
                     const shapesArray = Array.isArray(collisionShapes) ? collisionShapes : (collisionShapes ? [collisionShapes] : null);
                     const isBehindLiving = !!obstacle.isDestroyed;
                     const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
-                    const isTree = obstacle.type === 'tree_palm_single' || obstacle.type === 'tree_palm_double' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
+                    const isTree = obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
                     let sortYValue = obstacle.y + obstacle.height;
                     if (shapesArray && shapesArray.length > 0) {
                         let maxBottom = -Infinity;
@@ -3786,7 +3817,23 @@ class Game {
                         }
                         if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight);
                     } else if (!obj.isDestroyed && obj.imageNormal) {
-                        if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
+                        if (obj.isAnimated && obj.tilesheetPath && obj.frameWidth && obj.frameHeight) {
+                            const tilesheetImg = this.preloadedImages[obj.tilesheetPath];
+                            if (tilesheetImg) {
+                                const framesPerRow = obj.framesPerRow || 2;
+                                const colIndex = obj.currentFrame % framesPerRow;
+                                const rowIndex = Math.floor(obj.currentFrame / framesPerRow);
+                                const sourceX = colIndex * obj.frameWidth;
+                                const sourceY = rowIndex * obj.frameHeight;
+                                this.ctx.drawImage(
+                                    tilesheetImg,
+                                    sourceX, sourceY, obj.frameWidth, obj.frameHeight,
+                                    obj.x, obj.y, obj.width, obj.height
+                                );
+                            }
+                        } else {
+                            if (obj.imageNormal.naturalWidth > 0) this.ctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
+                        }
                     } else if (obj.type === 'extraction_zone') {
                         let obsColor = obj.color || '#3C78FF'; 
                         this.ctx.fillStyle = obsColor; 

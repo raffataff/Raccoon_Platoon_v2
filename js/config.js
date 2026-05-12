@@ -431,7 +431,7 @@ const CONFIG = {
             muzzleFlashScale: 1.3,
             bulletLifetime: 2.2,
             bulletSpritePath: 'assets/images/projectiles/bullet_gold_boss.png',
-            bulletSpriteScale: 0.6,
+            bulletSpriteScale: 0.2,
             isDefaultWeapon: true,
             maxAmmo: Infinity
         },
@@ -680,6 +680,19 @@ const CONFIG = {
             CHASE_PREDICTION_TIME_FACTOR: 0.30,
             ENGAGE_RANGE_BUFFER: 25,
             MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3,
+            STRAFE_COOLDOWN: 0.4,
+            STRAFE_DISTANCE: 120,
+            STRAFE_CHANCE: 0.7,
+            SHOTS_BEFORE_REPOSITION: 12,
+            REPOSITION_DISTANCE: 150,
+            RETREAT_HP_THRESHOLD: 0.35,
+            RETREAT_MIN_ENEMIES: 2,
+            RETREAT_DISTANCE: 200,
+            FLANK_ENABLED: true,
+            GRENADE_DETECTION_RANGE: 250,
+            GRENADE_DODGE_COOLDOWN: 1.5,
+            GRENADE_DODGE_DISTANCE: 120,
+            GRENADE_IMMINENT_FUSE_THRESHOLD: 1.2,
         },
         POSSUM_BOSS_1: {
             ARENA_RADIUS: 250,
@@ -733,6 +746,7 @@ const CONFIG = {
         },
         
     },
+    
 
     // =============================================================================
     // PROJECTILES_WEAPONS
@@ -1034,9 +1048,9 @@ const CONFIG = {
             type: 'general_possum_building_large', name: 'Large Possum Building', color: '#8B4513',
             destructible: false,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, phaseUnlocked: 2,
+            spawnWeight: 2, phaseUnlocked: 3,
             spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.5), radiusX: (w => w * 0.35), radiusY: (h => h * 0.24) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.51), radiusX: (w => w * 0.37), radiusY: (h => h * 0.26) },
             isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 150,
@@ -1137,6 +1151,7 @@ const CONFIG = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: false, providesCover: false,
             spriteNormal: null,
+            phaseUnlocked: 2,
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8) },
@@ -1147,6 +1162,7 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             spawnWeight: 2, isDecoration: false,
             spawnLimit: 1,
+            phaseUnlocked: 2,
             spriteScale: 0.4,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8), rotation: Math.PI / 4 },
             placementBuffer: 100,
@@ -1199,7 +1215,7 @@ const CONFIG = {
             spawnWeight: 0.5,
             pickupType: 'grenade', pickupQuantity: 2,
             spriteScale: 0.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84), rotation: Math.PI / 8 },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
             isDecoration: false,
@@ -1211,7 +1227,7 @@ const CONFIG = {
             spawnWeight: 0.5,
             pickupType: 'ammo', pickupQuantity: 120,
             spriteScale: 0.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84), rotation: Math.PI / 8 },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
             isDecoration: false,
@@ -1223,7 +1239,7 @@ const CONFIG = {
             spawnWeight: 0.9,
             pickupType: 'health', pickupQuantity: 30,
             spriteScale: 0.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84), rotation: Math.PI / 8 },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
             isDecoration: false,
@@ -1439,7 +1455,7 @@ const CONFIG = {
         COLOR: '#ADD8E6',
         NEUTRAL_COLOR: '#FFD700',
         RESCUE_RADIUS: 60,
-        FOLLOW_DISTANCE: 60,
+        FOLLOW_DISTANCE: 20,
         FOLLOW_LERP_SPEED: 0.04,
         POSSIBLE_RANKS_ON_RESCUE: [
             { rankName: "Recruit", xpNeeded: 0, weight: 40 },
@@ -1458,15 +1474,16 @@ const CONFIG = {
         MAX_HOSTAGES_PER_HUT: 2,
         SPAWN_OFFSET_FROM_HUT_X: -30,
         SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30),
-        MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 500,
+        MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 800,
         HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 1,
-        HOSTAGE_SPAWN_BUFFER: 80,
-        HOSTAGE_DECORATION_SPAWN_BUFFER: 125,
+        HOSTAGE_SPAWN_BUFFER: 180,
+        HOSTAGE_DECORATION_SPAWN_BUFFER: 225,
         INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 1,
         INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 4,
         INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20,
         INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 30,
-        INITIAL_GUARD_PLACEMENT_ATTEMPTS: 1
+        INITIAL_GUARD_PLACEMENT_ATTEMPTS: 1,
+        RESCUE_PHASING_DURATION: 1.5 // Seconds hostage phases after rescue to avoid getting stuck on obstacles
     },
 
     // =============================================================================
@@ -1592,7 +1609,7 @@ const CONFIG = {
 
     UI_SETTINGS: {
         HEALTH_BAR: {
-            WIDTH_MULTIPLIER: 3, HEIGHT: 4, Y_OFFSET_BASE: 50, BG_COLOR: '#333333',
+            WIDTH_MULTIPLIER: 3, HEIGHT: 4, Y_OFFSET_BASE: 10, BG_COLOR: '#333333',
             HP_COLOR_FULL: '#00CC00', HP_COLOR_MEDIUM: '#CCCC00', HP_COLOR_LOW: '#CC0000',
             LOW_HP_THRESHOLD_PERCENT: 0.3, MEDIUM_HP_THRESHOLD_PERCENT: 0.6
         },

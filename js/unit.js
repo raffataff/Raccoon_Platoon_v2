@@ -534,95 +534,58 @@ class Unit {
             }
             if (isCollisionWithDesiredMove) {
                 collisionOccurredThisFrame = true;
-                // Check for OBB collisions and resolve with separation vector
-                let hasOBB = false;
-                for (const obs of obstaclesForCollision) {
-                    const obsShapes = this.game.level._getObstacleCollisionShape(obs);
-                    const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
-                    for (const obsCS of shapesArray) {
-                        if (obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0) { hasOBB = true; break; }
-                    }
-                    if (hasOBB) break;
-                }
-                if (hasOBB) {
-                    // Use separation vector for OBBs
-                    const sepUnitShape = { type: 'circle', x: potentialNewX_combined, y: potentialNewY_combined, radius: collisionCheckRadius };
-                    let bestSepX = 0, bestSepY = 0, bestSepMag = 0;
+                let canMoveX = false;
+                if (Math.abs(finalDeltaX) > 1e-5) {
+                    const unitBodyShape_X_Only = { type: 'circle', x: this.x + finalDeltaX, y: this.y, radius: collisionCheckRadius };
+                    let collisionX = false;
                     for (const obs of obstaclesForCollision) {
                         const obsShapes = this.game.level._getObstacleCollisionShape(obs);
                         const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
                         for (const obsCS of shapesArray) {
-                            if (obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0 && obbCircleOverlap(obsCS, sepUnitShape)) {
-                                const sep = obbCircleSeparation(obsCS, { type: 'circle', x: potentialNewX_combined, y: potentialNewY_combined, radius: collisionCheckRadius });
-                                const sepMag = sep.x * sep.x + sep.y * sep.y;
-                                if (sepMag > bestSepMag) {
-                                    bestSepX = sep.x;
-                                    bestSepY = sep.y;
-                                    bestSepMag = sepMag;
-                                }
+                            const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                            if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, unitBodyShape_X_Only) : rectCircleOverlap(obsCS, unitBodyShape_X_Only))) ||
+                                (obsCS.type === 'circle' && circleOverlap(obsCS, unitBodyShape_X_Only)) ||
+                                (obsCS.type === 'ellipse' && circleEllipseOverlap(unitBodyShape_X_Only, obsCS))) {
+                                collisionX = true; break;
                             }
                         }
+                        if (collisionX) break;
                     }
-                    if (bestSepMag > 0) {
-                        finalDeltaX = potentialNewX_combined - this.x + bestSepX;
-                        finalDeltaY = potentialNewY_combined - this.y + bestSepY;
-                    }
-                    collisionOccurredThisFrame = false;
-                } else {
-                    // Original axis-aligned separation for non-OBB shapes
-                    let canMoveX = false;
-                    if (Math.abs(finalDeltaX) > 1e-5) {
-                        const unitBodyShape_X_Only = { type: 'circle', x: this.x + finalDeltaX, y: this.y, radius: collisionCheckRadius };
-                        let collisionX = false;
-                        for (const obs of obstaclesForCollision) {
-                            const obsShapes = this.game.level._getObstacleCollisionShape(obs);
-                            const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
-                            for (const obsCS of shapesArray) {
-                                const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
-                                if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, unitBodyShape_X_Only) : rectCircleOverlap(obsCS, unitBodyShape_X_Only))) ||
-                                    (obsCS.type === 'circle' && circleOverlap(obsCS, unitBodyShape_X_Only)) ||
-                                    (obsCS.type === 'ellipse' && circleEllipseOverlap(unitBodyShape_X_Only, obsCS))) {
-                                    collisionX = true; break;
-                                }
-                            }
-                            if (collisionX) break;
-                        }
-                        if (!collisionX) canMoveX = true;
-                    }
-                    let canMoveY = false;
-                    if (Math.abs(finalDeltaY) > 1e-5) {
-                        const unitBodyShape_Y_Only = { type: 'circle', x: this.x, y: this.y + finalDeltaY, radius: collisionCheckRadius };
-                        let collisionY = false;
-                        for (const obs of obstaclesForCollision) {
-                            const obsShapes = this.game.level._getObstacleCollisionShape(obs);
-                            const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
-                            for (const obsCS of shapesArray) {
-                                const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
-                                if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, unitBodyShape_Y_Only) : rectCircleOverlap(obsCS, unitBodyShape_Y_Only))) ||
-                                    (obsCS.type === 'circle' && circleOverlap(obsCS, unitBodyShape_Y_Only)) ||
-                                    (obsCS.type === 'ellipse' && circleEllipseOverlap(unitBodyShape_Y_Only, obsCS))) {
-                                    collisionY = true; break;
-                                }
-                            }
-                            if (collisionY) break;
-                        }
-                        if (!collisionY) canMoveY = true;
-                    }
-                    if (canMoveX && !canMoveY) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
-                    else if (!canMoveX && canMoveY) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
-                    else if (canMoveX && canMoveY) {
-                        const angleToNode = Math.atan2(dyToNode, dxToNode);
-                        const angleOfXMove = (finalDeltaX >= 0) ? 0 : Math.PI;
-                        const angleOfYMove = (finalDeltaY >= 0) ? Math.PI / 2 : -Math.PI / 2;
-                        let diffX = Math.abs(angleToNode - angleOfXMove); if (diffX > Math.PI) diffX = 2 * Math.PI - diffX;
-                        let diffY = Math.abs(angleToNode - angleOfYMove); if (diffY > Math.PI) diffY = 2 * Math.PI - diffY;
-                        if (diffX < diffY - 1e-3 && Math.abs(finalDeltaX) > 1e-5) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
-                        else if (diffY < diffX - 1e-3 && Math.abs(finalDeltaY) > 1e-5) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
-                        else if (Math.abs(finalDeltaX) > Math.abs(finalDeltaY) + 1e-4 && Math.abs(finalDeltaX) > 1e-5) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
-                        else if (Math.abs(finalDeltaY) > 1e-5) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
-                        else { finalDeltaX = 0; finalDeltaY = 0; }
-                    } else { finalDeltaX = 0; finalDeltaY = 0; }
+                    if (!collisionX) canMoveX = true;
                 }
+                let canMoveY = false;
+                if (Math.abs(finalDeltaY) > 1e-5) {
+                    const unitBodyShape_Y_Only = { type: 'circle', x: this.x, y: this.y + finalDeltaY, radius: collisionCheckRadius };
+                    let collisionY = false;
+                    for (const obs of obstaclesForCollision) {
+                        const obsShapes = this.game.level._getObstacleCollisionShape(obs);
+                        const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+                        for (const obsCS of shapesArray) {
+                            const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                            if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, unitBodyShape_Y_Only) : rectCircleOverlap(obsCS, unitBodyShape_Y_Only))) ||
+                                (obsCS.type === 'circle' && circleOverlap(obsCS, unitBodyShape_Y_Only)) ||
+                                (obsCS.type === 'ellipse' && circleEllipseOverlap(unitBodyShape_Y_Only, obsCS))) {
+                                collisionY = true; break;
+                            }
+                        }
+                        if (collisionY) break;
+                    }
+                    if (!collisionY) canMoveY = true;
+                }
+                if (canMoveX && !canMoveY) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
+                else if (!canMoveX && canMoveY) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
+                else if (canMoveX && canMoveY) {
+                    const angleToNode = Math.atan2(dyToNode, dxToNode);
+                    const angleOfXMove = (finalDeltaX >= 0) ? 0 : Math.PI;
+                    const angleOfYMove = (finalDeltaY >= 0) ? Math.PI / 2 : -Math.PI / 2;
+                    let diffX = Math.abs(angleToNode - angleOfXMove); if (diffX > Math.PI) diffX = 2 * Math.PI - diffX;
+                    let diffY = Math.abs(angleToNode - angleOfYMove); if (diffY > Math.PI) diffY = 2 * Math.PI - diffY;
+                    if (diffX < diffY - 1e-3 && Math.abs(finalDeltaX) > 1e-5) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
+                    else if (diffY < diffX - 1e-3 && Math.abs(finalDeltaY) > 1e-5) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
+                    else if (Math.abs(finalDeltaX) > Math.abs(finalDeltaY) + 1e-4 && Math.abs(finalDeltaX) > 1e-5) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
+                    else if (Math.abs(finalDeltaY) > 1e-5) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
+                    else { finalDeltaX = 0; finalDeltaY = 0; }
+                } else { finalDeltaX = 0; finalDeltaY = 0; }
             }
         }
 

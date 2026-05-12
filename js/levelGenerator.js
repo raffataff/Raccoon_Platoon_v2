@@ -459,11 +459,13 @@ class LevelGenerator {
             return;
         }
 
-        // Calculate spawn position - place crate to the right side of the target
-        const crateOffsetX = targetWidth / 2 + 40; // 40px to the right of the target
-        const crateOffsetY = 0;
-        const crateX = targetX + crateOffsetX;
-        const crateY = targetY + crateOffsetY;
+        // Calculate spawn position - random angle and distance around the target
+        const angle = this.rng.nextFloat(0, Math.PI * 2);
+        const distance = this.rng.nextFloat(50, 120);
+        const centerX = targetX + targetWidth / 2;
+        const centerY = targetY + targetHeight / 2;
+        const crateX = centerX + Math.cos(angle) * distance;
+        const crateY = centerY + Math.sin(angle) * distance;
 
         // Check bounds
         const playableMinX = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
@@ -484,9 +486,19 @@ class LevelGenerator {
         };
 
         if (this._isPlacementInvalid(crateShape, grenadeCrateDef, this.level.obstacles, [])) {
-            // Try left side instead
-            crateShape.x = targetX - targetWidth / 2 - 40;
-            if (this._isPlacementInvalid(crateShape, grenadeCrateDef, this.level.obstacles, [])) {
+            // Try a few more random positions around the target
+            let placed = false;
+            for (let attempt = 0; attempt < 8; attempt++) {
+                const retryAngle = this.rng.nextFloat(0, Math.PI * 2);
+                const retryDistance = this.rng.nextFloat(50, 120);
+                crateShape.x = centerX + Math.cos(retryAngle) * retryDistance;
+                crateShape.y = centerY + Math.sin(retryAngle) * retryDistance;
+                if (!this._isPlacementInvalid(crateShape, grenadeCrateDef, this.level.obstacles, [])) {
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
 //                console.warn("[Level Gen] Could not place grenade crate near relay tower - no valid position found");
                 return;
             }
@@ -544,10 +556,13 @@ class LevelGenerator {
             return;
         }
 
-        const crateOffsetX = targetWidth / 2 + 40;
-        const crateOffsetY = 0;
-        const crateX = targetX + crateOffsetX;
-        const crateY = targetY + crateOffsetY;
+        // Calculate spawn position - random angle and distance around the target
+        const angle = this.rng.nextFloat(0, Math.PI * 2);
+        const distance = this.rng.nextFloat(50, 120);
+        const centerX = targetX + targetWidth / 2;
+        const centerY = targetY + targetHeight / 2;
+        const crateX = centerX + Math.cos(angle) * distance;
+        const crateY = centerY + Math.sin(angle) * distance;
 
         const playableMinX = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
         const playableMaxX = (CONFIG.WORLD_WIDTH || 800) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
@@ -565,8 +580,19 @@ class LevelGenerator {
         };
 
         if (this._isPlacementInvalid(crateShape, ammoCrateDef, this.level.obstacles, [])) {
-            crateShape.x = targetX - targetWidth / 2 - 40;
-            if (this._isPlacementInvalid(crateShape, ammoCrateDef, this.level.obstacles, [])) {
+            // Try a few more random positions around the target
+            let placed = false;
+            for (let attempt = 0; attempt < 8; attempt++) {
+                const retryAngle = this.rng.nextFloat(0, Math.PI * 2);
+                const retryDistance = this.rng.nextFloat(50, 120);
+                crateShape.x = centerX + Math.cos(retryAngle) * retryDistance;
+                crateShape.y = centerY + Math.sin(retryAngle) * retryDistance;
+                if (!this._isPlacementInvalid(crateShape, ammoCrateDef, this.level.obstacles, [])) {
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
                 return;
             }
         }
@@ -633,10 +659,13 @@ class LevelGenerator {
 
         const selectedWeapon = availableWeapons[this.rng.nextInt(0, availableWeapons.length)];
 
-        const crateOffsetX = targetWidth / 2 + 40;
-        const crateOffsetY = 0;
-        const crateX = targetX + crateOffsetX;
-        const crateY = targetY + crateOffsetY;
+        // Calculate spawn position - random angle and distance around the target
+        const angle = this.rng.nextFloat(0, Math.PI * 2);
+        const distance = this.rng.nextFloat(50, 120);
+        const centerX = targetX + targetWidth / 2;
+        const centerY = targetY + targetHeight / 2;
+        const crateX = centerX + Math.cos(angle) * distance;
+        const crateY = centerY + Math.sin(angle) * distance;
 
         const playableMinX = CONFIG.LEVEL_GENERATION.BORDER_WIDTH + CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
         const playableMaxX = (CONFIG.WORLD_WIDTH || 800) - CONFIG.LEVEL_GENERATION.BORDER_WIDTH - CONFIG.LEVEL_GENERATION.WORLD_MARGIN;
@@ -654,8 +683,19 @@ class LevelGenerator {
         };
 
         if (this._isPlacementInvalid(crateShape, weaponCrateDef, this.level.obstacles, [])) {
-            crateShape.x = targetX - targetWidth / 2 - 40;
-            if (this._isPlacementInvalid(crateShape, weaponCrateDef, this.level.obstacles, [])) {
+            // Try a few more random positions around the target
+            let placed = false;
+            for (let attempt = 0; attempt < 8; attempt++) {
+                const retryAngle = this.rng.nextFloat(0, Math.PI * 2);
+                const retryDistance = this.rng.nextFloat(50, 120);
+                crateShape.x = centerX + Math.cos(retryAngle) * retryDistance;
+                crateShape.y = centerY + Math.sin(retryAngle) * retryDistance;
+                if (!this._isPlacementInvalid(crateShape, weaponCrateDef, this.level.obstacles, [])) {
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) {
                 return;
             }
         }
@@ -1370,6 +1410,7 @@ class LevelGenerator {
             let actualDestroyedSpritePath = template.spriteDestroyed || null, actualDestroyedImageObject = null;
             let normalSpriteScale = template.spriteScale || 1.0, destroyedSpriteScale = template.spriteDestroyedScale;
             let filesArray = [], pathBase = '', useRandomSpriteFromList = false, useSpritePair = false;
+            let useTilesheet = false, tilesheetFrameWidth = 400, tilesheetFrameHeight = 400, tilesheetNumFrames = 6, tilesheetFramesPerRow = 2;
 
             if (template.type === 'possum_hut') {
                 const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
@@ -1474,7 +1515,16 @@ class LevelGenerator {
                 if (biomeSpriteInfo) {
                     filesArray = biomeSpriteInfo.files || [];
                     pathBase = biomeSpriteInfo.path || '';
-                    useRandomSpriteFromList = true;
+                    if (biomeSpriteInfo.isTilesheet) {
+                        useTilesheet = true;
+                        tilesheetFrameWidth = biomeSpriteInfo.frameWidth || 400;
+                        tilesheetFrameHeight = biomeSpriteInfo.frameHeight || 400;
+                        tilesheetNumFrames = biomeSpriteInfo.numFrames || 6;
+                        tilesheetFramesPerRow = biomeSpriteInfo.framesPerRow || 2;
+                        actualSpritePath = pathBase + filesArray[0];
+                    } else {
+                        useRandomSpriteFromList = true;
+                    }
                 } else {
                     // Generic obstacles with CONFIG-based sprite paths
                     if (template.type === 'fence_barbed_straight_short') { filesArray = CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES || []; pathBase = CONFIG.FENCE_BARBED_SPRITE_PATH || ''; useRandomSpriteFromList = true; }
@@ -1539,6 +1589,11 @@ class LevelGenerator {
                 normalSpriteScale = baseScale * variation;
                 obsRenderWidth = actualImageObject ? actualImageObject.naturalWidth * normalSpriteScale : (template.width || 32) * normalSpriteScale;
                 obsRenderHeight = actualImageObject ? actualImageObject.naturalHeight * normalSpriteScale : (template.height || 32) * normalSpriteScale;
+            } else if (useTilesheet) {
+                const baseScale = template.spriteScale || 1.0;
+                normalSpriteScale = baseScale;
+                obsRenderWidth = tilesheetFrameWidth * normalSpriteScale;
+                obsRenderHeight = tilesheetFrameHeight * normalSpriteScale;
             } else if (actualImageObject && template.spriteScale !== undefined) {
                 obsRenderWidth = actualImageObject.naturalWidth * template.spriteScale; obsRenderHeight = actualImageObject.naturalHeight * template.spriteScale; normalSpriteScale = template.spriteScale;
             } else if (template.width !== undefined && template.height !== undefined) {
@@ -1615,7 +1670,16 @@ class LevelGenerator {
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
                         willSpawnLog: willSpawnLog,
-                        precomputedLogSpawnData: precomputedLogSpawnData
+                        precomputedLogSpawnData: precomputedLogSpawnData,
+                        isAnimated: template.isAnimated || false,
+                        tilesheetPath: useTilesheet ? actualSpritePath : null,
+                        frameWidth: useTilesheet ? tilesheetFrameWidth : null,
+                        frameHeight: useTilesheet ? tilesheetFrameHeight : null,
+                        numFrames: useTilesheet ? tilesheetNumFrames : null,
+                        framesPerRow: useTilesheet ? tilesheetFramesPerRow : null,
+                        currentFrame: 0,
+                        animationTimer: 0,
+                        animationSpeed: template.animationSpeed || 0.25,
                     };
                     if (template.type === 'possum_turret') {
                         const turretArc = (obsY < (this.level.playableMinY + this.level.playableMaxY) / 2)
