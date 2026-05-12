@@ -1163,7 +1163,7 @@ const CONFIG = {
             spawnWeight: 2, isDecoration: false,
             spawnLimit: 1,
             phaseUnlocked: 2,
-            spriteScale: 0.4,
+            spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.1), width: (w => w * 0.8), height: (h => h * 0.8), rotation: Math.PI / 4 },
             placementBuffer: 100,
         },

@@ -1729,6 +1729,37 @@ class LevelGenerator {
                     });
                     if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Extraction zone placed on helipad at (${helipad.x.toFixed(0)}, ${helipad.y.toFixed(0)})`);
                 }
+            } else {
+                const extractionZoneObs = this.level.obstacles.filter(o => o.type === 'extraction_zone');
+                if (extractionZoneObs.length > 0) {
+                    const helipadFiles = CONFIG.HELIPAD_SQUARE_SPRITE_FILES || [];
+                    const helipadPath = CONFIG.HELIPAD_SQUARE_SPRITE_PATH || '';
+                    const helipadSpriteFile = helipadFiles.length > 0 ? this.rng.pickFrom(helipadFiles) : '';
+                    const helipadSpriteFullPath = helipadPath + helipadSpriteFile;
+                    const helipadImage = this.preloadedAssetImages[helipadSpriteFullPath] || null;
+                    const helipadSpriteScale = 0.4;
+
+                    extractionZoneObs.forEach(ez => {
+                        const helipadWidth = helipadImage ? helipadImage.naturalWidth * helipadSpriteScale : ez.width;
+                        const helipadHeight = helipadImage ? helipadImage.naturalHeight * helipadSpriteScale : ez.height;
+                        const newObstacle = {
+                            x: ez.x, y: ez.y, width: helipadWidth, height: helipadHeight,
+                            type: 'helipad_concrete_square_1',
+                            name: 'Square Concrete Helipad',
+                            color: '#afafaf',
+                            destructible: false, hp: Infinity, maxHp: Infinity, isDestroyed: false,
+                            blocksMovement: false, providesCover: false,
+                            isPickup: false, isDecoration: false,
+                            spriteNormalPath: helipadSpriteFullPath,
+                            imageNormal: helipadImage,
+                            spriteScale: helipadSpriteScale,
+                            isFlippedHorizontally: false,
+                            collisionShape: { type: 'rectangle', offsetX: helipadWidth * 0.1, offsetY: helipadHeight * 0.1, width: helipadWidth * 0.8, height: helipadHeight * 0.8, rotation: Math.PI / 4 },
+                        };
+                        this.level.obstacles.push(newObstacle);
+                        if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Concrete helipad spawned at extraction zone (${ez.x.toFixed(0)}, ${ez.y.toFixed(0)})`);
+                    });
+                }
             }
         }
 

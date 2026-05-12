@@ -30,12 +30,12 @@ const TEMPERATE_BIOME = {
     spritePaths: {
         // Terrain
         mud: {
-            path: 'assets/images/objects/biomes/tropical/mud/',
+            path: 'assets/images/objects/biomes/temperate/mud/',
             files: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png']
         },
         grass: {
             path: 'assets/images/objects/biomes/temperate/grass/',
-            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png', 'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', 'temperate_grass_8.png', 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', ]
+            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png', 'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', 'temperate_grass_8.png', 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'temperate_grass_19.png', 'temperate_grass_20.png', 'temperate_grass_21.png', 'temperate_grass_22.png', 'temperate_grass_23.png', 'temperate_grass_24.png', 'temperate_grass_25.png', ]
         },
 
         // Walls (reusing tropical wall assets as placeholders)
@@ -69,7 +69,7 @@ const TEMPERATE_BIOME = {
         },
         rock_large: {
             path: 'assets/images/objects/rocks/grassy/large/',
-            files: ['rock_large_tropical_1.png', 'rock_large_tropical_2.png', 'rock_large_tropical_3.png', 'rock_large_tropical_4.png', 'rock_large_tropical_5.png', 'rock_large_tropical_6.png']
+            files: []
         },
 
         // Oak trees (fullSize)
@@ -89,15 +89,15 @@ const TEMPERATE_BIOME = {
         // Secondary trees (using tropical palm2 assets as placeholders)
         tree_secondary_single: {
             path: 'assets/images/objects/biomes/tropical/trees/',
-            files: ['palm2_single_1.png', 'palm2_single_2.png', 'palm2_single_3.png']
+            files: []
         },
         tree_secondary_double: {
             path: 'assets/images/objects/biomes/tropical/trees/',
-            files: ['palm2_double_1.png', 'palm2_double_2.png', 'palm2_double_3.png']
+            files: []
         },
         tree_secondary_triple: {
             path: 'assets/images/objects/biomes/tropical/trees/',
-            files: ['palm2_triple_1.png']
+            files: []
         },
 
         // Fallen logs
@@ -125,7 +125,7 @@ const TEMPERATE_BIOME = {
         },
         tree_maple_triple: {
             path: 'assets/images/objects/biomes/tropical/trees/',
-            files: ['tropical_fan_triple_1.png']
+            files: []
         },
 
         // Other deciduous trees
@@ -199,7 +199,7 @@ const TEMPERATE_BIOME = {
             destructible: false,
             blocksMovement: true,
             providesCover: false,
-            spawnWeight: 0.5,
+            spawnWeight: 1.5,
             isDecoration: false,
             spriteScale: 0.8,
             phaseUnlocked: 2,
@@ -230,7 +230,7 @@ const TEMPERATE_BIOME = {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: true,
+            spawnWeight: 0, isDecoration: true,
             spriteScale: 0.8,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.27) },
             canBeFlipped: true,
@@ -240,7 +240,7 @@ const TEMPERATE_BIOME = {
             type: 'bush_medium', name: 'Medium Bush', color: '#228B22',
             destructible: false,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 3, isDecoration: true,
+            spawnWeight: 0, isDecoration: true,
             spriteScale: 0.2,
             canBeFlipped: true,
         },
@@ -248,7 +248,7 @@ const TEMPERATE_BIOME = {
             type: 'bush_large', name: 'Large Bush', color: '#006400',
             destructible: false,
             blocksMovement: false, providesCover: false,
-            spawnWeight: 3, isDecoration: true,
+            spawnWeight: 0, isDecoration: true,
             spriteScale: 0.2,
             canBeFlipped: true,
         },
@@ -418,7 +418,7 @@ const TEMPERATE_BIOME = {
             type: 'tree_birch', name: 'Birch Tree', color: '#228B22',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 1, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.55), offsetY: (h => h * 0.85), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
@@ -456,7 +456,7 @@ const TEMPERATE_BIOME = {
             blocksMovement: true,
             providesCover: true,
             spawnWeight: 10,
-            spriteScale: 0.60,
+            spriteScale: 0.70,
             spriteDestroyed: null,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.36), radiusY: ((w, h) => h * 0.35) },
             placementBuffer: 150,
@@ -473,7 +473,7 @@ const TEMPERATE_BIOME = {
             blocksMovement: true,
             providesCover: true,
             spawnWeight: 15,
-            spriteScale: 0.5,
+            spriteScale: 0.7,
             spriteDestroyed: null,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.46), radiusY: ((w, h) => h * 0.35) },
             placementBuffer: 150,
@@ -484,7 +484,7 @@ const TEMPERATE_BIOME = {
             type: 'temperate_ruins', name: 'Temperate Ruins', color: '#afafaf',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: true,
+            spawnWeight: 0, isDecoration: true,
             spriteScale: 0.65,
             placementBuffer: 80,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
@@ -534,6 +534,7 @@ const TEMPERATE_BIOME = {
         'forest_patch_large_1',
         'temperate_ruins',
         'pond',
+        'lake',
     ],
 
     // =========================================================================
@@ -541,33 +542,42 @@ const TEMPERATE_BIOME = {
     // =========================================================================
     preloadSpriteSets: [
         { name: 'temperate_wall_angled_long', files: ['tropical_wall_angled_long_1.png', 'tropical_wall_angled_long_2.png', 'tropical_wall_angled_long_3.png'], path: 'assets/images/objects/biomes/tropical/walls/', type: 'single' },
+        
         //BUSH
         { name: 'bush_medium', files: ['bush_medium_1.png', 'bush_medium_3.png', 'bush_medium_4.png', 'bush_medium_5.png', 'temperate_grass_15.png',  ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
         { name: 'bush_large', files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
+        
+        // BUSH
+        { name: 'oak_bush_small', files: ['palm_bush_small_1.png', 'palm_bush_small_2.png', 'palm_bush_small_3.png', 'palm_bush_small_4.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
+        { name: 'oak_bush_large', files: ['palm_bush_large_1.png', 'palm_bush_large_2.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
+        
         //ROCK
         { name: 'rock_medium', files: ['rock_medium_tropical_1.png', 'rock_medium_tropical_2.png', 'rock_medium_tropical_3.png', 'rock_medium_tropical_4.png', 'rock_medium_tropical_5.png', 'rock_medium_tropical_6.png'], path: 'assets/images/objects/rocks/grassy/medium/', type: 'single' },
-        { name: 'rock_large', files: ['rock_large_tropical_1.png', 'rock_large_tropical_2.png', 'rock_large_tropical_3.png', 'rock_large_tropical_4.png', 'rock_large_tropical_5.png', 'rock_large_tropical_6.png'], path: 'assets/images/objects/rocks/grassy/large/', type: 'single' },
+        { name: 'rock_large', files: [], path: 'assets/images/objects/rocks/grassy/large/', type: 'single' },
+        
         //TREE
         { name: 'tree_willow_single', files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ], path: 'assets/images/objects/biomes/temperate/trees/willow/', type: 'single' },
+        
         { name: 'oak_single', files: ['tree_oak_single_1.png', 'tree_oak_single_2.png', 'tree_oak_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_double', files: ['palm1_double.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
-        { name: 'oak_triple', files: ['palm1_triple.png'], path: 'assets/images/objects/biomes/tropical/trees/fullSize/', type: 'single' },
+        { name: 'oak_triple', files: [], path: 'assets/images/objects/biomes/tropical/trees/fullSize/', type: 'single' },
         { name: 'oak_fallen', files: ['palm_fallen_log_1.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
+        
         { name: 'secondary_fallen', files: ['palm_fallen_log_2.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
         { name: 'secondary_single', files: ['palm2_single_1.png', 'palm2_single_2.png', 'palm2_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
         { name: 'secondary_double', files: ['palm2_double_1.png', 'palm2_double_2.png', 'palm2_double_3.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
         { name: 'secondary_triple', files: ['palm2_triple_1.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
         { name: 'deciduous_fallen', files: ['tree_fallen_log_1.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
+        
         { name: 'tree_birch', files: ['tree_birch_1.png', 'tree_birch_1.png', ], path: 'assets/images/objects/biomes/temperate/trees/birch', type: 'single' },
         { name: 'tree_pine', files: ['tree_pine_1.png', ], path: 'assets/images/objects/biomes/temperate/trees/pine/', type: 'single' },
         { name: 'tree_maple_single', files: ['tree_maple_single_1.png', 'tree_maple_single_2.png', 'tree_maple_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
         { name: 'tree_maple_double', files: ['tree_maple_double_1.png', 'tree_maple_double_2.png', 'tree_maple_double_3.png'], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
         { name: 'tree_maple_triple', files: ['tropical_fan_triple_1.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
+        
         { name: 'tree_rubber_single', files: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/rubber/', type: 'single' },
-        { name: 'oak_bush_small', files: ['palm_bush_small_1.png', 'palm_bush_small_2.png', 'palm_bush_small_3.png', 'palm_bush_small_4.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
-        { name: 'oak_bush_large', files: ['palm_bush_large_1.png', 'palm_bush_large_2.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
-        { name: 'mud', files: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'], path: 'assets/images/objects/biomes/tropical/mud/', type: 'single' },
-        { name: 'grass', files: ['grass1.png', 'grass2.png', 'grass3.png', 'grass4.png', 'grass5.png', 'grass6.png', 'grass7.png', 'grass8.png', 'grass9.png', 'grass10.png'], path: 'assets/images/objects/biomes/tropical/grass2/', type: 'single' },
+        
+        
         //FOREST
         { name: 'forest_small', files: ['temperate_forest_small_1.png'], path: 'assets/images/objects/biomes/temperate/forests/', type: 'single' },
         { name: 'forest_large', files: ['temperate_forest_1.png', 'temperate_forest_2.png', 'temperate_forest_3.png', 'temperate_forest_4.png', 'temperate_forest_5.png', 'temperate_forest_6.png'], path: 'assets/images/objects/biomes/temperate/forests/', type: 'single' },
@@ -576,5 +586,9 @@ const TEMPERATE_BIOME = {
         //WATER
         { name: 'pond', files: ['pond_temperate_1.png', 'pond_temperate_2.png', 'pond_temperate_3.png', 'pond_temperate_4.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
         { name: 'lake', files: ['lake_temperate_1.png', 'lake_temperate_2.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
+
+        // GROUND TILES
+        { name: 'mud', files: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'], path: 'assets/images/objects/biomes/temperate/mud/', type: 'single' },
+        { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png', 'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', 'temperate_grass_8.png', 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'temperate_grass_19.png', 'temperate_grass_20.png', 'temperate_grass_21.png', 'temperate_grass_22.png', 'temperate_grass_23.png', 'temperate_grass_24.png', 'temperate_grass_25.png',], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
     ],
 };
