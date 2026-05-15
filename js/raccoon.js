@@ -151,6 +151,7 @@ class Raccoon extends Unit {
                 this.promotedThisMission = true;
                 // --- END NEW ---
                 if (this.game && this.game.addVisualEffect) this.game.addVisualEffect('promotion', { unitId: this.id });
+                if (this.game && this.game.trySpeech) this.game.trySpeech(this, 'ON_PROMOTION');
                 this.applyRankBonuses(); currentRankData = nextRankData; currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
                 this.updateXpToNextRank();
                 this.setRankBasedSprite(); // Update sprite when promoted
@@ -215,6 +216,10 @@ class Raccoon extends Unit {
 
         this.isReloading = true;
         this.reloadTimer = reloadTime;
+
+        if (this.game && this.game.trySpeech) {
+            this.game.trySpeech(this, 'ON_RELOAD', 0.2);
+        }
 
         if (this.game && this.game.addVisualEffect) {
             let effectX = this.x;
@@ -316,6 +321,10 @@ class Raccoon extends Unit {
 
         super._executeFire(pointX, pointY);
 
+        if (this.game && this.game.trySpeech) {
+            this.game.trySpeech(this, 'ON_START_FIRING', 0.15);
+        }
+
         // Consume ammo from current magazine
         ammoState.currentMagazine--;
         this._setCurrentAmmoState(ammoState);
@@ -413,6 +422,9 @@ class Raccoon extends Unit {
     confirmThrowGrenade(targetX, targetY) {
         if (!this.isAimingGrenade || this.grenadeAmmo <= 0 || this.actionTimer > 0 || this.grenadeCooldownTimer > 0) return false;
         this.grenadeAmmo--;
+        if (this.game && this.game.trySpeech) {
+            this.game.trySpeech(this, 'ON_GRENADE');
+        }
         this.isAimingGrenade = false;
         this.grenadeTargetUnit = null;
         this.grenadeMoveToTargetPos = null;
@@ -567,6 +579,11 @@ class Raccoon extends Unit {
                 color: pickupColor,
                 icon: pickupIcon
             });
+        }
+
+        if (this.game && this.game.trySpeech) {
+            const _catMap = { 'ammo': 'ON_PICKUP_AMMO', 'health': 'ON_PICKUP_HEALTH', 'grenade': 'ON_PICKUP_GRENADE', 'weapon': 'ON_PICKUP_WEAPON' };
+            this.game.trySpeech(this, _catMap[pickupObstacle.pickupType] || 'ON_PICKUP_ITEM');
         }
 
         // Update UI

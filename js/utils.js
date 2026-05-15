@@ -112,17 +112,15 @@ function circleOverlap(circle1, circle2) {
     return distSq <= radiiSumSq;
 }
 function rectCircleOverlap(rect, circle) {
-    /* ... (Unchanged from previous complete version) ... */
-    let testX = circle.x;
-    let testY = circle.y;
-    if (circle.x < rect.x) testX = rect.x;
-    else if (circle.x > rect.x + rect.width) testX = rect.x + rect.width;
-    if (circle.y < rect.y) testY = rect.y;
-    else if (circle.y > rect.y + rect.height) testY = rect.y + rect.height;
-    const distX = circle.x - testX;
-    const distY = circle.y - testY;
-    const distanceSquared = (distX * distX) + (distY * distY);
-    return distanceSquared <= circle.radius * circle.radius;
+    let closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+    let closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+    const distX = circle.x - closestX;
+    const distY = circle.y - closestY;
+    const distSq = distX * distX + distY * distY;
+    const isCorner = (closestX === rect.x || closestX === rect.x + rect.width) &&
+                     (closestY === rect.y || closestY === rect.y + rect.height);
+    const cornerRadius = isCorner ? 6.0 : 0;
+    return distSq <= (circle.radius + cornerRadius) * (circle.radius + cornerRadius);
 }
 function pointInRectangle(px, py, rect) {
     /* ... (Unchanged from previous complete version) ... */
@@ -299,14 +297,17 @@ function obbCircleOverlap(obb, circle) {
     const relY = circle.y - cy;
     const localCircleX = cos * relX - sin * relY;
     const localCircleY = sin * relX + cos * relY;
-    const localCircle = { x: localCircleX, y: localCircleY, radius: circle.radius };
     const hw = obb.width / 2;
     const hh = obb.height / 2;
     const closestX = Math.max(-hw, Math.min(localCircleX, hw));
     const closestY = Math.max(-hh, Math.min(localCircleY, hh));
     const distX = localCircleX - closestX;
     const distY = localCircleY - closestY;
-    return (distX * distX + distY * distY) <= circle.radius * circle.radius;
+    const distSq = distX * distX + distY * distY;
+    const isCorner = (closestX === -hw || closestX === hw) &&
+                     (closestY === -hh || closestY === hh);
+    const cornerRadius = isCorner ? 6.0 : 0;
+    return distSq <= (circle.radius + cornerRadius) * (circle.radius + cornerRadius);
 }
 
 function obbEllipseOverlap(obb, ellipse) {
@@ -390,17 +391,18 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
     }
     // --- END FIX ---
 
-    // --- PERFORMANCE FIX: Limit expansions to total cell count ---
-    // A* should never expand more cells than exist in the grid.
-    // The neighbor loop previously counted every neighbor check as an iteration,
-    // which could be 8× the grid size or more due to re-expansions.
-    // Counting actual expansions guarantees termination proportional to grid size.
-    const cellsInGrid = grid.length * grid[0].length;
+    // --- PERFORMANCE: Hard expansion budget with best-so-far fallback ---
+    const maxExpansions = CONFIG.PATHFINDING_MAX_EXPANSIONS || 2000;
     let expansions = 0;
-    // --- END FIX ---
+    let bestNode = startNode;
+    // --- END ---
 
     while (!openList.isEmpty()) {
         const currentNode = openList.extractMin();
+
+        if (currentNode.h < bestNode.h) {
+            bestNode = currentNode;
+        }
 
         if (currentNode.x === endPos.x && currentNode.y === endPos.y) {
             const path = [];
@@ -414,13 +416,17 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
 
         closedList.add(`${currentNode.x},${currentNode.y}`);
 
-        // --- PERFORMANCE FIX: Check expansion limit per cell, not per neighbor ---
         expansions++;
-        if (expansions > cellsInGrid) {
-            console.warn(`findPath: Expanded all ${cellsInGrid} reachable cells without finding target. Aborting.`);
-            return null;
+        if (expansions > maxExpansions) {
+            console.warn(`findPath: Hit expansion budget (${maxExpansions}). Returning best-so-far path to closest reachable cell.`);
+            const path = [];
+            let temp = bestNode;
+            while (temp) {
+                path.push({ x: temp.x, y: temp.y });
+                temp = temp.parent;
+            }
+            return path.reverse();
         }
-        // --- END FIX ---
 
         for (const direction of directions) {
 

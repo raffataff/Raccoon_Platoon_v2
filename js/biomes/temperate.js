@@ -13,7 +13,6 @@ const TEMPERATE_BIOME = {
         'assets/video/landing/helicopter_landing_temperate_2.mp4',
     ],
     extractionVideos: [
-        'assets/video/extraction/helicopter_extraction_team_temperate_1.mp4',
         'assets/video/extraction/helicopter_extraction_team_temperate_2.mp4',
     ],
     extractionHostageVideos: [
@@ -31,11 +30,11 @@ const TEMPERATE_BIOME = {
         // Terrain
         mud: {
             path: 'assets/images/objects/biomes/temperate/mud/',
-            files: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png']
+            files: [  'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',]
         },
         grass: {
             path: 'assets/images/objects/biomes/temperate/grass/',
-            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png', 'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', 'temperate_grass_8.png', 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'temperate_grass_19.png', 'temperate_grass_20.png', 'temperate_grass_21.png', 'temperate_grass_22.png', 'temperate_grass_23.png', 'temperate_grass_24.png', 'temperate_grass_25.png', ]
+            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png','temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png',  ]
         },
 
         // Walls (reusing tropical wall assets as placeholders)
@@ -64,12 +63,12 @@ const TEMPERATE_BIOME = {
 
         // Rocks
         rock_medium: {
-            path: 'assets/images/objects/rocks/grassy/medium/',
-            files: ['rock_medium_tropical_1.png', 'rock_medium_tropical_2.png', 'rock_medium_tropical_3.png', 'rock_medium_tropical_4.png', 'rock_medium_tropical_5.png', 'rock_medium_tropical_6.png']
+            path: 'assets/images/objects/biomes/temperate/rocks/medium/',
+            files: ['rock_medium_temperate_1.png', 'rock_medium_temperate_2.png', 'rock_medium_temperate_3.png', 'rock_medium_temperate_4.png', 'rock_medium_temperate_5.png', 'rock_medium_temperate_6.png', 'rock_medium_temperate_7.png', 'rock_medium_temperate_8.png', ]
         },
         rock_large: {
-            path: 'assets/images/objects/rocks/grassy/large/',
-            files: []
+            path: 'assets/images/objects/biomes/temperate/rocks/large/',
+            files: ['rock_large_temperate_1.png', 'rock_large_temperate_2.png', 'rock_large_temperate_3.png', 'rock_large_temperate_4.png', 'rock_large_temperate_5.png', 'rock_large_temperate_6.png', 'rock_large_temperate_7.png', 'rock_large_temperate_8.png', ]
         },
 
         // Oak trees (fullSize)
@@ -121,7 +120,7 @@ const TEMPERATE_BIOME = {
         },
         tree_maple_double: {
             path: 'assets/images/objects/biomes/temperate/trees/maple/',
-            files: ['tree_maple_double_1.png', 'tree_maple_double_2.png', 'tree_maple_double_3.png']
+            files: ['tree_maple_double_1.png', 'tree_maple_double_2.png', ]
         },
         tree_maple_triple: {
             path: 'assets/images/objects/biomes/tropical/trees/',
@@ -203,7 +202,7 @@ const TEMPERATE_BIOME = {
             isDecoration: false,
             spriteScale: 0.8,
             phaseUnlocked: 2,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.45) },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -222,7 +221,7 @@ const TEMPERATE_BIOME = {
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
             spawnWeight: 4, isDecoration: true,
-            spriteScale: 1,
+            spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 0.64), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.2) },
             canBeFlipped: true,
         },
@@ -230,8 +229,8 @@ const TEMPERATE_BIOME = {
             type: 'rock_large', name: 'Large Grassy Rock', color: '#A9A9A9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0, isDecoration: true,
-            spriteScale: 0.8,
+            spawnWeight: 2, isDecoration: true,
+            spriteScale: 0.4,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.27) },
             canBeFlipped: true,
             placementBuffer: 60,
@@ -286,7 +285,7 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.3), offsetY: (h => h * 0.45), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.6), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -460,6 +459,7 @@ const TEMPERATE_BIOME = {
             spriteDestroyed: null,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.36), radiusY: ((w, h) => h * 0.35) },
             placementBuffer: 150,
+            decorationBuffer: 35,
             canBeFlipped: true,
             isDecoration: true
         },
@@ -477,6 +477,7 @@ const TEMPERATE_BIOME = {
             spriteDestroyed: null,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.46), radiusY: ((w, h) => h * 0.35) },
             placementBuffer: 150,
+            decorationBuffer: 35,
             canBeFlipped: true,
             isDecoration: true
         },
@@ -499,15 +500,18 @@ const TEMPERATE_BIOME = {
     levelGenSettings: {
         WORLD_BASE_MUD_COLOR: '#5C4033',
         WORLD_BASE_DIRT_COLOR: '#6B4F34',
-        WORLD_GRASS_TILE_SIZE: 70,
-        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.8,
+        WORLD_GRASS_TILE_SIZE: 48,
+        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.65,
         WORLD_GRASS_SKIP_CHANCE: 0.5,
         WORLD_GRASS_SKIP_MIN: 3,
         WORLD_GRASS_SKIP_MAX: 12,
-        WORLD_MUD_NOISE_SCALE_X: 0.005,
+        WORLD_MUD_NOISE_SCALE_X: 0.01,
         WORLD_MUD_NOISE_SCALE_Y: 0.05,
         WORLD_MUD_NOISE_THRESHOLD: 0.3,
         WORLD_MUD_NOISE_OCTAVES: 3,
+        WORLD_MUD_PATCH_SCALE_X: 0.002,
+        WORLD_MUD_PATCH_SCALE_Y: 0.002,
+        WORLD_MUD_BLEND_WIDTH: 0.15,
     },
 
     // =========================================================================
@@ -538,6 +542,15 @@ const TEMPERATE_BIOME = {
     ],
 
     // =========================================================================
+    // FLYING BIRD SPRITE PATHS (biome-specific)
+    // =========================================================================
+    flyingBirdSpritePaths: [
+        'assets/images/effects/flying_crow_sheet.png',
+        'assets/images/effects/flying_magpie_sheet.png',
+        'assets/images/effects/flying_hawk_sheet.png',
+    ],
+
+    // =========================================================================
     // PRELOAD SPRITE SETS (for game.js asset loading)
     // =========================================================================
     preloadSpriteSets: [
@@ -552,8 +565,9 @@ const TEMPERATE_BIOME = {
         { name: 'oak_bush_large', files: ['palm_bush_large_1.png', 'palm_bush_large_2.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
         
         //ROCK
-        { name: 'rock_medium', files: ['rock_medium_tropical_1.png', 'rock_medium_tropical_2.png', 'rock_medium_tropical_3.png', 'rock_medium_tropical_4.png', 'rock_medium_tropical_5.png', 'rock_medium_tropical_6.png'], path: 'assets/images/objects/rocks/grassy/medium/', type: 'single' },
-        { name: 'rock_large', files: [], path: 'assets/images/objects/rocks/grassy/large/', type: 'single' },
+        { name: 'rock_medium', files: ['rock_medium_temperate_1.png', 'rock_medium_temperate_2.png', 'rock_medium_temperate_3.png', 'rock_medium_temperate_4.png', 'rock_medium_temperate_5.png', 'rock_medium_temperate_6.png', 'rock_medium_temperate_7.png', 'rock_medium_temperate_8.png',], path: 'assets/images/objects/biomes/temperate/rocks/medium/', type: 'single' },
+
+        { name: 'rock_large', files: ['rock_large_temperate_1.png', 'rock_large_temperate_2.png', 'rock_large_temperate_3.png', 'rock_large_temperate_4.png', 'rock_large_temperate_5.png', 'rock_large_temperate_6.png', 'rock_large_temperate_7.png', 'rock_large_temperate_8.png', ], path: 'assets/images/objects/biomes/temperate/rocks/large/', type: 'single' },
         
         //TREE
         { name: 'tree_willow_single', files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ], path: 'assets/images/objects/biomes/temperate/trees/willow/', type: 'single' },
@@ -572,7 +586,7 @@ const TEMPERATE_BIOME = {
         { name: 'tree_birch', files: ['tree_birch_1.png', 'tree_birch_1.png', ], path: 'assets/images/objects/biomes/temperate/trees/birch', type: 'single' },
         { name: 'tree_pine', files: ['tree_pine_1.png', ], path: 'assets/images/objects/biomes/temperate/trees/pine/', type: 'single' },
         { name: 'tree_maple_single', files: ['tree_maple_single_1.png', 'tree_maple_single_2.png', 'tree_maple_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
-        { name: 'tree_maple_double', files: ['tree_maple_double_1.png', 'tree_maple_double_2.png', 'tree_maple_double_3.png'], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
+        { name: 'tree_maple_double', files: ['tree_maple_double_1.png', 'tree_maple_double_2.png',], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
         { name: 'tree_maple_triple', files: ['tropical_fan_triple_1.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
         
         { name: 'tree_rubber_single', files: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/rubber/', type: 'single' },
@@ -588,7 +602,7 @@ const TEMPERATE_BIOME = {
         { name: 'lake', files: ['lake_temperate_1.png', 'lake_temperate_2.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
 
         // GROUND TILES
-        { name: 'mud', files: ['mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png'], path: 'assets/images/objects/biomes/temperate/mud/', type: 'single' },
+        { name: 'mud', files: ['mud_grassy_1.png', 'mud_grassy_2.png', 'mud_grassy_3.png', 'mud_grassy_4.png', 'mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png', 'mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',], path: 'assets/images/objects/biomes/temperate/mud/', type: 'single' },
         { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png', 'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', 'temperate_grass_8.png', 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'temperate_grass_19.png', 'temperate_grass_20.png', 'temperate_grass_21.png', 'temperate_grass_22.png', 'temperate_grass_23.png', 'temperate_grass_24.png', 'temperate_grass_25.png',], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
     ],
 };

@@ -90,7 +90,7 @@ class RaccoonHostage extends Raccoon {
         const arcSpan = Math.PI * 0.7;
         const baseAngle = followTarget.facingAngle + Math.PI;
         const spreadAngle = baseAngle + (this.followSpreadSeed - 0.5) * arcSpan;
-        const spreadDist = this.FOLLOW_DISTANCE * (0.6 + this.followSpreadSeed * 0.6);
+        const spreadDist = this.FOLLOW_DISTANCE * (0.6 + this.followSpreadSeed * 1.6);
         return {
             x: followTarget.x + Math.cos(spreadAngle) * spreadDist,
             y: followTarget.y + Math.sin(spreadAngle) * spreadDist
@@ -138,8 +138,8 @@ class RaccoonHostage extends Raccoon {
 
             this.helpTextTimer -= deltaTime;
             if (this.helpTextTimer <= 0) {
-                if (this.game && typeof this.game.addVisualEffect === 'function') {
-                    this.game.addVisualEffect('help_text', { parentUnit: this });
+                if (this.game && this.game.trySpeech) {
+                    this.game.trySpeech(this, 'IDLE_CHATTER');
                 }
                 this.helpTextTimer = (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0) + Math.random() * ((this.helpTextConfig.INTERVAL_MAX_SECONDS || 9.0) - (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0));
             }
@@ -217,8 +217,11 @@ class RaccoonHostage extends Raccoon {
         if (this.isRescued) return;
 
         this.isRescued = true;
-        this.team = 'player'; 
+        this.team = 'player';
         this.followTarget = rescuer;
+        if (this.game && this.game.trySpeech) {
+            this.game.trySpeech(this, 'ON_RESCUE');
+        }
         if (rescuer) { 
             this.lastFollowTargetPosition = { x: rescuer.x, y: rescuer.y };
         }
@@ -234,6 +237,36 @@ class RaccoonHostage extends Raccoon {
         if (rescuePhasingDuration > 0) {
             this.isPhasing = true;
             this.phasingTimer = rescuePhasingDuration;
+        }
+
+        // If hostage is on a blocked cell, move to the nearest walkable cell
+        if (this.game && this.game.level) {
+            const navGrid = this.game.level.getNavigationGrid();
+            if (navGrid) {
+                const grid = this.game.level.worldToGridCoords(this.x, this.y);
+                if (grid.x < 0 || grid.x >= this.game.level.gridWidth ||
+                    grid.y < 0 || grid.y >= this.game.level.gridHeight ||
+                    navGrid[grid.y][grid.x] === 1) {
+                    let found = false;
+                    for (let r = 1; r <= 10 && !found; r++) {
+                        for (let dy = -r; dy <= r && !found; dy++) {
+                            for (let dx = -r; dx <= r && !found; dx++) {
+                                if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                                const cx = grid.x + dx;
+                                const cy = grid.y + dy;
+                                if (cx >= 0 && cx < this.game.level.gridWidth &&
+                                    cy >= 0 && cy < this.game.level.gridHeight &&
+                                    navGrid[cy][cx] === 0) {
+                                    const worldPos = this.game.level.gridToWorldCoords(cx, cy);
+                                    this.x = worldPos.x;
+                                    this.y = worldPos.y;
+                                    found = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
 //        console.log(`HOSTAGE DEBUG: Hostage ${this.id} IS NOW RESCUED by ${rescuer?.id || 'unknown'}. isRescued: ${this.isRescued}, Team: ${this.team}`);

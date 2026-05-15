@@ -138,6 +138,18 @@ class LevelGenerator {
             const existingBB = candidate.boundingBox;
 
             if (newObstacleTemplate.isDecoration && existing.isDecoration) {
+                const decoBuffer = newObstacleTemplate.decorationBuffer || 0;
+                if (decoBuffer <= 0) continue;
+                const newCenterX = newShapesArray[0].x || 0;
+                const newCenterY = newShapesArray[0].y || 0;
+                const existCenterX = shapeToCheck.x || existing.x || 0;
+                const existCenterY = shapeToCheck.y || existing.y || 0;
+                const cdx = newCenterX - existCenterX;
+                const cdy = newCenterY - existCenterY;
+                const newExtent = this._getShapeMaxExtent(newShapesArray[0]);
+                const existExtent = this._getShapeMaxExtent(shapeToCheck);
+                const minDist =  decoBuffer;
+                if (cdx * cdx + cdy * cdy < minDist * minDist) return true;
                 continue;
             }
 
@@ -889,8 +901,8 @@ class LevelGenerator {
 
         const extraKeepOutZones = [];
         const pSpawnCfg = genConfig.PLAYER_SPAWN_ZONE || {};
-        const playerSpawnZoneWidth = Math.max(pSpawnCfg.MIN_WIDTH || 150, playableWidth * (pSpawnCfg.WIDTH_FACTOR || 0.20));
-        const playerSpawnZoneHeight = Math.max(pSpawnCfg.MIN_HEIGHT || 100, playableHeight * (pSpawnCfg.HEIGHT_FACTOR || 0.20));
+        const playerSpawnZoneWidth = Math.min(pSpawnCfg.MAX_WIDTH || 300, Math.max(pSpawnCfg.MIN_WIDTH || 150, playableWidth * (pSpawnCfg.WIDTH_FACTOR || 0.20)));
+        const playerSpawnZoneHeight = Math.min(pSpawnCfg.MAX_HEIGHT || 150, Math.max(pSpawnCfg.MIN_HEIGHT || 100, playableHeight * (pSpawnCfg.HEIGHT_FACTOR || 0.20)));
 
         const playerSpawnZone = { x: playableMinX, y: playableMaxY - playerSpawnZoneHeight, width: playerSpawnZoneWidth, height: playerSpawnZoneHeight };
         this.level.playerSpawnZone = playerSpawnZone;

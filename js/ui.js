@@ -55,6 +55,14 @@ class UI {
         this.gameOverMemorialButton = document.getElementById('gameOverMemorialButton'); // New button
         this.gameOverNewCampaignButton = document.getElementById('gameOverNewCampaignButton');
 
+        this.endOfPhaseScreen = document.getElementById('endOfPhaseScreen');
+        this.phaseDebriefTitle = document.getElementById('phaseDebriefTitle');
+        this.phaseDebriefSubtitle = document.getElementById('phaseDebriefSubtitle');
+        this.phaseDebriefTabs = document.querySelectorAll('.phase-debrief-tab');
+        this.phaseDebriefTabContents = document.querySelectorAll('.phase-debrief-tab-content');
+        this.viewMemorialFromPhaseBtn = document.getElementById('viewMemorialFromPhaseBtn');
+        this.continueFromPhaseDebriefBtn = document.getElementById('continueFromPhaseDebriefBtn');
+
         // Options Menu elements
         this.optionsMenuScreen = document.getElementById('optionsMenuScreen');
         this.backFromOptionsButton = document.getElementById('backFromOptionsButton');
@@ -234,6 +242,8 @@ class UI {
             }
             else if (this.game && this.game.gameState === 'POST_MISSION_DEBRIEF' && this.postMissionScreen) {
                 this.postMissionScreen.style.display = 'flex';
+            } else if (this.game && this.game.gameState === 'END_OF_PHASE_DEBRIEF' && this.endOfPhaseScreen) {
+                this.endOfPhaseScreen.style.display = 'flex';
             } else if (this.game && this.game.gameState === 'MAIN_MENU' && this.mainMenuScreen) {
                 this.mainMenuScreen.style.display = 'flex';
             }
@@ -660,7 +670,7 @@ class UI {
 
     showMainMenuScreen() {
         if (!this.mainMenuScreen) return;
-        this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
+        this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen(); this.hideEndOfPhaseScreen();
         this.hideSaveLoadModal();
         this.hideHowToPlayScreen();
         this.hideOptionsMenu();
@@ -696,6 +706,7 @@ class UI {
     hideRecruitMemorialScreen() {
         if (this.recruitMemorialScreen) this.recruitMemorialScreen.style.display = 'none';
     }
+    hideEndOfPhaseScreen() { if (this.endOfPhaseScreen) this.endOfPhaseScreen.style.display = 'none'; }
 
     // --- SHOOTOUT MODE UI METHODS ---
     showShootoutPreGameScreen() {
@@ -1720,7 +1731,7 @@ class UI {
 
     showPreMissionScreen_RecruitSelect(phaseData, missionData, availableRecruits) {
         if (!this.preMissionScreen) return;
-        this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
+        this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen(); this.hideEndOfPhaseScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
 
         if (!phaseData || !missionData || !missionData.baseParams || !missionData.objectives) {
@@ -2151,14 +2162,14 @@ class UI {
         }
         // --- MODIFICATION END ---
 
-        this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideRecruitMemorialScreen();
+        this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideRecruitMemorialScreen(); this.hideEndOfPhaseScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
         this.gameOverScreen.style.display = 'flex'; this.setCursor('default');
     }
 
     showRecruitMemorialScreen() {
         if (!this.recruitMemorialScreen || !this.game || !this.memorialEntriesList) return;
-        this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen();
+        this.hideMainMenuScreen(); this.hidePostMissionScreen(); this.hidePreMissionScreen(); this.hideGameOverScreen(); this.hideEndOfPhaseScreen();
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
 
         this.memorialEntriesList.innerHTML = '';
@@ -2919,5 +2930,345 @@ class UI {
 //            console.error('[Auto-Save] Error:', error);
             return true; // Don't block gameplay on error
         }
+    }
+
+    showEndOfPhaseDebrief(phaseDebriefData) {
+        if (!this.endOfPhaseScreen || !phaseDebriefData) return;
+        this.hideMainMenuScreen();
+        this.hidePreMissionScreen();
+        this.hidePostMissionScreen();
+        this.hideGameOverScreen();
+        this.hideRecruitMemorialScreen();
+
+        const txt = this.uiText;
+
+        if (this.phaseDebriefTitle) {
+            this.phaseDebriefTitle.textContent = txt.PHASE_DEBRIEF_TITLE || 'PHASE COMPLETE';
+        }
+        if (this.phaseDebriefSubtitle) {
+            this.phaseDebriefSubtitle.textContent = `${phaseDebriefData.phaseName} | ${phaseDebriefData.biome || ''}`;
+        }
+
+        this._renderPhaseOverviewTab(phaseDebriefData);
+        this._renderPhaseMissionsTab(phaseDebriefData);
+        this._renderPhaseRosterTab(phaseDebriefData);
+        this._renderPhaseHonorRollTab(phaseDebriefData);
+
+        this.phaseDebriefTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                this.phaseDebriefTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                const tabName = tab.dataset.tab;
+                this.phaseDebriefTabContents.forEach(tc => {
+                    tc.classList.toggle('active', tc.id === 'phaseTab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
+                });
+            });
+        });
+
+        if (this.viewMemorialFromPhaseBtn) {
+            const hasFallen = phaseDebriefData.totalFallenRaccoons && phaseDebriefData.totalFallenRaccoons.length > 0;
+            this.viewMemorialFromPhaseBtn.style.display = hasFallen ? 'inline-block' : 'none';
+            this.viewMemorialFromPhaseBtn.onclick = () => this.showRecruitMemorialScreen();
+        }
+
+        if (this.continueFromPhaseDebriefBtn) {
+            const nextPhaseName = phaseDebriefData.nextPhaseName || 'Next Phase';
+            this.continueFromPhaseDebriefBtn.textContent = (txt.BUTTON_TEXT_START_PHASE_PREFIX || 'Start ') + nextPhaseName;
+            this.continueFromPhaseDebriefBtn.onclick = () => {
+                this.hideEndOfPhaseScreen();
+                if (this.game) {
+                    if (this.game.currentSaveSlot !== -1) {
+                        if (SaveManager.autoSave(this.game)) {
+                            this.showToast(`Auto-saved to Slot ${this.game.currentSaveSlot + 1}`, 'success');
+                        }
+                    }
+                    this.game.proceedFromPhaseDebriefToNextMission();
+                }
+            };
+        }
+
+        this.endOfPhaseScreen.style.display = 'flex';
+        this.setCursor('default');
+    }
+
+    _renderPhaseOverviewTab(data) {
+        const txt = this.uiText;
+        const narrativeEl = this.endOfPhaseScreen.querySelector('.phase-conclusion-narrative');
+        if (narrativeEl) {
+            narrativeEl.textContent = data.conclusionText || '';
+        }
+
+        const statsGridEl = this.endOfPhaseScreen.querySelector('.phase-stats-grid');
+        if (statsGridEl) {
+            statsGridEl.innerHTML = '';
+            const stats = [
+                { label: txt.PHASE_DEBRIEF_ENEMIES_ELIMINATED || 'Enemies Eliminated', value: data.totalEnemiesKilled, cls: '' },
+                { label: txt.PHASE_DEBRIEF_HOSTAGES_RESCUED || 'Hostages Rescued', value: data.totalHostagesRescued, cls: '' },
+                { label: txt.PHASE_DEBRIEF_CASUALTIES || 'Casualties', value: data.casualtyCount, cls: 'stat-casualties' },
+                { label: txt.PHASE_DEBRIEF_PHASE_DURATION || 'Phase Duration', value: this._formatDuration(data.phaseDuration), cls: '' },
+                { label: txt.PHASE_DEBRIEF_ROSTER_START || 'Roster at Start', value: data.startingRosterCount, cls: '' },
+                { label: txt.PHASE_DEBRIEF_ROSTER_END || 'Roster at End', value: data.endingRosterCount, cls: data.endingRosterCount >= data.startingRosterCount ? 'stat-roster-gain' : 'stat-roster-loss' },
+            ];
+            stats.forEach(s => {
+                const card = document.createElement('div');
+                card.className = 'phase-stat-card' + (s.cls ? ' ' + s.cls : '');
+                card.innerHTML = `<span class="stat-value">${s.value}</span><span class="stat-label">${s.label}</span>`;
+                statsGridEl.appendChild(card);
+            });
+        }
+
+        const nextPhaseEl = this.endOfPhaseScreen.querySelector('.next-phase-preview');
+        if (nextPhaseEl) {
+            if (data.nextPhaseName) {
+                nextPhaseEl.innerHTML = `
+                    <h4>${txt.PHASE_DEBRIEF_NEXT_PHASE_LABEL || 'Next Phase:'}</h4>
+                    <div class="next-phase-name">${data.nextPhaseName}</div>
+                    <div class="next-phase-biome">${data.nextPhaseBiome || ''}</div>
+                `;
+                nextPhaseEl.style.display = 'flex';
+                nextPhaseEl.style.flexDirection = 'column';
+            } else {
+                nextPhaseEl.innerHTML = '';
+                nextPhaseEl.style.display = 'none';
+            }
+        }
+
+        const topPerformerEl = this.endOfPhaseScreen.querySelector('.phase-top-performer');
+        if (topPerformerEl) {
+            if (data.topKiller && data.topKillerKills > 0) {
+                topPerformerEl.innerHTML = `
+                    <h4>${txt.PHASE_DEBRIEF_TOP_KILLER || 'Top Killer'}</h4>
+                    <div class="performer-name">${data.topKiller.name}</div>
+                    <div class="performer-stats">${data.topKillerKills} ${txt.PHASE_DEBRIEF_KILLS || 'kills'} | ${data.topKiller.rank || 'Recruit'}</div>
+                `;
+                topPerformerEl.style.display = 'flex';
+                topPerformerEl.style.flexDirection = 'column';
+            } else {
+                topPerformerEl.innerHTML = '';
+                topPerformerEl.style.display = 'none';
+            }
+        }
+    }
+
+    _renderPhaseMissionsTab(data) {
+        const txt = this.uiText;
+        const listEl = this.endOfPhaseScreen.querySelector('#phaseTabMissions .mission-results-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        if (!data.missionResults || data.missionResults.length === 0) {
+            listEl.innerHTML = '<div class="honor-roll-empty">No mission data available.</div>';
+            return;
+        }
+
+        data.missionResults.forEach((mission, idx) => {
+            const card = document.createElement('div');
+            card.className = 'mission-result-card ' + (mission.isVictory ? 'victory' : 'defeat');
+
+            const outcomeText = mission.isVictory ? (txt.PHASE_DEBRIEF_VICTORY || 'VICTORY') : (txt.PHASE_DEBRIEF_DEFEAT || 'DEFEAT');
+
+            let objectivesHtml = '';
+            if (mission.objectives && mission.objectives.length > 0) {
+                objectivesHtml = '<div class="mission-result-objectives">' +
+                    mission.objectives.map(obj => {
+                        const objLabel = obj.type ? obj.type.replace(/_/g, ' ') : 'Unknown';
+                        return `<span class="mission-result-obj ${obj.isComplete ? 'completed' : 'failed'}">${objLabel}</span>`;
+                    }).join('') +
+                    '</div>';
+            }
+
+            const fallenText = mission.fallenRaccoons && mission.fallenRaccoons.length > 0
+                ? ` | ${mission.fallenRaccoons.length} KIA`
+                : '';
+
+            card.innerHTML = `
+                <div class="mission-result-header">
+                    <span class="mission-result-name">Mission ${idx + 1}: ${mission.name}</span>
+                    <span class="mission-result-outcome ${mission.isVictory ? 'victory' : 'defeat'}">${outcomeText}</span>
+                </div>
+                <div class="mission-result-stats">
+                    <span>Enemies: ${mission.enemiesKilled}</span>
+                    <span>Time: ${mission.timeTaken}s</span>
+                    <span>Fallen: ${mission.fallenRaccoons ? mission.fallenRaccoons.length : 0}${fallenText}</span>
+                </div>
+                ${objectivesHtml}
+            `;
+            listEl.appendChild(card);
+        });
+    }
+
+    _renderPhaseRosterTab(data) {
+        const txt = this.uiText;
+
+        const beforeList = this.endOfPhaseScreen.querySelector('.roster-before-list');
+        if (beforeList) {
+            beforeList.innerHTML = '';
+            if (data.startingRoster && data.startingRoster.length > 0) {
+                data.startingRoster.forEach(r => {
+                    beforeList.appendChild(this._createPhaseDebriefRosterCard(r));
+                });
+            } else {
+                beforeList.innerHTML = '<div class="no-entry">No data</div>';
+            }
+        }
+
+        const afterList = this.endOfPhaseScreen.querySelector('.roster-after-list');
+        if (afterList) {
+            afterList.innerHTML = '';
+            if (data.endingRaccoons && data.endingRaccoons.length > 0) {
+                data.endingRaccoons.forEach(r => {
+                    afterList.appendChild(this._createPhaseDebriefRosterCard(r));
+                });
+            } else {
+                afterList.innerHTML = '<div class="no-entry">No data</div>';
+            }
+        }
+
+        const newRecruitsList = this.endOfPhaseScreen.querySelector('.roster-new-recruits-list');
+        const newRecruitsSection = this.endOfPhaseScreen.querySelector('.roster-new-recruits-section');
+        if (newRecruitsList && newRecruitsSection) {
+            newRecruitsList.innerHTML = '';
+            if (data.newRecruitedRaccoons && data.newRecruitedRaccoons.length > 0) {
+                newRecruitsSection.style.display = 'flex';
+                newRecruitsSection.style.flexDirection = 'column';
+                data.newRecruitedRaccoons.forEach(r => {
+                    newRecruitsList.appendChild(this._createPhaseDebriefRosterCard(r));
+                });
+            } else {
+                newRecruitsSection.style.display = 'none';
+            }
+        }
+
+        const promotionsList = this.endOfPhaseScreen.querySelector('.roster-promotions-list');
+        const promotionsSection = this.endOfPhaseScreen.querySelector('.roster-promotions-section');
+        if (promotionsList && promotionsSection) {
+            promotionsList.innerHTML = '';
+            if (data.promotedRaccoons && data.promotedRaccoons.length > 0) {
+                promotionsSection.style.display = 'flex';
+                promotionsSection.style.flexDirection = 'column';
+                data.promotedRaccoons.forEach(r => {
+                    const card = this._createPhaseDebriefRosterCard(r);
+                    card.classList.add('promoted');
+                    const badge = document.createElement('div');
+                    badge.className = 'promotion-badge';
+                    badge.textContent = `PROMOTED TO ${r.rank.toUpperCase()}!`;
+                    card.appendChild(badge);
+                    promotionsList.appendChild(card);
+                });
+            } else {
+                promotionsSection.style.display = 'none';
+            }
+        }
+    }
+
+    _renderPhaseHonorRollTab(data) {
+        const txt = this.uiText;
+        const listEl = this.endOfPhaseScreen.querySelector('.honor-roll-list');
+        if (!listEl) return;
+        listEl.innerHTML = '';
+
+        if (!data.totalFallenRaccoons || data.totalFallenRaccoons.length === 0) {
+            listEl.innerHTML = `<div class="honor-roll-empty">${txt.PHASE_DEBRIEF_NO_CASUALTIES || 'No casualties this phase.'}</div>`;
+            return;
+        }
+
+        data.totalFallenRaccoons.forEach(r => {
+            const card = document.createElement('div');
+            card.className = 'honor-roll-card';
+
+            const faceDiv = document.createElement('div');
+            faceDiv.className = 'honor-roll-face';
+            if (r.faceImageUrl) {
+                faceDiv.style.backgroundImage = `url('${r.faceImageUrl}')`;
+            }
+
+            const infoDiv = document.createElement('div');
+            infoDiv.className = 'honor-roll-info';
+            infoDiv.innerHTML = `
+                <div class="honor-roll-name">${r.name || 'Unknown'}</div>
+                <div class="honor-roll-details">${r.rank || 'Recruit'}</div>
+            `;
+
+            const killsDiv = document.createElement('div');
+            killsDiv.className = 'honor-roll-kills';
+            killsDiv.textContent = `${r.killCount || 0} kills`;
+
+            card.appendChild(faceDiv);
+            card.appendChild(infoDiv);
+            card.appendChild(killsDiv);
+            listEl.appendChild(card);
+        });
+    }
+
+    _createPhaseDebriefRosterCard(r) {
+        const card = document.createElement('div');
+        card.className = 'unit-card';
+
+        const spriteSection = document.createElement('div');
+        spriteSection.className = 'unit-card-sprite-section';
+
+        const spriteDiv = document.createElement('div');
+        spriteDiv.className = 'card-sprite';
+        const spriteBaseName = r.spriteBaseName || 'raccoon';
+        const spritePath = this._getSpritePathForRank(r.rank);
+        const directions = ['se', 's', 'sw', 'w', 'nw', 'n', 'ne', 'e'];
+        directions.forEach(dir => {
+            const spriteKey = `${spriteBaseName}_idle_${dir}`;
+            const spriteUrl = this.game?.preloadedImages?.[spriteKey]
+                ? this.game.preloadedImages[spriteKey].src
+                : `${spritePath}idle/${spriteBaseName}_idle_${dir}.png`;
+            spriteDiv.style.setProperty(`--sprite-${dir}`, `url('${spriteUrl}')`);
+        });
+        spriteSection.appendChild(spriteDiv);
+        card.appendChild(spriteSection);
+
+        const infoRow = document.createElement('div');
+        infoRow.className = 'unit-card-info-row';
+
+        const dogtagContainer = document.createElement('div');
+        dogtagContainer.className = 'unit-card-dogtag';
+
+        const rankIconDiv = document.createElement('div');
+        rankIconDiv.className = 'card-rank-icon';
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath && rankIconConfig[r.rank]) {
+            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[r.rank]}')`;
+        }
+        dogtagContainer.appendChild(rankIconDiv);
+
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'card-details';
+
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'card-name';
+        nameDiv.textContent = r.name;
+        detailsDiv.appendChild(nameDiv);
+
+        const rankDiv = document.createElement('div');
+        rankDiv.className = 'card-rank';
+        rankDiv.textContent = r.rank || 'Recruit';
+        detailsDiv.appendChild(rankDiv);
+
+        const xpDiv = document.createElement('div');
+        xpDiv.className = 'card-xp';
+        xpDiv.textContent = `XP: ${r.xp || 0}`;
+        detailsDiv.appendChild(xpDiv);
+
+        dogtagContainer.appendChild(detailsDiv);
+        infoRow.appendChild(dogtagContainer);
+        card.appendChild(infoRow);
+
+        return card;
+    }
+
+    _formatDuration(seconds) {
+        if (!seconds && seconds !== 0) return 'N/A';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        if (mins > 0) {
+            return `${mins}m ${secs}s`;
+        }
+        return `${secs}s`;
     }
 }

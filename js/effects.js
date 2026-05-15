@@ -820,3 +820,101 @@ class PickupEffect {
         ctx.restore();
     }
 }
+class SpeechBubbleEffect {
+    constructor(parentUnit, text, gameInstance, color) {
+        this.parentUnit = parentUnit;
+        this.game = gameInstance;
+        this.text = text;
+        this.color = color || "#FFFFFF";
+        this.lifetime = SPEECH_CONFIG.GLOBAL.BUBBLE_LIFETIME;
+        this.elapsedTime = 0;
+        this.isMarkedForDeletion = false;
+        this.type = 'speech_bubble';
+        this.opacity = 1.0;
+        this.yOffset = SPEECH_CONFIG.GLOBAL.BUBBLE_Y_OFFSET;
+        this.font = SPEECH_CONFIG.GLOBAL.BUBBLE_FONT;
+        this.maxWidth = SPEECH_CONFIG.GLOBAL.BUBBLE_MAX_WIDTH;
+        this.padding = SPEECH_CONFIG.GLOBAL.BUBBLE_PADDING;
+        this.bgAlpha = SPEECH_CONFIG.GLOBAL.BUBBLE_BG_ALPHA;
+        this.fadeStart = this.lifetime * SPEECH_CONFIG.GLOBAL.BUBBLE_FADE_START;
+    }
+
+    update(deltaTime) {
+        this.elapsedTime += deltaTime;
+        if (!this.parentUnit || !this.parentUnit.isAlive() || this.elapsedTime >= this.lifetime) {
+            this.isMarkedForDeletion = true;
+            return;
+        }
+        if (this.elapsedTime > this.fadeStart) {
+            const fadeDuration = this.lifetime - this.fadeStart;
+            this.opacity = 1.0 - ((this.elapsedTime - this.fadeStart) / fadeDuration);
+        }
+    }
+
+    render(ctx) {
+        if (!this.parentUnit) return;
+
+        ctx.save();
+        ctx.font = this.font;
+        ctx.globalAlpha = this.opacity;
+
+        const words = this.text.split(' ');
+        const lines = [];
+        let currentLine = '';
+        for (const word of words) {
+            const testLine = currentLine ? currentLine + ' ' + word : word;
+            if (ctx.measureText(testLine).width > this.maxWidth && currentLine) {
+                lines.push(currentLine);
+                currentLine = word;
+            } else {
+                currentLine = testLine;
+            }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        const lineHeight = 16;
+        const textWidth = Math.max(...lines.map(l => ctx.measureText(l).width));
+        const bubbleWidth = textWidth + this.padding * 2;
+        const bubbleHeight = lines.length * lineHeight + this.padding * 2;
+        const renderX = this.parentUnit.x;
+        const renderY = this.parentUnit.y + this.yOffset - bubbleHeight;
+        const r = 6;
+
+        ctx.fillStyle = 'rgba(0, 0, 0, ' + this.bgAlpha * this.opacity + ')';
+        ctx.beginPath();
+        ctx.moveTo(renderX - bubbleWidth / 2 + r, renderY);
+        ctx.lineTo(renderX + bubbleWidth / 2 - r, renderY);
+        ctx.arcTo(renderX + bubbleWidth / 2, renderY, renderX + bubbleWidth / 2, renderY + r, r);
+        ctx.lineTo(renderX + bubbleWidth / 2, renderY + bubbleHeight - r);
+        ctx.arcTo(renderX + bubbleWidth / 2, renderY + bubbleHeight, renderX + bubbleWidth / 2 - r, renderY + bubbleHeight, r);
+        ctx.lineTo(renderX - bubbleWidth / 2 + r, renderY + bubbleHeight);
+        ctx.arcTo(renderX - bubbleWidth / 2, renderY + bubbleHeight, renderX - bubbleWidth / 2, renderY + bubbleHeight - r, r);
+        ctx.lineTo(renderX - bubbleWidth / 2, renderY + r);
+        ctx.arcTo(renderX - bubbleWidth / 2, renderY, renderX - bubbleWidth / 2 + r, renderY, r);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.strokeStyle = 'rgba(255, 255, 255, ' + (0.5 * this.opacity) + ')';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.fillStyle = 'rgba(0, 0, 0, ' + this.bgAlpha * this.opacity + ')';
+        ctx.beginPath();
+        ctx.moveTo(renderX - 6, renderY + bubbleHeight);
+        ctx.lineTo(renderX + 6, renderY + bubbleHeight);
+        ctx.lineTo(renderX, renderY + bubbleHeight + 8);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = this.color;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 3;
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i], renderX, renderY + this.padding + i * lineHeight);
+        }
+
+        ctx.restore();
+    }
+}

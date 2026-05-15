@@ -111,6 +111,10 @@ class Unit {
 
         // --- OPTIMIZATION Phase 2: Repath Cooldown ---
         this.repathCooldown = 0;
+        this.speechCooldown = Math.random() * 5;
+        this.idleChatterTimer = SPEECH_CONFIG.GLOBAL.IDLE_CHATTER_INTERVAL_MIN +
+            Math.random() * (SPEECH_CONFIG.GLOBAL.IDLE_CHATTER_INTERVAL_MAX - SPEECH_CONFIG.GLOBAL.IDLE_CHATTER_INTERVAL_MIN);
+        this.furbyTimer = Math.random() * SPEECH_CONFIG.GLOBAL.FURBY_COOLDOWN;
     }
 
     getNightVisionRadius(unit) {
@@ -358,6 +362,13 @@ class Unit {
         const rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
 
         if (rawPathGridCoords && rawPathGridCoords.length > 0) {
+            const lastGridNode = rawPathGridCoords[rawPathGridCoords.length - 1];
+            if (lastGridNode.x !== endGrid.x || lastGridNode.y !== endGrid.y) {
+                const partialWorld = this.game.level.gridToWorldCoords(lastGridNode.x, lastGridNode.y);
+                this.worldTargetX = partialWorld.x;
+                this.worldTargetY = partialWorld.y;
+                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Partial path to closest reachable cell (${lastGridNode.x},${lastGridNode.y}).`);
+            }
             this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level);
             if (this.currentPath && this.currentPath.length > 0) {
                 this.currentPathNodeIndex = 0; this.isMoving = true;
@@ -947,6 +958,15 @@ class Unit {
 
         const prevHp = this.hp;
         this.hp -= amount;
+
+        if (this.game && this.game.trySpeech) {
+            if (this.hp > 0 && this.hp < this.maxHp * 0.3) {
+                this.game.trySpeech(this, 'ON_LOW_HP');
+            } else if (this.hp > 0) {
+                this.game.trySpeech(this, 'ON_DAMAGE');
+            }
+        }
+
         let died = false;
 
         if (this.hp <= 0) {
@@ -957,6 +977,9 @@ class Unit {
                 if (this instanceof PossumHeavy) killXp += (CONFIG.XP_PER_HEAVY_KILL || 15);
                 attackerUnit.addXp(killXp);
                 if (typeof attackerUnit.incrementKillCount === 'function') attackerUnit.incrementKillCount();
+                if (this.game && this.game.trySpeech) {
+                    this.game.trySpeech(attackerUnit, 'ON_KILL', 0.25);
+                }
             }
             this.die();
         }

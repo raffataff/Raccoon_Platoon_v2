@@ -387,6 +387,10 @@ class ShootoutController {
             this.isRoundActive = false;
             this.game.canvas.style.cursor = 'default';
 
+            // Signal that ambush result is pending — prevents update() from
+            // transitioning to RUNNING before handleAmbushResult processes the outcome
+            this.game.ambushResultPending = true;
+
             // Show ambush result and call callback
 //            console.log('[Shootout] Showing ambush result, callback exists:', !!callback);
             if (this.game.ui) {

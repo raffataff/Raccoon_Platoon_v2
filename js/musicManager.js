@@ -127,6 +127,9 @@ class MusicManager {
             case 'POST_MISSION_DEBRIEF':
                 // Keep playing current victory/defeat music (no change)
                 break;
+
+            case 'END_OF_PHASE_DEBRIEF':
+                break;
                 
             case 'PAUSED':
                 // Mute music temporarily

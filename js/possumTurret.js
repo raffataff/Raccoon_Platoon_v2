@@ -250,7 +250,10 @@ class PossumTurret {
             ctx.lineWidth = 2;
             ctx.strokeRect(this.x, this.y, this.width, this.height);
         }
-        
+
+    }
+
+    renderOverlay(ctx) {
         if (!this.isShutdown) {
             const nearbyRaccoon = this.getNearestRaccoonBehind();
             if (nearbyRaccoon) {

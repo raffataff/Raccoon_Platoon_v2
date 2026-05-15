@@ -100,7 +100,7 @@ class InputHandler {
             }
 
             if (!this.game || (this.game.gameState !== 'RUNNING' && this.game.gameState !== 'SHOOTOUT_PLAYING' && this.game.gameState !== 'SHOOTOUT_PAUSED' && this.game.gameState !== 'SHOOTOUT_PRE_GAME' && this.game.gameState !== 'SHOOTOUT_AMBUSH')) {
-                if (event.key === 'Escape' && (this.game.gameState === 'PRE_MISSION_SELECT' || this.game.gameState === 'POST_MISSION_DEBRIEF' || this.game.gameState === 'RECRUIT_MEMORIAL')) {
+                if (event.key === 'Escape' && (this.game.gameState === 'PRE_MISSION_SELECT' || this.game.gameState === 'POST_MISSION_DEBRIEF' || this.game.gameState === 'RECRUIT_MEMORIAL' || this.game.gameState === 'END_OF_PHASE_DEBRIEF')) {
                     this.game.quitToMainMenu();
                 } else if (event.key === 'Escape' && this.game.gameState === 'PAUSED') {
                     this.game.togglePause();

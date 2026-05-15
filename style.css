@@ -1629,6 +1629,503 @@ input[type="range"]::-moz-range-thumb {
     --pm-sprite-rotation-duration: 8s;
 }
 
+/* ============================================================
+   END OF PHASE DEBRIEF SCREEN
+   ============================================================ */
+#endOfPhaseScreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    padding: var(--pm-padding);
+    box-sizing: border-box;
+    display: none;
+    flex-direction: column;
+    z-index: 100;
+    background:
+        linear-gradient(var(--pm-bg-overlay), var(--pm-bg-overlay)),
+        repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1) 10px, rgba(0, 0, 0, 0.2) 10px, rgba(0, 0, 0, 0.2) 20px);
+}
+
+#endOfPhaseScreen h2#phaseDebriefTitle {
+    text-align: center;
+    font-family: var(--font-header);
+    font-size: var(--pm-title-size);
+    margin: 0 0 5px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed var(--brand-secondary);
+    color: var(--brand-primary);
+    text-transform: uppercase;
+    text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    letter-spacing: 2px;
+    flex-shrink: 0;
+}
+
+#endOfPhaseScreen p#phaseDebriefSubtitle {
+    font-size: var(--pm-subtitle-size);
+    color: #A8A498;
+    margin: 0 0 10px 0;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+}
+
+.phase-debrief-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 0;
+    flex-shrink: 0;
+}
+
+.phase-debrief-tab {
+    flex: 1;
+    padding: 8px 16px;
+    background: rgba(20, 18, 14, 0.8);
+    border: 1px solid #302D2A;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    color: #7A7668;
+    font-family: var(--font-header);
+    font-size: 0.95em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: 0.15s all ease;
+}
+
+.phase-debrief-tab:hover {
+    color: #C8C6B8;
+    background: rgba(40, 36, 30, 0.8);
+}
+
+.phase-debrief-tab.active {
+    color: var(--brand-primary);
+    background: rgba(10, 10, 5, 0.6);
+    border-color: var(--brand-secondary);
+    border-bottom: 1px solid rgba(10, 10, 5, 0.6);
+    margin-bottom: -1px;
+    position: relative;
+    z-index: 1;
+}
+
+.phase-debrief-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    background: rgba(10, 10, 5, 0.6);
+    border: 1px solid var(--pm-card-border);
+    border-radius: 0 3px 3px 3px;
+    padding: 15px;
+}
+
+.phase-debrief-tab-content {
+    display: none;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.phase-debrief-tab-content.active {
+    display: flex;
+}
+
+#phaseTabOverview {
+    flex-direction: row;
+    gap: 15px;
+}
+
+.phase-overview-left {
+    flex: 1.2;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.phase-overview-right {
+    flex: 0.8;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.phase-conclusion-narrative {
+    background: rgba(20, 18, 14, 0.5);
+    border-left: 3px solid var(--brand-primary);
+    padding: 12px 15px;
+    color: #C8C6B8;
+    font-style: italic;
+    font-size: 1.05em;
+    line-height: 1.5;
+    border-radius: 0 3px 3px 0;
+    flex-shrink: 0;
+}
+
+.phase-stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.phase-stat-card {
+    background: rgba(20, 18, 14, 0.5);
+    border: 1px solid #302D2A;
+    border-radius: 3px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.phase-stat-card .stat-value {
+    font-family: var(--font-header);
+    font-size: 1.6em;
+    color: var(--brand-primary);
+    line-height: 1.1;
+}
+
+.phase-stat-card .stat-label {
+    font-size: 0.75em;
+    color: #7A7668;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-top: 3px;
+}
+
+.phase-stat-card.stat-casualties .stat-value {
+    color: #C0392B;
+}
+
+.phase-stat-card.stat-roster-gain .stat-value {
+    color: #27AE60;
+}
+
+.phase-stat-card.stat-roster-loss .stat-value {
+    color: #C0392B;
+}
+
+.next-phase-preview {
+    background: rgba(20, 18, 14, 0.5);
+    border: 1px solid #302D2A;
+    border-radius: 3px;
+    padding: 12px;
+    flex-shrink: 0;
+}
+
+.next-phase-preview h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.85em;
+    color: var(--brand-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #302D2A;
+    padding-bottom: 6px;
+}
+
+.next-phase-preview .next-phase-name {
+    font-family: var(--font-header);
+    font-size: 1.2em;
+    color: #C8C6B8;
+    margin-bottom: 4px;
+}
+
+.next-phase-preview .next-phase-biome {
+    font-size: 0.85em;
+    color: #7A7668;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.phase-top-performer {
+    background: rgba(20, 18, 14, 0.5);
+    border: 1px solid #302D2A;
+    border-radius: 3px;
+    padding: 12px;
+    flex-shrink: 0;
+}
+
+.phase-top-performer h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.85em;
+    color: var(--brand-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border-bottom: 1px solid #302D2A;
+    padding-bottom: 6px;
+}
+
+.phase-top-performer .performer-name {
+    font-family: var(--font-header);
+    font-size: 1.1em;
+    color: #C8C6B8;
+}
+
+.phase-top-performer .performer-stats {
+    font-size: 0.85em;
+    color: #7A7668;
+    margin-top: 3px;
+}
+
+.mission-results-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 5px;
+}
+
+.mission-result-card {
+    background: rgba(20, 18, 14, 0.5);
+    border: 1px solid #302D2A;
+    border-radius: 3px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.mission-result-card.victory {
+    border-left: 3px solid #27AE60;
+}
+
+.mission-result-card.defeat {
+    border-left: 3px solid #C0392B;
+}
+
+.mission-result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mission-result-name {
+    font-family: var(--font-header);
+    font-size: 1.05em;
+    color: #C8C6B8;
+}
+
+.mission-result-outcome {
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 2px 8px;
+    border-radius: 2px;
+}
+
+.mission-result-outcome.victory {
+    color: #27AE60;
+    background: rgba(39, 174, 96, 0.15);
+}
+
+.mission-result-outcome.defeat {
+    color: #C0392B;
+    background: rgba(192, 57, 43, 0.15);
+}
+
+.mission-result-stats {
+    display: flex;
+    gap: 15px;
+    font-size: 0.85em;
+    color: #7A7668;
+}
+
+.mission-result-stats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mission-result-objectives {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.mission-result-obj {
+    font-size: 0.75em;
+    padding: 2px 6px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.mission-result-obj.completed {
+    color: #27AE60;
+    background: rgba(39, 174, 96, 0.12);
+}
+
+.mission-result-obj.failed {
+    color: #C0392B;
+    background: rgba(192, 57, 43, 0.12);
+}
+
+.roster-comparison {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.roster-before-section,
+.roster-after-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.roster-before-section h4,
+.roster-after-section h4,
+.roster-new-recruits-section h4,
+.roster-promotions-section h4 {
+    margin: 0 0 6px 0;
+    font-size: 0.85em;
+    color: #C8C6B8;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid #302D2A;
+    padding-bottom: 5px;
+    flex-shrink: 0;
+}
+
+.roster-comparison .unit-cards-grid {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-right: 4px;
+    min-height: 0;
+}
+
+.roster-new-recruits-section,
+.roster-promotions-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex-shrink: 0;
+    margin-top: 8px;
+}
+
+.roster-new-recruits-section .unit-cards-grid,
+.roster-promotions-section .unit-cards-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    max-height: 120px;
+    overflow-y: auto;
+}
+
+.roster-comparison .unit-card,
+.roster-new-recruits-section .unit-card,
+.roster-promotions-section .unit-card {
+    transform: scale(0.85);
+    transform-origin: top left;
+    margin-bottom: -20px;
+}
+
+.honor-roll-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding-right: 5px;
+}
+
+.honor-roll-card {
+    background: rgba(20, 18, 14, 0.5);
+    border: 1px solid #302D2A;
+    border-left: 3px solid #C0392B;
+    border-radius: 3px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+.honor-roll-face {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #302D2A;
+    background-size: cover;
+    background-position: center;
+    flex-shrink: 0;
+}
+
+.honor-roll-info {
+    flex: 1;
+}
+
+.honor-roll-name {
+    font-family: var(--font-header);
+    font-size: 1em;
+    color: #C8C6B8;
+}
+
+.honor-roll-details {
+    font-size: 0.8em;
+    color: #7A7668;
+    margin-top: 2px;
+}
+
+.honor-roll-kills {
+    font-size: 0.85em;
+    color: var(--brand-primary);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.honor-roll-empty {
+    text-align: center;
+    color: #7A7668;
+    font-style: italic;
+    padding: 30px;
+    font-size: 1.1em;
+}
+
+.phase-debrief-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 10px;
+    flex-shrink: 0;
+}
+
+.phase-debrief-buttons button {
+    padding: 10px 30px;
+    font-family: var(--font-header);
+    font-size: 1.1em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    border: 1px solid var(--brand-secondary);
+    border-radius: 3px;
+    cursor: pointer;
+    background: rgba(20, 18, 14, 0.8);
+    color: #C8C6B8;
+    transition: all 0.15s ease;
+}
+
+.phase-debrief-buttons button:hover {
+    background: var(--brand-primary);
+    color: #000;
+    border-color: var(--brand-primary);
+}
+
 /* --- Screen Container --- */
 #postMissionScreen {
     position: fixed;

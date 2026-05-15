@@ -24,11 +24,22 @@ class Game {
         this.tempSelectedForDeployment = [];
         this.lastDeployedSquadIds = [];
 
+        this.enemiesKilledThisPhase = 0;
+        this.hostagesRescuedThisPhase = 0;
+        this.fallenRaccoonsThisPhase = [];
+        this.newRecruitsThisPhase = [];
+        this.promotedRaccoonsThisPhase = [];
+        this.missionResultsThisPhase = [];
+        this.phaseStartTime = 0;
+        this.phaseStartRosterSnapshot = [];
+        this.killsAtPhaseStart = new Map();
+
         this.gameObjects = [];
         this.enemyUnits = [];
         this.hostageUnits = [];
         this.selectedUnits = [];
         this.visualEffects = [];
+        this.delayedSpeech = [];
         this.intelConsoles = [];
         this.possumTurrets = [];
         this.preloadedImages = {};
@@ -128,6 +139,7 @@ class Game {
         this.ambushResult = null;                // 'VICTORY' or 'DEFEAT'
         this.takenHostageRaccoonId = null;        // ID of captured raccoon from failed ambush
         this.ambushesSurvivedThisMission = [];   // Track: ['START', 'EXTRACTION']
+        this.ambushResultPending = false;         // True while ambush result UI is showing, before handleAmbushResult runs
         // --- END Ambush Tracking ---
 
         this.resizeCanvas();
@@ -320,10 +332,14 @@ class Game {
         }
     }
 
-    async preloadMiscAssets() {
+    async preloadMiscAssets(biomeName) {
         const imagePromises = [];
-        if (this.birdSpawnConfig && this.birdSpawnConfig.TILE_SHEET_PATHS) {
-            for (const path of this.birdSpawnConfig.TILE_SHEET_PATHS) {
+        let birdSheetPaths = this.birdSpawnConfig?.TILE_SHEET_PATHS || [];
+        if (biomeName && CONFIG.BIOMES[biomeName]?.flyingBirdSpritePaths) {
+            birdSheetPaths = CONFIG.BIOMES[biomeName].flyingBirdSpritePaths;
+        }
+        if (birdSheetPaths.length > 0) {
+            for (const path of birdSheetPaths) {
                 if (!this.preloadedImages[path]) {
                     imagePromises.push(new Promise((resolve) => {
                         const img = new Image();
@@ -933,6 +949,7 @@ class Game {
             // ====================
             // TROPICAL
             { name: 'grass', files: TROPICAL_BIOME.spritePaths.grass?.files, path: TROPICAL_BIOME.spritePaths.grass?.path, type: 'single' },
+            { name: 'mud', files: TROPICAL_BIOME.spritePaths.mud?.files, path: TROPICAL_BIOME.spritePaths.mud?.path, type: 'single' },
             { name: 'tropical_wall_angled_long', files: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.files, path: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.path, type: 'single' },
             { name: 'tropical_pond', files: TROPICAL_BIOME.spritePaths.tropical_pond?.files, path: TROPICAL_BIOME.spritePaths.tropical_pond?.path, type: 'single' },
             { name: 'fence_barbed_short', files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
@@ -958,7 +975,6 @@ class Game {
             { name: 'tree_rubber_single', files: TROPICAL_BIOME.spritePaths.tree_rubber_single?.files, path: TROPICAL_BIOME.spritePaths.tree_rubber_single?.path, type: 'single' },
             { name: 'palm_bush_small', files: TROPICAL_BIOME.spritePaths.palm_bush_small?.files, path: TROPICAL_BIOME.spritePaths.palm_bush_small?.path, type: 'single' },
             { name: 'palm_bush_large', files: TROPICAL_BIOME.spritePaths.palm_bush_large?.files, path: TROPICAL_BIOME.spritePaths.palm_bush_large?.path, type: 'single' },
-            { name: 'mud', files: TROPICAL_BIOME.spritePaths.mud?.files, path: TROPICAL_BIOME.spritePaths.mud?.path, type: 'single' },
             { name: 'rainforest_small', files: TROPICAL_BIOME.spritePaths.rainforest_patch_small_1?.files, path: TROPICAL_BIOME.spritePaths.rainforest_patch_small_1?.path, type: 'single' },
             { name: 'rainforest_large', files: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.files, path: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.path, type: 'single' },
             { name: 'helipad_square', files: CONFIG.HELIPAD_SQUARE_SPRITE_FILES, path: CONFIG.HELIPAD_SQUARE_SPRITE_PATH, type: 'single' },
@@ -966,8 +982,11 @@ class Game {
 
             //TEMPERATE
             { name: 'grass', files: TEMPERATE_BIOME.spritePaths.grass?.files, path: TEMPERATE_BIOME.spritePaths.grass?.path, type: 'single' },
+            { name: 'mud', files: TEMPERATE_BIOME.spritePaths.mud?.files, path: TEMPERATE_BIOME.spritePaths.mud?.path, type: 'single' },
             { name: 'bush_medium', files: TEMPERATE_BIOME.spritePaths.bush_medium?.files, path: TEMPERATE_BIOME.spritePaths.bush_medium?.path, type: 'single' },
             { name: 'bush_large', files: TEMPERATE_BIOME.spritePaths.bush_large?.files, path: TEMPERATE_BIOME.spritePaths.bush_large?.path, type: 'single' },
+            { name: 'rock_medium', files: TEMPERATE_BIOME.spritePaths.rock_medium?.files, path: TEMPERATE_BIOME.spritePaths.rock_medium?.path, type: 'single' },
+            { name: 'rock_large', files: TEMPERATE_BIOME.spritePaths.rock_large?.files, path: TEMPERATE_BIOME.spritePaths.rock_large?.path, type: 'single' },
             { name: 'oak_single', files: TEMPERATE_BIOME.spritePaths.tree_oak_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_single?.path, type: 'single' },
             { name: 'oak_double', files: TEMPERATE_BIOME.spritePaths.tree_oak_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_double?.path, type: 'single' },
             { name: 'tree_willow_single', files: TEMPERATE_BIOME.spritePaths.tree_willow_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow_single?.path, type: 'single' },
@@ -1169,10 +1188,10 @@ class Game {
         const grassSpritePath = biome.spritePaths.grass?.path || CONFIG.GRASS_SPRITE_PATH;
         const configuredTileSize = biomeLevelGen.WORLD_GRASS_TILE_SIZE || CONFIG.WORLD_GRASS_TILE_SIZE || 64;
         const overlapFactor = biomeLevelGen.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? biomeLevelGen.WORLD_GRASS_TILE_OVERLAP_FACTOR : (CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR : 0.2);
-
+        
         ctx.fillStyle = baseMudColor;
         ctx.fillRect(0, 0, worldWidth, worldHeight);
-
+            
         if (grassSpriteFiles && grassSpriteFiles.length > 0 && grassSpritePath) {
             const stepX = configuredTileSize * (1 - overlapFactor + 0.1);
             const stepY = configuredTileSize * (1 - overlapFactor);
@@ -1190,14 +1209,28 @@ class Game {
             const noiseScaleY = mudParams.noiseScaleY ?? biomeLevelGen.WORLD_MUD_NOISE_SCALE_Y ?? CONFIG.WORLD_MUD_NOISE_SCALE_Y ?? 0.05;
             const noiseThreshold = mudParams.noiseThreshold ?? biomeLevelGen.WORLD_MUD_NOISE_THRESHOLD ?? CONFIG.WORLD_MUD_NOISE_THRESHOLD ?? 0.3;
             const noiseOctaves = mudParams.noiseOctaves ?? biomeLevelGen.WORLD_MUD_NOISE_OCTAVES ?? CONFIG.WORLD_MUD_NOISE_OCTAVES ?? 4;
+            const patchScaleX = mudParams.patchScaleX ?? biomeLevelGen.WORLD_MUD_PATCH_SCALE_X ?? CONFIG.WORLD_MUD_PATCH_SCALE_X ?? 0.003;
+            const patchScaleY = mudParams.patchScaleY ?? biomeLevelGen.WORLD_MUD_PATCH_SCALE_Y ?? CONFIG.WORLD_MUD_PATCH_SCALE_Y ?? 0.003;
+            const blendWidth = mudParams.blendWidth ?? biomeLevelGen.WORLD_MUD_BLEND_WIDTH ?? CONFIG.WORLD_MUD_BLEND_WIDTH ?? 0.15;
 
             for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
                 const rowOffset = (Math.floor((y + configuredTileSize * overlapFactor) / stepY) % 2 === 1) ? stepX / 2 : 0;
                 for (let x = -configuredTileSize * overlapFactor; x < worldWidth; x += stepX) {
                     const effectiveX = x + rowOffset;
 
-                    const noiseValue = (skipChance > 0) ? localRng.fbm(effectiveX * noiseScaleX, y * noiseScaleY, noiseOctaves, 2, 0.5) : 0;
-                    const isMudTile = skipChance > 0 && noiseValue > noiseThreshold;
+                    let mudFactor = 0;
+                    if (skipChance > 0) {
+                        const patchValue = localRng.fbm(effectiveX * patchScaleX, y * patchScaleY, Math.max(1, noiseOctaves - 1), 2, 0.5);
+                        const detailValue = localRng.fbm(effectiveX * noiseScaleX, y * noiseScaleY, noiseOctaves, 2, 0.5);
+                        const combinedValue = patchValue * 0.7 + detailValue * 0.3;
+                        const t = (combinedValue - noiseThreshold) / Math.max(0.01, blendWidth);
+                        mudFactor = Math.max(0, Math.min(1, t));
+                        if (mudFactor > 0 && mudFactor < 1) {
+                            mudFactor = localRng.chance(mudFactor) ? 1 : 0;
+                        }
+                    }
+
+                    const isMudTile = mudFactor >= 1;
 
                     if (isMudTile) {
                         if (hasMudSprites) {
@@ -1208,13 +1241,15 @@ class Game {
                                 const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
                                 const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
                                 const rotation = localRng.nextFloat(0, Math.PI * 2);
+                                const flipH = localRng.chance(0.5) ? -1 : 1;
                                 const drawX = effectiveX + offsetX;
-                                const drawY = y + offsetY;
+                                const drawY = y  + configuredTileSize / 2;
                                 const centerX = drawX + configuredTileSize / 2;
                                 const centerY = drawY + configuredTileSize / 2;
                                 ctx.save();
                                 ctx.translate(centerX, centerY);
                                 ctx.rotate(rotation);
+                                ctx.scale(flipH, 1);
                                 ctx.drawImage(mudImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
                                 ctx.restore();
                             } else {
@@ -1233,9 +1268,16 @@ class Game {
                             if (grassImg) {
                                 const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
                                 const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                                const drawX = effectiveX + offsetX - configuredTileSize / 2;
-                                const drawY = y + offsetY - configuredTileSize / 2;
-                                ctx.drawImage(grassImg, drawX, drawY, configuredTileSize, configuredTileSize);
+                                const flipH = localRng.chance(0.5) ? -1 : 1;
+                                const drawX = effectiveX + offsetX;
+                                const drawY = y + offsetY + configuredTileSize / 2;
+                                const centerX = drawX + configuredTileSize / 2;
+                                const centerY = drawY + configuredTileSize / 2;
+                                ctx.save();
+                                ctx.translate(centerX, centerY);
+                                ctx.scale(flipH, 1);
+                                ctx.drawImage(grassImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
+                                ctx.restore();
                             }
                         }
                     }
@@ -1323,6 +1365,19 @@ class Game {
 
         this.gameState = 'LOADING_MISSION';
 
+        if (this.currentMissionIndex === 0) {
+            this.enemiesKilledThisPhase = 0;
+            this.hostagesRescuedThisPhase = 0;
+            this.fallenRaccoonsThisPhase = [];
+            this.newRecruitsThisPhase = [];
+            this.promotedRaccoonsThisPhase = [];
+            this.missionResultsThisPhase = [];
+            this.phaseStartTime = performance.now();
+            this.phaseStartRosterSnapshot = this.masterRoster.filter(r => r.isAlive()).map(r => ({ id: r.id, name: r.name, rank: r.rank, xp: r.xp, killCount: r.killCount, faceImageUrl: r.faceImageUrl, spriteBaseName: r.spriteBaseName }));
+            this.killsAtPhaseStart = new Map();
+            this.masterRoster.forEach(r => this.killsAtPhaseStart.set(r.id, r.killCount || 0));
+        }
+
         this.masterRoster.forEach(r => {
             if (r.isNewlyRescued) r.isNewlyRescued = false;
             if (r.promotedThisMission) r.promotedThisMission = false;
@@ -1354,7 +1409,8 @@ class Game {
         const loadingTasksPromise = (async () => {
             await this.preloadLevelAssets();
             await this.preloadUnitAssets();
-            await this.preloadMiscAssets();
+            const missionBiome = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+            await this.preloadMiscAssets(missionBiome);
 
             this.deployedSquadRoster = selectedRecruitsForDeployment;
             this.lastDeployedSquadIds = this.deployedSquadRoster.map(r => r.id);
@@ -1550,6 +1606,7 @@ class Game {
         this.currentAmbushType = null;
         this.ambushResult = null;
         this.ambushesSurvivedThisMission = [];
+        this.ambushResultPending = false;
         // Don't reset takenHostageRaccoonId here - it's needed for objective generation
 
         // Start campaign music now that mission is fully started (after any ambush)
@@ -1651,6 +1708,9 @@ class Game {
      * @param {string} result - 'VICTORY', 'TIME_UP', or 'DEFEAT'
      */
     handleAmbushResult(ambushType, result) {
+        // Clear ambush result pending flag — update() can now transition if needed
+        this.ambushResultPending = false;
+
         // Clear ambush triggered flag
         this.ambushTriggered = false;
         
@@ -2194,12 +2254,18 @@ class Game {
         const baseNoiseScaleY = CONFIG.WORLD_MUD_NOISE_SCALE_Y || 0.01;
         const baseThreshold = CONFIG.WORLD_MUD_NOISE_THRESHOLD || 0.3;
         const baseSkipChance = CONFIG.WORLD_GRASS_SKIP_CHANCE || 0.5;
+        const basePatchScaleX = CONFIG.WORLD_MUD_PATCH_SCALE_X || 0.003;
+        const basePatchScaleY = CONFIG.WORLD_MUD_PATCH_SCALE_Y || 0.003;
+        const baseBlendWidth = CONFIG.WORLD_MUD_BLEND_WIDTH || 0.15;
         
         this.currentPhaseMudParams = {
             noiseScaleX: baseNoiseScaleX * mudRng.nextFloat(0.2, 1.8),
             noiseScaleY: baseNoiseScaleY * mudRng.nextFloat(0.2, 1.8),
             noiseThreshold: mudRng.nextFloat(baseThreshold * 0.2, baseThreshold * 1.8),
             noiseOctaves: Math.round(mudRng.nextInt(Math.max(1, (CONFIG.WORLD_MUD_NOISE_OCTAVES || 3) - 1), (CONFIG.WORLD_MUD_NOISE_OCTAVES || 3) + 2)),
+            patchScaleX: basePatchScaleX * mudRng.nextFloat(0.5, 1.5),
+            patchScaleY: basePatchScaleY * mudRng.nextFloat(0.5, 1.5),
+            blendWidth: mudRng.nextFloat(baseBlendWidth * 0.5, baseBlendWidth * 1.5),
             grassSkipChance: mudRng.nextFloat(Math.max(0, baseSkipChance - 0.2), Math.min(0.9, baseSkipChance + 0.3)),
             grassSkipMin: mudRng.nextInt(Math.max(1, (CONFIG.WORLD_GRASS_SKIP_MIN || 3) - 2), (CONFIG.WORLD_GRASS_SKIP_MIN || 3) + 4),
             grassSkipMax: mudRng.nextInt(Math.max(3, (CONFIG.WORLD_GRASS_SKIP_MAX || 12) - 3), (CONFIG.WORLD_GRASS_SKIP_MAX || 12) + 6)
@@ -2734,7 +2800,7 @@ class Game {
     recordRaccoonFallen(raccoon) {
         if (raccoon && raccoon.team === 'player') {
             if (!this.fallenRaccoonsThisMission.find(r => r.id === raccoon.id)) {
-                this.fallenRaccoonsThisMission.push({ id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl });
+                this.fallenRaccoonsThisMission.push({ id: raccoon.id, name: raccoon.name, rank: raccoon.rank, killCount: raccoon.killCount, faceImageUrl: raccoon.faceImageUrl, spriteBaseName: raccoon.spriteBaseName });
             }
             if (!this.fallenRaccoonsGlobal.find(r => r.id === raccoon.id)) {
                 const phaseName = (this.campaignStructure[this.currentPhaseIndex])
@@ -2928,6 +2994,38 @@ class Game {
             ambushesSurvived: this.ambushesSurvivedThisMission
         };
 
+        this.enemiesKilledThisPhase += enemiesKilledThisMission;
+        this.hostagesRescuedThisPhase += rescuedHostagesCount;
+        if (this.fallenRaccoonsThisMission) {
+            this.fallenRaccoonsThisMission.forEach(fr => {
+                if (!this.fallenRaccoonsThisPhase.find(ffr => ffr.id === fr.id)) {
+                    this.fallenRaccoonsThisPhase.push(fr);
+                }
+            });
+        }
+        if (newlyRecruitedRaccoons) {
+            newlyRecruitedRaccoons.forEach(nr => {
+                if (!this.newRecruitsThisPhase.find(nnr => nnr.id === nr.id)) {
+                    this.newRecruitsThisPhase.push(nr);
+                }
+            });
+        }
+        if (this.deployedSquadRoster) {
+            this.deployedSquadRoster.forEach(r => {
+                if (r.promotedThisMission && !this.promotedRaccoonsThisPhase.find(pr => pr.id === r.id)) {
+                    this.promotedRaccoonsThisPhase.push(r);
+                }
+            });
+        }
+        this.missionResultsThisPhase.push({
+            name: this.currentMissionParams.baseParams?.name || 'Unknown Mission',
+            isVictory: isVictory,
+            enemiesKilled: enemiesKilledThisMission,
+            timeTaken: missionDuration.toFixed(1),
+            fallenRaccoons: [...this.fallenRaccoonsThisMission],
+            objectives: this.currentMissionParams.objectives ? this.currentMissionParams.objectives.map(o => ({ type: o.type, isComplete: o.isComplete, isPrimary: o.isPrimary, hostagesKilled: o.hostagesKilled })) : []
+        });
+
         if (this.ui) {
             this.ui.hideHUD();
         }
@@ -2936,7 +3034,7 @@ class Game {
             this.pendingDebriefData = debriefData;
             if (isLastMissionInPhase) {
                 this.gameState = 'EXTRACTION_VIDEO';
-                this._playExtractionVideo();
+                this._playExtractionVideo(true);
             } else if (rescuedHostagesCount > 0) {
                 this.gameState = 'EXTRACTION_VIDEO';
                 this._playExtractionVideo();
@@ -2953,9 +3051,13 @@ class Game {
         this.hostageUnits = [];
     }
 
-    async _playExtractionVideo() {
+    async _playExtractionVideo(skipPostMissionDebrief = false) {
         if (!this.ui) {
-            this._showDebriefScreen();
+            if (skipPostMissionDebrief) {
+                this._buildAndShowPhaseDebrief();
+            } else {
+                this._showDebriefScreen();
+            }
             return;
         }
 
@@ -2988,7 +3090,52 @@ class Game {
         }
 
         await this.ui.playExtractionVideo(videoPath);
-        this._showDebriefScreen();
+        if (skipPostMissionDebrief) {
+            this._buildAndShowPhaseDebrief();
+        } else {
+            this._showDebriefScreen();
+        }
+    }
+
+    _buildAndShowPhaseDebrief() {
+        const oldPhaseIndex = this.currentPhaseIndex;
+        const oldPhaseData = this.campaignStructure[oldPhaseIndex];
+        const phaseRules = this.campaignRules.PHASE_GENERATION;
+        const conclusionRNG = this.currentPhaseSeedRNG || this.campaignSeedRNG;
+        const casualtyReport = conclusionRNG.pickFrom(phaseRules.CASUALTY_REPORTS_POOL);
+        const outcomeAdjective = conclusionRNG.pickFrom(phaseRules.OUTCOME_ADJECTIVES_POOL);
+        const outcomeVerb = conclusionRNG.pickFrom(phaseRules.OUTCOME_VERBS_POOL);
+        const conclusionTemplate = conclusionRNG.pickFrom(phaseRules.CONCLUSION_TEMPLATES);
+        oldPhaseData.conclusion = this._fillTextTemplate(conclusionTemplate, {
+            phaseNum: oldPhaseIndex + 1,
+            phaseName: oldPhaseData.name,
+            biomeDescription: oldPhaseData.biomeDescription,
+            casualtyReport: casualtyReport,
+            outcomeAdjective: outcomeAdjective,
+            outcomeVerb: outcomeVerb
+        });
+        this.currentPhaseIndex++;
+        this.currentMissionIndex = 0;
+        if (this.currentPhaseIndex >= this.totalCampaignPhases) {
+            this.gameState = 'CAMPAIGN_COMPLETE';
+            const finalDebriefData = {
+                isVictory: true, campaignComplete: true,
+                phaseData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_PHASE_NAME, introduction: "The final battle is won!" },
+                missionData: { name: CONFIG.UI_TEXT_STRINGS.CAMPAIGN_COMPLETE_MISSION_NAME },
+                objectives: [{ type: "CAMPAIGN_WON", isComplete: true, descriptionTemplateKey: "OBJECTIVE_CAMPAIGN_WON_TEXT", isPrimary: true }],
+                survivingRaccoons: this.masterRoster.filter(r => r.isAlive()),
+                fallenRaccoons: this.fallenRaccoonsGlobal, enemiesKilled: "N/A", timeTaken: "N/A"
+            };
+            if (this.ui) this.ui.showPostMissionScreen_Debrief(finalDebriefData);
+            return;
+        }
+        if (!this.campaignStructure[this.currentPhaseIndex]) {
+            this._generatePhaseStructure(this.currentPhaseIndex);
+        }
+        const phaseDebriefData = this._buildPhaseDebriefData(oldPhaseData, oldPhaseIndex);
+        this.pendingPhaseDebriefData = phaseDebriefData;
+        this.gameState = 'END_OF_PHASE_DEBRIEF';
+        if (this.ui) this.ui.showEndOfPhaseDebrief(phaseDebriefData);
     }
 
     _showDebriefScreen() {
@@ -3020,16 +3167,18 @@ class Game {
         }
 
         if (this.currentMissionIndex >= currentPhaseStructure.missionsInPhase) {
+            const oldPhaseIndex = this.currentPhaseIndex;
+            const oldPhaseData = this.campaignStructure[oldPhaseIndex];
             const phaseRules = this.campaignRules.PHASE_GENERATION;
             const conclusionRNG = this.currentPhaseSeedRNG || this.campaignSeedRNG;
             const casualtyReport = conclusionRNG.pickFrom(phaseRules.CASUALTY_REPORTS_POOL);
             const outcomeAdjective = conclusionRNG.pickFrom(phaseRules.OUTCOME_ADJECTIVES_POOL);
             const outcomeVerb = conclusionRNG.pickFrom(phaseRules.OUTCOME_VERBS_POOL);
             const conclusionTemplate = conclusionRNG.pickFrom(phaseRules.CONCLUSION_TEMPLATES);
-            currentPhaseStructure.conclusion = this._fillTextTemplate(conclusionTemplate, {
-                phaseNum: this.currentPhaseIndex + 1,
-                phaseName: currentPhaseStructure.name,
-                biomeDescription: currentPhaseStructure.biomeDescription,
+            oldPhaseData.conclusion = this._fillTextTemplate(conclusionTemplate, {
+                phaseNum: oldPhaseIndex + 1,
+                phaseName: oldPhaseData.name,
+                biomeDescription: oldPhaseData.biomeDescription,
                 casualtyReport: casualtyReport,
                 outcomeAdjective: outcomeAdjective,
                 outcomeVerb: outcomeVerb
@@ -3052,6 +3201,12 @@ class Game {
             if (!this.campaignStructure[this.currentPhaseIndex]) {
                 this._generatePhaseStructure(this.currentPhaseIndex);
             }
+
+            const phaseDebriefData = this._buildPhaseDebriefData(oldPhaseData, oldPhaseIndex);
+            this.pendingPhaseDebriefData = phaseDebriefData;
+            this.gameState = 'END_OF_PHASE_DEBRIEF';
+            if (this.ui) this.ui.showEndOfPhaseDebrief(phaseDebriefData);
+            return;
         }
 
         if (this.getAvailableRecruits().length === 0) {
@@ -3063,7 +3218,6 @@ class Game {
             const nextPhaseData = this.campaignStructure[this.currentPhaseIndex];
             if (this.ui && nextPhaseData && this.currentMissionParams) {
                 this.gameState = 'PRE_MISSION_SELECT';
-                // Continue menu music for pre-mission
                 if (this.musicManager) {
                     this.musicManager.onGameStateChange('PRE_MISSION_SELECT');
                 }
@@ -3076,6 +3230,78 @@ class Game {
             this.gameState = 'CAMPAIGN_COMPLETE';
             if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_CONCLUDED_NO_MORE_MISSIONS, true);
         }
+    }
+
+    proceedFromPhaseDebriefToNextMission() {
+        if (this.getAvailableRecruits().length === 0) {
+            this.gameState = 'GAME_OVER_NO_RECRUITS';
+            if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.GAMEOVER_ALL_RECRUITS_KIA); return;
+        }
+
+        if (this.generateAndSetCurrentMissionParams(this.currentPhaseIndex, this.currentMissionIndex)) {
+            const nextPhaseData = this.campaignStructure[this.currentPhaseIndex];
+            if (this.ui && nextPhaseData && this.currentMissionParams) {
+                this.gameState = 'PRE_MISSION_SELECT';
+                if (this.musicManager) {
+                    this.musicManager.onGameStateChange('PRE_MISSION_SELECT');
+                }
+                this.ui.showPreMissionScreen_RecruitSelect(nextPhaseData, this.currentMissionParams, this.getAvailableRecruits());
+            } else {
+                if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.ERROR_PREPARING_NEXT_BRIEFING);
+                this.gameState = 'MAIN_MENU';
+            }
+        } else {
+            this.gameState = 'CAMPAIGN_COMPLETE';
+            if (this.ui) this.ui.showGameOverScreen(CONFIG.UI_TEXT_STRINGS.CAMPAIGN_CONCLUDED_NO_MORE_MISSIONS, true);
+        }
+    }
+
+    _buildPhaseDebriefData(phaseData, phaseIndex) {
+        const phaseDuration = (performance.now() - this.phaseStartTime) / 1000;
+        const endingRoster = this.masterRoster.filter(r => r.isAlive());
+        const startingCount = this.phaseStartRosterSnapshot ? this.phaseStartRosterSnapshot.length : 0;
+
+        let topKiller = null;
+        let topKillerKills = -1;
+        this.masterRoster.forEach(r => {
+            const killsAtStart = this.killsAtPhaseStart.get(r.id) || 0;
+            const killsThisPhase = (r.killCount || 0) - killsAtStart;
+            if (killsThisPhase > topKillerKills) {
+                topKillerKills = killsThisPhase;
+                topKiller = r;
+            }
+        });
+
+        const nextPhaseData = this.campaignStructure[this.currentPhaseIndex];
+
+        return {
+            phaseName: phaseData.name,
+            phaseNum: phaseIndex + 1,
+            biome: phaseData.biome,
+            biomeDescription: phaseData.biomeDescription,
+            conclusionText: phaseData.conclusion || '',
+            introductionText: phaseData.introduction || '',
+            missionsInPhase: phaseData.missionsInPhase,
+            totalEnemiesKilled: this.enemiesKilledThisPhase,
+            totalHostagesRescued: this.hostagesRescuedThisPhase,
+            totalFallenRaccoons: this.fallenRaccoonsThisPhase,
+            totalSurvivingRaccoons: endingRoster,
+            phaseDuration: phaseDuration,
+            missionResults: this.missionResultsThisPhase,
+            startingRoster: this.phaseStartRosterSnapshot,
+            endingRoster: endingRoster,
+            newRecruitedRaccoons: this.newRecruitsThisPhase,
+            promotedRaccoons: this.promotedRaccoonsThisPhase,
+            topKiller: topKiller,
+            topKillerKills: topKillerKills,
+            nextPhaseName: nextPhaseData ? nextPhaseData.name : null,
+            nextPhaseBiome: nextPhaseData ? nextPhaseData.biome : null,
+            nextPhaseIntro: nextPhaseData ? nextPhaseData.introduction : null,
+            casualtyCount: this.fallenRaccoonsThisPhase.length,
+            startingRosterCount: startingCount,
+            endingRosterCount: endingRoster.length,
+            isCampaignComplete: false
+        };
     }
 
     toggleFormation() {
@@ -3413,10 +3639,12 @@ class Game {
     }
 
     spawnFlyingBirdFlock() {
-        if (!this.birdSpawnConfig || !this.birdSpawnConfig.TILE_SHEET_PATHS || !(this.level && this.level.rng)) return;
+        if (!this.birdSpawnConfig || !(this.level && this.level.rng)) return;
 
         const rng = this.level.rng;
-        const sheetPaths = this.birdSpawnConfig.TILE_SHEET_PATHS;
+        const biomeName = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
+        const biomeBirdPaths = CONFIG.BIOMES[biomeName]?.flyingBirdSpritePaths;
+        const sheetPaths = biomeBirdPaths || this.birdSpawnConfig.TILE_SHEET_PATHS || [];
 
         const availableSheets = sheetPaths.filter(path => this.preloadedImages[path]);
         if (availableSheets.length === 0) return;
@@ -3487,6 +3715,13 @@ class Game {
             this.updateShootoutMode(deltaTime);
             // Check if ambush ended
             if (this.shootoutController && !this.shootoutController.isRoundActive) {
+                if (this.ambushResultPending) {
+                    // Ambush result UI is still showing; wait for handleAmbushResult to process
+                    // before transitioning state and restoring HUD
+                    return;
+                }
+                // Ambush result has been processed by handleAmbushResult — for VICTORY cases
+                // the state is already set to RUNNING, so this path handles cleanup only
                 // Ambush ended - just set state to RUNNING and restore HUD
                 // DON'T change music here - handleAmbushResult handles music based on victory/defeat
 //                console.log('[Game] SHOOTOUT_AMBUSH ended, setting gameState=RUNNING, missionEndInitiated=' + this.missionEndInitiated);
@@ -3579,6 +3814,54 @@ class Game {
                     }
                 }
             }
+        });
+
+        if (SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED) {
+            const _sc = SPEECH_CONFIG.GLOBAL;
+            allUnitsInGame.forEach(unit => {
+                if (!unit || !unit.isAlive()) return;
+                if (unit.speechCooldown > 0) unit.speechCooldown -= deltaTime;
+                unit.idleChatterTimer -= deltaTime;
+                if (unit.idleChatterTimer <= 0) {
+                    unit.idleChatterTimer = _sc.IDLE_CHATTER_INTERVAL_MIN + Math.random() * (_sc.IDLE_CHATTER_INTERVAL_MAX - _sc.IDLE_CHATTER_INTERVAL_MIN);
+                    this.trySpeech(unit, 'IDLE_CHATTER', _sc.IDLE_CHATTER_CHANCE);
+                }
+                unit.furbyTimer -= deltaTime;
+                if (unit.furbyTimer <= 0) {
+                    unit.furbyTimer = _sc.FURBY_COOLDOWN + Math.random() * 5.0;
+                    let _tk;
+                    if (unit instanceof RaccoonHostage) _tk = 'HOSTAGE';
+                    else if (unit instanceof Raccoon) _tk = 'RACCOON';
+                    else if (unit.team === 'enemy') _tk = 'POSSUM';
+                    else return;
+                    const _cats = Object.keys(SPEECH_CONFIG[_tk]);
+                    const _rc = _cats[Math.floor(Math.random() * _cats.length)];
+                    this.trySpeech(unit, _rc, 0.15);
+                }
+                if (this.spatialGrid && unit.speechCooldown <= 0) {
+                    const _nearby = this.spatialGrid.queryRange(unit.x, unit.y, _sc.PROXIMITY_RANGE);
+                    for (let _j = 0; _j < _nearby.length; _j++) {
+                        const _other = _nearby[_j];
+                        if (!(_other instanceof Unit) || _other === unit || !_other.isAlive()) continue;
+                        if (_other.team !== unit.team) continue;
+                        if (_other.speechCooldown > 0) continue;
+                        this.tryProximitySpeech(unit, _other);
+                        break;
+                    }
+                }
+            });
+        }
+
+        this.delayedSpeech = this.delayedSpeech.filter(ds => {
+            if (!ds.unit.isAlive()) return false;
+            ds.delay -= deltaTime;
+            if (ds.delay <= 0) {
+                this.addVisualEffect('speech_bubble', { parentUnit: ds.unit, text: ds.text, color: ds.color });
+                ds.unit.speechCooldown = SPEECH_CONFIG.GLOBAL.COOLDOWN_MIN +
+                    Math.random() * (SPEECH_CONFIG.GLOBAL.COOLDOWN_MAX - SPEECH_CONFIG.GLOBAL.COOLDOWN_MIN);
+                return false;
+            }
+            return true;
         });
 
         this.gameObjects = this.gameObjects.filter(obj => {
@@ -3695,9 +3978,9 @@ class Game {
         }
 
         let sortableObjects = [];
-        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
-        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
-        if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) - (isDeadUnit ? 10000 : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), isUnit: true, isDead: isDeadUnit }); } }); }
                     // --- MODIFICATION START: Fix extraction zone not being drawn after isHidden=false ---
             // Added check for isHidden to allow extraction zones to appear when revealed
             if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { 
@@ -3715,6 +3998,8 @@ class Game {
                     const isBehindLiving = !!obstacle.isDestroyed;
                     const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
                     const isTree = obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
+                    const isPickup = !!obstacle.isPickup;
+                    const isBuildingType = obstacle.type && (obstacle.type.includes('possum') || obstacle.type.includes('building') || obstacle.type.includes('hut') || obstacle.type.includes('barracks') || obstacle.type.includes('tower') || obstacle.type.includes('helipad'));
                     let sortYValue = obstacle.y + obstacle.height;
                     if (shapesArray && shapesArray.length > 0) {
                         let maxBottom = -Infinity;
@@ -3731,7 +4016,17 @@ class Game {
                         if (maxBottom !== -Infinity) sortYValue = maxBottom;
                     }
                     if (typeof sortYValue === 'number' && !isNaN(sortYValue)) {
-                        sortableObjects.push({ entity: obstacle, sortY: sortYValue - (isBehindLiving ? 10000 : 0) - (isHelipad ? 10000 : 0), isUnit: false, isDestroyed: isBehindLiving });
+                        let zOffset = 0;
+                        if (isHelipad) {
+                            zOffset += CONFIG.Z_INDEX.BACKGROUND;
+                        } else if (isBehindLiving) {
+                            if (isPickup) { zOffset += CONFIG.Z_INDEX.USED_PICKUP; }
+                            else if (isBuildingType) { zOffset += CONFIG.Z_INDEX.DESTROYED_BUILDING; }
+                            else { zOffset += CONFIG.Z_INDEX.DESTROYED_OBSTACLE; }
+                        } else if (isPickup) {
+                            zOffset += CONFIG.Z_INDEX.PICKUP;
+                        }
+                        sortableObjects.push({ entity: obstacle, sortY: sortYValue + zOffset, isUnit: false, isDestroyed: isBehindLiving });
                     }
                 }
             }); }
@@ -3788,7 +4083,7 @@ class Game {
             if (obj instanceof FlyingBird || obj instanceof UFO) {
                 return;
             } else if (this.isProjectileOrBird(obj) && typeof obj.y === 'number') {
-                sortableObjects.push({ entity: obj, sortY: obj.y, isUnit: true });
+                sortableObjects.push({ entity: obj, sortY: obj.y + CONFIG.Z_INDEX.PROJECTILE, isUnit: true });
             } else if (obj && typeof obj.render === 'function') {
                 obj.render(this.ctx);
             }
@@ -3854,6 +4149,21 @@ class Game {
                 }
             } catch (e) { }
         });
+
+        if (this.intelConsoles) {
+            this.intelConsoles.forEach(console => {
+                if (console && typeof console.renderOverlay === 'function') {
+                    console.renderOverlay(this.ctx);
+                }
+            });
+        }
+        if (this.possumTurrets) {
+            this.possumTurrets.forEach(turret => {
+                if (turret && typeof turret.renderOverlay === 'function') {
+                    turret.renderOverlay(this.ctx);
+                }
+            });
+        }
 
         this.gameObjects.forEach(obj => {
             if (obj instanceof FlyingBird || obj instanceof UFO) {
@@ -4450,6 +4760,110 @@ try {
             return; // This was the missing statement
         }
         // --- MODIFICATION END ---
+        if (type === 'speech_bubble' && data && data.parentUnit && data.text) {
+            const color = data.color || "#FFFFFF";
+            this.visualEffects.push(new SpeechBubbleEffect(data.parentUnit, data.text, this, color));
+            return;
+        }
+    }
+
+    trySpeech(unit, category, customChance) {
+        if (!SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED) return;
+        if (!unit || !unit.isAlive()) return;
+        if (unit.speechCooldown > 0) return;
+        let typeKey;
+        if (unit instanceof RaccoonHostage) typeKey = 'HOSTAGE';
+        else if (unit instanceof Raccoon) typeKey = 'RACCOON';
+        else if (unit.team === 'enemy') typeKey = 'POSSUM';
+        else return;
+        const options = SPEECH_CONFIG[typeKey][category];
+        if (!options || options.length === 0) return;
+        const chance = (customChance !== undefined) ? customChance : SPEECH_CONFIG.GLOBAL.BASE_CHANCE;
+        if (Math.random() >= chance) return;
+        const text = options[Math.floor(Math.random() * options.length)];
+        const colorKey = 'BUBBLE_COLOR_' + typeKey;
+        const color = SPEECH_CONFIG.GLOBAL[colorKey] || '#FFFFFF';
+        this.addVisualEffect('speech_bubble', { parentUnit: unit, text: text, color: color });
+        const cd = SPEECH_CONFIG.GLOBAL;
+        unit.speechCooldown = cd.COOLDOWN_MIN + Math.random() * (cd.COOLDOWN_MAX - cd.COOLDOWN_MIN);
+    }
+
+    resolveRelationship(unit, other, speakerType, targetType) {
+        if (speakerType === 'RACCOON' && targetType === 'RACCOON') {
+            const myRank = unit.rank;
+            const theirRank = other.rank;
+            const hier = SPEECH_CONFIG.RANK_HIERARCHY;
+            const myIdx = hier.indexOf(myRank);
+            const theirIdx = hier.indexOf(theirRank);
+            if (myRank === 'Ghost') return 'GHOST_to_ANY';
+            if (theirRank === 'Ghost') return 'ANY_to_GHOST';
+            if (myRank === 'Elite' && theirRank === 'Sergeant') return 'ELITE_to_SERGEANT';
+            if (myRank === 'Recruit' && theirRank === 'Recruit') return 'RECRUIT_to_RECRUIT';
+            if (myRank === theirRank) return 'SAME_RANK';
+            if (myIdx > theirIdx) return 'HIGHER_TO_LOWER';
+            return 'LOWER_TO_HIGHER';
+        }
+        if (speakerType === 'HOSTAGE' && targetType === 'HOSTAGE') return 'DEFAULT';
+        if (speakerType === 'RACCOON' && targetType === 'HOSTAGE') return 'DEFAULT';
+        if (speakerType === 'HOSTAGE' && targetType === 'RACCOON') return 'DEFAULT';
+        if (speakerType === 'POSSUM' && targetType === 'POSSUM') {
+            const myType = unit.constructor.name;
+            const theirType = other.constructor.name;
+            const hier = SPEECH_CONFIG.POSSUM_TYPE_HIERARCHY;
+            const myLvl = hier[myType] || 1;
+            const theirLvl = hier[theirType] || 1;
+            if (myType === theirType) return 'SAME_TYPE';
+            if (myType === 'PossumGrunt' && theirType === 'PossumElite') return 'GRUNT_TO_ELITE';
+            if (myType === 'PossumElite' && theirType === 'PossumGrunt') return 'ELITE_TO_GRUNT';
+            if (myType === 'PossumGrunt' && theirType === 'PossumBoss1') return 'GRUNT_TO_BOSS';
+            if (theirType === 'PossumSniper') return 'ANY_TO_SNIPER';
+            if (theirType === 'PossumHeavy') return 'ANY_TO_HEAVY';
+            if (myType === 'PossumGrunt' && theirType === 'PossumHeavy') return 'GRUNT_TO_HEAVY';
+            if (myType === 'PossumSniper' && theirType === 'PossumGrunt') return 'SNIPER_TO_GRUNT';
+            if (myLvl > theirLvl) return 'HIGHER_TO_LOWER';
+            return 'LOWER_TO_HIGHER';
+        }
+        return 'DEFAULT';
+    }
+
+    tryProximitySpeech(unit, other) {
+        if (!SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED) return;
+        if (unit.speechCooldown > 0) return;
+        if (other.speechCooldown > 0) return;
+        let speakerType;
+        if (unit instanceof RaccoonHostage) speakerType = 'HOSTAGE';
+        else if (unit instanceof Raccoon) speakerType = 'RACCOON';
+        else if (unit.team === 'enemy') speakerType = 'POSSUM';
+        else return;
+        let targetType;
+        if (other instanceof RaccoonHostage) targetType = 'HOSTAGE';
+        else if (other instanceof Raccoon) targetType = 'RACCOON';
+        else if (other.team === 'enemy') targetType = 'POSSUM';
+        else return;
+        const matrix = SPEECH_CONFIG.PROXIMITY_MATRIX[speakerType] && SPEECH_CONFIG.PROXIMITY_MATRIX[speakerType][targetType];
+        let entry;
+        let relKey = 'DEFAULT';
+        if (matrix) {
+            relKey = this.resolveRelationship(unit, other, speakerType, targetType);
+            entry = matrix[relKey];
+            if (!entry) entry = matrix['DEFAULT'];
+        }
+        if (!entry) {
+            this.trySpeech(unit, 'ON_PROXIMITY_ALLY', 0.4);
+            return;
+        }
+        const speakerLine = entry.speaker[Math.floor(Math.random() * entry.speaker.length)];
+        const colorKey = 'BUBBLE_COLOR_' + speakerType;
+        const color = SPEECH_CONFIG.GLOBAL[colorKey] || '#FFFFFF';
+        this.addVisualEffect('speech_bubble', { parentUnit: unit, text: speakerLine, color: color });
+        const cd = SPEECH_CONFIG.GLOBAL;
+        unit.speechCooldown = cd.COOLDOWN_MIN + Math.random() * (cd.COOLDOWN_MAX - cd.COOLDOWN_MIN);
+        if (entry.target && Math.random() < cd.PROXIMITY_TARGET_RESPONSE_CHANCE) {
+            const targetLine = entry.target[Math.floor(Math.random() * entry.target.length)];
+            const targetColorKey = 'BUBBLE_COLOR_' + targetType;
+            const targetColor = SPEECH_CONFIG.GLOBAL[targetColorKey] || '#FFFFFF';
+            this.delayedSpeech.push({ unit: other, text: targetLine, color: targetColor, delay: cd.PROXIMITY_TARGET_DELAY });
+        }
     }
 
     // --- SHOOTOUT MODE METHODS ---

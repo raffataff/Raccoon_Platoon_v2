@@ -124,13 +124,22 @@ class PossumGrunt extends Unit {
 
             if (this.aiState === 'PATROLLING' || this.aiState === 'SUSPICIOUS') {
                 this.propagateAlert(this.manualTarget);
+                if (this.game && this.game.trySpeech) {
+                    this.game.trySpeech(this, 'ON_ALERT', 0.3);
+                }
             }
 
             // This block now runs every frame, allowing the state to change dynamically.
             if (distToTarget <= (this.weapon.range - this.ENGAGE_RANGE_BUFFER) && losToTarget) {
                 this.aiState = 'ENGAGING_SHOOTING';
+                if (this.game && this.game.trySpeech) {
+                    this.game.trySpeech(this, 'ON_START_FIRING', 0.2);
+                }
             } else {
                 this.aiState = 'ENGAGING_CHASING';
+                if (this.game && this.game.trySpeech) {
+                    this.game.trySpeech(this, 'ON_CHASE', 0.15);
+                }
             }
         } else {
             if (this.aiState === 'ENGAGING_CHASING' || this.aiState === 'ENGAGING_SHOOTING') {

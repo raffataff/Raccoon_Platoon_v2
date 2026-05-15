@@ -159,6 +159,65 @@
         </div>
     </div>
 
+    <div id="endOfPhaseScreen" class="ui-panel" style="display: none;">
+        <h2 id="phaseDebriefTitle">PHASE COMPLETE</h2>
+        <p id="phaseDebriefSubtitle">Operation | Biome</p>
+
+        <div class="phase-debrief-tabs">
+            <button class="phase-debrief-tab active" data-tab="overview">Overview</button>
+            <button class="phase-debrief-tab" data-tab="missions">Missions</button>
+            <button class="phase-debrief-tab" data-tab="roster">Roster</button>
+            <button class="phase-debrief-tab" data-tab="casualties">Honor Roll</button>
+        </div>
+
+        <div class="phase-debrief-content">
+            <div id="phaseTabOverview" class="phase-debrief-tab-content active">
+                <div class="phase-overview-left">
+                    <div class="phase-conclusion-narrative"></div>
+                    <div class="phase-stats-grid"></div>
+                </div>
+                <div class="phase-overview-right">
+                    <div class="next-phase-preview"></div>
+                    <div class="phase-top-performer"></div>
+                </div>
+            </div>
+
+            <div id="phaseTabMissions" class="phase-debrief-tab-content">
+                <div class="mission-results-list"></div>
+            </div>
+
+            <div id="phaseTabRoster" class="phase-debrief-tab-content">
+                <div class="roster-comparison">
+                    <div class="roster-before-section">
+                        <h4>Roster at Phase Start</h4>
+                        <div class="roster-before-list unit-cards-grid"></div>
+                    </div>
+                    <div class="roster-after-section">
+                        <h4>Roster at Phase End</h4>
+                        <div class="roster-after-list unit-cards-grid"></div>
+                    </div>
+                </div>
+                <div class="roster-new-recruits-section">
+                    <h4>New Recruits</h4>
+                    <div class="roster-new-recruits-list unit-cards-grid"></div>
+                </div>
+                <div class="roster-promotions-section">
+                    <h4>Promotions</h4>
+                    <div class="roster-promotions-list unit-cards-grid"></div>
+                </div>
+            </div>
+
+            <div id="phaseTabCasualties" class="phase-debrief-tab-content">
+                <div class="honor-roll-list"></div>
+            </div>
+        </div>
+
+        <div class="phase-debrief-buttons">
+            <button id="viewMemorialFromPhaseBtn" style="display:none;">View Recruit Memorial</button>
+            <button id="continueFromPhaseDebriefBtn">Continue</button>
+        </div>
+    </div>
+
     <div id="pauseMenuScreen" class="ui-panel" style="display: none;">
         <h2>GAME PAUSED</h2>
         <div class="main-menu-buttons" style="width: 80%; margin-top: 20px;">
@@ -584,6 +643,7 @@
     <script src="js/input.js"></script>
 
     <script src="js/config.js"></script>
+    <script src="js/speechConfig.js"></script>
     <script src="js/biomes/tropical.js"></script>
     <script src="js/biomes/temperate.js"></script>
     <script src="js/biomes/index.js"></script>

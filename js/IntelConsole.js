@@ -90,8 +90,9 @@ class IntelConsole {
             ctx.strokeStyle = '#00FF00';
             ctx.strokeRect(this.x, this.y, this.width, this.height);
         }
+    }
 
-        // Draw hack progress bar if being hacked
+    renderOverlay(ctx) {
         if (this.isBeingHacked && !this.isHacked) {
             const progress = 1 - (this.hackTimer / this.hackDuration);
             const barWidth = 60;
@@ -107,14 +108,12 @@ class IntelConsole {
             ctx.lineWidth = 1;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
 
-            // Draw "HACKING..." text
             ctx.font = "bold 12px 'Consolas'";
             ctx.fillStyle = '#00FF00';
             ctx.textAlign = 'center';
             ctx.fillText("HACKING", this.x + this.width / 2, this.y - 25);
         }
 
-        // Draw "Press E to Hack" prompt if raccoon is nearby and not hacked
         if (!this.isHacked && !this.isBeingHacked) {
             const nearbyRaccoon = this.getNearestRaccoonInRange();
             if (nearbyRaccoon) {
