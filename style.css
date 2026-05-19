@@ -1146,6 +1146,19 @@ canvas#gameCanvas {
     transition: width 0.2s ease-out;
 }
 
+@keyframes healthBarFlash {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1.0; }
+}
+
+.health-bar-flash {
+    animation: healthBarFlash 0.6s ease-in-out infinite;
+}
+
+.health-bar-fade {
+    transition: opacity 0.3s ease-out;
+}
+
 
 #hud-objective {
     position: absolute;
@@ -1162,6 +1175,22 @@ canvas#gameCanvas {
     box-shadow: 2px 2px 0px #12110F, 3px 3px 5px rgba(0, 0, 0, 0.6);
     letter-spacing: 0.5px;
     z-index: 50;
+}
+
+/* Last Objective Highlight in HUD */
+.last-objective-highlight {
+    animation: last-objective-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes last-objective-pulse {
+    0%, 100% {
+        text-shadow: 0 0 4px currentColor;
+        opacity: 1;
+    }
+    50% {
+        text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
+        opacity: 0.7;
+    }
 }
 
 /* Night Mission HUD Badge */

@@ -109,6 +109,8 @@ class Game {
         this.missionEndMessage = "";
         this.pendingDebriefData = null;
 
+        this.lastObjectiveIndicator = { active: false, worldX: 0, worldY: 0, label: '', color: '#FFFFFF', objectiveType: '' };
+
         this.isGamePausedManually = false;
 
         this.isObjectiveComplete = false;
@@ -966,7 +968,7 @@ class Game {
             { name: 'palm2_double', files: TROPICAL_BIOME.spritePaths.tree_palm2_double?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_double?.path, type: 'single' },
             { name: 'palm2_triple', files: TROPICAL_BIOME.spritePaths.tree_palm2_triple?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_triple?.path, type: 'single' },
             { name: 'deciduous_fallen', files: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.path, type: 'single' },
-            { name: 'deciduous_single', files: TROPICAL_BIOME.spritePaths.tree_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree_deciduous_single?.path, type: 'single' },
+            { name: 'kapok_single', files: TROPICAL_BIOME.spritePaths.tree_kapok_single?.files, path: TROPICAL_BIOME.spritePaths.tree_kapok_single?.path, type: 'single' },
             { name: 'tree4_deciduous', files: TROPICAL_BIOME.spritePaths.tree4_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree4_deciduous_single?.path, type: 'single' },
             { name: 'tree5_deciduous', files: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.path, type: 'single' },
             { name: 'tree_fan_single', files: TROPICAL_BIOME.spritePaths.tree_fan_single?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_single?.path, type: 'single' },
@@ -1186,105 +1188,112 @@ class Game {
         const baseMudColor = biomeLevelGen.WORLD_BASE_MUD_COLOR || CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
         const grassSpriteFiles = biome.spritePaths.grass?.files || CONFIG.GRASS_SPRITE_FILES;
         const grassSpritePath = biome.spritePaths.grass?.path || CONFIG.GRASS_SPRITE_PATH;
-        const configuredTileSize = biomeLevelGen.WORLD_GRASS_TILE_SIZE || CONFIG.WORLD_GRASS_TILE_SIZE || 64;
+        const baseTileSize = 64;
+        const grassScale = biomeLevelGen.WORLD_GRASS_TILE_SCALE !== undefined ? biomeLevelGen.WORLD_GRASS_TILE_SCALE : (CONFIG.WORLD_GRASS_TILE_SCALE !== undefined ? CONFIG.WORLD_GRASS_TILE_SCALE : 1.0);
+        const configuredTileSize = baseTileSize * grassScale;
         const overlapFactor = biomeLevelGen.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? biomeLevelGen.WORLD_GRASS_TILE_OVERLAP_FACTOR : (CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR !== undefined ? CONFIG.WORLD_GRASS_TILE_OVERLAP_FACTOR : 0.2);
-        
-        ctx.fillStyle = baseMudColor;
-        ctx.fillRect(0, 0, worldWidth, worldHeight);
-            
+        const mudScale = biomeLevelGen.WORLD_MUD_TILE_SCALE !== undefined ? biomeLevelGen.WORLD_MUD_TILE_SCALE : (CONFIG.WORLD_MUD_TILE_SCALE !== undefined ? CONFIG.WORLD_MUD_TILE_SCALE : 1.0);
+        const mudTileSize = baseTileSize * mudScale;
+        const mudOverlapFactor = biomeLevelGen.WORLD_MUD_TILE_OVERLAP_FACTOR !== undefined ? biomeLevelGen.WORLD_MUD_TILE_OVERLAP_FACTOR : (CONFIG.WORLD_MUD_TILE_OVERLAP_FACTOR !== undefined ? CONFIG.WORLD_MUD_TILE_OVERLAP_FACTOR : overlapFactor);
+        const mudParams = this.currentPhaseMudParams || {};
+        const skipChance = mudParams.grassSkipChance ?? biomeLevelGen.WORLD_GRASS_SKIP_CHANCE ?? CONFIG.WORLD_GRASS_SKIP_CHANCE ?? 0.0;
+
+        const mudSpritePath = biome.spritePaths.mud?.path || CONFIG.MUD_SPRITE_PATH || '';
+        const mudSpriteFiles = biome.spritePaths.mud?.files || CONFIG.MUD_SPRITE_FILES || [];
+        const hasMudSprites = mudSpriteFiles.length > 0;
+
+        const noiseScaleX = mudParams.noiseScaleX ?? biomeLevelGen.WORLD_MUD_NOISE_SCALE_X ?? CONFIG.WORLD_MUD_NOISE_SCALE_X ?? 0.05;
+        const noiseScaleY = mudParams.noiseScaleY ?? biomeLevelGen.WORLD_MUD_NOISE_SCALE_Y ?? CONFIG.WORLD_MUD_NOISE_SCALE_Y ?? 0.05;
+        const noiseThreshold = mudParams.noiseThreshold ?? biomeLevelGen.WORLD_MUD_NOISE_THRESHOLD ?? CONFIG.WORLD_MUD_NOISE_THRESHOLD ?? 0.3;
+        const noiseOctaves = mudParams.noiseOctaves ?? biomeLevelGen.WORLD_MUD_NOISE_OCTAVES ?? CONFIG.WORLD_MUD_NOISE_OCTAVES ?? 4;
+        const patchScaleX = mudParams.patchScaleX ?? biomeLevelGen.WORLD_MUD_PATCH_SCALE_X ?? CONFIG.WORLD_MUD_PATCH_SCALE_X ?? 0.003;
+        const patchScaleY = mudParams.patchScaleY ?? biomeLevelGen.WORLD_MUD_PATCH_SCALE_Y ?? CONFIG.WORLD_MUD_PATCH_SCALE_Y ?? 0.003;
+        const blendWidth = mudParams.blendWidth ?? biomeLevelGen.WORLD_MUD_BLEND_WIDTH ?? CONFIG.WORLD_MUD_BLEND_WIDTH ?? 0.15;
+
+        const doRandomRotation = biomeLevelGen.WORLD_MUD_RANDOM_ROTATION !== undefined ? biomeLevelGen.WORLD_MUD_RANDOM_ROTATION : (CONFIG.WORLD_MUD_RANDOM_ROTATION !== undefined ? CONFIG.WORLD_MUD_RANDOM_ROTATION : true);
+
+        if (hasMudSprites) {
+            const mudStepX = mudTileSize * (1 - mudOverlapFactor + 0.1);
+            const mudStepY = mudTileSize * (1 - mudOverlapFactor);
+            for (let y = -mudTileSize * mudOverlapFactor; y < worldHeight; y += mudStepY) {
+                const rowOffset = (Math.floor((y + mudTileSize * mudOverlapFactor) / mudStepY) % 2 === 1) ? mudStepX / 2 : 0;
+                for (let x = -mudTileSize * mudOverlapFactor; x < worldWidth; x += mudStepX) {
+                    const effectiveX = x + rowOffset;
+                    const randomMudSprite = localRng.pickFrom(mudSpriteFiles);
+                    const mudSpriteFullPath = mudSpritePath + randomMudSprite;
+                    const mudImg = this.preloadedImages[mudSpriteFullPath];
+                    if (mudImg) {
+                        const mudOffsetX = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.5;
+                        const mudOffsetY = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.5;
+                        const rotation = doRandomRotation ? localRng.nextFloat(0, Math.PI * 2) : 0;
+                        const flipH = localRng.chance(0.5) ? -1 : 1;
+                        const drawX = effectiveX + mudOffsetX;
+                        const drawY = y + mudTileSize / 2;
+                        const centerX = drawX + mudTileSize / 2;
+                        const centerY = drawY + mudTileSize / 2;
+                        ctx.save();
+                        ctx.translate(centerX, centerY);
+                        ctx.rotate(rotation);
+                        ctx.scale(flipH, 1);
+                        ctx.drawImage(mudImg, -mudTileSize / 2, -mudTileSize / 2, mudTileSize, mudTileSize);
+                        ctx.restore();
+                    }
+                }
+            }
+        } else {
+            ctx.fillStyle = baseMudColor;
+            ctx.fillRect(0, 0, worldWidth, worldHeight);
+        }
+
         if (grassSpriteFiles && grassSpriteFiles.length > 0 && grassSpritePath) {
             const stepX = configuredTileSize * (1 - overlapFactor + 0.1);
             const stepY = configuredTileSize * (1 - overlapFactor);
-
-            const mudParams = this.currentPhaseMudParams || {};
-            const skipChance = mudParams.grassSkipChance ?? biomeLevelGen.WORLD_GRASS_SKIP_CHANCE ?? CONFIG.WORLD_GRASS_SKIP_CHANCE ?? 0.0;
-            const skipMin = mudParams.grassSkipMin ?? biomeLevelGen.WORLD_GRASS_SKIP_MIN ?? CONFIG.WORLD_GRASS_SKIP_MIN ?? 1;
-            const skipMax = mudParams.grassSkipMax ?? biomeLevelGen.WORLD_GRASS_SKIP_MAX ?? CONFIG.WORLD_GRASS_SKIP_MAX ?? 1;
-
-            const mudSpritePath = biome.spritePaths.mud?.path || CONFIG.MUD_SPRITE_PATH || '';
-            const mudSpriteFiles = biome.spritePaths.mud?.files || CONFIG.MUD_SPRITE_FILES || [];
-            const hasMudSprites = mudSpriteFiles.length > 0;
-
-            const noiseScaleX = mudParams.noiseScaleX ?? biomeLevelGen.WORLD_MUD_NOISE_SCALE_X ?? CONFIG.WORLD_MUD_NOISE_SCALE_X ?? 0.05;
-            const noiseScaleY = mudParams.noiseScaleY ?? biomeLevelGen.WORLD_MUD_NOISE_SCALE_Y ?? CONFIG.WORLD_MUD_NOISE_SCALE_Y ?? 0.05;
-            const noiseThreshold = mudParams.noiseThreshold ?? biomeLevelGen.WORLD_MUD_NOISE_THRESHOLD ?? CONFIG.WORLD_MUD_NOISE_THRESHOLD ?? 0.3;
-            const noiseOctaves = mudParams.noiseOctaves ?? biomeLevelGen.WORLD_MUD_NOISE_OCTAVES ?? CONFIG.WORLD_MUD_NOISE_OCTAVES ?? 4;
-            const patchScaleX = mudParams.patchScaleX ?? biomeLevelGen.WORLD_MUD_PATCH_SCALE_X ?? CONFIG.WORLD_MUD_PATCH_SCALE_X ?? 0.003;
-            const patchScaleY = mudParams.patchScaleY ?? biomeLevelGen.WORLD_MUD_PATCH_SCALE_Y ?? CONFIG.WORLD_MUD_PATCH_SCALE_Y ?? 0.003;
-            const blendWidth = mudParams.blendWidth ?? biomeLevelGen.WORLD_MUD_BLEND_WIDTH ?? CONFIG.WORLD_MUD_BLEND_WIDTH ?? 0.15;
 
             for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
                 const rowOffset = (Math.floor((y + configuredTileSize * overlapFactor) / stepY) % 2 === 1) ? stepX / 2 : 0;
                 for (let x = -configuredTileSize * overlapFactor; x < worldWidth; x += stepX) {
                     const effectiveX = x + rowOffset;
 
-                    let mudFactor = 0;
+                    let skipGrass = false;
                     if (skipChance > 0) {
                         const patchValue = localRng.fbm(effectiveX * patchScaleX, y * patchScaleY, Math.max(1, noiseOctaves - 1), 2, 0.5);
                         const detailValue = localRng.fbm(effectiveX * noiseScaleX, y * noiseScaleY, noiseOctaves, 2, 0.5);
                         const combinedValue = patchValue * 0.7 + detailValue * 0.3;
                         const t = (combinedValue - noiseThreshold) / Math.max(0.01, blendWidth);
-                        mudFactor = Math.max(0, Math.min(1, t));
+                        const mudFactor = Math.max(0, Math.min(1, t));
                         if (mudFactor > 0 && mudFactor < 1) {
-                            mudFactor = localRng.chance(mudFactor) ? 1 : 0;
+                            skipGrass = localRng.chance(mudFactor);
+                        } else {
+                            skipGrass = mudFactor >= 1;
                         }
                     }
 
-                    const isMudTile = mudFactor >= 1;
+                    if (skipGrass) {
+                        continue;
+                    }
 
-                    if (isMudTile) {
-                        if (hasMudSprites) {
-                            const randomMudSprite = localRng.pickFrom(mudSpriteFiles);
-                            const mudSpriteFullPath = mudSpritePath + randomMudSprite;
-                            const mudImg = this.preloadedImages[mudSpriteFullPath];
-                            if (mudImg) {
-                                const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                                const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                                const rotation = localRng.nextFloat(0, Math.PI * 2);
-                                const flipH = localRng.chance(0.5) ? -1 : 1;
-                                const drawX = effectiveX + offsetX;
-                                const drawY = y  + configuredTileSize / 2;
-                                const centerX = drawX + configuredTileSize / 2;
-                                const centerY = drawY + configuredTileSize / 2;
-                                ctx.save();
-                                ctx.translate(centerX, centerY);
-                                ctx.rotate(rotation);
-                                ctx.scale(flipH, 1);
-                                ctx.drawImage(mudImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
-                                ctx.restore();
-                            } else {
-                                ctx.fillStyle = baseMudColor;
-                                ctx.fillRect(effectiveX, y, configuredTileSize, configuredTileSize);
-                            }
-                        } else {
-                            ctx.fillStyle = baseMudColor;
-                            ctx.fillRect(effectiveX, y, configuredTileSize, configuredTileSize);
-                        }
-                    } else {
-                            const randomSpriteName = localRng.pickFrom(grassSpriteFiles);
-                            const spritePath = grassSpritePath + randomSpriteName;
-                            const grassImg = this.preloadedImages[spritePath];
+                    const randomSpriteName = localRng.pickFrom(grassSpriteFiles);
+                    const spritePath = grassSpritePath + randomSpriteName;
+                    const grassImg = this.preloadedImages[spritePath];
 
-                            if (grassImg) {
-                                const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                                const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                                const flipH = localRng.chance(0.5) ? -1 : 1;
-                                const drawX = effectiveX + offsetX;
-                                const drawY = y + offsetY + configuredTileSize / 2;
-                                const centerX = drawX + configuredTileSize / 2;
-                                const centerY = drawY + configuredTileSize / 2;
-                                ctx.save();
-                                ctx.translate(centerX, centerY);
-                                ctx.scale(flipH, 1);
-                                ctx.drawImage(grassImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
-                                ctx.restore();
-                            }
-                        }
+                    if (grassImg) {
+                        const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                        const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                        const flipH = localRng.chance(0.5) ? -1 : 1;
+                        const drawX = effectiveX + offsetX;
+                        const drawY = y + offsetY + configuredTileSize / 2;
+                        const centerX = drawX + configuredTileSize / 2;
+                        const centerY = drawY + configuredTileSize / 2;
+                        ctx.save();
+                        ctx.translate(centerX, centerY);
+                        ctx.scale(flipH, 1);
+                        ctx.drawImage(grassImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
+                        ctx.restore();
                     }
                 }
             }
         }
-    
+    }
 
     start() {
         if (!this.masterRoster || this.masterRoster.length === 0) {
@@ -1652,13 +1661,14 @@ class Game {
         // Initialize shootout controller if needed
         this.initShootoutForAmbush();
         
-        // Get random background and night mode setting
-        const background = this.getRandomAmbushBackground();
+        const background = this.getRandomAmbushBackground(
+            this.currentMissionParams?.baseParams?.biome
+        );
         const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
-        
+
         // Store previous game state
         this.previousGameState = this.gameState;
-        
+
         // Pre-configure shootout with background and start music BEFORE showing alert
         if (this.shootoutController) {
             this.shootoutController.setBackground(background);
@@ -2371,6 +2381,14 @@ class Game {
         this.cameraY = Math.max(0, Math.min(this.cameraY, maxY));
     }
 
+    worldToScreen(worldX, worldY) {
+        const zoom = this.cameraZoom || 1.0;
+        return {
+            x: (worldX - this.cameraX) * zoom,
+            y: (worldY - this.cameraY) * zoom
+        };
+    }
+
     _instantiateObjective(objDef, phaseIdx, isPrimary, forceSpecificTargetKey = null) {
         const baseP = this.currentMissionParams.baseParams;
         const newObj = {
@@ -3028,6 +3046,7 @@ class Game {
 
         if (this.ui) {
             this.ui.hideHUD();
+            this.ui.hideShootoutHud();
         }
 
         if (isVictory) {
@@ -3585,6 +3604,8 @@ class Game {
             });
         }
 
+        this._updateLastObjectiveIndicator();
+
         const livingPlayerRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()).length : 0;
         if (livingPlayerRaccoons === 0 && this.deployedSquadRoster.length > 0) {
             if (this.gameState === 'RUNNING') {
@@ -3638,8 +3659,216 @@ class Game {
         }
     }
 
+    _updateLastObjectiveIndicator() {
+        const cfg = CONFIG.OBJECTIVE_INDICATOR;
+        if (!cfg || !cfg.ENABLED) {
+            this.lastObjectiveIndicator.active = false;
+            return;
+        }
+
+        if (!this.currentMissionParams || !this.currentMissionParams.objectives) {
+            this.lastObjectiveIndicator.active = false;
+            return;
+        }
+
+        const incompleteObjs = this.currentMissionParams.objectives.filter(o => !o.isComplete);
+
+        if (incompleteObjs.length !== 1) {
+            this.lastObjectiveIndicator.active = false;
+            return;
+        }
+
+        const obj = incompleteObjs[0];
+        const colorKey = obj.type;
+        const color = cfg.COLORS[colorKey] || cfg.COLORS.DEFAULT;
+        const label = cfg.LABELS[colorKey] || cfg.LABELS.DEFAULT;
+
+        let worldX = 0, worldY = 0;
+        let found = false;
+
+        if (obj.type === 'INTERACT_INTEL') {
+            const unhacked = this.intelConsoles ? this.intelConsoles.filter(c => !c.isHacked && c.objectiveId === obj.id) : [];
+            if (unhacked.length > 0) {
+                const target = unhacked[0];
+                worldX = target.x;
+                worldY = target.y;
+                found = true;
+            }
+        } else if (obj.type === 'RESCUE_HOSTAGES') {
+            const unrescued = this.hostageUnits ? this.hostageUnits.filter(h => !h.isRescued && h.isAlive()) : [];
+            if (unrescued.length > 0) {
+                const target = unrescued[0];
+                worldX = target.x;
+                worldY = target.y;
+                found = true;
+            }
+        } else if (obj.type === 'RESCUE_TAKEN_HOSTAGE') {
+            const target = this.hostageUnits ? this.hostageUnits.find(h => h.originalRaccoonId === obj.targetRaccoonId || h.id === obj.targetRaccoonId) : null;
+            if (target && !target.isRescued && target.isAlive()) {
+                worldX = target.x;
+                worldY = target.y;
+                found = true;
+            }
+        } else if (obj.type === 'ASSASSINATION') {
+            if (obj.targetUnitId) {
+                const targetUnit = this.enemyUnits.find(e => e.id === obj.targetUnitId);
+                if (targetUnit && targetUnit.isAlive()) {
+                    worldX = targetUnit.x;
+                    worldY = targetUnit.y;
+                    found = true;
+                }
+            }
+        } else if (obj.type === 'DESTROY_TARGET') {
+            const remaining = this.level && this.level.missionTargetObstacles ?
+                this.level.missionTargetObstacles.filter(t => t.type.startsWith(obj.targetTypeKeyPrefix) && !t.isDestroyed && t.objectiveId === obj.id) : [];
+            if (remaining.length > 0) {
+                const target = remaining[0];
+                worldX = target.x + (target.width / 2);
+                worldY = target.y + (target.height / 2);
+                found = true;
+            }
+        } else if (obj.type === 'EXTERMINATE') {
+            const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()) : [];
+            if (aliveEnemies.length > 0) {
+                let closestDist = Infinity;
+                let closest = null;
+                const canvasW = this.canvas.width;
+                const canvasH = this.canvas.height;
+                const zoom = this.cameraZoom || 1.0;
+                const screenCX = canvasW / 2;
+                const screenCY = canvasH / 2;
+                for (const enemy of aliveEnemies) {
+                    const sx = (enemy.x - this.cameraX) * zoom;
+                    const sy = (enemy.y - this.cameraY) * zoom;
+                    const dx = sx - screenCX;
+                    const dy = sy - screenCY;
+                    const dist = dx * dx + dy * dy;
+                    if (dist < closestDist) {
+                        closestDist = dist;
+                        closest = enemy;
+                    }
+                }
+                if (closest) {
+                    worldX = closest.x;
+                    worldY = closest.y;
+                    found = true;
+                }
+            }
+        } else if (obj.type === 'EXTRACTION') {
+            const zones = this.level && this.level.obstacles ? this.level.obstacles.filter(o => o.type === 'extraction_zone') : [];
+            if (zones.length > 0) {
+                const zone = zones[0];
+                worldX = zone.x + zone.width / 2;
+                worldY = zone.y + zone.height / 2;
+                found = true;
+            }
+        }
+
+        if (found) {
+            this.lastObjectiveIndicator = {
+                active: true,
+                worldX,
+                worldY,
+                label,
+                color,
+                objectiveType: obj.type
+            };
+        } else {
+            this.lastObjectiveIndicator.active = false;
+        }
+    }
+
+    _renderObjectiveIndicator() {
+        const ind = this.lastObjectiveIndicator;
+        if (!ind || !ind.active) return;
+
+        const cfg = CONFIG.OBJECTIVE_INDICATOR;
+        const canvasW = this.canvas.width;
+        const canvasH = this.canvas.height;
+        const zoom = this.cameraZoom || 1.0;
+
+        const screen = this.worldToScreen(ind.worldX, ind.worldY);
+        const sx = screen.x;
+        const sy = screen.y;
+
+        const cx = canvasW / 2;
+        const cy = canvasH / 2;
+        const dx = sx - cx;
+        const dy = sy - cy;
+        const angle = Math.atan2(dy, dx);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        const pulse = 1.0 + Math.sin(performance.now() / 1000 * cfg.PULSE_SPEED) * cfg.PULSE_AMOUNT;
+        const color = ind.color;
+
+        const onScreenX = sx >= cfg.WORLD_MARKER_ON_SCREEN_MARGIN && sx <= canvasW - cfg.WORLD_MARKER_ON_SCREEN_MARGIN;
+        const onScreenY = sy >= cfg.WORLD_MARKER_ON_SCREEN_MARGIN && sy <= canvasH - cfg.WORLD_MARKER_ON_SCREEN_MARGIN;
+
+        this.ctx.save();
+
+        if (onScreenX && onScreenY) {
+            const r = cfg.WORLD_MARKER_RADIUS * pulse;
+            this.ctx.strokeStyle = color;
+            this.ctx.lineWidth = 2.5;
+            this.ctx.globalAlpha = 0.9;
+            this.ctx.beginPath();
+            this.ctx.arc(sx, sy, r, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.beginPath();
+            this.ctx.arc(sx, sy, r * 0.5, 0, Math.PI * 2);
+            this.ctx.stroke();
+            this.ctx.globalAlpha = 0.3;
+            this.ctx.fillStyle = color;
+            this.ctx.beginPath();
+            this.ctx.arc(sx, sy, r, 0, Math.PI * 2);
+            this.ctx.fill();
+            this.ctx.globalAlpha = 1.0;
+
+            this.ctx.font = `bold ${cfg.FONT_SIZE}px 'Consolas', 'Lucida Console', monospace`;
+            this.ctx.textAlign = 'center';
+            this.ctx.fillStyle = color;
+            this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            this.ctx.shadowBlur = 4;
+            this.ctx.fillText(ind.label, sx, sy - r - cfg.LABEL_OFFSET);
+            this.ctx.shadowBlur = 0;
+        } else {
+            const edgeDist = Math.min(canvasW, canvasH) / 2 - cfg.EDGE_MARGIN;
+            const arrowDist = edgeDist - cfg.ARROW_OFFSET;
+            const ax = cx + Math.cos(angle) * arrowDist;
+            const ay = cy + Math.sin(angle) * arrowDist;
+
+            const arrowSize = cfg.ARROW_SIZE * pulse;
+
+            this.ctx.translate(ax, ay);
+            this.ctx.rotate(angle);
+
+            this.ctx.shadowColor = 'rgba(0,0,0,0.7)';
+            this.ctx.shadowBlur = 4;
+            this.ctx.fillStyle = color;
+            this.ctx.beginPath();
+            this.ctx.moveTo(arrowSize, 0);
+            this.ctx.lineTo(-arrowSize * 0.6, -arrowSize * 0.5);
+            this.ctx.lineTo(-arrowSize * 0.2, 0);
+            this.ctx.lineTo(-arrowSize * 0.6, arrowSize * 0.5);
+            this.ctx.closePath();
+            this.ctx.fill();
+            this.ctx.shadowBlur = 0;
+
+            this.ctx.rotate(-angle);
+            this.ctx.font = `bold ${cfg.FONT_SIZE}px 'Consolas', 'Lucida Console', monospace`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillStyle = color;
+            this.ctx.shadowColor = 'rgba(0,0,0,0.8)';
+            this.ctx.shadowBlur = 4;
+            this.ctx.fillText(ind.label, 0, -arrowSize - cfg.LABEL_OFFSET);
+            this.ctx.shadowBlur = 0;
+        }
+
+        this.ctx.restore();
+    }
+
     spawnFlyingBirdFlock() {
-        if (!this.birdSpawnConfig || !(this.level && this.level.rng)) return;
 
         const rng = this.level.rng;
         const biomeName = this.currentMissionParams?.baseParams?.biome || 'TROPICAL';
@@ -3999,7 +4228,6 @@ class Game {
                     const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
                     const isTree = obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
                     const isPickup = !!obstacle.isPickup;
-                    const isBuildingType = obstacle.type && (obstacle.type.includes('possum') || obstacle.type.includes('building') || obstacle.type.includes('hut') || obstacle.type.includes('barracks') || obstacle.type.includes('tower') || obstacle.type.includes('helipad'));
                     let sortYValue = obstacle.y + obstacle.height;
                     if (shapesArray && shapesArray.length > 0) {
                         let maxBottom = -Infinity;
@@ -4021,7 +4249,6 @@ class Game {
                             zOffset += CONFIG.Z_INDEX.BACKGROUND;
                         } else if (isBehindLiving) {
                             if (isPickup) { zOffset += CONFIG.Z_INDEX.USED_PICKUP; }
-                            else if (isBuildingType) { zOffset += CONFIG.Z_INDEX.DESTROYED_BUILDING; }
                             else { zOffset += CONFIG.Z_INDEX.DESTROYED_OBSTACLE; }
                         } else if (isPickup) {
                             zOffset += CONFIG.Z_INDEX.PICKUP;
@@ -4145,7 +4372,7 @@ class Game {
                     this.ctx.restore(); // Restore context after potential flip
                     // --- MODIFICATION END ---
 
-                    const objType = obj.type || ''; const isEnvironmentalProp = objType.includes('tree') || objType.includes('rock') || objType.includes('barrel') || objType.includes('log'); if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && !isEnvironmentalProp) { const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR; const hpBarHeight = healthBarStyle.HEIGHT || 4; const hpBarWidth = Math.min(obj.width * 0.7, 60); const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4; this.ctx.fillStyle = healthBarStyle.BG_COLOR || '#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2); let fillColor = healthBarStyle.HP_COLOR_FULL || '#0c0'; const hpPercent = obj.hp / obj.maxHp; if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) { fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000'; } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) { fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#D09040'; } this.ctx.fillStyle = fillColor; this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight); }
+                    const objType = obj.type || ''; const isEnvironmentalProp = objType.includes('tree') || objType.includes('rock') || objType.includes('barrel') || objType.includes('log'); if (obj.destructible && !obj.isDestroyed && obj.hp < obj.maxHp && obj.hp > 0 && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR && !isEnvironmentalProp) { const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR; const hpBarHeight = healthBarStyle.HEIGHT || 4; const hpBarWidth = Math.min(obj.width * 0.7, 60); const barX = obj.x + (obj.width - hpBarWidth) / 2; const barY = obj.y - hpBarHeight - 4; const hpPercent = obj.hp / obj.maxHp; let barOpacity = 1.0; const fadeThreshold = healthBarStyle.FADE_START_THRESHOLD || 0.25; const flashThreshold = healthBarStyle.FLASH_THRESHOLD || 0.25; if (hpPercent <= flashThreshold) { const flashSpeed = healthBarStyle.FLASH_SPEED || 8; const flashMin = healthBarStyle.FLASH_MIN_OPACITY || 0.3; const flashMax = healthBarStyle.FLASH_MAX_OPACITY || 1.0; const t = Math.sin(performance.now() / 1000 * flashSpeed) * 0.5 + 0.5; barOpacity = flashMin + t * (flashMax - flashMin); } else if (hpPercent > fadeThreshold) { const fadeMin = healthBarStyle.FADE_MIN_OPACITY || 0.15; barOpacity = 1.0 - (hpPercent - fadeThreshold) / (1.0 - fadeThreshold) * (1.0 - fadeMin); } this.ctx.save(); this.ctx.globalAlpha = barOpacity; this.ctx.fillStyle = healthBarStyle.BG_COLOR || '#111'; this.ctx.fillRect(barX - 1, barY - 1, hpBarWidth + 2, hpBarHeight + 2); let fillColor = healthBarStyle.HP_COLOR_FULL || '#0c0'; if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3)) { fillColor = healthBarStyle.HP_COLOR_LOW || '#CC0000'; } else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) { fillColor = healthBarStyle.HP_COLOR_MEDIUM || '#D09040'; } this.ctx.fillStyle = fillColor; this.ctx.fillRect(barX, barY, hpBarWidth * hpPercent, hpBarHeight); this.ctx.restore(); }
                 }
             } catch (e) { }
         });
@@ -4484,6 +4711,9 @@ class Game {
         }
 
         this.ctx.restore();
+
+        // --- Objective Directional Indicator ---
+        this._renderObjectiveIndicator();
 
         // --- Night Mission Darkness Overlay ---
         if (this.isNightMission && CONFIG.NIGHT_MISSION &&
@@ -5011,11 +5241,15 @@ try {
     }
 
     /**
-     * Get a random background from ambush backgrounds
+     * Get a random background from ambush backgrounds for the given biome
+     * @param {string} biomeName - Biome key (e.g. 'TROPICAL', 'TEMPERATE')
      * @returns {string}
      */
-    getRandomAmbushBackground() {
-        const backgrounds = CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS;
+    getRandomAmbushBackground(biomeName) {
+        const biomeKey = (biomeName && CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeName])
+            ? biomeName
+            : 'TROPICAL';
+        const backgrounds = CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeKey];
         return backgrounds[Math.floor(Math.random() * backgrounds.length)];
     }
 
@@ -5039,7 +5273,9 @@ try {
         this.initShootoutForAmbush();
         
         // Get random background and night mode setting
-        const background = this.getRandomAmbushBackground();
+        const background = this.getRandomAmbushBackground(
+            this.currentMissionParams?.baseParams?.biome
+        );
         const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
         
         // Store previous game state

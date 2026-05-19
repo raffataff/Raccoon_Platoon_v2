@@ -4,6 +4,7 @@ class PossumGrunt extends Unit {
     constructor(x, y, game, id) {
         super(x, y, game, 'enemy', CONFIG.POSSUM_GRUNT_HP, CONFIG.POSSUM_GRUNT_SPEED, CONFIG.POSSUM_GRUNT_SIZE, CONFIG.POSSUM_GRUNT_COLOR, id);
 
+        this.turnRate = CONFIG.POSSUM_GRUNT_TURN_RATE;
         this.deadSpritePathKey = 'POSSUM_GRUNT_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_GRUNT_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_GRUNT_DEAD_SPRITE_SCALE';

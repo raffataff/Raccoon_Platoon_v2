@@ -9,6 +9,7 @@ class PossumElite extends Unit {
               CONFIG.POSSUM_ELITE_COLOR,
               id || `PSME-${Date.now().toString(36).slice(-4)}`);
 
+        this.turnRate = CONFIG.POSSUM_ELITE_TURN_RATE;
         this.deadSpritePathKey = 'POSSUM_ELITE_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_ELITE_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_ELITE_DEAD_SPRITE_SCALE';

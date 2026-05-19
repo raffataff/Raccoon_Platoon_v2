@@ -117,10 +117,7 @@ function rectCircleOverlap(rect, circle) {
     const distX = circle.x - closestX;
     const distY = circle.y - closestY;
     const distSq = distX * distX + distY * distY;
-    const isCorner = (closestX === rect.x || closestX === rect.x + rect.width) &&
-                     (closestY === rect.y || closestY === rect.y + rect.height);
-    const cornerRadius = isCorner ? 6.0 : 0;
-    return distSq <= (circle.radius + cornerRadius) * (circle.radius + cornerRadius);
+    return distSq <= circle.radius * circle.radius;
 }
 function pointInRectangle(px, py, rect) {
     /* ... (Unchanged from previous complete version) ... */
@@ -304,10 +301,7 @@ function obbCircleOverlap(obb, circle) {
     const distX = localCircleX - closestX;
     const distY = localCircleY - closestY;
     const distSq = distX * distX + distY * distY;
-    const isCorner = (closestX === -hw || closestX === hw) &&
-                     (closestY === -hh || closestY === hh);
-    const cornerRadius = isCorner ? 6.0 : 0;
-    return distSq <= (circle.radius + cornerRadius) * (circle.radius + cornerRadius);
+    return distSq <= circle.radius * circle.radius;
 }
 
 function obbEllipseOverlap(obb, ellipse) {
@@ -585,4 +579,32 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
         }
     }
     return smoothedPathWorldCoords;
+}
+
+function lerpAngle(a, b, t) {
+    let diff = ((b - a + Math.PI * 3) % (Math.PI * 2)) - Math.PI;
+    return a + diff * t;
+}
+
+function closestPointOnCollisionShape(px, py, shape) {
+    if (shape.type === 'rectangle') {
+        const cx = Math.max(shape.x, Math.min(px, shape.x + shape.width));
+        const cy = Math.max(shape.y, Math.min(py, shape.y + shape.height));
+        return { x: cx, y: cy };
+    } else if (shape.type === 'circle') {
+        const dx = px - shape.x;
+        const dy = py - shape.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 1e-6) return { x: shape.x + shape.radius, y: shape.y };
+        const scale = shape.radius / dist;
+        return { x: shape.x + dx * scale, y: shape.y + dy * scale };
+    } else if (shape.type === 'ellipse') {
+        const dx = px - shape.x;
+        const dy = py - shape.y;
+        const rx = shape.radiusX || 1e-6;
+        const ry = shape.radiusY || 1e-6;
+        const angle = Math.atan2(dy / ry, dx / rx);
+        return { x: shape.x + rx * Math.cos(angle), y: shape.y + ry * Math.sin(angle) };
+    }
+    return { x: px, y: py };
 }

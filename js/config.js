@@ -32,6 +32,9 @@ const CONFIG = {
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true,
     DEBUG_DRAW_UNIT_PATHING_BOUNDS: false,
     UNIT_PATHING_RADIUS_BUFFER: 15,
+    OBSTACLE_REPULSION_RADIUS_FACTOR: 3.0,
+    OBSTACLE_REPULSION_FORCE: 1.5,
+    STUCK_REPATH_FRAME_THRESHOLD: 10,
     PATHFINDING_MAX_EXPANSIONS: 20000,
     MIN_SEPARATION_DISTANCE_FACTOR: 3.0, // Prevents unit clumping (1.0 = touch, >1.0 = spacing)
     UNIT_STUCK_FRAMES_THRESHOLD: 2,
@@ -111,6 +114,7 @@ const CONFIG = {
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
     RACCOON_DEAD_SPRITE_SCALE: 0.06,
     RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 1.4,
+    RACCOON_TURN_RATE: 10.0,
 
     
     // =============================================================================
@@ -153,6 +157,7 @@ const CONFIG = {
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
     POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png', 'possum_grunt_dead_4.png'],
     POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.5,
+    POSSUM_GRUNT_TURN_RATE: 8.0,
 
     // --- Possum Heavy ---
     POSSUM_HEAVY_HP: 40,
@@ -166,6 +171,7 @@ const CONFIG = {
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'],
     POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.6,
     PROJECTILE_COLOR_POSSUM_HEAVY: '#ff47478e',
+    POSSUM_HEAVY_TURN_RATE: 4.0,
     
     // --- Possum Sniper ---
     POSSUM_SNIPER_HP: 25,
@@ -179,6 +185,7 @@ const CONFIG = {
     POSSUM_SNIPER_DEAD_SPRITE_FILES: ['possum_sniper_dead.png'],
     POSSUM_SNIPER_DEAD_SPRITE_SCALE: 0.5,
     PROJECTILE_COLOR_POSSUM_SNIPER: '#FF2400',
+    POSSUM_SNIPER_TURN_RATE: 3.0,
 
     // --- Possum Elite ---
     POSSUM_ELITE_HP: 80,
@@ -192,6 +199,7 @@ const CONFIG = {
     POSSUM_ELITE_DEAD_SPRITE_FILES: ['possum_elite_dead1.png', 'possum_elite_dead2.png'],
     POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.275,
     PROJECTILE_COLOR_POSSUM_ELITE: '#FF4500',
+    POSSUM_ELITE_TURN_RATE: 12.0,
 
     // --- Possum Boss 1 ---
     POSSUM_BOSS_1_HP: 250,
@@ -208,6 +216,7 @@ const CONFIG = {
     POSSUM_BOSS_1_DEAD_SPRITE_SCALE: 0.4,
     PROJECTILE_COLOR_POSSUM_BOSS_1: '#FF4500',
     XP_FOR_BOSS_KILL: 250,
+    POSSUM_BOSS_1_TURN_RATE: 5.0,
 
     // --- Possum Revolver ---
     POSSUM_REVOLVER_HP: 150,
@@ -222,6 +231,7 @@ const CONFIG = {
     POSSUM_REVOLVER_DEAD_SPRITE_SCALE: 0.09,
     PROJECTILE_COLOR_POSSUM_REVOLVER: '#FFD700',
     XP_FOR_REVOLVER_KILL: 150,
+    POSSUM_REVOLVER_TURN_RATE: 9.0,
 
     // --- Shootout Target ---
     SHOOTOUT_GRUNT_DEFAULT_WEAPON: 'POSSUM_RIFLE',
@@ -822,7 +832,7 @@ const CONFIG = {
         DESTROYED_OBSTACLE: -4000,
         USED_PICKUP: -2000,
         DEAD_UNIT: -1000,
-        PICKUP: 500,
+        PICKUP: 0,
         PROJECTILE: 600,
         DEFAULT: 1100,
         DESTROYED_BUILDING: 1500,
@@ -1022,7 +1032,7 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
-            placementBuffer: 150,
+            placementBuffer: 200,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 4],
@@ -1048,7 +1058,7 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
-            placementBuffer: 150,
+            placementBuffer: 200,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 4],
@@ -1071,12 +1081,12 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.53), radiusX: (w => w * 0.37), radiusY: (h => h * 0.26) },
             isDecoration: false,
             canBeFlipped: true,
-            placementBuffer: 150,
+            placementBuffer: 200,
             initialGuardPack: {
                 enabled: true,
-                countRange: [2, 4],
+                countRange: [2, 6],
                 countPerPhaseBonus: 0.3,
-                spawnRadius: 80,
+                spawnRadius: 180,
                 unitPool: [
                     { type: 'possum_grunt', weight: 10 },
                     { type: 'possum_heavy', weight: 5 },
@@ -1107,7 +1117,7 @@ const CONFIG = {
             spriteScale: 0.6,
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_2_destroyed.png',
             spriteDestroyedScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.5), radiusX: (w => w * 0.35), radiusY: (h => h * 0.3) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.51), radiusX: (w => w * 0.35), radiusY: (h => h * 0.27) },
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
@@ -1134,7 +1144,7 @@ const CONFIG = {
                 enabled: true,
                 countRange: [1, 4],
                 countPerPhaseBonus: 0.1,
-                spawnRadius: 100,
+                spawnRadius: 130,
                 unitPool: [
                     { type: 'possum_grunt', weight: 5 },
                     { type: 'possum_heavy', weight: 3 },
@@ -1605,6 +1615,7 @@ const CONFIG = {
     // UI
     // =============================================================================
     DEFAULT_WORLD_BACKGROUND_COLOR: '#417021',
+    WORLD_MUD_RANDOM_ROTATION: false,
     RACCOON_FACE_IMAGE_PATH: 'assets/images/raccoons/',
     RACCOON_FACE_IMAGES: [
         'face1.png', 'face2.png', 'face3.png', 'face4.png', 'face5.png', 'face6.png', 'face7.png', 'face8.png',
@@ -1634,7 +1645,9 @@ const CONFIG = {
         HEALTH_BAR: {
             WIDTH_MULTIPLIER: 3, HEIGHT: 4, Y_OFFSET_BASE: 10, BG_COLOR: '#333333',
             HP_COLOR_FULL: '#00CC00', HP_COLOR_MEDIUM: '#CCCC00', HP_COLOR_LOW: '#CC0000',
-            LOW_HP_THRESHOLD_PERCENT: 0.3, MEDIUM_HP_THRESHOLD_PERCENT: 0.6
+            LOW_HP_THRESHOLD_PERCENT: 0.3, MEDIUM_HP_THRESHOLD_PERCENT: 0.6,
+            FADE_START_THRESHOLD: 0.25, FADE_MIN_OPACITY: 0.15,
+            FLASH_THRESHOLD: 0.25, FLASH_SPEED: 8, FLASH_MIN_OPACITY: 0.3, FLASH_MAX_OPACITY: 1.0
         },
         RECRUIT_CARD: { DEFAULT_FACE_BG_COLOR: '#555555' },
         MEMORIAL_CARD: { DEFAULT_FACE_BG_COLOR: '#333333' },
@@ -2068,7 +2081,10 @@ const CONFIG = {
         AMBUSH_TIME_LIMIT: 45,
         AMBUSH_ELIMINATION_COUNT: 15,
         AMBUSH_NIGHT_MODE_ENABLED: true,
-        AMBUSH_BACKGROUNDS: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK', 'JUNGLE_RUINS_2', 'JUNGLE_AMBUSH', 'JUNGLE_RUINS',],
+        AMBUSH_BACKGROUNDS: {
+                TROPICAL: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK', 'JUNGLE_RUINS_2', 'JUNGLE_AMBUSH', 'JUNGLE_RUINS'],
+                TEMPERATE: ['TEMPERATE_FOREST_1', 'TEMPERATE_FOREST_2', 'TEMPERATE_RUINS'],
+            },
         AMBUSH_UNLOCKS_PHASE: 2,
 
         XP_PER_AMBUSH_SURVIVED: 100,
@@ -2119,6 +2135,42 @@ const CONFIG = {
                 "You held the line!",
                 "Reinforcements arrived! Hold position!"
             ]
+        }
+    },
+
+    // =============================================================================
+    // OBJECTIVE_DIRECTIONAL_INDICATOR
+    // =============================================================================
+    OBJECTIVE_INDICATOR: {
+        ENABLED: true,
+        EDGE_MARGIN: 40,
+        ARROW_SIZE: 18,
+        ARROW_OFFSET: 30,
+        PULSE_SPEED: 3,
+        PULSE_AMOUNT: 0.3,
+        WORLD_MARKER_RADIUS: 12,
+        WORLD_MARKER_ON_SCREEN_MARGIN: 20,
+        FONT_SIZE: 11,
+        LABEL_OFFSET: 8,
+        COLORS: {
+            EXTERMINATE: '#FF4444',
+            DESTROY_TARGET: '#FF8800',
+            RESCUE_HOSTAGES: '#44FF44',
+            RESCUE_TAKEN_HOSTAGE: '#44FF44',
+            ASSASSINATION: '#FF44FF',
+            INTERACT_INTEL: '#44DDFF',
+            EXTRACTION: '#00FFD4',
+            DEFAULT: '#FFFFFF'
+        },
+        LABELS: {
+            EXTERMINATE: 'Enemy',
+            DESTROY_TARGET: 'Target',
+            RESCUE_HOSTAGES: 'Hostage',
+            RESCUE_TAKEN_HOSTAGE: 'Hostage',
+            ASSASSINATION: 'Target',
+            INTERACT_INTEL: 'Intel',
+            EXTRACTION: 'Extract',
+            DEFAULT: 'Objective'
         }
     }
 };

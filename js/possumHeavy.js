@@ -4,6 +4,7 @@ class PossumHeavy extends Unit {
     constructor(x, y, game, id) {
         super(x, y, game, 'enemy', CONFIG.POSSUM_HEAVY_HP, CONFIG.POSSUM_HEAVY_SPEED, CONFIG.POSSUM_HEAVY_SIZE, CONFIG.POSSUM_HEAVY_COLOR, id || `PHVY-${Date.now().toString(36).slice(-4)}`);
 
+        this.turnRate = CONFIG.POSSUM_HEAVY_TURN_RATE;
         this.deadSpritePathKey = 'POSSUM_HEAVY_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_HEAVY_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_HEAVY_DEAD_SPRITE_SCALE';

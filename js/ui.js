@@ -2520,8 +2520,15 @@ class UI {
             }
 
 
+            const isLastObjective = !obj.isComplete &&
+                this.game.lastObjectiveIndicator && this.game.lastObjectiveIndicator.active &&
+                this.game.lastObjectiveIndicator.objectiveType === obj.type;
+
             if (obj.isComplete) {
                 p.innerHTML = `<span style="color: lightgreen; text-decoration: line-through;">${obj.isPrimary ? '(P) ' : '(S) '}${objectiveStr}</span>`;
+            } else if (isLastObjective) {
+                p.classList.add('last-objective-highlight');
+                p.innerHTML = `<span style="color: ${this.game.lastObjectiveIndicator.color}; font-weight: bold;">${obj.isPrimary ? '(P) ' : '(S) '}&#x2192; ${objectiveStr}</span>`;
             } else {
                 p.innerHTML = `<span>${obj.isPrimary ? '(P) ' : '(S) '}${objectiveStr}</span>`;
             }
@@ -2597,11 +2604,25 @@ class UI {
 
             const statusClass = isKIA ? 'status-kia' : '';
             const hpPercent = isKIA ? 0 : Math.max(0, (raccoon.hp / raccoon.maxHp)) * 100;
+            const hpFraction = isKIA ? 0 : raccoon.hp / raccoon.maxHp;
 
             const healthBarStyle = (this.uiSettings.HEALTH_BAR) || {};
             let hpColor = healthBarStyle.HP_COLOR_FULL || '#70A060';
             if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3) * 100) hpColor = healthBarStyle.HP_COLOR_LOW || '#A85050';
             else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6) * 100) hpColor = healthBarStyle.HP_COLOR_MEDIUM || '#D09040';
+
+            const fadeThreshold = healthBarStyle.FADE_START_THRESHOLD || 0.25;
+            const flashThreshold = healthBarStyle.FLASH_THRESHOLD || 0.25;
+            let fadeClass = '';
+            let fadeOpacity = '';
+            if (hpFraction <= flashThreshold && !isKIA) {
+                fadeClass = ' health-bar-flash';
+            } else if (hpFraction > fadeThreshold && !isKIA) {
+                const fadeMin = healthBarStyle.FADE_MIN_OPACITY || 0.15;
+                const opacity = 1.0 - (hpFraction - fadeThreshold) / (1.0 - fadeThreshold) * (1.0 - fadeMin);
+                fadeClass = ' health-bar-fade';
+                fadeOpacity = `opacity: ${opacity};`;
+            }
 
             const infoOverlay = document.createElement('div');
             infoOverlay.classList.add('squad-member-info-overlay');
@@ -2616,7 +2637,7 @@ class UI {
                 <div><span class="label">XP:</span> <span class="value">${raccoon.xp !== undefined ? raccoon.xp : 0}</span></div>
                 ${raccoon.xpToNextRank !== Infinity ? `<div><span class="label">Next:</span> <span class="value">${raccoon.xpToNextRank} XP</span></div>` : ''}
                 <div class="health-bar-container">
-                    <div class="health-bar-fill" style="width: ${hpPercent}%; background-color: ${hpColor};"></div>
+                    <div class="health-bar-fill${fadeClass}" style="width: ${hpPercent}%; background-color: ${hpColor};${fadeOpacity}"></div>
                 </div>`;
             memberDiv.appendChild(infoOverlay); this.squadPanel.appendChild(memberDiv);
         });

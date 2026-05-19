@@ -306,16 +306,16 @@ const SPEECH_CONFIG = {
     RACCOON: {
         ON_DAMAGE: [
             "Ouch!", "That stings!", "Gah!", "Ow ow ow!",
-            "I felt that!", "Son of a—!", "Not cool!", "My everything!",
+            "I felt that!", "Son of a—!", "Not cool!", "That didn't hurt...",
             "Goddammit!", "That's gonna bruise!", "Eat lead, why don't ya!",
             "I'm hit!", "Bastards!", "Oh come on!", "Watch it!"
         ],
         ON_KILL: [
             "Got one!", "Down he goes!", "Scratch one possum!",
             "How do you like that?!", "Eat dirt!", "Serves you right!",
-            "Headshot! ...probably", "That's for my buddy!", "Cleaned his clock!",
-            "Tag! You're it... permanently", "Rest in pieces, trash panda!",
-            "Consider yourself possum-skipped", "And stay down!"
+            "Headshot! ...probably", "That's for my buddy!",
+            "Tag! You're it... permanently", "Rest in pieces, filthy scum!",
+            "And stay down!"
         ],
         ON_PICKUP_ITEM: [
             "Sweet!", "Oh yeah!", "Mine now!", "Bingo!",
@@ -345,10 +345,7 @@ const SPEECH_CONFIG = {
             "Mommy wants a new gun ...got it!"
         ],
         ON_PROXIMITY_ALLY: [
-            "Hey buddy!", "Stay close!", "On your six!", "Flanking left!",
-            "I got your back!", "Squad up!", "Don't leave me hanging!",
-            "Stick together!", "Where ya going, chief?", "Huddle up!",
-            "Yo, over here!", "Right behind ya!", "Me too!"
+            "Yo, got a light?"
         ],
         ON_RESCUE: [
             "I'm free!", "Let's get out of here!", "You came!",
@@ -358,7 +355,7 @@ const SPEECH_CONFIG = {
         ],
         ON_PROMOTION: [
             "Rank up!", "Moving up!", "Promotion time!", "Level up!",
-            "I'm important now!", "Senior raccoon on deck!", "Coming for YOU Starmer!",
+            "I'm important now!", "Senior raccoon on deck!", "I feel the power flow through me!",
             "Making rank!", "Promoted!", "Another bar on the chest!",
             "They said I couldn't... THEY WERE WRONG"
         ],
@@ -371,8 +368,7 @@ const SPEECH_CONFIG = {
             "What's the plan?", "I'm bored...", "Nice day for a firefight...",
             "Think the possums have snacks?", "My trigger finger is itching...",
             "What do possums even eat?", "I should've taken out a loan ...",
-            "How much further?", "I swear I heard something...",
-            "You ever wonder why we're here?", "Quiet out here...",
+            "How much further?", "I swear I heard something...", "Quiet out here...",
             "I could use a nap...", "Anyone got a snack?",
             "Think the possums recycle?", "This is fine...",
             "I am in Danger", "Rasputin was just doing his best, probably"
@@ -401,7 +397,7 @@ const SPEECH_CONFIG = {
             "Loading... please wait"
         ],
         ON_GRENADE: [
-            "Fire in the hole!", "Grenade!", "Frag out!",
+            "Fire in the hole!", "Grenade!", "Frag out!", "Pyro!",
             "Pull pin, count to three ...who am I kidding!", "Lob it!",
             "Here's an early Christmas present!", "One present, coming up!",
             "Frag delicieux!", "Abra cadabra boom!", "Explosive fisticuffs!"
@@ -410,8 +406,7 @@ const SPEECH_CONFIG = {
 
     POSSUM: {
         ON_DAMAGE: [
-            "Squeak!", "Ngh!", "Hiss!", "Chitter chitter!",
-            "Rude!", "Hey!", "Ow!", "Hssss!",
+            "Rude!", "Hey!", "Ow!", 
             "Was that necessary?!", "Oww!", "Blerg!", "Nyaa!",
             "Why you little—!"
         ],
@@ -422,9 +417,8 @@ const SPEECH_CONFIG = {
             "! would recommend more HP!"
         ],
         ON_PROXIMITY_ALLY: [
-            "Squeak squeak!", "Over here!", "Yo!", "Hey buddy!",
-            "Chitter chatter!", "Squeak?", "Fellow possum!",
-            "Squeak yap!", "Together we squeak!", "Psst, got any trash?"
+            "Over here!", "Yo!", "Hey buddy!",
+            "Do I smell?", "For Squeekor!", "Psst, got any trash?"
         ],
         ON_ALERT: [
             "Intruders!", "What's that!", "Did you see that!",
@@ -444,13 +438,9 @@ const SPEECH_CONFIG = {
             "WAHH!", "Come on man!"
         ],
         IDLE_CHATTER: [
-            "*sniff sniff*", "Squeak?", "Zzz...",
-            "Wonder what's in the trash today...", "*scratches ear*",
-            "Anyone got snacks?", "*licks paw*",
-            "Hmm hmm hmm...", "*ears perk up*",
-            "Think there's a bin around here?", "*tail swish*",
-            "Is it lunchtime yet?", "*yawns*",
-            "Squeak squeak ...nothing", "Patience is a virtue ...I think"
+           "Wonder what's in the trash today...", "Anyone got snacks?", "Hmm hmm hmm...",
+            "Think there's a bin around here?", "Is it lunchtime yet?", "*yawns*",
+            "Damn my ass itches!", "Patience is a virtue ...I think"
         ],
         ON_LOW_HP: [
             "I'm done for...", "Retreat!", "This ain't worth it!",
@@ -486,7 +476,7 @@ const SPEECH_CONFIG = {
             "You guys smell worse than the possums but that's ok!", "Time to extract!"
         ],
         IDLE_CHATTER: [
-            "*whimpering*", "Anyone there?", "I don't wanna die here...",
+            "I don't wanna die here...",
             "Help!", "Over here!", "Psst!", "Save me!",
             "I've got 5 kits to feed!", "I'm kinda a big deal...",
             "I really need to pee!", "I'm too young to die!",
@@ -507,14 +497,14 @@ const SPEECH_CONFIG = {
 
     GLOBAL: {
         SPEECH_ENABLED: true,
-        BASE_CHANCE: 0.30,
-        COOLDOWN_MIN: 3.0,
-        COOLDOWN_MAX: 8.0,
+        BASE_CHANCE: 0.10,
+        COOLDOWN_MIN: 8.0,
+        COOLDOWN_MAX: 18.0,
         PROXIMITY_RANGE: 80,
-        PROXIMITY_TARGET_RESPONSE_CHANCE: 0.30,
+        PROXIMITY_TARGET_RESPONSE_CHANCE: 0.10,
         PROXIMITY_TARGET_DELAY: 0.6,
         IDLE_CHATTER_INTERVAL_MIN: 15.0,
-        IDLE_CHATTER_INTERVAL_MAX: 30.0,
+        IDLE_CHATTER_INTERVAL_MAX: 60.0,
         IDLE_CHATTER_CHANCE: 0.15,
         FURBY_COOLDOWN: 10.0,
         BUBBLE_LIFETIME: 2.5,

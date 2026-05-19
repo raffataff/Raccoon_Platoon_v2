@@ -9,6 +9,7 @@ class PossumRevolver extends Unit {
               CONFIG.POSSUM_REVOLVER_COLOR, 
               id || `REVO-${Date.now().toString(36).slice(-4)}`);
 
+        this.turnRate = CONFIG.POSSUM_REVOLVER_TURN_RATE;
         this.deadSpritePathKey = 'POSSUM_REVOLVER_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_REVOLVER_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_REVOLVER_DEAD_SPRITE_SCALE';
@@ -68,7 +69,7 @@ class PossumRevolver extends Unit {
         const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level);
 
         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
-        this.facingAngle = this.gunAimAngle;
+        this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
         if (this.reloadTimer > 0) {
             this.aiState = 'RELOADING';

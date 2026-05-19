@@ -29,12 +29,12 @@ const TEMPERATE_BIOME = {
     spritePaths: {
         // Terrain
         mud: {
-            path: 'assets/images/objects/biomes/temperate/mud/',
-            files: [  'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',]
+            path: 'assets/images/objects/biomes/mud/',
+            files: [ 'mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',]
         },
         grass: {
             path: 'assets/images/objects/biomes/temperate/grass/',
-            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png','temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png',  ]
+            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png',  ]
         },
 
         // Walls (reusing tropical wall assets as placeholders)
@@ -285,7 +285,7 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.6), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.47), offsetY: (h => h * 0.7), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -500,13 +500,16 @@ const TEMPERATE_BIOME = {
     levelGenSettings: {
         WORLD_BASE_MUD_COLOR: '#5C4033',
         WORLD_BASE_DIRT_COLOR: '#6B4F34',
-        WORLD_GRASS_TILE_SIZE: 48,
+        WORLD_GRASS_TILE_SCALE: 0.8,
         WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.65,
         WORLD_GRASS_SKIP_CHANCE: 0.5,
         WORLD_GRASS_SKIP_MIN: 3,
         WORLD_GRASS_SKIP_MAX: 12,
-        WORLD_MUD_NOISE_SCALE_X: 0.01,
-        WORLD_MUD_NOISE_SCALE_Y: 0.05,
+        WORLD_MUD_TILE_SCALE: 0.6,
+        WORLD_MUD_TILE_OVERLAP_FACTOR: 0.65,
+        WORLD_MUD_RANDOM_ROTATION: false,
+        WORLD_MUD_NOISE_SCALE_X: 0.012,
+        WORLD_MUD_NOISE_SCALE_Y: 0.012,
         WORLD_MUD_NOISE_THRESHOLD: 0.3,
         WORLD_MUD_NOISE_OCTAVES: 3,
         WORLD_MUD_PATCH_SCALE_X: 0.002,
@@ -602,7 +605,7 @@ const TEMPERATE_BIOME = {
         { name: 'lake', files: ['lake_temperate_1.png', 'lake_temperate_2.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
 
         // GROUND TILES
-        { name: 'mud', files: ['mud_grassy_1.png', 'mud_grassy_2.png', 'mud_grassy_3.png', 'mud_grassy_4.png', 'mud_grassy_5.png', 'mud_grassy_6.png', 'mud_grassy_7.png', 'mud_grassy_8.png', 'mud_grassy_9.png', 'mud_grassy_10.png', 'mud_grassy_11.png', 'mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',], path: 'assets/images/objects/biomes/temperate/mud/', type: 'single' },
-        { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_3.png', 'temperate_grass_4.png', 'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', 'temperate_grass_8.png', 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'temperate_grass_19.png', 'temperate_grass_20.png', 'temperate_grass_21.png', 'temperate_grass_22.png', 'temperate_grass_23.png', 'temperate_grass_24.png', 'temperate_grass_25.png',], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
+        { name: 'mud', files: ['mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',], path: 'assets/images/objects/biomes/mud/', type: 'single' },
+        { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'grass5.png', 'grass6.png', ], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
     ],
 };

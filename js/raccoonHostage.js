@@ -29,7 +29,10 @@ class RaccoonHostage extends Raccoon {
         this.FOLLOW_STOP_DISTANCE_THRESHOLD = this.FOLLOW_DISTANCE * 0.7;
         this.REPATH_TARGET_MOVE_THRESHOLD = this.size * 7.5; 
         this.minTimeBetweenRepath = 0.85; 
-        this.lastRepathTime = Math.random() * this.minTimeBetweenRepath;          
+        this.lastRepathTime = Math.random() * this.minTimeBetweenRepath;
+        this.stuckFrames = 0;
+        this.lastStuckCheckX = 0;
+        this.lastStuckCheckY = 0;
 
         this.followSpreadSeed = this._hashIdToSpread(id);
 
@@ -168,16 +171,30 @@ class RaccoonHostage extends Raccoon {
 
                     const distToDesiredFollowPoint = distance(this.x, this.y, desiredFollowX, desiredFollowY);
 
-                    if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5) { 
+                    if (this.isMoving) {
+                        const movedDist = Math.hypot(this.x - this.lastStuckCheckX, this.y - this.lastStuckCheckY);
+                        if (movedDist < this.size * 0.1) {
+                            this.stuckFrames++;
+                        } else {
+                            this.stuckFrames = 0;
+                        }
+                    }
+                    this.lastStuckCheckX = this.x;
+                    this.lastStuckCheckY = this.y;
+
+                    const isStuck = this.stuckFrames > 30;
+
+                    if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5 || isStuck) { 
                         const targetMovedSignificantly = distance(this.followTarget.x, this.followTarget.y, this.lastFollowTargetPosition.x, this.lastFollowTargetPosition.y) > this.REPATH_TARGET_MOVE_THRESHOLD;
                         const currentPathTargetOutdated = this.isMoving && this.currentPath.length > 0 && distance(this.worldTargetX, this.worldTargetY, desiredFollowX, desiredFollowY) > this.REPATH_TARGET_MOVE_THRESHOLD;
                         const canRepathNow = (currentTime - this.lastRepathTime) > this.minTimeBetweenRepath;
 
-                        if (canRepathNow && (!this.isMoving || (this.currentPath.length === 0 && this.currentPathNodeIndex === 0) || targetMovedSignificantly || currentPathTargetOutdated)) {
+                        if (canRepathNow && (!this.isMoving || (this.currentPath.length === 0 && this.currentPathNodeIndex === 0) || targetMovedSignificantly || currentPathTargetOutdated || isStuck)) {
                             if (this.setMoveTarget(desiredFollowX, desiredFollowY)) {
                                 this.lastFollowTargetPosition.x = this.followTarget.x;
                                 this.lastFollowTargetPosition.y = this.followTarget.y;
                                 this.lastRepathTime = currentTime;
+                                this.stuckFrames = 0;
                             }
                         }
                     } else if (distToDesiredFollowPoint < this.FOLLOW_STOP_DISTANCE_THRESHOLD && this.isMoving) {

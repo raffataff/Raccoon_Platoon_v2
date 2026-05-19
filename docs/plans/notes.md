@@ -7,10 +7,9 @@
 
 * make elite possum ai smarter
 
+* have health bar fade away when over 25% health, flash when under 25%
 
 * implement classes
-
-* optimize pathfinding for hard-to-get-to tiles (early fail)
 
 * fix shootout failure sequence
 

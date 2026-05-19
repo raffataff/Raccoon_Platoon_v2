@@ -9,6 +9,7 @@ class PossumSniper extends Unit {
               CONFIG.POSSUM_SNIPER_COLOR, 
               id || `SNPR-${Date.now().toString(36).slice(-4)}`);
 
+        this.turnRate = CONFIG.POSSUM_SNIPER_TURN_RATE;
         this.deadSpritePathKey = 'POSSUM_SNIPER_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_SNIPER_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_SNIPER_DEAD_SPRITE_SCALE';
@@ -70,7 +71,7 @@ class PossumSniper extends Unit {
             case 'AIMING':
                 this.isMoving = false;
                 this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
-                this.facingAngle = this.gunAimAngle;
+                this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
                 this.aimTimer -= deltaTime;
                 if (this.aimTimer <= 0) {

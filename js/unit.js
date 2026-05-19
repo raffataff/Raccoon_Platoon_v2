@@ -67,6 +67,8 @@ class Unit {
         this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.15;
         this.bumpRepathCooldown = 0;
 
+        this.stuckFrameCounter = 0;
+
         this.deadSpritePathKey = null;
         this.deadSpriteFilesKey = null;
         this.deadSpriteScaleKey = null;
@@ -277,7 +279,7 @@ class Unit {
             this.currentVisualState = 'death';
         } else if (isFiringThisFrame) {
             this.currentVisualState = 'fire';
-            this.facingAngle = this.gunAimAngle;
+            this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
             if (!(this instanceof PossumBoss1)) {
                 const fireAtX = this.isPlayerDirectFiring ? this.playerDirectFireTargetPos.x : target.x;
@@ -287,14 +289,14 @@ class Unit {
 
         } else if (hasTarget && isOrderedToFire) {
             this.currentVisualState = 'idle';
-            this.facingAngle = this.gunAimAngle;
+            this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
         } else if (isActuallyMovingForBobbing) {
             this.currentVisualState = 'walk';
             const movedDist = Math.hypot(this.lastDeltaX, this.lastDeltaY);
             // Only turn the sprite if we moved more than a trivial snap distance.
             // This prevents the 1-frame South flash when smoothing snaps us to the first grid center.
             if (movedDist > 0.5) {
-                this.facingAngle = Math.atan2(this.lastDeltaY, this.lastDeltaX);
+                this.facingAngle = lerpAngle(this.facingAngle, Math.atan2(this.lastDeltaY, this.lastDeltaX), this.turnRate * deltaTime);
             }
         } else {
             this.currentVisualState = 'idle';
@@ -471,8 +473,8 @@ class Unit {
         let finalDeltaX = desiredDeltaX; let finalDeltaY = desiredDeltaY;
 
         if (this.isMoving && this.game) {
-            const SEPARATION_CHECK_RADIUS = this.size * 1.5; const SEPARATION_FORCE_FACTOR = 0.9;
-            const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.MIN_SEPARATION_DISTANCE_FACTOR || 1.2;
+            const SEPARATION_CHECK_RADIUS = this.size * 13.0; const SEPARATION_FORCE_FACTOR = 1.9;
+            const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.MIN_SEPARATION_DISTANCE_FACTOR || 1.9;
             let separationDX = 0; let separationDY = 0; let unitsInSeparationRange = 0;
             let unitsToConsiderForSeparation = [];
 
@@ -523,11 +525,68 @@ class Unit {
             }
         }
 
+        if (this.isMoving && !this.isPhasing) {
+            const OBSTACLE_REPULSION_RADIUS = this.size * (CONFIG.OBSTACLE_REPULSION_RADIUS_FACTOR || 3.0);
+            const OBSTACLE_REPULSION_FORCE = CONFIG.OBSTACLE_REPULSION_FORCE || 1.5;
+            let repelDX = 0; let repelDY = 0; let repelCount = 0;
+            for (const obs of obstaclesForCollision) {
+                const obsShapes = this.game.level._getObstacleCollisionShape(obs);
+                const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+                for (const obsCS of shapesArray) {
+                    const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                    let closestPt;
+                    if (hasRotation) {
+                        const cx = obsCS.x + obsCS.width / 2;
+                        const cy = obsCS.y + obsCS.height / 2;
+                        const cos = Math.cos(-(obsCS.rotation || 0));
+                        const sin = Math.sin(-(obsCS.rotation || 0));
+                        const localX = cos * (this.x - cx) - sin * (this.y - cy);
+                        const localY = sin * (this.x - cx) + cos * (this.y - cy);
+                        const hw = obsCS.width / 2;
+                        const hh = obsCS.height / 2;
+                        const closestLocalX = Math.max(-hw, Math.min(localX, hw));
+                        const closestLocalY = Math.max(-hh, Math.min(localY, hh));
+                        const worldCos = Math.cos(obsCS.rotation || 0);
+                        const worldSin = Math.sin(obsCS.rotation || 0);
+                        closestPt = {
+                            x: cx + worldCos * closestLocalX - worldSin * closestLocalY,
+                            y: cy + worldSin * closestLocalX + worldCos * closestLocalY
+                        };
+                    } else {
+                        closestPt = closestPointOnCollisionShape(this.x, this.y, obsCS);
+                    }
+                    const toUnitX = this.x - closestPt.x;
+                    const toUnitY = this.y - closestPt.y;
+                    const distToObs = Math.hypot(toUnitX, toUnitY);
+                    if (distToObs < OBSTACLE_REPULSION_RADIUS && distToObs > 1e-6) {
+                        const penetration = OBSTACLE_REPULSION_RADIUS - distToObs;
+                        const strength = (penetration / OBSTACLE_REPULSION_RADIUS);
+                        repelDX += (toUnitX / distToObs) * strength;
+                        repelDY += (toUnitY / distToObs) * strength;
+                        repelCount++;
+                    }
+                }
+            }
+            if (repelCount > 0) {
+                const avgRepelDX = repelDX / repelCount;
+                const avgRepelDY = repelDY / repelCount;
+                const repelMove = this.speed * OBSTACLE_REPULSION_FORCE * deltaTime;
+                finalDeltaX += avgRepelDX * repelMove;
+                finalDeltaY += avgRepelDY * repelMove;
+                const totalMag = Math.hypot(finalDeltaX, finalDeltaY);
+                const desiredMag = Math.hypot(desiredDeltaX, desiredDeltaY);
+                if (totalMag > desiredMag * 2.0 && desiredMag > 0.1) {
+                    const scale = (desiredMag * 2.0) / totalMag;
+                    finalDeltaX *= scale; finalDeltaY *= scale;
+                }
+            }
+        }
+
         let collisionOccurredThisFrame = false;
         if (distToNextNode > 1e-5) {
             const potentialNewX_combined = this.x + finalDeltaX;
             const potentialNewY_combined = this.y + finalDeltaY;
-            const collisionCheckRadius = this.size / 2 + 1.2;
+            const collisionCheckRadius = this.size / 2 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 15);
             const unitBodyShape_combined = { type: 'circle', x: potentialNewX_combined, y: potentialNewY_combined, radius: collisionCheckRadius };
             let isCollisionWithDesiredMove = false;
             for (const obs of obstaclesForCollision) {
@@ -596,7 +655,68 @@ class Unit {
                     else if (Math.abs(finalDeltaX) > Math.abs(finalDeltaY) + 1e-4 && Math.abs(finalDeltaX) > 1e-5) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
                     else if (Math.abs(finalDeltaY) > 1e-5) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
                     else { finalDeltaX = 0; finalDeltaY = 0; }
-                } else { finalDeltaX = 0; finalDeltaY = 0; }
+                } else {
+                    let slideDX = 0; let slideDY = 0; let foundSlide = false;
+                    for (const obs of obstaclesForCollision) {
+                        const obsShapes = this.game.level._getObstacleCollisionShape(obs);
+                        const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+                        for (const obsCS of shapesArray) {
+                            const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                            const testShape = { type: 'circle', x: this.x + desiredDeltaX, y: this.y + desiredDeltaY, radius: collisionCheckRadius };
+                            let blocks = false;
+                            if (obsCS.type === 'rectangle') blocks = hasRotation ? obbCircleOverlap(obsCS, testShape) : rectCircleOverlap(obsCS, testShape);
+                            else if (obsCS.type === 'circle') blocks = circleOverlap(obsCS, testShape);
+                            else if (obsCS.type === 'ellipse') blocks = circleEllipseOverlap(testShape, obsCS);
+                            if (blocks) {
+                                let nx, ny;
+                                if (obsCS.type === 'circle') {
+                                    nx = this.x - obsCS.x; ny = this.y - obsCS.y;
+                                } else if (obsCS.type === 'ellipse') {
+                                    const rx = obsCS.radiusX || 1e-6;
+                                    const ry = obsCS.radiusY || 1e-6;
+                                    nx = (this.x - obsCS.x) / (rx * rx);
+                                    ny = (this.y - obsCS.y) / (ry * ry);
+                                } else {
+                                    const closestPt = closestPointOnCollisionShape(this.x, this.y, obsCS);
+                                    nx = this.x - closestPt.x; ny = this.y - closestPt.y;
+                                }
+                                const nLen = Math.hypot(nx, ny);
+                                if (nLen > 1e-6) { nx /= nLen; ny /= nLen; }
+                                else { nx = -desiredDeltaX; ny = -desiredDeltaY; const dLen = Math.hypot(nx, ny); if (dLen > 1e-6) { nx /= dLen; ny /= dLen; } }
+                                const dot = desiredDeltaX * nx + desiredDeltaY * ny;
+                                slideDX = desiredDeltaX - nx * dot;
+                                slideDY = desiredDeltaY - ny * dot;
+                                const slideMag = Math.hypot(slideDX, slideDY);
+                                if (slideMag > 1e-5) {
+                                    const desiredMag2 = Math.hypot(desiredDeltaX, desiredDeltaY);
+                                    slideDX = (slideDX / slideMag) * desiredMag2;
+                                    slideDY = (slideDY / slideMag) * desiredMag2;
+                                    const slideTestShape = { type: 'circle', x: this.x + slideDX, y: this.y + slideDY, radius: collisionCheckRadius };
+                                    let slideBlocked = false;
+                                    for (const obs2 of obstaclesForCollision) {
+                                        const obs2Shapes = this.game.level._getObstacleCollisionShape(obs2);
+                                        const obs2Arr = Array.isArray(obs2Shapes) ? obs2Shapes : [obs2Shapes];
+                                        for (const obs2CS of obs2Arr) {
+                                            const hasRot2 = obs2CS.type === 'rectangle' && obs2CS.rotation !== undefined && obs2CS.rotation !== 0;
+                                            if ((obs2CS.type === 'rectangle' && (hasRot2 ? obbCircleOverlap(obs2CS, slideTestShape) : rectCircleOverlap(obs2CS, slideTestShape))) ||
+                                                (obs2CS.type === 'circle' && circleOverlap(obs2CS, slideTestShape)) ||
+                                                (obs2CS.type === 'ellipse' && circleEllipseOverlap(slideTestShape, obs2CS))) {
+                                                slideBlocked = true; break;
+                                            }
+                                        }
+                                        if (slideBlocked) break;
+                                    }
+                                    if (!slideBlocked) {
+                                        finalDeltaX = slideDX; finalDeltaY = slideDY; collisionOccurredThisFrame = false; foundSlide = true;
+                                    }
+                                }
+                                break;
+                            }
+                        }
+                        if (foundSlide) break;
+                    }
+                    if (!foundSlide) { finalDeltaX = 0; finalDeltaY = 0; }
+                }
             }
         }
 
@@ -606,6 +726,30 @@ class Unit {
         const actualMovementMade = (Math.abs(this.x - originalX) > 1e-5 || Math.abs(this.y - originalY) > 1e-5);
         const attemptedToMoveFlag = (Math.abs(desiredDeltaX) > 1e-5 || Math.abs(desiredDeltaY) > 1e-5);
         const fullBlockEncountered = attemptedToMoveFlag && !actualMovementMade && collisionOccurredThisFrame;
+
+        if (this.isMoving && attemptedToMoveFlag && !actualMovementMade) {
+            this.stuckFrameCounter++;
+            const stuckThreshold = CONFIG.STUCK_REPATH_FRAME_THRESHOLD || 10;
+            if (this.stuckFrameCounter >= stuckThreshold && this.repathCooldown <= 0) {
+                this.stuckFrameCounter = 0;
+                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Stuck for ${stuckThreshold} frames. Forcing repath with offset.`);
+                const offsetAngle = Math.random() * Math.PI * 2;
+                const offsetDist = this.size * 2;
+                const offsetX = this.x + Math.cos(offsetAngle) * offsetDist;
+                const offsetY = this.y + Math.sin(offsetAngle) * offsetDist;
+                const clampedOffsetX = Math.max(this.size / 2, Math.min(offsetX, (CONFIG.WORLD_WIDTH || 0) - this.size / 2));
+                const clampedOffsetY = Math.max(this.size / 2, Math.min(offsetY, (CONFIG.WORLD_HEIGHT || 0) - this.size / 2));
+                const offsetGrid = this.game.level.worldToGridCoords(clampedOffsetX, clampedOffsetY);
+                if (offsetGrid.x >= 0 && offsetGrid.x < this.game.level.gridWidth && offsetGrid.y >= 0 && offsetGrid.y < this.game.level.gridHeight) {
+                    this.calculatePath(offsetGrid, this.isPhasing);
+                } else {
+                    this.calculatePath(this.game.level.worldToGridCoords(this.x, this.y), this.isPhasing);
+                }
+                this.repathCooldown = 0.5 + Math.random();
+            }
+        } else {
+            this.stuckFrameCounter = 0;
+        }
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
         const arrivalTolerance = Math.max(moveSpeed * 0.3, this.size * 0.3);
@@ -642,7 +786,7 @@ class Unit {
                 nudgedY += Math.sin(sideNudgeAngle) * this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE;
 
                 let canNudgeToSpot = true;
-                const nudgedShape = { type: 'circle', x: nudgedX, y: nudgedY, radius: this.size / 2 + 0.5 };
+                const nudgedShape = { type: 'circle', x: nudgedX, y: nudgedY, radius: this.size / 2 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 15) };
                 for (const obs of obstaclesForCollision) {
                     const obsShapes = this.game.level._getObstacleCollisionShape(obs);
                     const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
@@ -660,19 +804,55 @@ class Unit {
                 if (canNudgeToSpot) {
                     this.x = nudgedX; this.y = nudgedY;
                 } else {
-                    this.x = originalX; this.y = originalY;
+                    const nudgeDist = this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE + this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE;
+                    let foundNudge = false;
+                    for (let ai = 0; ai < 8 && !foundNudge; ai++) {
+                        const tryAngle = (ai / 8) * Math.PI * 2;
+                        const tryX = originalX + Math.cos(tryAngle) * nudgeDist;
+                        const tryY = originalY + Math.sin(tryAngle) * nudgeDist;
+                        let tryClear = true;
+                        const tryShape = { type: 'circle', x: tryX, y: tryY, radius: this.size / 2 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 15) };
+                        for (const obs of obstaclesForCollision) {
+                            const obsShapes = this.game.level._getObstacleCollisionShape(obs);
+                            const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+                            for (const obsCS of shapesArray) {
+                                const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                                if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, tryShape) : rectCircleOverlap(obsCS, tryShape))) ||
+                                    (obsCS.type === 'circle' && circleOverlap(obsCS, tryShape)) ||
+                                    (obsCS.type === 'ellipse' && circleEllipseOverlap(tryShape, obsCS))) {
+                                    tryClear = false; break;
+                                }
+                            }
+                            if (!tryClear) break;
+                        }
+                        if (tryClear) {
+                            this.x = tryX; this.y = tryY; foundNudge = true;
+                        }
+                    }
+                    if (!foundNudge) {
+                        this.x = originalX; this.y = originalY;
+                    }
                 }
 
                 if (this.worldTargetX !== undefined && this.worldTargetY !== undefined) {
 
                     // --- OPTIMIZATION Phase 2: "Wait and See" + Throttled Repath ---
                     const distToTarget = distance(this.x, this.y, this.worldTargetX, this.worldTargetY);
-                    const isCloseToTarget = distToTarget < this.size * 3;
+                    const isCloseToTarget = distToTarget < this.size * 6;
 
                     if (isCloseToTarget) {
-                        // If we are close (likely crowded around player), DON'T REPATH immediately.
-                        // Just wait. A spot might open up.
-                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Bumped close to target. Waiting instead of repathing.`);
+                        const targetBlockedByObstacle = !hasLineOfSight(this.x, this.y, this.worldTargetX, this.worldTargetY, obstaclesForCollision, this.game.level);
+                        if (targetBlockedByObstacle && this.repathCooldown <= 0) {
+                            if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Bumped close to target but LOS blocked. Repathing around obstacle.`);
+                            this.calculatePath(this.game.level.worldToGridCoords(this.x, this.y), this.isPhasing);
+                            this.repathCooldown = 0.5 + Math.random();
+                        } else if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+                            if (targetBlockedByObstacle) {
+                                console.log(`[${this.id} _HM] Bumped close to target, LOS blocked, but repath on cooldown. Waiting.`);
+                            } else {
+                                console.log(`[${this.id} _HM] Bumped close to target. Waiting instead of repathing.`);
+                            }
+                        }
                     } else if (this.repathCooldown <= 0) {
                         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Recalculating path after immediate bump to: (${this.worldTargetX.toFixed(0)}, ${this.worldTargetY.toFixed(0)})`);
 
@@ -699,7 +879,8 @@ class Unit {
 
     setFacingToward(worldX, worldY) {
         if (distance(this.x, this.y, worldX, worldY) > 0.1) {
-            this.facingAngle = Math.atan2(worldY - this.y, worldX - this.x);
+            const targetAngle = Math.atan2(worldY - this.y, worldX - this.x);
+            this.facingAngle = lerpAngle(this.facingAngle, targetAngle, this.turnRate * 0.016);
             this.updateVisualDirection(this.facingAngle);
             this.gunAimAngle = this.facingAngle;
         }
@@ -1190,6 +1371,23 @@ class Unit {
             const barY = (this.y + yOffset) - (spriteVisualHeight / 2) - (healthBarStyle.Y_OFFSET_BASE || 0) - hpBarHeight - 5;
             const hpPercent = this.hp / this.maxHp;
 
+            let barOpacity = 1.0;
+            const fadeThreshold = healthBarStyle.FADE_START_THRESHOLD || 0.25;
+            const flashThreshold = healthBarStyle.FLASH_THRESHOLD || 0.25;
+            if (hpPercent <= flashThreshold) {
+                const flashSpeed = healthBarStyle.FLASH_SPEED || 8;
+                const flashMin = healthBarStyle.FLASH_MIN_OPACITY || 0.3;
+                const flashMax = healthBarStyle.FLASH_MAX_OPACITY || 1.0;
+                const t = Math.sin(performance.now() / 1000 * flashSpeed) * 0.5 + 0.5;
+                barOpacity = flashMin + t * (flashMax - flashMin);
+            } else if (hpPercent > fadeThreshold) {
+                const fadeMin = healthBarStyle.FADE_MIN_OPACITY || 0.15;
+                barOpacity = 1.0 - (hpPercent - fadeThreshold) / (1.0 - fadeThreshold) * (1.0 - fadeMin);
+            }
+
+            this.game.ctx.save();
+            this.game.ctx.globalAlpha = barOpacity;
+
             if (this.game && this.game.selectedUnits && this.game.selectedUnits.includes(this)) {
                 this.game.ctx.strokeStyle = 'rgba(0, 150, 255, 0.9)';
                 this.game.ctx.lineWidth = 2;
@@ -1207,6 +1405,8 @@ class Unit {
             }
             this.game.ctx.fillStyle = fillColor;
             this.game.ctx.fillRect(barX, barY, barWidth * hpPercent, hpBarHeight);
+
+            this.game.ctx.restore();
         }
     }
 }

@@ -9,6 +9,7 @@ class PossumBoss1 extends Unit {
               CONFIG.POSSUM_BOSS_1_COLOR, 
               id || `BOSS1-${Date.now().toString(36).slice(-4)}`);
 
+        this.turnRate = CONFIG.POSSUM_BOSS_1_TURN_RATE;
         this.deadSpritePathKey = 'POSSUM_BOSS_1_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'POSSUM_BOSS_1_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_BOSS_1_DEAD_SPRITE_SCALE';
@@ -78,7 +79,7 @@ class PossumBoss1 extends Unit {
 
         // AIM: Always aim if there is a target
         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
-        this.facingAngle = this.gunAimAngle;
+        this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
         // SHOOT: Check if we can shoot
         if (hasLOS && dist <= currentWeapon.range) {
@@ -138,7 +139,7 @@ class PossumBoss1 extends Unit {
         const primaryWeapon = WEAPONS[this.primaryWeaponName];
         
         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
-        this.facingAngle = this.gunAimAngle;
+        this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
         const spread = this.bossAIConfig.GRENADE_TARGET_SPREAD_RADIUS || 80;
         const randomAngle = Math.random() * Math.PI * 2;
@@ -174,7 +175,7 @@ class PossumBoss1 extends Unit {
         const secondaryWeapon = WEAPONS[this.secondaryWeaponName];
 
         this.gunAimAngle = Math.atan2(targetY - this.y, targetX - this.x);
-        this.facingAngle = this.gunAimAngle;
+        this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
         
         const fireAngle = this.gunAimAngle;
         const accuracy = secondaryWeapon.accuracyStationary;

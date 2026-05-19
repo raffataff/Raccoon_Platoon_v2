@@ -4,6 +4,7 @@ class Raccoon extends Unit {
 
         super(x, y, game, 'player', CONFIG.RACCOON_HP, CONFIG.RACCOON_SPEED, CONFIG.RACCOON_SIZE, CONFIG.RACCOON_COLOR, id);
 
+        this.turnRate = CONFIG.RACCOON_TURN_RATE;
         this.deadSpritePathKey = 'RACCOON_DEAD_SPRITE_PATH';
         this.deadSpriteFilesKey = 'RACCOON_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'RACCOON_DEAD_SPRITE_SCALE';
@@ -373,7 +374,8 @@ class Raccoon extends Unit {
 
     _handleAimingMovement(deltaTime) {
         if (this.game.inputHandler.mousePos) {
-            this.facingAngle = Math.atan2(this.game.inputHandler.mousePos.worldY - this.y, this.game.inputHandler.mousePos.worldX - this.x);
+            const targetAngle = Math.atan2(this.game.inputHandler.mousePos.worldY - this.y, this.game.inputHandler.mousePos.worldX - this.x);
+            this.facingAngle = lerpAngle(this.facingAngle, targetAngle, this.turnRate * deltaTime);
             this.gunAimAngle = this.facingAngle;
         }
 
