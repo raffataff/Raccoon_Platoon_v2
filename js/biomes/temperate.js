@@ -71,7 +71,7 @@ const TEMPERATE_BIOME = {
             files: ['rock_large_temperate_1.png', 'rock_large_temperate_2.png', 'rock_large_temperate_3.png', 'rock_large_temperate_4.png', 'rock_large_temperate_5.png', 'rock_large_temperate_6.png', 'rock_large_temperate_7.png', 'rock_large_temperate_8.png', ]
         },
 
-        // Oak trees (fullSize)
+        // Oak trees
         tree_oak_single: {
             path: 'assets/images/objects/biomes/temperate/trees/oak/',
             files: ['tree_oak_single_1.png', 'tree_oak_single_2.png', 'tree_oak_single_3.png']
@@ -85,7 +85,7 @@ const TEMPERATE_BIOME = {
             files: ['palm1_triple.png']
         },
 
-        // Secondary trees (using tropical palm2 assets as placeholders)
+        // Secondary trees
         tree_secondary_single: {
             path: 'assets/images/objects/biomes/tropical/trees/',
             files: []
@@ -100,9 +100,9 @@ const TEMPERATE_BIOME = {
         },
 
         // Fallen logs
-        tree_oak_fallen: {
-            path: 'assets/images/objects/biomes/tropical/logs/',
-            files: ['tree_fallen_log_1.png']
+        tree_oak_fallen_small: {
+            path: 'assets/images/objects/biomes/temperate/trees/oak/',
+            files: ['tree_oak_fallen_small_1.png', 'tree_oak_fallen_small_2.png', 'tree_oak_fallen_small_3.png', 'tree_oak_fallen_small_4.png']
         },
         tree_secondary_fallen: {
             path: 'assets/images/objects/biomes/tropical/logs/',
@@ -132,17 +132,17 @@ const TEMPERATE_BIOME = {
             path: 'assets/images/objects/biomes/tropical/trees/rubber/',
             files: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png']
         },
-        tree_willow_single: {
+        tree_willow: {
             path: 'assets/images/objects/biomes/temperate/trees/willow/',
             files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ]
         },
         tree_birch: {
             path: 'assets/images/objects/biomes/temperate/trees/birch/',
-            files: ['tree_birch_1.png', 'tree_birch_2.png',  ]
+            files: ['tree_birch_1.png', 'tree_birch_2.png', 'tree_birch_3.png', 'tree_birch_4.png',  ]
         },
         tree_pine: {
             path: 'assets/images/objects/biomes/temperate/trees/pine/',
-            files: ['tree_pine_1.png', ]
+            files: ['tree_pine_1.png', 'tree_pine_2.png', 'tree_pine_3.png',  ]
         },
 
         // Forest patches
@@ -338,18 +338,18 @@ const TEMPERATE_BIOME = {
             placementBuffer: 60,
         },
         {
-            type: 'tree_oak_fallen', name: 'Fallen Oak Tree', color: '#8B4513',
+            type: 'tree_oak_fallen_small', name: 'SmallFallen Oak Tree', color: '#8B4513',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1,
+            spawnWeight: 0.5,
             isDecoration: false,
-            spriteScale: 0.9,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
+            spriteScale: 0.3,
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.42), width: (w => w * 0.75), height: (h => h * 0.35), rotation: -Math.PI / 6 },
             canBeFlipped: true,
-            placementBuffer: 60,
+            placementBuffer: 80,
         },
         {
-            type: 'tree_willow_single', name: 'Will Tree', color: '#228B22',
+            type: 'tree_willow', name: 'Will Tree', color: '#228B22',
             destructible: false, hp: 250, maxHp: 250,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
@@ -415,12 +415,12 @@ const TEMPERATE_BIOME = {
         
         {
             type: 'tree_birch', name: 'Birch Tree', color: '#228B22',
-            destructible: true, hp: 100, maxHp: 100,
+            destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.55), offsetY: (h => h * 0.85), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
+            spriteDestroyed: 'assets/images/objects/biomes/temperate/trees/birch/tree_birch_destroyed_1.png',
             spriteDestroyedScale: 0.2,
             canBeFlipped: true,
         },
@@ -525,7 +525,7 @@ const TEMPERATE_BIOME = {
         'rock_medium',
         'tree_pine',
         'tree_birch',
-        'tree_willow_single',
+        'tree_willow',
         'tree_oak_fallen',
         'tree_secondary_fallen',
         'tree_deciduous_fallen',
@@ -573,12 +573,12 @@ const TEMPERATE_BIOME = {
         { name: 'rock_large', files: ['rock_large_temperate_1.png', 'rock_large_temperate_2.png', 'rock_large_temperate_3.png', 'rock_large_temperate_4.png', 'rock_large_temperate_5.png', 'rock_large_temperate_6.png', 'rock_large_temperate_7.png', 'rock_large_temperate_8.png', ], path: 'assets/images/objects/biomes/temperate/rocks/large/', type: 'single' },
         
         //TREE
-        { name: 'tree_willow_single', files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ], path: 'assets/images/objects/biomes/temperate/trees/willow/', type: 'single' },
+        { name: 'tree_willow', files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ], path: 'assets/images/objects/biomes/temperate/trees/willow/', type: 'single' },
         
         { name: 'oak_single', files: ['tree_oak_single_1.png', 'tree_oak_single_2.png', 'tree_oak_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_double', files: ['palm1_double.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_triple', files: [], path: 'assets/images/objects/biomes/tropical/trees/fullSize/', type: 'single' },
-        { name: 'oak_fallen', files: ['palm_fallen_log_1.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
+        { name: 'oak_fallen_small', files: ['tree_oak_fallen_small_1.png', 'tree_oak_fallen_small_2.png', 'tree_oak_fallen_small_3.png', 'tree_oak_fallen_small_4.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         
         { name: 'secondary_fallen', files: ['palm_fallen_log_2.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
         { name: 'secondary_single', files: ['palm2_single_1.png', 'palm2_single_2.png', 'palm2_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
@@ -586,8 +586,8 @@ const TEMPERATE_BIOME = {
         { name: 'secondary_triple', files: ['palm2_triple_1.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
         { name: 'deciduous_fallen', files: ['tree_fallen_log_1.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
         
-        { name: 'tree_birch', files: ['tree_birch_1.png', 'tree_birch_1.png', ], path: 'assets/images/objects/biomes/temperate/trees/birch', type: 'single' },
-        { name: 'tree_pine', files: ['tree_pine_1.png', ], path: 'assets/images/objects/biomes/temperate/trees/pine/', type: 'single' },
+        { name: 'tree_birch', files: ['tree_birch_1.png', 'tree_birch_2.png', 'tree_birch_3.png', 'tree_birch_4.png',  ], path: 'assets/images/objects/biomes/temperate/trees/birch', type: 'single' },
+        { name: 'tree_pine', files: ['tree_pine_1.png', 'tree_pine_2.png', 'tree_pine_3.png'], path: 'assets/images/objects/biomes/temperate/trees/pine/', type: 'single' },
         { name: 'tree_maple_single', files: ['tree_maple_single_1.png', 'tree_maple_single_2.png', 'tree_maple_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
         { name: 'tree_maple_double', files: ['tree_maple_double_1.png', 'tree_maple_double_2.png',], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
         { name: 'tree_maple_triple', files: ['tropical_fan_triple_1.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
@@ -606,6 +606,35 @@ const TEMPERATE_BIOME = {
 
         // GROUND TILES
         { name: 'mud', files: ['mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',], path: 'assets/images/objects/biomes/mud/', type: 'single' },
-        { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'grass5.png', 'grass6.png', ], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
+         { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'grass5.png', 'grass6.png', ], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
     ],
+
+    // =========================================================================
+    // SHOOTOUT BACKGROUNDS (biome-specific)
+    // =========================================================================
+    shootoutBackgrounds: {
+        // TODO: Add temperate shootout backgrounds here
+        TEMPERATE_FOREST_1: {
+            NAME: 'Pine Attack',
+            IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_1.png',
+            TREE_SPAWN_POSITIONS: [
+                    {"x":460,"y":1108,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":false},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
+                    {"x":1467,"y":914,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1673,"y":848,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":585,"y":832,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1418,"y":921,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":717,"y":826,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":303,"y":87,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1166,"y":762,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1538,"y":667,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":849,"y":702,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":600,"y":643,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1300,"y":653,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":90,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":916,"y":712,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}}
+
+                ]
+        },
+        // TEMPERATE_FOREST_2: { ... },
+        // TEMPERATE_RUINS: { ... },
+    },
 };

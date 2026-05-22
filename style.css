@@ -3765,62 +3765,155 @@ input[type="range"]::-moz-range-thumb {
     text-transform: uppercase;
 }
 
-/* --- Shootout Mode Styles --- */
-/* Shootout Pre-Game Screen */
+/* ============================================================
+   SHOOTOUT PRE-GAME SCREEN
+   Dedicated styles — do NOT reuse game-over classes here.
+   Layout: two-column flex (left info panel + right map panel)
+   ============================================================ */
+
 #shootoutPreGameScreen {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: none;
-    justify-content: center;
-    align-items: center;
+    inset: 0;
     z-index: 150;
-    background: radial-gradient(circle at center, rgba(10, 15, 10, 0.7) 0%, rgba(5, 5, 5, 0.95) 100%);
-    pointer-events: auto;
-    overflow: auto;
-    padding: 1vh 1vw;
+    display: none;
+    flex-direction: column;
+    background: radial-gradient(circle at 40% 50%, rgba(10, 18, 10, 0.85) 0%, rgba(4, 6, 4, 0.97) 100%);
+    overflow: hidden;
 }
 
 #shootoutPreGameScreen.visible {
     display: flex;
 }
 
-#shootoutPreGameScreen h2 {
-    display: none;
+/* -- two-column body -- */
+#shootoutPreGameScreen .pregame-body {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    padding: 30px 30px;
+    min-height: 0;
+    overflow: hidden;
+    align-items: stretch;
+    justify-content: flex-start;
 }
 
+/* -- left column -- */
 #shootoutPreGameScreen .hud-panel {
-    height: 90vh;
-    width: fit-content;
-    margin-right: 50px;
+    background: rgba(10, 15, 10, 0.6);
+    border: 1px solid rgba(76, 175, 80, 0.2);
+    box-shadow: 0 0 20px rgba(0, 40, 0, 0.4), inset 0 0 30px rgba(0, 0, 0, 0.8);
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    backdrop-filter: blur(5px);
 }
 
-#shootoutPreGameScreen .shootout-instructions {
-    display: contents;
-    align-items: center;
-    justify-items: auto;
-    background: rgba(0, 0, 0, 0.4);
-    padding: 15px;
-    border-radius: 4px;
-    border-left: 3px solid rgba(76, 175, 80, 0.5);
-    margin: 0 0 15px 0;
+#shootoutPreGameScreen .hud-panel::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(76, 175, 80, 0.8), transparent);
 }
 
-#shootoutPreGameScreen .shootout-instructions p {
-    margin: 8px 0;
-    font-size: 1em;
-    color: #E2E0D8;
+#shootoutPreGameScreen .hud-left {
+    width: 320px;
+    min-width: 300px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    align-items: stretch;
+    justify-content: flex-start;
+    border-right: 2px solid rgba(76, 175, 80, 0.5);
+}
+
+#shootoutPreGameScreen .hud-left::-webkit-scrollbar {
+    width: 4px;
+}
+#shootoutPreGameScreen .hud-left::-webkit-scrollbar-track {
+    background: transparent;
+}
+#shootoutPreGameScreen .hud-left::-webkit-scrollbar-thumb {
+    background: rgba(76, 175, 80, 0.3);
+    border-radius: 2px;
+}
+
+/* -- right column -- */
+#shootoutPreGameScreen .hud-right {
+    width: 880px;
+    min-width: 520px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-left: 2px solid rgba(76, 175, 80, 0.5);
+    background: linear-gradient(135deg, rgba(15, 20, 15, 0.8) 0%, rgba(5, 10, 5, 0.9) 100%);
+}
+
+#shootoutPreGameScreen .hud-right::-webkit-scrollbar {
+    width: 4px;
+}
+#shootoutPreGameScreen .hud-right::-webkit-scrollbar-track {
+    background: transparent;
+}
+#shootoutPreGameScreen .hud-right::-webkit-scrollbar-thumb {
+    background: rgba(76, 175, 80, 0.3);
+    border-radius: 2px;
+}
+
+/* -- corner brackets -- */
+#shootoutPreGameScreen .hud-bracket {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border-color: #4CAF50;
+    border-style: solid;
+    border-width: 0;
+    pointer-events: none;
+    z-index: 2;
+}
+
+#shootoutPreGameScreen .top-left {
+    top: -1px;
+    left: -1px;
+    border-top-width: 2px;
+    border-left-width: 2px;
+}
+#shootoutPreGameScreen .top-right {
+    top: -1px;
+    right: -1px;
+    border-top-width: 2px;
+    border-right-width: 2px;
+}
+#shootoutPreGameScreen .bottom-left {
+    bottom: -1px;
+    left: -1px;
+    border-bottom-width: 2px;
+    border-left-width: 2px;
+}
+#shootoutPreGameScreen .bottom-right {
+    bottom: -1px;
+    right: -1px;
+    border-bottom-width: 2px;
+    border-right-width: 2px;
+}
+
+/* -- left panel: header -- */
+#shootoutPreGameScreen .mission-status-header {
+    text-align: center;
+    margin-bottom: 16px;
 }
 
 #shootoutPreGameScreen .mission-status-header h3 {
     font-family: 'Black Ops One', cursive;
-    font-size: 2.5em;
+    font-size: 2em;
     color: #4CAF50;
-    text-shadow: 0 0 15px rgba(76, 175, 80, 0.4), 2px 2px 0px #000;
+    text-shadow: 0 0 15px rgba(76, 175, 80, 0.4), 2px 2px 0 #000;
     margin: 0;
-    letter-spacing: 2px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
 }
 
 #shootoutPreGameScreen .status-line {
@@ -3828,38 +3921,55 @@ input[type="range"]::-moz-range-thumb {
     height: 1px;
     background: repeating-linear-gradient(90deg, #4CAF50, #4CAF50 10px, transparent 10px, transparent 20px);
     opacity: 0.5;
-    margin: 15px 0;
+    margin: 12px 0;
 }
 
-.shootout-mode-selection {
-    margin: 0;
-    background: rgba(0, 0, 0, 0.4);
-    padding: 15px;
+/* -- left panel: instructions -- */
+#shootoutPreGameScreen .shootout-instructions {
+    background: rgba(0, 0, 0, 0.35);
+    padding: 14px 16px;
     border-radius: 4px;
     border-left: 3px solid rgba(76, 175, 80, 0.5);
-    width: 500px;
+    margin-bottom: 16px;
 }
 
-.shootout-mode-selection p {
+#shootoutPreGameScreen .shootout-instructions p {
+    margin: 6px 0;
+    font-size: 0.95em;
+    color: #D0CEC4;
+    line-height: 1.4;
+}
+
+/* -- left panel: mode selection -- */
+#shootoutPreGameScreen .shootout-mode-selection {
+    background: rgba(0, 0, 0, 0.35);
+    padding: 14px 16px;
+    border-radius: 4px;
+    border-left: 3px solid rgba(76, 175, 80, 0.5);
+    margin-bottom: 16px;
+}
+
+#shootoutPreGameScreen .shootout-mode-selection > p {
     font-family: 'Rajdhani', sans-serif;
     font-weight: 600;
-    font-size: 0.9em;
+    font-size: 0.85em;
     color: #A8A498;
     letter-spacing: 1.5px;
     margin: 0 0 10px 0;
+    text-transform: uppercase;
 }
 
-.mode-buttons-container {
+#shootoutPreGameScreen .mode-buttons-container {
     display: flex;
-    justify-content: center;
-    gap: 15px;
-    margin: 10px 0;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
-.mode-select-btn {
-    padding: 10px 20px;
+#shootoutPreGameScreen .mode-select-btn {
+    flex: 1;
+    padding: 10px 16px;
     font-family: 'Black Ops One', cursive;
-    font-size: 1em;
+    font-size: 0.9em;
     text-transform: uppercase;
     letter-spacing: 1px;
     background: rgba(255, 255, 255, 0.05);
@@ -3870,185 +3980,205 @@ input[type="range"]::-moz-range-thumb {
     clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
 }
 
-.mode-select-btn:hover:not(.active) {
+#shootoutPreGameScreen .mode-select-btn:hover:not(.active) {
     background: rgba(255, 255, 255, 0.1);
     border-color: #888;
     color: #bbb;
 }
 
-.mode-select-btn.active {
+#shootoutPreGameScreen .mode-select-btn.active {
     background: #4CAF50;
     color: #000;
-    border-color: #fff;
+    border-color: #81C784;
     box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
 }
 
-.mode-description {
+#shootoutPreGameScreen .mode-description {
     font-style: italic;
-    font-size: 0.9em;
-    color: #A8A498;
-    margin-top: 10px;
+    font-size: 0.85em;
+    color: #9A9688;
     font-family: 'Rajdhani', sans-serif;
+    margin: 8px 0 0 0;
 }
 
-.core-score-group {
+/* -- left panel: high scores -- */
+#shootoutPreGameScreen .core-score-group {
     display: flex;
     flex-direction: column;
     align-items: center;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 15px 20px;
-    border: 1px solid rgba(76, 175, 80, 0.3);
+    background: rgba(0, 0, 0, 0.45);
+    padding: 14px 20px;
+    border: 1px solid rgba(76, 175, 80, 0.25);
     border-radius: 4px;
-    width: 100%;
 }
 
-.core-score-group .stat-label {
+#shootoutPreGameScreen .core-score-group > .stat-label {
     font-family: 'Rajdhani', sans-serif;
-    font-weight: 600;
-    font-size: 0.9em;
+    font-weight: 700;
+    font-size: 0.85em;
     color: #A8A498;
-    letter-spacing: 1.5px;
+    letter-spacing: 2px;
     margin-bottom: 10px;
+    text-transform: uppercase;
 }
 
-.high-score-grid {
+#shootoutPreGameScreen .high-score-grid {
     display: flex;
-    gap: 30px;
+    gap: 24px;
     justify-content: center;
 }
 
-.high-score-item {
+#shootoutPreGameScreen .high-score-item {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
 
-.high-score-item .stat-label {
+#shootoutPreGameScreen .high-score-item .stat-label {
     font-family: 'Rajdhani', sans-serif;
     font-weight: 600;
-    font-size: 0.75em;
-    color: #888;
+    font-size: 0.7em;
+    color: #777;
     letter-spacing: 1px;
-    margin-bottom: 5px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
 }
 
-.high-score-item .stat-value {
+#shootoutPreGameScreen .high-score-item .stat-value {
     font-family: 'Black Ops One', cursive;
-    font-size: 1.5em;
+    font-size: 1.4em;
     color: #ffd700;
     text-shadow: 0 0 10px rgba(255, 215, 0, 0.4);
 }
 
-#shootoutPreGameScreen .hud-right  {
-    letter-spacing: 2px;
-    margin: 0;
-    min-width: fit-content;
-    width: 1000px;
+/* -- right panel: telemetry header -- */
+#shootoutPreGameScreen .telemetry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(76, 175, 80, 0.3);
+    padding-bottom: 8px;
+    margin-bottom: 16px;
 }
 
-#shootoutPreGameScreen .hud-right .telemetry-header h3 {
+#shootoutPreGameScreen .telemetry-header h3 {
     font-family: 'Rajdhani', sans-serif;
     color: #4CAF50;
     font-size: 1.1em;
     letter-spacing: 2px;
     margin: 0;
+    text-transform: uppercase;
 }
 
+#shootoutPreGameScreen .data-stream {
+    width: 60px;
+    height: 10px;
+    background: repeating-linear-gradient(90deg, #4CAF50, #4CAF50 2px, transparent 2px, transparent 4px);
+    opacity: 0.5;
+    animation: slideData 2s linear infinite;
+}
+
+/* -- right panel: map selection -- */
 #shootoutPreGameScreen .shootout-map-selection-container {
-    margin-top: 0;
-    width: 1020px;
-}
-
-.shootout-map-selection-container p {
-    display: none;
+    margin-bottom: 16px;
 }
 
 #shootoutPreGameScreen .shootout-map-list {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 30px;
-    width: 100%;
-    max-height: 45vh;
-    overflow-y: none;
-    overflow-x: none;
-    padding-right: 0px;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    max-height: 42vh;
+    overflow-y: auto;
+    padding-right: 4px;
 }
 
 #shootoutPreGameScreen .shootout-map-list::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
 }
-
 #shootoutPreGameScreen .shootout-map-list::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.3);
+    background: rgba(0, 0, 0, 0.2);
 }
-
 #shootoutPreGameScreen .shootout-map-list::-webkit-scrollbar-thumb {
-    background: #4CAF50;
+    background: rgba(76, 175, 80, 0.4);
     border-radius: 3px;
 }
 
-.map-card {
+/* -- right panel: map cards -- */
+#shootoutPreGameScreen .map-card {
     background: rgba(10, 15, 10, 0.8);
     border: 1px solid rgba(76, 175, 80, 0.2);
     border-radius: 4px;
-    padding: 0px;
     cursor: pointer;
     transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 18px;
+    align-items: stretch;
+    min-height: 180px;
     background-size: cover;
     background-position: center;
-    min-height: 100px;
+    overflow: hidden;
+    position: relative;
 }
 
-.map-card:hover {
+#shootoutPreGameScreen .map-card:hover {
     border-color: #4CAF50;
     box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);
+    transform: translateY(-2px);
 }
 
-.map-card.selected {
+#shootoutPreGameScreen .map-card.selected {
     border-color: #4CAF50;
-    background: rgba(76, 175, 79, 0.822);
     box-shadow: 0 0 20px rgba(76, 175, 80, 0.3);
-    background-size: cover;
-    background-position: center;
 }
 
-.map-card-name {
+#shootoutPreGameScreen .map-card.selected::after {
+    content: 'SELECTED';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    background: #4CAF50;
+    color: #000;
+    font-size: 0.6em;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 2px;
+    letter-spacing: 1px;
     font-family: 'Rajdhani', sans-serif;
-    font-weight: 500;
-    font-size: 0.9em;
+}
+
+#shootoutPreGameScreen .map-card-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 600;
+    font-size: 0.85em;
     color: #E2E0D8;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    width: 100%;
+    letter-spacing: 1.5px;
+    padding: 8px 10px;
+    background: rgba(0, 0, 0, 0.65);
+    margin-top: auto;
+    text-align: center;
 }
 
-.map-card.night-mode .map-card-name {
+#shootoutPreGameScreen .map-card:hover .map-card-name {
+    background: rgba(76, 175, 80, 0.25);
+}
+
+#shootoutPreGameScreen .map-card.selected .map-card-name {
+    color: #4CAF50;
+    background: rgba(46, 105, 48, 0.493);
+}
+
+#shootoutPreGameScreen .map-card.night-mode .map-card-name {
     color: #4CAF50;
 }
 
-.night-toggle {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    font-size: 0.75em;
-    color: #888;
-}
-
-.night-toggle input {
-    cursor: pointer;
-}
-
+/* -- right panel: shuffle toggle -- */
 #shootoutPreGameScreen .shootout-shuffle-toggle {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-top: 20px;
-    padding: 10px 15px;
-    background: rgba(0, 0, 0, 0.4);
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(0, 0, 0, 0.35);
     border-radius: 4px;
     border-left: 3px solid rgba(76, 175, 80, 0.5);
 }
@@ -4057,33 +4187,34 @@ input[type="range"]::-moz-range-thumb {
     font-family: 'Rajdhani', sans-serif;
     font-size: 0.9em;
     color: #A8A498;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.toggle-switch {
+/* -- toggle switch -- */
+#shootoutPreGameScreen .toggle-switch {
     position: relative;
     width: 44px;
     height: 22px;
+    flex-shrink: 0;
 }
 
-.toggle-switch input {
+#shootoutPreGameScreen .toggle-switch input {
     opacity: 0;
     width: 0;
     height: 0;
 }
 
-.toggle-switch .slider {
+#shootoutPreGameScreen .toggle-switch .slider {
     position: absolute;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
+    inset: 0;
     background-color: #333;
     transition: 0.3s;
     border-radius: 22px;
 }
 
-.toggle-switch .slider:before {
+#shootoutPreGameScreen .toggle-switch .slider:before {
     position: absolute;
     content: "";
     height: 16px;
@@ -4095,28 +4226,27 @@ input[type="range"]::-moz-range-thumb {
     border-radius: 50%;
 }
 
-.toggle-switch input:checked + .slider {
+#shootoutPreGameScreen .toggle-switch input:checked + .slider {
     background-color: #4CAF50;
 }
 
-.toggle-switch input:checked + .slider:before {
+#shootoutPreGameScreen .toggle-switch input:checked + .slider:before {
     transform: translateX(22px);
     background-color: #fff;
 }
 
+/* -- bottom bar (inside right panel) -- */
 #shootoutPreGameScreen .hud-bottom-bar {
-    transform: translateX(-50%);
-    width: 85%;
-    max-width: 800px;
-    background: rgba(10, 15, 10, 0.8);
-    border: 1px solid rgba(76, 175, 80, 0.4);
+    flex-shrink: 0;
+    width: 100%;
+    background: rgba(8, 12, 8, 0.9);
     border-top: 2px solid #4CAF50;
-    padding: 20px 0 0 0;
+    padding: 14px 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(5px);
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
 }
 
 #shootoutPreGameScreen .main-menu-buttons {
@@ -4124,19 +4254,20 @@ input[type="range"]::-moz-range-thumb {
     gap: 10px;
     flex-wrap: nowrap;
     justify-content: center;
-    width: 66%;
+    width: 90%;
 }
 
 #shootoutPreGameScreen .game-over-button {
-    padding: 15px 30px;
+    flex: 1;
+    padding: 12px 16px;
     font-family: 'Black Ops One', cursive;
-    font-size: 1em;
+    font-size: 0.85em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     transition: all 0.2s ease;
     cursor: pointer;
-    min-width: 180px;
+    min-width: 0;
     border: none;
     position: relative;
     overflow: hidden;
@@ -4150,40 +4281,70 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #shootoutPreGameScreen .action-primary:hover {
-    background: linear-gradient(135deg, #5fbf6f, #3d9350);
+    background: linear-gradient(135deg, #66cc75, #3d9350);
     box-shadow: 0 0 25px rgba(76, 175, 80, 0.6);
     transform: translateY(-2px);
 }
 
 #shootoutPreGameScreen .action-secondary {
-    background: rgba(50, 50, 50, 0.8);
-    color: #ccc;
-    border: 1px solid #555;
+    background: rgba(40, 45, 40, 0.9);
+    color: #bbb;
+    border: 1px solid rgba(76, 175, 80, 0.3);
 }
 
 #shootoutPreGameScreen .action-secondary:hover {
-    background: rgba(70, 70, 70, 0.8);
+    background: rgba(55, 65, 55, 0.9);
     color: #fff;
-    border-color: #777;
+    border-color: #4CAF50;
 }
 
+/* -- background effects -- */
 #shootoutPreGameScreen .background-effects {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
+    inset: 0;
     pointer-events: none;
     z-index: -1;
 }
 
-.vignette-overlay {
+#shootoutPreGameScreen .vignette-overlay {
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: radial-gradient(circle at center, transparent 0%, rgba(0, 0, 0, 0.4) 100%);
+    inset: 0;
+    background: radial-gradient(circle at center, transparent 30%, rgba(0, 0, 0, 0.45) 100%);
+}
+
+/* -- night toggle on map cards -- */
+#shootoutPreGameScreen .night-toggle {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 28px;
+    height: 28px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 1px solid #444;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    transition: all 0.2s ease;
+}
+
+#shootoutPreGameScreen .night-toggle:hover {
+    background: rgba(76, 175, 80, 0.3);
+    border-color: #4CAF50;
+}
+
+#shootoutPreGameScreen .night-toggle input {
+    cursor: pointer;
+}
+
+#shootoutPreGameScreen .map-card.night-mode {
+    filter: brightness(0.7) contrast(1.1) saturate(0.8);
+}
+
+#shootoutPreGameScreen .map-card.night-mode .map-card-name {
+    background: rgba(20, 30, 50, 0.9);
 }
 
 #shootoutHud {
@@ -5169,7 +5330,7 @@ input[type="range"]::-moz-range-thumb {
 @media (max-width: 1400px) {
     .hud-panel {
         padding: 20px;
-        height: 75vh;
+        height: 90vh;
     }
 
     .mission-status-header h2 {
@@ -5205,7 +5366,6 @@ input[type="range"]::-moz-range-thumb {
     .hud-right {
         width: 100%;
         max-width: 100%;
-        height: auto;
         transform: none;
         animation: fadeIn 0.5s ease-out forwards;
     }
@@ -5232,215 +5392,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* --- End Enhanced Game Over Screen Styles --- */
 
-/* --- Shootout Map Selection Styles --- */
-.shootout-map-selection-container {
-    margin: 20px 0;
-    text-align: center;
-    width: 100%;
-}
 
-.shootout-map-selection-container p {
-    font-family: var(--font-header);
-    color: #a898a8;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 10px;
-}
-
-.shootout-map-list {
-    display: flex;
-    flex-direction: row;
-    gap: 15px;
-    padding: 10px;
-    overflow-x: auto;
-    justify-content: center;
-    min-height: 140px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 5px;
-    border: 1px solid #444;
-}
-
-.map-card {
-    width: 220px;
-    height: 124px;
-    border-radius: 6px;
-    background-size: cover;
-    background-position: center;
-    border: 2px solid #555;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    position: relative;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    overflow: hidden;
-}
-
-.map-card:hover {
-    border-color: var(--brand-primary);
-    transform: translateY(-5px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-}
-
-.map-card.selected {
-    border-color: #ffd700;
-    box-shadow: 0 0 15px rgba(255, 215, 0, 0.4);
-}
-
-.map-card.selected::before {
-    content: 'SELECTED';
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    background: #ffd700;
-    color: #000;
-    font-size: 10px;
-    font-weight: bold;
-    padding: 2px 6px;
-    border-radius: 3px;
-    z-index: 2;
-}
-
-.map-card-name {
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    padding: 5px;
-    text-align: center;
-    font-family: var(--font-ui);
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.map-card:hover .map-card-name {
-    background: rgba(230, 157, 69, 0.9);
-    color: #810000;
-    font-family: var(--font-ui);
-    font-size: 15px;
-    font-weight: bold;
-}
-
-/* --- Night Mode Toggle Styles --- */
-.night-toggle {
-    position: absolute;
-    top: 5px;
-    left: 5px;
-    width: 32px;
-    height: 32px;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid #444;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    z-index: 10;
-    transition: all 0.2s ease;
-}
-
-.night-toggle:hover {
-    background: rgba(230, 157, 69, 0.8);
-    border-color: #ffd080;
-}
-
-.night-toggle.active {
-    background: #3a4a5a;
-    border-color: #80b0ff;
-    box-shadow: 0 0 10px rgba(128, 176, 255, 0.4);
-}
-
-.night-toggle .icon {
-    font-size: 18px;
-    color: #fff;
-    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
-}
-
-.night-toggle.active .icon {
-    color: #ffd700;
-}
-
-.map-card.night-mode {
-    filter: brightness(0.7) contrast(1.1) saturate(0.8);
-}
-
-.map-card.night-mode .map-card-name {
-    background: rgba(20, 30, 50, 0.9);
-}
-
-/* --- Shuffle Mode Toggle --- */
-.shootout-shuffle-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-    margin: 15px 0;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 5px;
-    border: 1px solid #444;
-}
-
-.shootout-shuffle-toggle span {
-    font-family: var(--font-header);
-    font-size: 14px;
-    color: #ccc;
-    letter-spacing: 1px;
-    text-transform: uppercase;
-}
-
-/* Toggle Switch */
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 50px;
-    height: 24px;
-}
-
-.toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.toggle-switch .slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #333;
-    transition: 0.3s;
-    border-radius: 24px;
-    border: 1px solid #555;
-}
-
-.toggle-switch .slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 2px;
-    bottom: 2px;
-    background-color: white;
-    transition: 0.3s;
-    border-radius: 50%;
-}
-
-.toggle-switch input:checked + .slider {
-    background-color: #ffd700;
-    border-color: #ffd700;
-}
-
-.toggle-switch input:checked + .slider:before {
-    transform: translateX(26px);
-}
-
-.toggle-switch:hover .slider {
-    border-color: var(--brand-primary);
-}
 
 
 /* --- Floating Dev Mode Overlay --- */

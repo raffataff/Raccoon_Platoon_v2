@@ -2611,17 +2611,12 @@ class UI {
             if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3) * 100) hpColor = healthBarStyle.HP_COLOR_LOW || '#A85050';
             else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6) * 100) hpColor = healthBarStyle.HP_COLOR_MEDIUM || '#D09040';
 
-            const fadeThreshold = healthBarStyle.FADE_START_THRESHOLD || 0.25;
             const flashThreshold = healthBarStyle.FLASH_THRESHOLD || 0.25;
             let fadeClass = '';
             let fadeOpacity = '';
             if (hpFraction <= flashThreshold && !isKIA) {
                 fadeClass = ' health-bar-flash';
-            } else if (hpFraction > fadeThreshold && !isKIA) {
-                const fadeMin = healthBarStyle.FADE_MIN_OPACITY || 0.15;
-                const opacity = 1.0 - (hpFraction - fadeThreshold) / (1.0 - fadeThreshold) * (1.0 - fadeMin);
-                fadeClass = ' health-bar-fade';
-                fadeOpacity = `opacity: ${opacity};`;
+                fadeOpacity = 'opacity: 0.5;';
             }
 
             const infoOverlay = document.createElement('div');

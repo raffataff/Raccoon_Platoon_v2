@@ -24,12 +24,16 @@ class Game {
         this.tempSelectedForDeployment = [];
         this.lastDeployedSquadIds = [];
 
+        this.enemiesKilledThisMission = 0;
+        this.raccoonKillsThisMission = new Map();
+
         this.enemiesKilledThisPhase = 0;
         this.hostagesRescuedThisPhase = 0;
         this.fallenRaccoonsThisPhase = [];
         this.newRecruitsThisPhase = [];
         this.promotedRaccoonsThisPhase = [];
         this.missionResultsThisPhase = [];
+        this.raccoonKillsThisPhase = new Map();
         this.phaseStartTime = 0;
         this.phaseStartRosterSnapshot = [];
         this.killsAtPhaseStart = new Map();
@@ -950,6 +954,7 @@ class Game {
             // TERRAIN (single files from lists - biome-specific, using TROPICAL_BIOME for now)
             // ====================
             // TROPICAL
+            { name: 'grass_decoration', files: TROPICAL_BIOME.spritePaths.grass_decoration?.files, path: TROPICAL_BIOME.spritePaths.grass_decoration?.path, type: 'single' },
             { name: 'grass', files: TROPICAL_BIOME.spritePaths.grass?.files, path: TROPICAL_BIOME.spritePaths.grass?.path, type: 'single' },
             { name: 'mud', files: TROPICAL_BIOME.spritePaths.mud?.files, path: TROPICAL_BIOME.spritePaths.mud?.path, type: 'single' },
             { name: 'tropical_wall_angled_long', files: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.files, path: TROPICAL_BIOME.spritePaths.tropical_wall_angled_long?.path, type: 'single' },
@@ -969,7 +974,7 @@ class Game {
             { name: 'palm2_triple', files: TROPICAL_BIOME.spritePaths.tree_palm2_triple?.files, path: TROPICAL_BIOME.spritePaths.tree_palm2_triple?.path, type: 'single' },
             { name: 'deciduous_fallen', files: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.path, type: 'single' },
             { name: 'kapok_single', files: TROPICAL_BIOME.spritePaths.tree_kapok_single?.files, path: TROPICAL_BIOME.spritePaths.tree_kapok_single?.path, type: 'single' },
-            { name: 'tree4_deciduous', files: TROPICAL_BIOME.spritePaths.tree4_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree4_deciduous_single?.path, type: 'single' },
+            { name: 'tree_pheonix', files: TROPICAL_BIOME.spritePaths.tree_pheonix?.files, path: TROPICAL_BIOME.spritePaths.tree_pheonix?.path, type: 'single' },
             { name: 'tree5_deciduous', files: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.path, type: 'single' },
             { name: 'tree_fan_single', files: TROPICAL_BIOME.spritePaths.tree_fan_single?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_single?.path, type: 'single' },
             { name: 'tree_fan_double', files: TROPICAL_BIOME.spritePaths.tree_fan_double?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_double?.path, type: 'single' },
@@ -991,7 +996,8 @@ class Game {
             { name: 'rock_large', files: TEMPERATE_BIOME.spritePaths.rock_large?.files, path: TEMPERATE_BIOME.spritePaths.rock_large?.path, type: 'single' },
             { name: 'oak_single', files: TEMPERATE_BIOME.spritePaths.tree_oak_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_single?.path, type: 'single' },
             { name: 'oak_double', files: TEMPERATE_BIOME.spritePaths.tree_oak_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_double?.path, type: 'single' },
-            { name: 'tree_willow_single', files: TEMPERATE_BIOME.spritePaths.tree_willow_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow_single?.path, type: 'single' },
+            { name: 'oak_fallen_small', files: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.path, type: 'single' },
+            { name: 'tree_willow', files: TEMPERATE_BIOME.spritePaths.tree_willow?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow?.path, type: 'single' },
             { name: 'tree_birch', files: TEMPERATE_BIOME.spritePaths.tree_birch?.files, path: TEMPERATE_BIOME.spritePaths.tree_birch?.path, type: 'single' },
             { name: 'tree_pine', files: TEMPERATE_BIOME.spritePaths.tree_pine?.files, path: TEMPERATE_BIOME.spritePaths.tree_pine?.path, type: 'single' },
             { name: 'tree_maple_single', files: TEMPERATE_BIOME.spritePaths.tree_maple_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_single?.path, type: 'single' },
@@ -4226,7 +4232,7 @@ class Game {
                     const shapesArray = Array.isArray(collisionShapes) ? collisionShapes : (collisionShapes ? [collisionShapes] : null);
                     const isBehindLiving = !!obstacle.isDestroyed;
                     const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
-                    const isTree = obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree4_deciduous_single' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
+                    const isTree = obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree_pheonix' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
                     const isPickup = !!obstacle.isPickup;
                     let sortYValue = obstacle.y + obstacle.height;
                     if (shapesArray && shapesArray.length > 0) {

@@ -463,7 +463,7 @@ class LevelGenerator {
      * @param {number} targetWidth - Width of the target
      * @param {number} targetHeight - Height of the target
      */
-    _spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight) {
+    _spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes) {
         // Find the grenade crate template
         const grenadeCrateDef = (CONFIG.PICKUP_DEFINITIONS || []).find(def => def.type === 'pickup_grenade_crate');
         if (!grenadeCrateDef) {
@@ -471,11 +471,20 @@ class LevelGenerator {
             return;
         }
 
-        // Calculate spawn position - random angle and distance around the target
-        const angle = this.rng.nextFloat(0, Math.PI * 2);
-        const distance = this.rng.nextFloat(50, 120);
         const centerX = targetX + targetWidth / 2;
         const centerY = targetY + targetHeight / 2;
+
+        let minDistance = 50;
+        if (towerCollisionShapes && towerCollisionShapes.length > 0) {
+            for (const shape of towerCollisionShapes) {
+                const extent = this._getCollisionShapeMaxExtentFromCenter(shape, centerX, centerY);
+                minDistance = Math.max(minDistance, extent + 20);
+            }
+        }
+
+        // Calculate spawn position - random angle and distance around the target
+        const angle = this.rng.nextFloat(0, Math.PI * 2);
+        const distance = this.rng.nextFloat(minDistance, Math.max(minDistance + 50, 120));
         const crateX = centerX + Math.cos(angle) * distance;
         const crateY = centerY + Math.sin(angle) * distance;
 
@@ -502,7 +511,7 @@ class LevelGenerator {
             let placed = false;
             for (let attempt = 0; attempt < 8; attempt++) {
                 const retryAngle = this.rng.nextFloat(0, Math.PI * 2);
-                const retryDistance = this.rng.nextFloat(50, 120);
+                const retryDistance = this.rng.nextFloat(minDistance, Math.max(minDistance + 50, 120));
                 crateShape.x = centerX + Math.cos(retryAngle) * retryDistance;
                 crateShape.y = centerY + Math.sin(retryAngle) * retryDistance;
                 if (!this._isPlacementInvalid(crateShape, grenadeCrateDef, this.level.obstacles, [])) {
@@ -562,17 +571,26 @@ class LevelGenerator {
      * @param {number} targetWidth - Width of the target
      * @param {number} targetHeight - Height of the target
      */
-    _spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight) {
+    _spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes) {
         const ammoCrateDef = (CONFIG.PICKUP_DEFINITIONS || []).find(def => def.type === 'pickup_ammo_crate');
         if (!ammoCrateDef) {
             return;
         }
 
-        // Calculate spawn position - random angle and distance around the target
-        const angle = this.rng.nextFloat(0, Math.PI * 2);
-        const distance = this.rng.nextFloat(50, 120);
         const centerX = targetX + targetWidth / 2;
         const centerY = targetY + targetHeight / 2;
+
+        let minDistance = 50;
+        if (towerCollisionShapes && towerCollisionShapes.length > 0) {
+            for (const shape of towerCollisionShapes) {
+                const extent = this._getCollisionShapeMaxExtentFromCenter(shape, centerX, centerY);
+                minDistance = Math.max(minDistance, extent + 20);
+            }
+        }
+
+        // Calculate spawn position - random angle and distance around the target
+        const angle = this.rng.nextFloat(0, Math.PI * 2);
+        const distance = this.rng.nextFloat(minDistance, Math.max(minDistance + 50, 120));
         const crateX = centerX + Math.cos(angle) * distance;
         const crateY = centerY + Math.sin(angle) * distance;
 
@@ -596,7 +614,7 @@ class LevelGenerator {
             let placed = false;
             for (let attempt = 0; attempt < 8; attempt++) {
                 const retryAngle = this.rng.nextFloat(0, Math.PI * 2);
-                const retryDistance = this.rng.nextFloat(50, 120);
+                const retryDistance = this.rng.nextFloat(minDistance, Math.max(minDistance + 50, 120));
                 crateShape.x = centerX + Math.cos(retryAngle) * retryDistance;
                 crateShape.y = centerY + Math.sin(retryAngle) * retryDistance;
                 if (!this._isPlacementInvalid(crateShape, ammoCrateDef, this.level.obstacles, [])) {
@@ -658,7 +676,7 @@ class LevelGenerator {
         return availableWeapons;
     }
 
-    _spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, currentPhase) {
+    _spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, currentPhase, towerCollisionShapes) {
         const weaponCrateDef = (CONFIG.PICKUP_DEFINITIONS || []).find(def => def.type === 'pickup_weapon_crate');
         if (!weaponCrateDef) {
             return;
@@ -671,11 +689,20 @@ class LevelGenerator {
 
         const selectedWeapon = availableWeapons[this.rng.nextInt(0, availableWeapons.length)];
 
-        // Calculate spawn position - random angle and distance around the target
-        const angle = this.rng.nextFloat(0, Math.PI * 2);
-        const distance = this.rng.nextFloat(50, 120);
         const centerX = targetX + targetWidth / 2;
         const centerY = targetY + targetHeight / 2;
+
+        let minDistance = 50;
+        if (towerCollisionShapes && towerCollisionShapes.length > 0) {
+            for (const shape of towerCollisionShapes) {
+                const extent = this._getCollisionShapeMaxExtentFromCenter(shape, centerX, centerY);
+                minDistance = Math.max(minDistance, extent + 20);
+            }
+        }
+
+        // Calculate spawn position - random angle and distance around the target
+        const angle = this.rng.nextFloat(0, Math.PI * 2);
+        const distance = this.rng.nextFloat(minDistance, Math.max(minDistance + 50, 120));
         const crateX = centerX + Math.cos(angle) * distance;
         const crateY = centerY + Math.sin(angle) * distance;
 
@@ -699,7 +726,7 @@ class LevelGenerator {
             let placed = false;
             for (let attempt = 0; attempt < 8; attempt++) {
                 const retryAngle = this.rng.nextFloat(0, Math.PI * 2);
-                const retryDistance = this.rng.nextFloat(50, 120);
+                const retryDistance = this.rng.nextFloat(minDistance, Math.max(minDistance + 50, 120));
                 crateShape.x = centerX + Math.cos(retryAngle) * retryDistance;
                 crateShape.y = centerY + Math.sin(retryAngle) * retryDistance;
                 if (!this._isPlacementInvalid(crateShape, weaponCrateDef, this.level.obstacles, [])) {
@@ -1284,9 +1311,10 @@ class LevelGenerator {
                             this._spawnInitialGuardsForObject(missionTargetObs, targetTemplateOriginal, allSpawnedEnemiesDuringGen);
                             
                             if (targetTemplateOriginal.type === 'possum_relay_tower') {
-                                this._spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight);
-                                this._spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight);
-                                this._spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, (this.game.currentPhaseIndex || 0) + 1);
+                                const towerCollisionShapes = this.level._getObstacleCollisionShape(missionTargetObs);
+                                this._spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes);
+                                this._spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes);
+                                this._spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, (this.game.currentPhaseIndex || 0) + 1, towerCollisionShapes);
                             }
                             
                             placedTarget = true;
@@ -2216,5 +2244,22 @@ class LevelGenerator {
             }
         }
         return playerSpawnLocations;
+    }
+
+    _getCollisionShapeMaxExtentFromCenter(shape, centerX, centerY) {
+        if (shape.type === 'ellipse') {
+            const dx = Math.abs(shape.x - centerX);
+            const dy = Math.abs(shape.y - centerY);
+            return Math.sqrt(Math.pow(dx + shape.radiusX, 2) + Math.pow(dy + shape.radiusY, 2));
+        } else if (shape.type === 'circle') {
+            const dx = Math.abs(shape.x - centerX);
+            const dy = Math.abs(shape.y - centerY);
+            return Math.sqrt(dx * dx + dy * dy) + shape.radius;
+        } else if (shape.type === 'rectangle') {
+            const dx = Math.abs(shape.x + shape.width / 2 - centerX);
+            const dy = Math.abs(shape.y + shape.height / 2 - centerY);
+            return Math.sqrt(Math.pow(dx + shape.width / 2, 2) + Math.pow(dy + shape.height / 2, 2));
+        }
+        return Math.max(shape.width || 0, shape.height || 0);
     }
 }

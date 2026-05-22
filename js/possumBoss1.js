@@ -90,9 +90,9 @@ class PossumBoss1 extends Unit {
             // Only fire if both major (actionTimer) and minor (attackCooldown) timers are ready
             if (this.actionTimer <= 0 && this.attackCooldown <= 0) {
                 if (this.attackMode === 'GRENADE_VOLLEY') {
-                    this._executeGrenadeFire(target);
+                    this._executeGrenadeFire(target, deltaTime);
                 } else if (this.attackMode === 'MG_BURST') {
-                    this._executeFire(target.x, target.y);
+                    this._executeFire(target.x, target.y, deltaTime);
                 }
             }
             return; // We are in shooting logic, so we are done for this frame.
@@ -134,7 +134,7 @@ class PossumBoss1 extends Unit {
         }
     }
     
-    _executeGrenadeFire(target) {
+    _executeGrenadeFire(target, deltaTime) {
         if (!this.game || !WEAPONS[this.primaryWeaponName] || !target) return;
         const primaryWeapon = WEAPONS[this.primaryWeaponName];
         
@@ -170,7 +170,7 @@ class PossumBoss1 extends Unit {
         }
     }
 
-    _executeFire(targetX, targetY) {
+    _executeFire(targetX, targetY, deltaTime) {
         if (!this.game || !WEAPONS[this.secondaryWeaponName]) return;
         const secondaryWeapon = WEAPONS[this.secondaryWeaponName];
 

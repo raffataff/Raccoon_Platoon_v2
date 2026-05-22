@@ -407,7 +407,7 @@ const SPEECH_CONFIG = {
     POSSUM: {
         ON_DAMAGE: [
             "Rude!", "Hey!", "Ow!", 
-            "Was that necessary?!", "Oww!", "Blerg!", "Nyaa!",
+            "Was that necessary?!", "Oww!", "Nyaa!",
             "Why you little—!"
         ],
         ON_KILL: [
@@ -417,7 +417,7 @@ const SPEECH_CONFIG = {
             "! would recommend more HP!"
         ],
         ON_PROXIMITY_ALLY: [
-            "Over here!", "Yo!", "Hey buddy!",
+            "Yo!", "Hey buddy!",
             "Do I smell?", "For Squeekor!", "Psst, got any trash?"
         ],
         ON_ALERT: [
@@ -439,7 +439,7 @@ const SPEECH_CONFIG = {
         ],
         IDLE_CHATTER: [
            "Wonder what's in the trash today...", "Anyone got snacks?", "Hmm hmm hmm...",
-            "Think there's a bin around here?", "Is it lunchtime yet?", "*yawns*",
+            "Think there's a bin around here?", "Is it lunchtime yet?", "I can't believe they killed Frankie!",
             "Damn my ass itches!", "Patience is a virtue ...I think"
         ],
         ON_LOW_HP: [
@@ -510,7 +510,7 @@ const SPEECH_CONFIG = {
         BUBBLE_LIFETIME: 2.5,
         BUBBLE_FONT: "bold 14px 'Consolas', 'Lucida Console', monospace",
         BUBBLE_COLOR_RACCOON: "#FFFFFF",
-        BUBBLE_COLOR_POSSUM: "#FFCCAA",
+        BUBBLE_COLOR_POSSUM: "#ff0000",
         BUBBLE_COLOR_HOSTAGE: "#FFFF88",
         BUBBLE_Y_OFFSET: -50,
         BUBBLE_MAX_WIDTH: 180,

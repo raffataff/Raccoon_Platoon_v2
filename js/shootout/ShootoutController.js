@@ -78,8 +78,8 @@ class ShootoutController {
         // type: 'enemy' for enemy hit, 'environment' for miss
 
         // Tweakable parameter: how far down the blood drops from the enemy's center
-        this.BLOOD_VERTICAL_OFFSET = 35; // Pixels (positive is down)
-        this.BLOOD_UPWARD_FORCE = -80;  // Pixels per second (negative is up)
+        this.BLOOD_VERTICAL_OFFSET = 95; // Pixels (positive is down)
+        this.BLOOD_UPWARD_FORCE = -105;  // Pixels per second (negative is up)
 
         // Shuffle Mode
         this.isShuffleMode = false;
@@ -677,9 +677,9 @@ class ShootoutController {
 
         for (let i = 0; i < numFalling; i++) {
             const angle = Math.random() * Math.PI * 2;
-            const distance = Math.random() * 20 * scale;
+            const distance = Math.random() * 25 * scale;
             const finalX = x + Math.cos(angle) * distance * 1.1;
-            const finalY = groundY + Math.sin(angle) * (distance * 0.5); // Flatten the splatter area
+            const finalY = groundY + Math.sin(angle) * (distance * 0.5) ; // Flatten the splatter area
 
             // Start position - higher up (enemy's body height)
             const startX = finalX + (Math.random() - 0.5) * 15;
@@ -726,7 +726,7 @@ class ShootoutController {
         }
 
         const poolFinalX = x + (Math.random() - 0.5) * 16;
-        const poolFinalY = groundY + (Math.random() - 0.5) * 16;
+        const poolFinalY = groundY + (Math.random() - 0.5) * 50;
 
         this.fallingDroplets.push({
             x: x + (Math.random() - 0.5) * 8,
@@ -929,49 +929,62 @@ class ShootoutController {
     }
 
     /**
-     * Draw bullet marks on the background
+     * Draw environment bullet marks (misses) - behind enemies
      * @param {CanvasRenderingContext2D} ctx - Canvas context
      */
-    drawBulletMarks(ctx) {
-        // Lazy load sprites if not loaded yet
+    drawEnvironmentBulletMarks(ctx) {
         this.ensureBulletMarkSpritesLoaded();
-        
-        if (this.bulletMarks.length === 0) return;
-        
-        const enemyPath = CONFIG.SHOOTOUT_MODE.BULLET_MARKS['ENEMY_HIT']?.PATH;
+
         const envPath = CONFIG.SHOOTOUT_MODE.BULLET_MARKS['ENVIRONMENT_HIT']?.PATH;
-        const enemySprite = this.game.preloadedImages[enemyPath];
         const envSprite = this.game.preloadedImages[envPath];
-        
-        if (!enemySprite || !envSprite) return; // Still not loaded
-        
-        // Get active target IDs for filtering enemy marks
-        const activeTargetIds = new Set();
-        if (this.spawner && this.spawner.activeTargets) {
-            this.spawner.activeTargets.forEach(t => activeTargetIds.add(t.id));
-        }
-        
+        if (!envSprite) return;
+
         this.bulletMarks.forEach(mark => {
-            // For enemy marks, check if target is still alive
-            if (mark.type === 'enemy' && mark.targetId !== null) {
-                if (!activeTargetIds.has(mark.targetId)) {
-                    // Target is dead/gone, don't draw this mark
-                    return;
-                }
-            }
-            
-            // Get the sprite based on type
-            const sprite = mark.type === 'enemy' ? enemySprite : envSprite;
+            if (mark.type !== 'environment') return;
 
             ctx.save();
             ctx.translate(mark.x, mark.y);
             ctx.rotate(mark.rotation);
-            
-            // Draw the sprite centered at the position
-            const width = sprite.width * mark.scale;
-            const height = sprite.height * mark.scale;
-            ctx.drawImage(sprite, -width / 2, -height / 2, width, height);
-            
+
+            const width = envSprite.width * mark.scale;
+            const height = envSprite.height * mark.scale;
+            ctx.drawImage(envSprite, -width / 2, -height / 2, width, height);
+
+            ctx.restore();
+        });
+    }
+
+    /**
+     * Draw enemy bullet marks (hits) - in front of enemies
+     * @param {CanvasRenderingContext2D} ctx - Canvas context
+     */
+    drawEnemyBulletMarks(ctx) {
+        this.ensureBulletMarkSpritesLoaded();
+
+        const enemyPath = CONFIG.SHOOTOUT_MODE.BULLET_MARKS['ENEMY_HIT']?.PATH;
+        const enemySprite = this.game.preloadedImages[enemyPath];
+        if (!enemySprite) return;
+
+        const activeTargetIds = new Set();
+        if (this.spawner && this.spawner.activeTargets) {
+            this.spawner.activeTargets.forEach(t => activeTargetIds.add(t.id));
+        }
+
+        this.bulletMarks.forEach(mark => {
+            if (mark.type !== 'enemy') return;
+
+            if (mark.targetId !== null && !activeTargetIds.has(mark.targetId)) {
+                return;
+            }
+
+            ctx.save();
+            ctx.translate(mark.x, mark.y);
+            ctx.rotate(mark.rotation);
+
+            const width = enemySprite.width * mark.scale;
+            const height = enemySprite.height * mark.scale;
+            ctx.drawImage(enemySprite, -width / 2, -height / 2, width, height);
+
             ctx.restore();
         });
     }
@@ -1379,9 +1392,19 @@ class ShootoutController {
             this.drawFallingDroplets(ctx);
         }
 
+        // Draw bullet marks (behind enemies)
+        if (this.isRoundActive && !this.isDevMode) {
+            this.drawEnvironmentBulletMarks(ctx);
+        }
+
         // Draw targets (possums) - only in normal mode
         if (this.spawner && !this.isDevMode) {
             this.spawner.render(ctx);
+        }
+
+        // Draw enemy bullet marks (in front of enemies)
+        if (this.isRoundActive && !this.isDevMode) {
+            this.drawEnemyBulletMarks(ctx);
         }
 
         // Draw bullets (independent of enemies, drawn on top of them)
@@ -1402,11 +1425,6 @@ class ShootoutController {
         // Draw muzzle flash if firing
         if (this.fireCooldown > this.FIRE_COOLDOWN_TIME * 0.5) {
             this.drawMuzzleFlash(ctx);
-        }
-
-        // Draw bullet marks on top of everything
-        if (this.isRoundActive && !this.isDevMode) {
-            this.drawBulletMarks(ctx);
         }
 
         // Draw damage visual effects (only during gameplay)

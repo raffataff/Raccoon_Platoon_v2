@@ -414,7 +414,7 @@ const CONFIG = {
             name: "Possum Boss 1 Grenade Launcher",
             damage: 55,
             rof: 0.25,
-            range: 350,
+            range: 550,
             projectileSpeed: 650,
             projectileColor: '#FF4500',
             accuracyStationary: 1.0,
@@ -433,7 +433,7 @@ const CONFIG = {
             name: "Possum Boss 1 Heavy Repeater",
             damage: 15,
             rof: 4,
-            range: 320,
+            range: 550,
             projectileSpeed: 650,
             projectileColor: '#FF8C00',
             accuracyStationary: 0.80,
@@ -501,7 +501,7 @@ const CONFIG = {
             name: 'Possum Turret',
             damage: 40,
             rof: 2.5,
-            range: 400,
+            range: 500,
             projectileSpeed: 500,
             projectileColor: '#ff6600',
             accuracyStationary: 0.85,
@@ -829,11 +829,11 @@ const CONFIG = {
     // =============================================================================
     Z_INDEX: {
         BACKGROUND: -5000,
-        DESTROYED_OBSTACLE: -4000,
-        USED_PICKUP: -2000,
-        DEAD_UNIT: -1000,
+        DESTROYED_OBSTACLE: 0,
+        USED_PICKUP: 0,
         PICKUP: 0,
-        PROJECTILE: 600,
+        PROJECTILE: 0,
+        DEAD_UNIT: 10,
         DEFAULT: 1100,
         DESTROYED_BUILDING: 1500,
         FLYING_BIRD: 2000,
@@ -1172,7 +1172,9 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED',
             canBeFlipped: false,
-            isPossumTurret: true
+            isPossumTurret: true,
+            placementBuffer: 250,
+            decorationBuffer: 150,
         },
         {
             type: 'extraction_zone', name: 'Extraction Zone', color: '#3cc1ff',
@@ -1426,10 +1428,10 @@ const CONFIG = {
             INITIAL_SPAWN_DELAY_SECONDS_MIN: 0,
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 1,
             PLAYER_PROXIMITY_TRIGGER_RADIUS: 200,
-            SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -145,
+            SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -125,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -85,
             SPAWN_AREA_WIDTH: 80,
-            SPAWN_PHASING_DURATION: 0.25,
+            SPAWN_PHASING_DURATION: 0.85,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
@@ -1460,7 +1462,7 @@ const CONFIG = {
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -150,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -80,
             SPAWN_AREA_WIDTH: 150,
-            SPAWN_PHASING_DURATION: 0.25,
+            SPAWN_PHASING_DURATION: 0.85,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
@@ -1919,7 +1921,7 @@ const CONFIG = {
         BULLET_MARKS: {
             ENEMY_HIT: {
                 PATH: 'assets/images/shootouts/bulletShot_enemy.png',
-                DEFAULT_SCALE: 0.6
+                DEFAULT_SCALE: 1.0
             },
             ENVIRONMENT_HIT: {
                 PATH: 'assets/images/shootouts/bulletShot_environment.png',
@@ -1932,7 +1934,7 @@ const CONFIG = {
                 enabled: true,
                 weight: 60,
                 peekOffset: 40,
-                scale: 0.5,
+                scale: 0.8,
                 bulletOffset: { x: -3, y: 14 },
                 showInDevMode: true
             },
@@ -1948,7 +1950,7 @@ const CONFIG = {
                 enabled: false,
                 weight: 15,
                 peekOffset: 45,
-                scale: 1.1,
+                scale: 1.0,
                 bulletOffset: { x: -3, y: 12 },
                 showInDevMode: false
             }
@@ -1995,7 +1997,7 @@ const CONFIG = {
         BACKGROUNDS: {
             JUNGLE_ATTACK: {
                 NAME: 'Jungle Attack',
-                IMAGE: 'assets/images/shootouts/Shootout_Jungle_1.png',
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_1.png',
                 TREE_SPAWN_POSITIONS: [
                     {"x":355,"y":1087,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":100,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":false}}},
                     {"x":435,"y":908,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":100,"scale":1.5,"showInDevMode":false}}},
@@ -2014,7 +2016,7 @@ const CONFIG = {
             
             JUNGLE_RUINS: {
                 NAME: 'Jungle Ruins',
-                IMAGE: 'assets/images/shootouts/Shootout_Jungle_2.png',
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_2.png',
                 TREE_SPAWN_POSITIONS: [
                     {"x":1013,"y":762,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":95,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":130,"scale":1.6,"showInDevMode":false}}},
                     {"x":476,"y":765,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":90,"scale":1.5,"showInDevMode":false}}},
@@ -2033,7 +2035,7 @@ const CONFIG = {
 
             JUNGLE_AMBUSH: {
                 NAME: 'Jungle Ambush',
-                IMAGE: 'assets/images/shootouts/Shootout_Jungle_3.png',
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_3.png',
                 TREE_SPAWN_POSITIONS: [
                     {"x":382,"y":1107,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},{"x":566,"y":860,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":70,"scale":1.5,"showInDevMode":true}}},{"x":760,"y":829,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":160,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},{"x":1295,"y":87,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":60,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},{"x":1276,"y":956,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":195,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},{"x":1744,"y":926,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":200,"scale":1.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":40,"peekOffset":115,"scale":1.9,"showInDevMode":true}}},{"x":759,"y":916,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":130,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},{"x":347,"y":245,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":100,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},{"x":1046,"y":771,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}},{"x":600,"y":523,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
                 ]
@@ -2041,7 +2043,7 @@ const CONFIG = {
             
             JUNGLE_RUINS_2: {
                 NAME: 'Jungle Ruins 2',
-                IMAGE: 'assets/images/shootouts/Shootout_Jungle_4.png',
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_4.png',
                 TREE_SPAWN_POSITIONS: [
                     {"x":202,"y":945,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":200,"scale":2,"showInDevMode":true},"heavy":{"enabled":true,"weight":0,"peekOffset":195,"scale":2.3,"showInDevMode":true}}},
                     {"x":464,"y":710,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":true,"weight":0,"peekOffset":95,"scale":1.4,"showInDevMode":true}}},
@@ -2055,7 +2057,7 @@ const CONFIG = {
             },
             RAINFOREST_BATTLE_1: {
                 NAME: 'Rainforest Battle',
-                IMAGE: 'assets/images/shootouts/Shootout_Jungle_6.png',
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_6.png',
                 TREE_SPAWN_POSITIONS: [
                     {"x":558,"y":852,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
                     {"x":746,"y":890,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":80,"scale":1.6,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
@@ -2069,6 +2071,27 @@ const CONFIG = {
                     {"x":841,"y":1107,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":130,"scale":1.9,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":105,"scale":2.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
                 ]
             },
+            TEMPERATE_FOREST_1: {
+                NAME: 'Pine Attack',
+                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_1.png',
+                TREE_SPAWN_POSITIONS: [
+                    {"x":460,"y":1108,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":false},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
+                    {"x":1467,"y":914,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1673,"y":848,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":585,"y":832,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1418,"y":921,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":717,"y":826,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":303,"y":87,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1166,"y":762,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1538,"y":667,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":849,"y":702,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":600,"y":643,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":1300,"y":653,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":90,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
+                    {"x":916,"y":712,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}}
+
+                ]
+            },
+
         },
 
         DEFAULT_BACKGROUND: 'JUNGLE_ATTACK',

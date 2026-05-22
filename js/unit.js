@@ -1158,6 +1158,7 @@ class Unit {
                 if (this instanceof PossumHeavy) killXp += (CONFIG.XP_PER_HEAVY_KILL || 15);
                 attackerUnit.addXp(killXp);
                 if (typeof attackerUnit.incrementKillCount === 'function') attackerUnit.incrementKillCount();
+                if (this.team === 'enemy' && this.game) this.game.enemiesKilledThisMission++;
                 if (this.game && this.game.trySpeech) {
                     this.game.trySpeech(attackerUnit, 'ON_KILL', 0.25);
                 }

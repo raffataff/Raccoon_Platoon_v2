@@ -26,7 +26,7 @@ const CAMPAIGN_RULES = {
         numSecondaryObjectives: {
             baseRange: [0, 0],          // At Phase 0, select between 0 and 1 secondary objectives.
             incrementPerPhase: 0.5,     // Add 0.5 to both min and max of the range per phase.
-            maxRange: [2, 6]            // The range will not exceed a max of [1, 4].
+            maxRange: [2, 4]            // The range will not exceed a max of [1, 4].
         },
     },
 

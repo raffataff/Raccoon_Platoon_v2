@@ -132,7 +132,12 @@ class Raccoon extends Unit {
         if (this.game && this.game.ui) this.game.ui.updateSquadPanel();
         this.checkPromotion();
     }
-    incrementKillCount() { this.killCount = (this.killCount || 0) + 1; }
+    incrementKillCount() {
+        this.killCount = (this.killCount || 0) + 1;
+        if (this.game && this.game.raccoonKillsThisMission) {
+            this.game.raccoonKillsThisMission.set(this.id, (this.game.raccoonKillsThisMission.get(this.id) || 0) + 1);
+        }
+    }
 
     checkPromotion() {
         if (!CONFIG.RANK_THRESHOLDS || CONFIG.RANK_THRESHOLDS.length === 0) return;

@@ -168,7 +168,7 @@ class ShootoutTarget extends Unit {
             // Start aiming sequence with warning
             this.currentState = 'AIMING';
             this.warningTimer = CONFIG.SHOOTOUT_MODE.WARNING_DURATION;
-            this.showWarning = true;
+            this.showWarning = false;
         }
 
         // Hide if peek duration expired
@@ -222,7 +222,7 @@ class ShootoutTarget extends Unit {
                     this.hasFired = false;
                     this.currentState = 'AIMING';
                     this.warningTimer = CONFIG.SHOOTOUT_MODE.WARNING_DURATION;
-                    this.showWarning = true;
+                    this.showWarning = false;
                 }
             }
         }
@@ -412,10 +412,10 @@ class ShootoutTarget extends Unit {
         this.renderTilesheet(ctx);
 
         // Draw warning exclamation mark
-        if (this.showWarning) {
+       /* if (this.showWarning) {
             this.drawWarning(ctx);
         }
-
+*/
         // Restore opacity
         ctx.restore();
 
