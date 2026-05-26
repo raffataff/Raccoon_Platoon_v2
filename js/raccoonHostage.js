@@ -154,20 +154,18 @@ class RaccoonHostage extends Raccoon {
             this.currentVisualState = 'idle_hostage_kneeling';
             this.updateVisualDirection(this.facingAngle);
 
-        } else { // Is rescued
+        } else {
             super.update(deltaTime);
-            
+
             if (this.isPhasing) {
                 return;
             }
 
             if (!this.isHoldingPosition) {
                  if (this.followTarget && this.followTarget.isAlive()) {
-                    const distToFollowTarget = distance(this.x, this.y, this.followTarget.x, this.followTarget.y);
-                    
                     const spreadOffset = this._getFollowSpreadOffset(this.followTarget);
-                    let desiredFollowX = spreadOffset.x;
-                    let desiredFollowY = spreadOffset.y;
+                    const desiredFollowX = spreadOffset.x;
+                    const desiredFollowY = spreadOffset.y;
 
                     const distToDesiredFollowPoint = distance(this.x, this.y, desiredFollowX, desiredFollowY);
 
@@ -183,13 +181,18 @@ class RaccoonHostage extends Raccoon {
                     this.lastStuckCheckY = this.y;
 
                     const isStuck = this.stuckFrames > 30;
+                    const severelyStuck = this.stuckFrames > 60;
 
-                    if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5 || isStuck) { 
-                        const targetMovedSignificantly = distance(this.followTarget.x, this.followTarget.y, this.lastFollowTargetPosition.x, this.lastFollowTargetPosition.y) > this.REPATH_TARGET_MOVE_THRESHOLD;
-                        const currentPathTargetOutdated = this.isMoving && this.currentPath.length > 0 && distance(this.worldTargetX, this.worldTargetY, desiredFollowX, desiredFollowY) > this.REPATH_TARGET_MOVE_THRESHOLD;
-                        const canRepathNow = (currentTime - this.lastRepathTime) > this.minTimeBetweenRepath;
+                    if (severelyStuck) {
+                        this.isMoving = false;
+                        this.currentPath = [];
+                    } else if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5 || isStuck) {
+                        const targetMoved = distance(this.followTarget.x, this.followTarget.y, this.lastFollowTargetPosition.x, this.lastFollowTargetPosition.y) > this.REPATH_TARGET_MOVE_THRESHOLD;
+                        const pathOutdated = this.isMoving && this.currentPath.length > 0 && distance(this.worldTargetX, this.worldTargetY, desiredFollowX, desiredFollowY) > this.REPATH_TARGET_MOVE_THRESHOLD;
+                        const needsRepath = !this.isMoving || pathOutdated || isStuck;
+                        const effectiveCooldown = isStuck ? Math.max(this.minTimeBetweenRepath, 2.0) : this.minTimeBetweenRepath;
 
-                        if (canRepathNow && (!this.isMoving || (this.currentPath.length === 0 && this.currentPathNodeIndex === 0) || targetMovedSignificantly || currentPathTargetOutdated || isStuck)) {
+                        if (needsRepath && targetMoved && (currentTime - this.lastRepathTime) > effectiveCooldown) {
                             if (this.setMoveTarget(desiredFollowX, desiredFollowY)) {
                                 this.lastFollowTargetPosition.x = this.followTarget.x;
                                 this.lastFollowTargetPosition.y = this.followTarget.y;
@@ -198,7 +201,7 @@ class RaccoonHostage extends Raccoon {
                             }
                         }
                     } else if (distToDesiredFollowPoint < this.FOLLOW_STOP_DISTANCE_THRESHOLD && this.isMoving) {
-                        this.isMoving = false; 
+                        this.isMoving = false;
                         this.currentPath = [];
                     }
                 } else { 
@@ -302,7 +305,7 @@ class RaccoonHostage extends Raccoon {
             this.currentPath = [];
             return false;
         }
-        return Unit.prototype.setMoveTarget.call(this, worldX, worldY, this.isPhasing);
+        return Unit.prototype.setMoveTarget.call(this, worldX, worldY);
     }
 
 

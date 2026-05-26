@@ -349,26 +349,139 @@ function heuristic(nodeA, nodeB) { /* ... (Unchanged from previous complete vers
     return D * (dX + dY) + (D2 - 2 * D) * Math.min(dX, dY);
 }
 
-function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUnitPhasing
-    const openList = new MinHeap();
-    const closedList = new Set();
-
-    const startNode = new PathNode(startPos.x, startPos.y, 0, heuristic(startPos, endPos));
-
-    // --- MODIFIED: Check start node based on phasing ---
-    if (grid[startNode.y] === undefined || grid[startNode.y][startNode.x] === undefined) { // Out of bounds check
-        // console.warn(`findPath: Start node (${startNode.x},${startNode.y}) is out of grid bounds.`);
+function findPath(startPos, endPos, grid, isUnitPhasing = false) {
+    if (grid[startPos.y] === undefined || grid[startPos.y][startPos.x] === undefined) {
         return null;
     }
-    if (grid[startNode.y][startNode.x] === 1 && !isUnitPhasing) {
-        // console.warn(`findPath: Start node (${startNode.x},${startNode.y}) is blocked and unit is not phasing.`);
-        return null; // Start node is blocked and not phasing
+    if (grid[endPos.y] === undefined || grid[endPos.y][endPos.x] === undefined) {
+        return null;
     }
-    // --- END MODIFIED ---
+    if (grid[startPos.y][startPos.x] === 1 && !isUnitPhasing) {
+        return null;
+    }
+    if (grid[endPos.y][endPos.x] === 1 && !isUnitPhasing) {
+        return null;
+    }
 
+    if (startPos.x === endPos.x && startPos.y === endPos.y) {
+        return [{ x: startPos.x, y: startPos.y }];
+    }
+
+    const direct = _astar(startPos, endPos, grid, isUnitPhasing, CONFIG.PATHFINDING_MAX_EXPANSIONS);
+    if (direct && direct.length > 0) {
+        const last = direct[direct.length - 1];
+        if (last.x === endPos.x && last.y === endPos.y) {
+            return direct;
+        }
+    }
+
+    const borderWaypoints = _findBorderWaypoints(startPos, endPos, grid, isUnitPhasing);
+    if (borderWaypoints.length > 0) {
+        const perLeg = Math.floor(CONFIG.PATHFINDING_MAX_EXPANSIONS * 0.33);
+        for (const wp of borderWaypoints) {
+            const first = _astar(startPos, wp, grid, isUnitPhasing, perLeg);
+            if (!first || first.length === 0) continue;
+            const second = _astar(wp, endPos, grid, isUnitPhasing, perLeg);
+            if (!second || second.length === 0) continue;
+            first.pop();
+            return first.concat(second);
+        }
+        for (const wp of borderWaypoints) {
+            const first = _astar(startPos, wp, grid, isUnitPhasing, perLeg);
+            if (!first || first.length === 0) continue;
+            const second = _astar(wp, endPos, grid, isUnitPhasing, perLeg * 2);
+            if (!second || second.length === 0) {
+                if (first.length > 1) return first;
+                continue;
+            }
+            first.pop();
+            return first.concat(second);
+        }
+    }
+
+    if (direct && direct.length > 1) {
+        return direct;
+    }
+
+    return null;
+}
+
+function _findBorderWaypoints(startPos, endPos, grid, isUnitPhasing) {
+    const gridW = grid[0].length;
+    const gridH = grid.length;
+    const visited = new Uint8Array(gridW * gridH);
+    const queue = new Array(gridW * gridH);
+    let head = 0, tail = 0;
+
+    queue[tail++] = startPos.x;
+    queue[tail++] = startPos.y;
+    visited[startPos.y * gridW + startPos.x] = 1;
+
+    const cardinal = [
+        { x: 0, y: -1 }, { x: 0, y: 1 },
+        { x: -1, y: 0 }, { x: 1, y: 0 }
+    ];
+
+    const borderCells = [];
+    const maxSearch = 4000;
+    let searched = 0;
+
+    while (head < tail && searched < maxSearch && borderCells.length < 20) {
+        const cx = queue[head++];
+        const cy = queue[head++];
+        searched++;
+
+        let isBorder = false;
+        for (const d of cardinal) {
+            const nnx = cx + d.x;
+            const nny = cy + d.y;
+            if (nnx < 0 || nnx >= gridW || nny < 0 || nny >= gridH) continue;
+            if (grid[nny][nnx] === 1) {
+                isBorder = true;
+                break;
+            }
+        }
+
+        if (isBorder && (cx !== startPos.x || cy !== startPos.y)) {
+            const dx = cx - endPos.x;
+            const dy = cy - endPos.y;
+            const distToGoal = Math.sqrt(dx * dx + dy * dy);
+            const sdx = cx - startPos.x;
+            const sdy = cy - startPos.y;
+            const distFromStart = Math.sqrt(sdx * sdx + sdy * sdy);
+            if (distFromStart > 5) {
+                borderCells.push({ x: cx, y: cy, score: distToGoal + distFromStart * 0.3 });
+            }
+        }
+
+        for (const d of cardinal) {
+            const nx = cx + d.x;
+            const ny = cy + d.y;
+            if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
+            const idx = ny * gridW + nx;
+            if (visited[idx]) continue;
+            if (grid[ny][nx] === 1) {
+                visited[idx] = 1;
+                continue;
+            }
+            visited[idx] = 1;
+            queue[tail++] = nx;
+            queue[tail++] = ny;
+        }
+    }
+
+    borderCells.sort((a, b) => a.score - b.score);
+    return borderCells.slice(0, 10);
+}
+
+function _astar(startPos, endPos, grid, isUnitPhasing, maxExpansions) {
+    const openList = new MinHeap();
+    const closedList = new Set();
+    const gCosts = new Map();
+
+    const startNode = new PathNode(startPos.x, startPos.y, 0, heuristic(startPos, endPos));
     openList.insert(startNode);
-    const openListGCosts = new Map();
-    openListGCosts.set(`${startNode.x},${startNode.y}`, startNode.g);
+    gCosts.set(`${startPos.x},${startPos.y}`, 0);
 
     const directions = [
         { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 },
@@ -377,30 +490,19 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
         { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }
     ];
 
-    // --- PERFORMANCE FIX: Abort early if destination is not walkable ---
-    if (!isUnitPhasing && grid[endPos.y] !== undefined && grid[endPos.y][endPos.x] !== undefined) {
-        if (grid[endPos.y][endPos.x] === 1) {
-            return null; // Target is blocked — no path possible
-        }
-    }
-    // --- END FIX ---
-
-    // --- PERFORMANCE: Hard expansion budget with best-so-far fallback ---
-    const maxExpansions = CONFIG.PATHFINDING_MAX_EXPANSIONS || 2000;
     let expansions = 0;
     let bestNode = startNode;
-    // --- END ---
 
     while (!openList.isEmpty()) {
-        const currentNode = openList.extractMin();
+        const cur = openList.extractMin();
 
-        if (currentNode.h < bestNode.h) {
-            bestNode = currentNode;
+        if (cur.h < bestNode.h) {
+            bestNode = cur;
         }
 
-        if (currentNode.x === endPos.x && currentNode.y === endPos.y) {
+        if (cur.x === endPos.x && cur.y === endPos.y) {
             const path = [];
-            let temp = currentNode;
+            let temp = cur;
             while (temp) {
                 path.push({ x: temp.x, y: temp.y });
                 temp = temp.parent;
@@ -408,11 +510,12 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
             return path.reverse();
         }
 
-        closedList.add(`${currentNode.x},${currentNode.y}`);
+        const curKey = `${cur.x},${cur.y}`;
+        if (closedList.has(curKey)) continue;
+        closedList.add(curKey);
 
         expansions++;
         if (expansions > maxExpansions) {
-            console.warn(`findPath: Hit expansion budget (${maxExpansions}). Returning best-so-far path to closest reachable cell.`);
             const path = [];
             let temp = bestNode;
             while (temp) {
@@ -422,47 +525,35 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) { // Added isUn
             return path.reverse();
         }
 
-        for (const direction of directions) {
+        for (const dir of directions) {
+            const nx = cur.x + dir.x;
+            const ny = cur.y + dir.y;
+            const nKey = `${nx},${ny}`;
 
-            const neighborX = currentNode.x + direction.x;
-            const neighborY = currentNode.y + direction.y;
-            const neighborKey = `${neighborX},${neighborY}`;
+            if (nx < 0 || nx >= grid[0].length || ny < 0 || ny >= grid.length) continue;
+            if (grid[ny][nx] === 1 && !isUnitPhasing) continue;
+            if (closedList.has(nKey)) continue;
 
-            if (neighborX < 0 || neighborX >= grid[0].length || neighborY < 0 || neighborY >= grid.length) {
-                continue;
-            }
-            // --- MODIFIED: Check if walkable based on phasing ---
-            if (grid[neighborY][neighborX] === 1 && !isUnitPhasing) {
-                continue; // Blocked and not phasing
-            }
-            // --- END MODIFIED ---
-            if (closedList.has(neighborKey)) {
-                continue;
+            if (dir.x !== 0 && dir.y !== 0) {
+                if (!isUnitPhasing && grid[cur.y][cur.x + dir.x] === 1 && grid[cur.y + dir.y][cur.x] === 1) continue;
             }
 
-            // --- MODIFIED: Corner cutting check based on phasing ---
-            if (direction.x !== 0 && direction.y !== 0) {
-                const cardinalCell1X = currentNode.x + direction.x;
-                const cardinalCell1Y = currentNode.y;
-                const cardinalCell2X = currentNode.x;
-                const cardinalCell2Y = currentNode.y + direction.y;
-                // If not phasing, standard corner cutting check
-                if (!isUnitPhasing && grid[cardinalCell1Y][cardinalCell1X] === 1 && grid[cardinalCell2Y][cardinalCell2X] === 1) {
-                    continue;
-                }
-                // If phasing, allow corner cutting (effectively)
-            }
-            // --- END MODIFIED ---
-
-
-            const gCost = currentNode.g + direction.cost;
-            if (!openListGCosts.has(neighborKey) || gCost < openListGCosts.get(neighborKey)) {
-                openListGCosts.set(neighborKey, gCost);
-                const hCost = heuristic({ x: neighborX, y: neighborY }, endPos);
-                const neighborNode = new PathNode(neighborX, neighborY, gCost, hCost, currentNode);
-                openList.insert(neighborNode);
+            const newG = cur.g + dir.cost;
+            if (!gCosts.has(nKey) || newG < gCosts.get(nKey)) {
+                gCosts.set(nKey, newG);
+                openList.insert(new PathNode(nx, ny, newG, heuristic({ x: nx, y: ny }, endPos), cur));
             }
         }
+    }
+
+    if (bestNode !== startNode) {
+        const path = [];
+        let temp = bestNode;
+        while (temp) {
+            path.push({ x: temp.x, y: temp.y });
+            temp = temp.parent;
+        }
+        return path.reverse();
     }
     return null;
 }
@@ -508,71 +599,63 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
         return rawPathGridCoords ? rawPathGridCoords.map(p => levelInstance.gridToWorldCoords(p.x, p.y)) : [];
     }
 
-    // --- MODIFICATION START ---
-    // The key change is to use a "corridor" check instead of a simple Line of Sight check.
-    // This ensures there's enough room for the unit's entire body.
+    if (rawPathGridCoords.length <= 3) {
+        return rawPathGridCoords.map(p => levelInstance.gridToWorldCoords(p.x, p.y));
+    }
+
     const pathingRadius = (unitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
     const obstaclesForLOS = levelInstance.activeObstacles || [];
-    // --- END MODIFICATION ---
-
     const smoothedPathWorldCoords = [];
     let currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[0].x, rawPathGridCoords[0].y);
     smoothedPathWorldCoords.push(currentAnchorWorld);
 
     let i = 0;
-    // --- PERFORMANCE FIX: Limit iterations to prevent freezes ---
-    const maxIterations = rawPathGridCoords.length * rawPathGridCoords.length; // Quadratic safety limit
+    const maxIterations = Math.max(rawPathGridCoords.length * 3, 100);
     let iterations = 0;
-    // --- END FIX ---
-    
+
     while (i < rawPathGridCoords.length - 1) {
-        // --- PERFORMANCE FIX: Check iteration limit ---
         iterations++;
         if (iterations > maxIterations) {
-            console.warn(`smoothPath: Max iterations (${maxIterations}) reached. Aborting smoothing.`);
-            // Fall back to converting remaining raw path nodes to world coords
             for (let k = i + 1; k < rawPathGridCoords.length; k++) {
                 smoothedPathWorldCoords.push(levelInstance.gridToWorldCoords(rawPathGridCoords[k].x, rawPathGridCoords[k].y));
             }
             return smoothedPathWorldCoords;
         }
-        // --- END FIX ---
 
-        let furthestVisibleIndex = -1; // Initialize to -1 to indicate no valid shortcut found yet
-
-        // --- OPTIMIZATION: Coarse-step + fine search for long paths ---
+        let furthestVisibleIndex = -1;
         const remainingNodes = rawPathGridCoords.length - 1 - i;
-        const coarseStep = (remainingNodes > 20) ? Math.max(1, Math.floor(remainingNodes / 15)) : 1;
-        let coarseFoundIndex = -1;
 
-        // Phase 1: Coarse backward search
+        let coarseStep = 1;
+        if (remainingNodes > 40) coarseStep = Math.max(1, Math.floor(remainingNodes / 10));
+        else if (remainingNodes > 15) coarseStep = Math.max(1, Math.floor(remainingNodes / 5));
+
+        let coarseFoundIndex = -1;
         for (let j = rawPathGridCoords.length - 1; j > i; j -= coarseStep) {
+            iterations++;
+            if (iterations > maxIterations) break;
             if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS)) {
                 coarseFoundIndex = j;
                 break;
             }
         }
 
-        // Phase 2: Fine backward search in the window above the coarse hit
         if (coarseFoundIndex !== -1) {
             const fineSearchEnd = Math.min(rawPathGridCoords.length - 1, coarseFoundIndex + coarseStep - 1);
             for (let j = fineSearchEnd; j > i; j--) {
+                iterations++;
+                if (iterations > maxIterations) break;
                 if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS)) {
                     furthestVisibleIndex = j;
                     break;
                 }
             }
         }
-        // --- END OPTIMIZATION ---
 
         if (furthestVisibleIndex !== -1) {
-            // A valid shortcut was found.
             currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[furthestVisibleIndex].x, rawPathGridCoords[furthestVisibleIndex].y);
             smoothedPathWorldCoords.push(currentAnchorWorld);
             i = furthestVisibleIndex;
         } else {
-            // No valid shortcut found from the current anchor.
-            // Just move to the very next node in the raw path and try again from there.
             i++;
             currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[i].x, rawPathGridCoords[i].y);
             smoothedPathWorldCoords.push(currentAnchorWorld);

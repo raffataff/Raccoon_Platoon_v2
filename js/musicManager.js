@@ -26,7 +26,8 @@ class MusicManager {
         };
         
         // Crossfade settings
-        this.crossfadeDuration = 1.0; // seconds
+        this.crossfadeDuration = 1.0;
+        this.masterVolume = 1.0;
         
         // Configuration (will be set from CONFIG.AUDIO_MUSIC)
         this.config = null;
@@ -456,10 +457,10 @@ class MusicManager {
      * @param {number} volume - Volume (0-1)
      */
     setMusicVolume(volume) {
-        if (this.musicLayer.instance) {
-            this.musicLayer.instance.volume = volume;
-        }
         this.musicLayer.volume = volume;
+        if (this.musicLayer.instance) {
+            this.musicLayer.instance.volume = this.masterVolume * volume;
+        }
     }
 
     /**
@@ -467,15 +468,25 @@ class MusicManager {
      * @param {number} volume - Volume (0-1)
      */
     setAmbientVolume(volume) {
-        if (this.ambientLayer.instance) {
-            this.ambientLayer.instance.volume = volume;
-        }
         this.ambientLayer.volume = volume;
+        if (this.ambientLayer.instance) {
+            this.ambientLayer.instance.volume = this.masterVolume * volume;
+        }
     }
 
     /**
      * Stop all music and ambient
      */
+    setMasterVolume(volume) {
+        this.masterVolume = volume;
+        if (this.musicLayer.instance) {
+            this.musicLayer.instance.volume = volume * this.musicLayer.volume;
+        }
+        if (this.ambientLayer.instance) {
+            this.ambientLayer.instance.volume = volume * this.ambientLayer.volume;
+        }
+    }
+
     stopAll() {
         this.stopMusic();
         this.stopAmbient();

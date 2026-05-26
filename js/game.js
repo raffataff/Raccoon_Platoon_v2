@@ -114,6 +114,8 @@ class Game {
         this.pendingDebriefData = null;
 
         this.lastObjectiveIndicator = { active: false, worldX: 0, worldY: 0, label: '', color: '#FFFFFF', objectiveType: '' };
+        this.lastObjectiveIndicatorTimer = -1;
+        this._frameDeltaTime = 0.016;
 
         this.isGamePausedManually = false;
 
@@ -1006,7 +1008,7 @@ class Game {
             { name: 'forest_large', files: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.path, type: 'single' },
             { name: 'pond', files: TEMPERATE_BIOME.spritePaths.pond?.files, path: TEMPERATE_BIOME.spritePaths.pond?.path, type: 'single'},
             { name: 'lake', files: TEMPERATE_BIOME.spritePaths.lake?.files, path: TEMPERATE_BIOME.spritePaths.lake?.path, type: 'single' },
-
+            { name: 'water_well', files: TEMPERATE_BIOME.spritePaths.water_well?.files, path: TEMPERATE_BIOME.spritePaths.water_well?.path, type: 'single' },
 
             // ====================
             // INTEL CONSOLES (on/off pairs)
@@ -1229,8 +1231,8 @@ class Game {
                     const mudSpriteFullPath = mudSpritePath + randomMudSprite;
                     const mudImg = this.preloadedImages[mudSpriteFullPath];
                     if (mudImg) {
-                        const mudOffsetX = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.5;
-                        const mudOffsetY = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.5;
+                        const mudOffsetX = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.8;
+                        const mudOffsetY = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.8;
                         const rotation = doRandomRotation ? localRng.nextFloat(0, Math.PI * 2) : 0;
                         const flipH = localRng.chance(0.5) ? -1 : 1;
                         const drawX = effectiveX + mudOffsetX;
@@ -1642,7 +1644,7 @@ class Game {
             });
         }
 
-        if (this.ui) { this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); }
+        if (this.ui) { this.ui.hideShootoutHud(); this.ui.hidePreMissionScreen(); this.ui.showHUD(); this.ui.updateObjective(); this.ui.updateFormationButton(this.currentFormationType); }
         if (this.ui) { this.ui.updateNightMissionBadge(); }
         if (this.inputHandler) { this.inputHandler.isLMBHoldFiringActionActive = false; this.inputHandler.updateMouseCursor(); }
 
@@ -1651,6 +1653,7 @@ class Game {
         this.missionEndDelayTimer = -1;
         this.missionPendingOutcomeIsVictory = false;
         this.missionEndInitiated = false;
+        this.lastObjectiveIndicatorTimer = -1;
         this.pendingDebriefData = null;
     }
 
@@ -2056,11 +2059,9 @@ class Game {
     handleAutoBackupCommand() {
         if (this.gameState !== 'RUNNING') return;
 
-        // Teammates only (raccoons in squad)
         const allLivingTeammates = this.deployedSquadRoster ? this.deployedSquadRoster.filter(unit => unit.isAlive()) : [];
         if (allLivingTeammates.length === 0) return;
 
-        // Currently selected teammates
         const selectedTeammates = this.selectedUnits ? this.selectedUnits.filter(u => u instanceof Raccoon && u.isAlive() && !(u instanceof RaccoonHostage)) : [];
 
         if (selectedTeammates.length === 0) {
@@ -2075,13 +2076,11 @@ class Game {
             return;
         }
 
-        // Calculate centroid of selected teammates
         let sumX = 0, sumY = 0;
         selectedTeammates.forEach(u => { sumX += u.x; sumY += u.y; });
         const centerX = sumX / selectedTeammates.length;
         const centerY = sumY / selectedTeammates.length;
 
-        // Calculate formation positions for non-selected teammates around the selection centroid
         const formationPoints = this.calculateFormationPoints(centerX, centerY, nonSelectedTeammates, this.currentFormationType);
 
         nonSelectedTeammates.forEach((unit, index) => {
@@ -3677,7 +3676,7 @@ class Game {
             return;
         }
 
-        const incompleteObjs = this.currentMissionParams.objectives.filter(o => !o.isComplete);
+        const incompleteObjs = this.currentMissionParams.objectives.filter(o => !o.isComplete && o.type !== 'EXTRACTION');
 
         if (incompleteObjs.length !== 1) {
             this.lastObjectiveIndicator.active = false;
@@ -3685,6 +3684,26 @@ class Game {
         }
 
         const obj = incompleteObjs[0];
+
+        const lastObjMode = SaveManager.getPreference('lastObjectiveMode', 'show');
+        if (lastObjMode === 'hide') {
+            this.lastObjectiveIndicator.active = false;
+            this.lastObjectiveIndicatorTimer = -1;
+            return;
+        }
+        if (lastObjMode === 'after1min') {
+            if (this.lastObjectiveIndicatorTimer < 0) {
+                this.lastObjectiveIndicatorTimer = 0;
+            }
+            if (this.lastObjectiveIndicatorTimer < 60) {
+                this.lastObjectiveIndicator.active = false;
+                this.lastObjectiveIndicatorTimer += this._frameDeltaTime || 0.016;
+                return;
+            }
+        } else {
+            this.lastObjectiveIndicatorTimer = -1;
+        }
+
         const colorKey = obj.type;
         const color = cfg.COLORS[colorKey] || cfg.COLORS.DEFAULT;
         const label = cfg.LABELS[colorKey] || cfg.LABELS.DEFAULT;
@@ -3735,7 +3754,7 @@ class Game {
             }
         } else if (obj.type === 'EXTERMINATE') {
             const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()) : [];
-            if (aliveEnemies.length > 0) {
+            if (aliveEnemies.length === 1) {
                 let closestDist = Infinity;
                 let closest = null;
                 const canvasW = this.canvas.width;
@@ -3938,6 +3957,7 @@ class Game {
         if (this.gameState === 'PAUSED') {
             return;
         }
+        this._frameDeltaTime = deltaTime;
 
         // Handle Shootout Mode (standalone)
         if (this.gameState === 'SHOOTOUT_PLAYING') {

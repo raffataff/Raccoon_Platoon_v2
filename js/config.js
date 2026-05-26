@@ -10,7 +10,7 @@ const CONFIG = {
     MIN_CANVAS_HEIGHT: 1080,
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
-    CAMERA_ZOOM: 1.2,
+    CAMERA_ZOOM: 1.4,
 
     // =============================================================================
     // INPUT
@@ -31,9 +31,9 @@ const CONFIG = {
     DEBUG_DRAW_NAV_GRID_BLOCKED: false,
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true,
     DEBUG_DRAW_UNIT_PATHING_BOUNDS: false,
-    UNIT_PATHING_RADIUS_BUFFER: 15,
-    OBSTACLE_REPULSION_RADIUS_FACTOR: 3.0,
-    OBSTACLE_REPULSION_FORCE: 1.5,
+    UNIT_PATHING_RADIUS_BUFFER: 18,
+    OBSTACLE_REPULSION_RADIUS_FACTOR: 5.0,
+    OBSTACLE_REPULSION_FORCE: 2.5,
     STUCK_REPATH_FRAME_THRESHOLD: 10,
     PATHFINDING_MAX_EXPANSIONS: 20000,
     MIN_SEPARATION_DISTANCE_FACTOR: 3.0, // Prevents unit clumping (1.0 = touch, >1.0 = spacing)
@@ -896,7 +896,7 @@ const CONFIG = {
 
     // Helipads
     HELIPAD_SQUARE_SPRITE_PATH: 'assets/images/objects/helipad/',
-    HELIPAD_SQUARE_SPRITE_FILES: ['concrete_helipad_square_1.png'],
+    HELIPAD_SQUARE_SPRITE_FILES: ['concrete_helipad_square_1.png', 'concrete_helipad_square_2.png', 'concrete_helipad_square_3.png', 'concrete_helipad_square_4.png', 'concrete_helipad_square_5.png'],
 
     // Barrels
     SINGLE_EXPLOSIVE_BARREL_SPRITE_PATH: 'assets/images/objects/barrels/',
@@ -1158,7 +1158,7 @@ const CONFIG = {
             type: 'intel_console', name: 'Intel Console', color: '#2e5986',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0, isDecoration: false, placementBuffer: 100,
+            spawnWeight: 0, isDecoration: false, placementBuffer: 120,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
             isIntelConsole: true
         },
@@ -1166,13 +1166,13 @@ const CONFIG = {
             type: 'possum_turret', name: 'Possum Turret', color: '#8B4513',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, phaseUnlocked: 3, spawnLimit: 3,
-            spriteScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.53), offsetY: (h => h * 0.5), radius: (w => w * 0.2) },
             isDecoration: false,
             sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED',
             canBeFlipped: false,
             isPossumTurret: true,
+            spawnWeight: 1, phaseUnlocked: 3, spawnLimit: 3,
+            spriteScale: 0.3,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.53), offsetY: (h => h * 0.5), radius: (w => w * 0.2) },
             placementBuffer: 250,
             decorationBuffer: 150,
         },
@@ -1320,7 +1320,7 @@ const CONFIG = {
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 80,
+            BASE_COUNT: 50,
             WORLD_SIZE_FALLBACK_FACTOR: 0.95,
             RANDOM_ADDITION_MAX: 10,
             PLACEMENT_MAX_ATTEMPTS: 5
@@ -1809,7 +1809,9 @@ const CONFIG = {
     },
 
     AUDIO_MUSIC: {
+        DEFAULT_MASTER_VOLUME: 1.0,
         DEFAULT_MUSIC_VOLUME: 0.5,
+        DEFAULT_SFX_VOLUME: 1.0,
         DEFAULT_AMBIENT_VOLUME: 0.7,
         STATE_TRANSITION_TIME: 1.0,
 

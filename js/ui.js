@@ -41,9 +41,21 @@ class UI {
         this.formationSpacingSlider = document.getElementById('formationSpacingSlider');
         this.spacingValueDisplay = document.getElementById('spacingValueDisplay');
         this.pauseMenuScreen = document.getElementById('pauseMenuScreen');
+        this.pauseOptionsButton = document.getElementById('pauseOptionsButton');
         this.resumeGameButton = document.getElementById('resumeGameButton');
         this.restartMissionPauseButton = document.getElementById('restartMissionPauseButton');
         this.mainMenuPauseButton = document.getElementById('mainMenuPauseButton');
+        this.pauseOptionsScreen = document.getElementById('pauseOptionsScreen');
+        this.backFromPauseOptionsButton = document.getElementById('backFromPauseOptionsButton');
+        this.pauseMasterVolumeSlider = document.getElementById('pauseMasterVolumeSlider');
+        this.pauseMusicVolumeSlider = document.getElementById('pauseMusicVolumeSlider');
+        this.pauseSfxVolumeSlider = document.getElementById('pauseSfxVolumeSlider');
+        this.pauseAmbienceVolumeSlider = document.getElementById('pauseAmbienceVolumeSlider');
+        this.pauseMasterVolValue = document.getElementById('pauseMasterVolValue');
+        this.pauseMusicVolValue = document.getElementById('pauseMusicVolValue');
+        this.pauseSfxVolValue = document.getElementById('pauseSfxVolValue');
+        this.pauseAmbienceVolValue = document.getElementById('pauseAmbienceVolValue');
+        this.pauseLastObjectiveSelect = document.getElementById('pauseLastObjectiveSelect');
         this.startMissionButton = document.getElementById('startMissionButton');
         this.retryMissionButton = document.getElementById('retryMissionButton');
         this.nextMissionButton = document.getElementById('nextMissionButton');
@@ -71,6 +83,17 @@ class UI {
         this.shuffleWallpaperLabel = document.getElementById('shuffleWallpaperLabel');
         this.currentWallpaperKey = SaveManager.getPreference('menuWallpaper', CONFIG.DEFAULT_MENU_WALLPAPER) || 'raccoon_marine_3';
         this.menuWallpaperShuffleEnabled = SaveManager.getPreference('menuWallpaperShuffle', true);
+        this.lastObjectiveMode = SaveManager.getPreference('lastObjectiveMode', 'show');
+        this.lastObjectiveSelect = document.getElementById('lastObjectiveSelect');
+
+        this.masterVolumeSlider = document.getElementById('masterVolumeSlider');
+        this.musicVolumeSlider = document.getElementById('musicVolumeSlider');
+        this.sfxVolumeSlider = document.getElementById('sfxVolumeSlider');
+        this.ambienceVolumeSlider = document.getElementById('ambienceVolumeSlider');
+        this.masterVolValue = document.getElementById('masterVolValue');
+        this.musicVolValue = document.getElementById('musicVolValue');
+        this.sfxVolValue = document.getElementById('sfxVolValue');
+        this.ambienceVolValue = document.getElementById('ambienceVolValue');
 
         // Save/Load UI elements
         this.continueGameButton = document.getElementById('continueGameButton');
@@ -221,6 +244,15 @@ class UI {
                 this.game.quitToMainMenu();
             }
         });
+        this._addSoundToButton(this.pauseOptionsButton, () => this.showPauseOptionsMenu());
+        this._addSoundToButton(this.backFromPauseOptionsButton, () => this.hidePauseOptionsMenu());
+        if (this.pauseLastObjectiveSelect) {
+            this.pauseLastObjectiveSelect.value = this.lastObjectiveMode;
+            this.pauseLastObjectiveSelect.addEventListener('change', (e) => {
+                this.lastObjectiveMode = e.target.value;
+                SaveManager.savePreference('lastObjectiveMode', e.target.value);
+            });
+        }
         this._addSoundToButton(this.restartCampaignButton, () => {
             // --- MODIFICATION: Explicitly restart the SAME campaign ---
             if (this.game) { this.game.initializeNewCampaign(false); this.game.start(); }
@@ -1475,6 +1507,82 @@ class UI {
                 this.updateShuffleLabel();
             });
         }
+        if (this.lastObjectiveSelect) {
+            this.lastObjectiveSelect.value = this.lastObjectiveMode;
+            this.lastObjectiveSelect.addEventListener('change', (e) => {
+                this.lastObjectiveMode = e.target.value;
+                SaveManager.savePreference('lastObjectiveMode', e.target.value);
+            });
+        }
+
+        const initVolumeSlider = (slider, label, prefKey, defaultVal, applyFn) => {
+            if (!slider || !label) return;
+            const saved = SaveManager.getPreference(prefKey, defaultVal);
+            slider.value = saved;
+            label.textContent = saved + '%';
+            applyFn(saved / 100);
+            slider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                label.textContent = val + '%';
+                SaveManager.savePreference(prefKey, val);
+                applyFn(val / 100);
+            });
+        };
+        const syncSliderPair = (mainSlider, mainLabel, pauseSlider, pauseLabel) => {
+            if (mainSlider && pauseSlider) {
+                mainSlider.addEventListener('input', () => {
+                    pauseSlider.value = mainSlider.value;
+                    if (pauseLabel) pauseLabel.textContent = mainSlider.value + '%';
+                });
+                pauseSlider.addEventListener('input', () => {
+                    mainSlider.value = pauseSlider.value;
+                    if (mainLabel) mainLabel.textContent = pauseSlider.value + '%';
+                });
+            }
+        };
+        initVolumeSlider(this.masterVolumeSlider, this.masterVolValue, 'masterVolume', 100, (v) => {
+            if (this.game) {
+                if (this.game.audioManager) this.game.audioManager.setGlobalVolume(v);
+                if (this.game.musicManager) this.game.musicManager.setMasterVolume(v);
+            }
+        });
+        initVolumeSlider(this.musicVolumeSlider, this.musicVolValue, 'musicVolume', 50, (v) => {
+            if (this.game && this.game.musicManager) this.game.musicManager.setMusicVolume(v);
+        });
+        initVolumeSlider(this.sfxVolumeSlider, this.sfxVolValue, 'sfxVolume', 100, (v) => {
+            if (this.game && this.game.audioManager) this.game.audioManager.setSfxVolume(v);
+        });
+        initVolumeSlider(this.ambienceVolumeSlider, this.ambienceVolValue, 'ambienceVolume', 70, (v) => {
+            if (this.game && this.game.musicManager) this.game.musicManager.setAmbientVolume(v);
+        });
+        syncSliderPair(this.masterVolumeSlider, this.masterVolValue, this.pauseMasterVolumeSlider, this.pauseMasterVolValue);
+        syncSliderPair(this.musicVolumeSlider, this.musicVolValue, this.pauseMusicVolumeSlider, this.pauseMusicVolValue);
+        syncSliderPair(this.sfxVolumeSlider, this.sfxVolValue, this.pauseSfxVolumeSlider, this.pauseSfxVolValue);
+        syncSliderPair(this.ambienceVolumeSlider, this.ambienceVolValue, this.pauseAmbienceVolumeSlider, this.pauseAmbienceVolValue);
+        const initPauseVolumeSlider = (slider, label, prefKey, applyFn) => {
+            if (!slider || !label) return;
+            slider.addEventListener('input', (e) => {
+                const val = parseInt(e.target.value, 10);
+                label.textContent = val + '%';
+                SaveManager.savePreference(prefKey, val);
+                applyFn(val / 100);
+            });
+        };
+        initPauseVolumeSlider(this.pauseMasterVolumeSlider, this.pauseMasterVolValue, 'masterVolume', (v) => {
+            if (this.game) {
+                if (this.game.audioManager) this.game.audioManager.setGlobalVolume(v);
+                if (this.game.musicManager) this.game.musicManager.setMasterVolume(v);
+            }
+        });
+        initPauseVolumeSlider(this.pauseMusicVolumeSlider, this.pauseMusicVolValue, 'musicVolume', (v) => {
+            if (this.game && this.game.musicManager) this.game.musicManager.setMusicVolume(v);
+        });
+        initPauseVolumeSlider(this.pauseSfxVolumeSlider, this.pauseSfxVolValue, 'sfxVolume', (v) => {
+            if (this.game && this.game.audioManager) this.game.audioManager.setSfxVolume(v);
+        });
+        initPauseVolumeSlider(this.pauseAmbienceVolumeSlider, this.pauseAmbienceVolValue, 'ambienceVolume', (v) => {
+            if (this.game && this.game.musicManager) this.game.musicManager.setAmbientVolume(v);
+        });
     }
 
     showHowToPlayScreen() {
@@ -1518,6 +1626,9 @@ class UI {
                 this.shuffleWallpaperToggle.checked = this.menuWallpaperShuffleEnabled;
                 this.updateShuffleLabel();
             }
+            if (this.lastObjectiveSelect) {
+                this.lastObjectiveSelect.value = this.lastObjectiveMode;
+            }
             this.optionsMenuScreen.style.display = 'flex';
         }
     }
@@ -1525,6 +1636,31 @@ class UI {
     hideOptionsMenu() {
         if (this.optionsMenuScreen) this.optionsMenuScreen.style.display = 'none';
         if (this.mainMenuScreen) this.mainMenuScreen.style.display = 'flex';
+    }
+
+    showPauseOptionsMenu() {
+        if (this.pauseMenuScreen) this.pauseMenuScreen.style.display = 'none';
+        if (this.pauseOptionsScreen) {
+            const syncSlider = (slider, label, prefKey, defaultVal) => {
+                if (!slider || !label) return;
+                const saved = SaveManager.getPreference(prefKey, defaultVal);
+                slider.value = saved;
+                label.textContent = saved + '%';
+            };
+            syncSlider(this.pauseMasterVolumeSlider, this.pauseMasterVolValue, 'masterVolume', 100);
+            syncSlider(this.pauseMusicVolumeSlider, this.pauseMusicVolValue, 'musicVolume', 50);
+            syncSlider(this.pauseSfxVolumeSlider, this.pauseSfxVolValue, 'sfxVolume', 100);
+            syncSlider(this.pauseAmbienceVolumeSlider, this.pauseAmbienceVolValue, 'ambienceVolume', 70);
+            if (this.pauseLastObjectiveSelect) {
+                this.pauseLastObjectiveSelect.value = this.lastObjectiveMode;
+            }
+            this.pauseOptionsScreen.style.display = 'flex';
+        }
+    }
+
+    hidePauseOptionsMenu() {
+        if (this.pauseOptionsScreen) this.pauseOptionsScreen.style.display = 'none';
+        if (this.pauseMenuScreen) this.pauseMenuScreen.style.display = 'flex';
     }
 
     populateWallpaperSelection() {

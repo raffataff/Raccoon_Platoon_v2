@@ -155,6 +155,12 @@ const TEMPERATE_BIOME = {
             files: ['temperate_forest_1.png', 'temperate_forest_2.png', 'temperate_forest_3.png', 'temperate_forest_4.png', 'temperate_forest_5.png', 'temperate_forest_6.png']
         },
 
+        // Random Stuff
+        water_well: {
+            path: 'assets/images/objects/biomes/temperate/',
+            files: ['water_well.png']
+        },
+
         // Ruins (temperate version)
         temperate_ruins: {
             path: 'assets/images/objects/BIOMES/tropical/ruins/',
@@ -207,14 +213,27 @@ const TEMPERATE_BIOME = {
             placementBuffer: 80,
         },
         {
+            type: 'water_well', name: 'Water Well', color: '#4A90D9',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: false,
+            spawnWeight: 0.5, isDecoration: false,
+            spriteScale: 0.4,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
+            canBeFlipped: true,
+            placementBuffer: 80,
+        },
+        {
             type: 'temperate_wall_angled_long', name: 'Temperate Wall Angled Long',
             color: '#8B7355', destructible: false,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.3,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.42), width: (w => w * 0.95), height: (h => h * 0.15), rotation: -Math.PI / 6 },
+            collisionShapes: [
+                { type: 'ellipse', offsetX: (w => w * 0.1), offsetY: (h => h * 0.8), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
+                { type: 'ellipse', offsetX: (w => w * 0.8), offsetY: (h => h * 0.2), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
+            ],
             canBeFlipped: true,
-            placementBuffer: 90,
+            placementBuffer: 130,
         },
         {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
@@ -354,7 +373,7 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 1.0,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radius: (w => w * 0.12) },
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.72), radius: (w => w * 0.1) },
             canBeFlipped: true,
         },
         {
@@ -604,8 +623,10 @@ const TEMPERATE_BIOME = {
         { name: 'pond', files: ['pond_temperate_1.png', 'pond_temperate_2.png', 'pond_temperate_3.png', 'pond_temperate_4.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
         { name: 'lake', files: ['lake_temperate_1.png', 'lake_temperate_2.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
 
+        // Random Objects
+        { name: 'water_well', files: ['water_well.png'], path: 'assets/images/objects/biomes/temperate/', type: 'single' },
         // GROUND TILES
-        { name: 'mud', files: ['mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png',], path: 'assets/images/objects/biomes/mud/', type: 'single' },
+        { name: 'mud', files: ['mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png', 'sand_new_1.png', 'sand_new_2.png', 'sand_new_3.png', 'sand_new_4.png', 'sand_new_5.png' ], path: 'assets/images/objects/biomes/mud/', type: 'single' },
          { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'grass5.png', 'grass6.png', ], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
     ],
 

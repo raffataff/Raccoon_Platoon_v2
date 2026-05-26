@@ -776,48 +776,66 @@ class LevelGenerator {
         if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned weapon crate at (${finalCrateX.toFixed(0)}, ${finalCrateY.toFixed(0)}) with ${selectedWeapon}`);
     }
 
-    // --- NEW: Sanity check function to run at the end of generation ---
     _finalizeEnemyPositions(allEnemies) {
         if (!this.level.navGrid) {
-//            console.error("[Level Gen] Cannot finalize enemy positions without a navGrid!");
             return;
         }
 
         const navGrid = this.level.navGrid;
+        const reachableGrid = this.level.reachableGrid;
         const gridW = this.level.gridWidth;
         const gridH = this.level.gridHeight;
+        const hasReachability = !!(reachableGrid && reachableGrid.length === gridH);
 
         for (let i = allEnemies.length - 1; i >= 0; i--) {
             const enemy = allEnemies[i];
             const gridPos = this.level.worldToGridCoords(enemy.x, enemy.y);
 
-            // Check if the enemy is on a blocked cell
-            if (gridPos.x < 0 || gridPos.x >= gridW || gridPos.y < 0 || gridPos.y >= gridH || navGrid[gridPos.y][gridPos.x] === 1) {
-                let moved = false;
-                // Search for a nearby valid spot
-                for (let r = 1; r <= 5; r++) { // Search up to 5 cells away
-                    for (let dy = -r; dy <= r; dy++) {
-                        for (let dx = -r; dx <= r; dx++) {
-                            if (dx === 0 && dy === 0) continue;
-                            const newGridX = gridPos.x + dx;
-                            const newGridY = gridPos.y + dy;
+            const outOfBounds = gridPos.x < 0 || gridPos.x >= gridW || gridPos.y < 0 || gridPos.y >= gridH;
+            const onBlockedCell = !outOfBounds && navGrid[gridPos.y][gridPos.x] === 1;
+            const unreachable = hasReachability && !outOfBounds && navGrid[gridPos.y][gridPos.x] === 0 && reachableGrid[gridPos.y][gridPos.x] === 0;
 
-                            if (newGridX >= 0 && newGridX < gridW && newGridY >= 0 && newGridY < gridH && navGrid[newGridY][newGridX] === 0) {
-                                const newWorldPos = this.level.gridToWorldCoords(newGridX, newGridY);
-//                                console.warn(`[Level Gen] Sanity Check: Moved invalid enemy ${enemy.id} from blocked cell to (${newWorldPos.x.toFixed(0)}, ${newWorldPos.y.toFixed(0)})`);
-                                enemy.x = newWorldPos.x;
-                                enemy.y = newWorldPos.y;
-                                moved = true;
-                                break;
+            if (outOfBounds || onBlockedCell || unreachable) {
+                let moved = false;
+
+                if (hasReachability) {
+                    for (let r = 1; r <= 30 && !moved; r++) {
+                        for (let dy = -r; dy <= r && !moved; dy++) {
+                            for (let dx = -r; dx <= r && !moved; dx++) {
+                                if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                                const newGridX = gridPos.x + dx;
+                                const newGridY = gridPos.y + dy;
+                                if (newGridX >= 0 && newGridX < gridW && newGridY >= 0 && newGridY < gridH
+                                    && navGrid[newGridY][newGridX] === 0 && reachableGrid[newGridY][newGridX] === 1) {
+                                    const newWorldPos = this.level.gridToWorldCoords(newGridX, newGridY);
+                                    enemy.x = newWorldPos.x;
+                                    enemy.y = newWorldPos.y;
+                                    moved = true;
+                                }
                             }
                         }
-                        if (moved) break;
                     }
-                    if (moved) break;
                 }
 
                 if (!moved) {
-//                    console.error(`[Level Gen] CRITICAL: Could not find valid spawn for enemy ${enemy.id}. Removing from game to prevent an unwinnable state.`);
+                    for (let r = 1; r <= 15 && !moved; r++) {
+                        for (let dy = -r; dy <= r && !moved; dy++) {
+                            for (let dx = -r; dx <= r && !moved; dx++) {
+                                if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                                const newGridX = gridPos.x + dx;
+                                const newGridY = gridPos.y + dy;
+                                if (newGridX >= 0 && newGridX < gridW && newGridY >= 0 && newGridY < gridH && navGrid[newGridY][newGridX] === 0) {
+                                    const newWorldPos = this.level.gridToWorldCoords(newGridX, newGridY);
+                                    enemy.x = newWorldPos.x;
+                                    enemy.y = newWorldPos.y;
+                                    moved = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!moved) {
                     this.game.enemyUnits = this.game.enemyUnits.filter(u => u.id !== enemy.id);
                     allEnemies.splice(i, 1);
                 }
@@ -844,6 +862,7 @@ class LevelGenerator {
         this.level.effectivePlayerSpawnZone = null;
         this.level.voronoiDiagram = null;
         this.level.corridorKeepOutZones = [];
+        this.level.reachableGrid = null;
 
         this.level.quadrantBoundaries = null;
 
@@ -1440,7 +1459,7 @@ class LevelGenerator {
         const phaseObstacleIncrement = baseParams.obstacleCountPhaseIncrement || 0;
         const numInternalObstacles = Math.floor(baseNumObstacles * (baseParams.worldSizeFactor || 1.0) * (1 + phaseObstacleIncrement)) + this.rng.nextInt(0, obsGenCfg.RANDOM_ADDITION_MAX || 8);
         const placementMaxAttempts = obsGenCfg.PLACEMENT_MAX_ATTEMPTS || 5;
-        const turretPlacementMaxAttempts = 1;
+        const turretPlacementMaxAttempts = 10;
 
         for (let i = 0; i < numInternalObstacles; i++) {
             const template = this._getRandomObstacleTemplate();
@@ -1671,7 +1690,18 @@ class LevelGenerator {
                     }
                 }
 
-                if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, extraKeepOutZones) && !(isRestrictedType && overlapsOuterSpawnZone)) {
+                let placementValid = !this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, extraKeepOutZones) && !(isRestrictedType && overlapsOuterSpawnZone);
+                if (placementValid && template.type === 'possum_turret') {
+                    const turretVisualRadius = Math.max(obsRenderWidth, obsRenderHeight) * 0.5;
+                    const turretCenterX = obsX + obsRenderWidth / 2;
+                    const turretCenterY = obsY + obsRenderHeight / 2;
+                    const turretClearanceShape = { type: 'circle', x: turretCenterX, y: turretCenterY, radius: turretVisualRadius };
+                    const turretPlacementTemplate = { ...template, placementBuffer: Math.max(template.placementBuffer || 0, 100) };
+                    if (this._isPlacementInvalid(turretClearanceShape, turretPlacementTemplate, this.level.obstacles, extraKeepOutZones)) {
+                        placementValid = false;
+                    }
+                }
+                if (placementValid) {
                     const isTreeType = template.type.startsWith('tree_palm') || template.type.startsWith('tree_deciduous');
                     const treeFallChance = isTreeType ? (CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS?.FALL_CHANCE ?? 0.45) : 0;
                     const willSpawnLog = isTreeType ? this.rng.chance(treeFallChance) : false;
@@ -1794,7 +1824,7 @@ class LevelGenerator {
                             imageNormal: helipadImage,
                             spriteScale: helipadSpriteScale,
                             isFlippedHorizontally: false,
-                            collisionShape: { type: 'rectangle', offsetX: helipadWidth * 0.1, offsetY: helipadHeight * 0.1, width: helipadWidth * 0.8, height: helipadHeight * 0.8, rotation: Math.PI / 4 },
+                            collisionShape: { type: 'rectangle', offsetX: helipadWidth * 0.1, offsetY: helipadHeight * 0.1, width: helipadWidth * 0.8, height: helipadHeight * 0.8},
                         };
                         this.level.obstacles.push(newObstacle);
                         if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Concrete helipad spawned at extraction zone (${ez.x.toFixed(0)}, ${ez.y.toFixed(0)})`);
@@ -1906,6 +1936,10 @@ class LevelGenerator {
         }
 
         this.level.generateNavigationGrid(worldWidth, worldHeight);
+
+        const playerSpawnCenterX = playerSpawnZone.x + playerSpawnZone.width / 2;
+        const playerSpawnCenterY = playerSpawnZone.y + playerSpawnZone.height / 2;
+        this.level.computeReachableCells(playerSpawnCenterX, playerSpawnCenterY);
 
         const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {};
         const enemySpawnMinY = playableMinY;

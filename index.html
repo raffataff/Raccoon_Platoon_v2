@@ -49,6 +49,39 @@
         <h2>OPTIONS</h2>
         <div id="optionsContent">
             <div class="options-section">
+                <h3>Audio</h3>
+                <div class="volume-slider-container">
+                    <div class="volume-slider-row">
+                        <label for="masterVolumeSlider">Master</label>
+                        <input type="range" id="masterVolumeSlider" min="0" max="100">
+                        <span id="masterVolValue">100%</span>
+                    </div>
+                    <div class="volume-slider-row">
+                        <label for="musicVolumeSlider">Music</label>
+                        <input type="range" id="musicVolumeSlider" min="0" max="100">
+                        <span id="musicVolValue">50%</span>
+                    </div>
+                    <div class="volume-slider-row">
+                        <label for="sfxVolumeSlider">SFX</label>
+                        <input type="range" id="sfxVolumeSlider" min="0" max="100">
+                        <span id="sfxVolValue">100%</span>
+                    </div>
+                    <div class="volume-slider-row">
+                        <label for="ambienceVolumeSlider">Ambience</label>
+                        <input type="range" id="ambienceVolumeSlider" min="0" max="100">
+                        <span id="ambienceVolValue">70%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="options-section">
+                <h3>Show last objective</h3>
+                <select id="lastObjectiveSelect">
+                    <option value="hide">Hide</option>
+                    <option value="show">Show</option>
+                    <option value="after1min">After 1 min</option>
+                </select>
+            </div>
+            <div class="options-section">
                 <h3>Change Wallpaper</h3>
                 <div id="wallpaperSelectionGrid">
                     <!-- JS will populate this with wallpaper options -->
@@ -222,9 +255,52 @@
         <h2>GAME PAUSED</h2>
         <div class="main-menu-buttons" style="width: 80%; margin-top: 20px;">
             <button id="resumeGameButton">Resume Game</button>
+            <button id="pauseOptionsButton">Options</button>
             <button id="saveGamePauseButton">Save Game</button>
             <button id="restartMissionPauseButton">Restart Mission</button>
             <button id="mainMenuPauseButton">Main Menu</button>
+        </div>
+    </div>
+
+    <div id="pauseOptionsScreen" class="ui-panel" style="display: none;">
+        <h2>OPTIONS</h2>
+        <div id="pauseOptionsContent">
+            <div class="options-section">
+                <h3>Audio</h3>
+                <div class="volume-slider-container">
+                    <div class="volume-slider-row">
+                        <label for="pauseMasterVolumeSlider">Master</label>
+                        <input type="range" id="pauseMasterVolumeSlider" min="0" max="100">
+                        <span id="pauseMasterVolValue">100%</span>
+                    </div>
+                    <div class="volume-slider-row">
+                        <label for="pauseMusicVolumeSlider">Music</label>
+                        <input type="range" id="pauseMusicVolumeSlider" min="0" max="100">
+                        <span id="pauseMusicVolValue">50%</span>
+                    </div>
+                    <div class="volume-slider-row">
+                        <label for="pauseSfxVolumeSlider">SFX</label>
+                        <input type="range" id="pauseSfxVolumeSlider" min="0" max="100">
+                        <span id="pauseSfxVolValue">100%</span>
+                    </div>
+                    <div class="volume-slider-row">
+                        <label for="pauseAmbienceVolumeSlider">Ambience</label>
+                        <input type="range" id="pauseAmbienceVolumeSlider" min="0" max="100">
+                        <span id="pauseAmbienceVolValue">70%</span>
+                    </div>
+                </div>
+            </div>
+            <div class="options-section">
+                <h3>Show last objective</h3>
+                <select id="pauseLastObjectiveSelect">
+                    <option value="hide">Hide</option>
+                    <option value="show">Show</option>
+                    <option value="after1min">After 1 min</option>
+                </select>
+            </div>
+        </div>
+        <div class="options-buttons">
+            <button id="backFromPauseOptionsButton">Back</button>
         </div>
     </div>
 

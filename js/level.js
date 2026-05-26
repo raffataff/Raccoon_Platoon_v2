@@ -582,6 +582,69 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         };
     }
 
+    computeReachableCells(playerSpawnX, playerSpawnY) {
+        if (!this.navGrid || this.gridWidth === 0 || this.gridHeight === 0) {
+            return;
+        }
+
+        this.reachableGrid = [];
+        for (let y = 0; y < this.gridHeight; y++) {
+            this.reachableGrid[y] = new Uint8Array(this.gridWidth);
+        }
+
+        const start = this.worldToGridCoords(playerSpawnX, playerSpawnY);
+        let sx = start.x;
+        let sy = start.y;
+
+        sx = Math.max(0, Math.min(this.gridWidth - 1, sx));
+        sy = Math.max(0, Math.min(this.gridHeight - 1, sy));
+
+        if (this.navGrid[sy][sx] === 1) {
+            let found = false;
+            for (let r = 1; r <= 10 && !found; r++) {
+                for (let dy = -r; dy <= r && !found; dy++) {
+                    for (let dx = -r; dx <= r && !found; dx++) {
+                        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                        const nx = sx + dx, ny = sy + dy;
+                        if (nx >= 0 && nx < this.gridWidth && ny >= 0 && ny < this.gridHeight && this.navGrid[ny][nx] === 0) {
+                            sx = nx; sy = ny; found = true;
+                        }
+                    }
+                }
+            }
+            if (!found) return;
+        }
+
+        const queue = new Array(this.gridWidth * this.gridHeight);
+        let head = 0, tail = 0;
+
+        queue[tail++] = (sy << 16) | sx;
+        this.reachableGrid[sy][sx] = 1;
+
+        while (head < tail) {
+            const packed = queue[head++];
+            const cx = packed & 0xFFFF;
+            const cy = (packed >> 16) & 0xFFFF;
+
+            if (cy > 0 && this.navGrid[cy - 1][cx] === 0 && this.reachableGrid[cy - 1][cx] === 0) {
+                this.reachableGrid[cy - 1][cx] = 1;
+                queue[tail++] = ((cy - 1) << 16) | cx;
+            }
+            if (cy < this.gridHeight - 1 && this.navGrid[cy + 1][cx] === 0 && this.reachableGrid[cy + 1][cx] === 0) {
+                this.reachableGrid[cy + 1][cx] = 1;
+                queue[tail++] = ((cy + 1) << 16) | cx;
+            }
+            if (cx > 0 && this.navGrid[cy][cx - 1] === 0 && this.reachableGrid[cy][cx - 1] === 0) {
+                this.reachableGrid[cy][cx - 1] = 1;
+                queue[tail++] = (cy << 16) | (cx - 1);
+            }
+            if (cx < this.gridWidth - 1 && this.navGrid[cy][cx + 1] === 0 && this.reachableGrid[cy][cx + 1] === 0) {
+                this.reachableGrid[cy][cx + 1] = 1;
+                queue[tail++] = (cy << 16) | (cx + 1);
+            }
+        }
+    }
+
     gridToWorldCoords(gridX, gridY) {
         return {
             x: gridX * this.gridCellSize + this.gridCellSize / 2,

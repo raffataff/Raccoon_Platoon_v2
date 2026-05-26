@@ -68,6 +68,7 @@ class Unit {
         this.bumpRepathCooldown = 0;
 
         this.stuckFrameCounter = 0;
+        this.repathFailCount = 0;
 
         this.deadSpritePathKey = null;
         this.deadSpriteFilesKey = null;
@@ -347,7 +348,7 @@ class Unit {
                         if (checkX >= 0 && checkX < this.game.level.gridWidth && checkY >= 0 && checkY < this.game.level.gridHeight && navGrid[checkY][checkX] === 0) {
                             startGrid.x = checkX; startGrid.y = checkY;
                             foundValidStart = true;
-                            
+
                             break;
                         }
                     } if (foundValidStart) break;
@@ -731,24 +732,43 @@ class Unit {
             this.stuckFrameCounter++;
             const stuckThreshold = CONFIG.STUCK_REPATH_FRAME_THRESHOLD || 10;
             if (this.stuckFrameCounter >= stuckThreshold && this.repathCooldown <= 0) {
-                this.stuckFrameCounter = 0;
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Stuck for ${stuckThreshold} frames. Forcing repath with offset.`);
-                const offsetAngle = Math.random() * Math.PI * 2;
-                const offsetDist = this.size * 2;
-                const offsetX = this.x + Math.cos(offsetAngle) * offsetDist;
-                const offsetY = this.y + Math.sin(offsetAngle) * offsetDist;
-                const clampedOffsetX = Math.max(this.size / 2, Math.min(offsetX, (CONFIG.WORLD_WIDTH || 0) - this.size / 2));
-                const clampedOffsetY = Math.max(this.size / 2, Math.min(offsetY, (CONFIG.WORLD_HEIGHT || 0) - this.size / 2));
-                const offsetGrid = this.game.level.worldToGridCoords(clampedOffsetX, clampedOffsetY);
-                if (offsetGrid.x >= 0 && offsetGrid.x < this.game.level.gridWidth && offsetGrid.y >= 0 && offsetGrid.y < this.game.level.gridHeight) {
-                    this.calculatePath(offsetGrid, this.isPhasing);
+                if (this.repathFailCount > 3) {
+                    this.isMoving = false;
+                    this.currentPath = [];
+                    this.stuckFrameCounter = 0;
                 } else {
-                    this.calculatePath(this.game.level.worldToGridCoords(this.x, this.y), this.isPhasing);
+                    this.stuckFrameCounter = 0;
+                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Stuck for ${stuckThreshold} frames. Forcing repath with offset.`);
+                    const currentGrid = this.game.level.worldToGridCoords(this.x, this.y);
+                    const navGrid = this.game.level.getNavigationGrid();
+                    let pathSucceeded = false;
+                    for (let dist = 2; dist <= 6 && !pathSucceeded; dist += 2) {
+                        const tryOffsets = [
+                            { dx: 0, dy: -dist }, { dx: 0, dy: dist },
+                            { dx: -dist, dy: 0 }, { dx: dist, dy: 0 }
+                        ];
+                        for (const off of tryOffsets) {
+                            const tx = currentGrid.x + off.dx;
+                            const ty = currentGrid.y + off.dy;
+                            if (tx >= 0 && tx < this.game.level.gridWidth && ty >= 0 && ty < this.game.level.gridHeight && navGrid[ty][tx] === 0) {
+                                if (this.calculatePath({ x: tx, y: ty }, this.isPhasing)) {
+                                    pathSucceeded = true;
+                                }
+                                break;
+                            }
+                        }
+                    }
+                    if (!pathSucceeded) {
+                        if (!this.calculatePath(currentGrid, this.isPhasing)) {
+                            this.repathFailCount++;
+                        }
+                    }
+                    this.repathCooldown = 0.5 + Math.random();
                 }
-                this.repathCooldown = 0.5 + Math.random();
             }
         } else {
             this.stuckFrameCounter = 0;
+            this.repathFailCount = 0;
         }
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
@@ -762,7 +782,7 @@ class Unit {
                 if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < arrivalTolerance * 1.5) {
                     this.isMoving = false; this.x = this.worldTargetX; this.y = this.worldTargetY;
                 } else if (this.isMoving) {
-                    this.setMoveTarget(this.worldTargetX, this.worldTargetY, this.isPhasing);
+                    this.setMoveTarget(this.worldTargetX, this.worldTargetY);
                 }
             }
         }

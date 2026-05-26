@@ -97,8 +97,16 @@ class Raccoon extends Unit {
             }
         }
         
+        const currentDef = CONFIG.WEAPON_DEFINITIONS[this.currentWeaponName];
+        const activePickedUpWeapon = (currentDef && !currentDef.isDefaultWeapon) ? this.currentWeaponName : null;
+
         this.currentWeaponName = this.defaultWeaponName;
         this.weaponName = this.defaultWeaponName;
+
+        if (activePickedUpWeapon) {
+            this.currentWeaponName = activePickedUpWeapon;
+            this.weaponName = activePickedUpWeapon;
+        }
     }
 
     updateXpToNextRank() {
@@ -109,7 +117,7 @@ class Raccoon extends Unit {
             this.xpToNextRank = CONFIG.RANK_THRESHOLDS[currentRankIndex + 1].xpNeeded;
         } else { this.xpToNextRank = Infinity; }
     }
-    applyRankBonuses(isInitialSetup = false) {
+    applyRankBonuses(isInitialSetup = false, isPromotion = false) {
         if (!CONFIG.RANK_THRESHOLDS) return;
         const rankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === this.rank);
         if (rankData && rankData.statBoosts) {
@@ -118,14 +126,27 @@ class Raccoon extends Unit {
             if (rankData.statBoosts.maxHpBonus) newMaxHp = baseHp + rankData.statBoosts.maxHpBonus;
             const hpDiff = newMaxHp - this.maxHp;
             this.maxHp = newMaxHp;
-            if (isInitialSetup || hpDiff > 0) { this.hp += hpDiff; if (this.hp > this.maxHp) this.hp = this.maxHp; }
+            if (isPromotion) { this.hp = this.maxHp; }
+            else if (isInitialSetup || hpDiff > 0) { this.hp += hpDiff; if (this.hp > this.maxHp) this.hp = this.maxHp; }
             else if (hpDiff < 0 && this.hp > this.maxHp) this.hp = this.maxHp;
             this.accuracyBonus = rankData.statBoosts.accuracyBonus || 0;
         } else {
             this.maxHp = CONFIG.RACCOON_HP || 30; this.accuracyBonus = 0;
-            if (!isInitialSetup && this.hp > this.maxHp) this.hp = this.maxHp;
+            if (isPromotion) { this.hp = this.maxHp; }
+            else if (!isInitialSetup && this.hp > this.maxHp) this.hp = this.maxHp;
         }
     }
+
+    _applyGrenadeBonusesForRank() {
+        let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
+        if (this.rank === "Private") startGrenades += (CONFIG.GRENADE_BONUS_PRIVATE || 0);
+        if (this.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0);
+        if (this.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
+        if (this.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0);
+        if (this.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 0);
+        this.grenadeAmmo = startGrenades;
+    }
+
     addXp(amount) {
         if (!this.isAlive() || (CONFIG.MAX_RANK_NAME && this.rank === CONFIG.MAX_RANK_NAME)) return;
         this.xp += amount;
@@ -158,7 +179,9 @@ class Raccoon extends Unit {
                 // --- END NEW ---
                 if (this.game && this.game.addVisualEffect) this.game.addVisualEffect('promotion', { unitId: this.id });
                 if (this.game && this.game.trySpeech) this.game.trySpeech(this, 'ON_PROMOTION');
-                this.applyRankBonuses(); currentRankData = nextRankData; currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
+                this.applyRankBonuses(false, true);
+                this._applyGrenadeBonusesForRank();
+                currentRankData = nextRankData; currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
                 this.updateXpToNextRank();
                 this.setRankBasedSprite(); // Update sprite when promoted
             } else break;

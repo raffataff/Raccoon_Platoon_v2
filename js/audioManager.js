@@ -5,6 +5,7 @@ class AudioManager {
         this.sounds = {}; // Stores { key: { audio: HTMLAudioElement, defaultVolume: X, path: Y, loaded: true } }
         this.isMuted = false;
         this.globalVolume = 1.0;
+        this.sfxVolume = 1.0;
         this.loadQueue = [];
         this.loadedCount = 0;
         this.totalCount = 0;
@@ -101,8 +102,9 @@ class AudioManager {
 
         const masterAudio = this.sounds[key].audio;
         const baseVolume = this.sounds[key].defaultVolume !== undefined ? this.sounds[key].defaultVolume : 0.5;
-        const requestedVolume = playConfig.volume !== undefined ? playConfig.volume : 1.0; // Default to 1.0 for specific volume
-        const finalEffectiveVolume = this.globalVolume * baseVolume * requestedVolume;
+        const requestedVolume = playConfig.volume !== undefined ? playConfig.volume : 1.0;
+        const sfxMultiplier = playConfig.loop ? 1.0 : this.sfxVolume;
+        const finalEffectiveVolume = this.globalVolume * sfxMultiplier * baseVolume * requestedVolume;
 
         if (playConfig.loop) {
             // Allow multiple concurrent looping sounds (music + ambient)
@@ -209,6 +211,10 @@ class AudioManager {
             }
         }
         // SFX volumes are set at the time of play based on the globalVolume then.
+    }
+
+    setSfxVolume(volume) {
+        this.sfxVolume = Math.max(0, Math.min(1, volume));
     }
 
     toggleMute() {
