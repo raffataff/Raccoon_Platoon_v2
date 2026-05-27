@@ -36,6 +36,10 @@ const TEMPERATE_BIOME = {
             path: 'assets/images/objects/biomes/temperate/grass/',
             files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png',  ]
         },
+        grass_decorations: {
+            path: 'assets/images/objects/biomes/temperate/grass/',
+            files: ['temperate_grass_1.png', 'temperate_grass_4.png',  'temperate_grass_6.png',  'temperate_grass_9.png', 'temperate_grass_12.png', 'temperate_grass_25.png',  ]
+        },
 
         // Walls (reusing tropical wall assets as placeholders)
         temperate_wall_angled_long: {
@@ -53,12 +57,12 @@ const TEMPERATE_BIOME = {
             files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', ]
         },
         oak_bush_small: {
-            path: 'assets/images/objects/biomes/tropical/bushes/',
-            files: ['palm_bush_small_1.png', 'palm_bush_small_2.png', 'palm_bush_small_3.png', 'palm_bush_small_4.png']
+            path: 'assets/images/objects/biomes/temperate/trees/oak/',
+            files: ['tree_oak_bush_1.png', 'tree_oak_bush_2.png', 'tree_oak_bush_3.png', 'tree_oak_bush_4.png', ]
         },
-        oak_bush_large: {
-            path: 'assets/images/objects/biomes/tropical/bushes/',
-            files: ['palm_bush_large_1.png', 'palm_bush_large_2.png']
+        oak_sapling: {
+            path: 'assets/images/objects/biomes/temperate/trees/oak/',
+            files: ['oak_sapling_1.png', 'oak_sapling_2.png', 'oak_sapling_3.png', 'oak_sapling_4.png', ]
         },
 
         // Rocks
@@ -183,14 +187,19 @@ const TEMPERATE_BIOME = {
     // =========================================================================
     obstacleDefinitions: [
         {
+            type: 'grass_decorations', name: 'Grass Decoration', color: '#654321',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: false, providesCover: false,
+            spawnWeight: 10, isDecoration: true,
+            spriteScale: 0.4,
+        },
+        {
             type: 'pond',
             name: 'Pond',
             color: '#4A90D9',
-            destructible: false,
-            blocksMovement: true,
-            providesCover: false,
-            spawnWeight: 0.5,
+            destructible: false, blocksMovement: true, providesCover: false, 
             isDecoration: false,
+            spawnWeight: 0.5,
             spriteScale: 0.8,
             phaseUnlocked: 2,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
@@ -204,11 +213,12 @@ const TEMPERATE_BIOME = {
             destructible: false,
             blocksMovement: true,
             providesCover: false,
-            spawnWeight: 1.5,
+            spawnWeight: 0.5,
             isDecoration: false,
             spriteScale: 0.8,
-            phaseUnlocked: 2,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.45) },
+            phaseUnlocked: 3,
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.45) },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -218,7 +228,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: false,
             spawnWeight: 0.5, isDecoration: false,
             spriteScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -229,19 +240,22 @@ const TEMPERATE_BIOME = {
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.3,
             collisionShapes: [
-                { type: 'ellipse', offsetX: (w => w * 0.1), offsetY: (h => h * 0.8), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
-                { type: 'ellipse', offsetX: (w => w * 0.8), offsetY: (h => h * 0.2), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
+                { 
+                    type: 'ellipse', offsetX: (w => w * 0.1), offsetY: (h => h * 0.8), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
+                { 
+                    type: 'ellipse', offsetX: (w => w * 0.8), offsetY: (h => h * 0.2), radiusX: (w => w * 0.3), radiusY: (h => h * 0.2) },
             ],
             canBeFlipped: true,
             placementBuffer: 130,
         },
         {
             type: 'rock_medium', name: 'Medium Grassy Rock', color: '#696969',
-            destructible: true, hp: 200, maxHp: 200,
+            destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
             spawnWeight: 4, isDecoration: true,
             spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 0.64), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.2) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.45), offsetY: (h => h * 0.64), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.2) },
             canBeFlipped: true,
         },
         {
@@ -250,7 +264,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: true,
             spriteScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.27) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.27) },
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -273,18 +288,21 @@ const TEMPERATE_BIOME = {
         {
             type: 'oak_bush_small', name: 'Small Oak Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 0, isDecoration: true,
-            spriteScale: 0.6,
-            canBeFlipped: true,
+            blocksMovement: true, providesCover: false,
+            spawnWeight: 3, isDecoration: false, canBeFlipped: true,
+            spriteScale: 0.5,
+            collisionShape: {
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.3), radiusY: ((w, h) => h * 0.2) },
         },
         {
-            type: 'oak_bush_large', name: 'Large Oak Bush', color: '#228B22',
+            type: 'oak_sapling', name: 'Large Oak Bush', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
-            blocksMovement: false, providesCover: false,
-            spawnWeight: 0, isDecoration: false,
-            spriteScale: 0.6,
+            blocksMovement: true, providesCover: false,
+            spawnWeight: 2, isDecoration: false,
+            spriteScale: 0.5,
             canBeFlipped: true,
+            collisionShape: {
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.3), radiusY: ((w, h) => h * 0.2) },
         },
         {
             type: 'tree_oak_single', name: 'Oak Tree Single', color: '#bb5912',
@@ -292,7 +310,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
             spriteScale: 0.75,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.756), radius: (w => w * 0.1) },
+            collisionShape: { 
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.756), radius: (w => w * 0.1) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -304,7 +323,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.47), offsetY: (h => h * 0.7), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.47), offsetY: (h => h * 0.7), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -315,7 +335,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.3), radiusX: (w => w * 0.2), radiusY: ((w, h) => h * 0.10) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.35), offsetY: (h => h * 1.3), radiusX: (w => w * 0.2), radiusY: ((w, h) => h * 0.10) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -326,7 +347,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.35,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
+            collisionShape: { 
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -338,7 +360,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.4,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.51), offsetY: (h => h * 0.75), radiusX: (w => w * 0.08), radiusY: ((w, h) => h * 0.065) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.51), offsetY: (h => h * 0.75), radiusX: (w => w * 0.08), radiusY: ((w, h) => h * 0.065) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.5,
             canBeFlipped: true,
@@ -350,7 +373,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.45,
             canBeFlipped: true,
@@ -363,7 +387,8 @@ const TEMPERATE_BIOME = {
             spawnWeight: 0.5,
             isDecoration: false,
             spriteScale: 0.3,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.42), width: (w => w * 0.75), height: (h => h * 0.35), rotation: -Math.PI / 6 },
+            collisionShape: { 
+                type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.42), width: (w => w * 0.75), height: (h => h * 0.35), rotation: -Math.PI / 6 },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -373,7 +398,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 1.0,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.72), radius: (w => w * 0.1) },
+            collisionShape: { 
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.72), radius: (w => w * 0.1) },
             canBeFlipped: true,
         },
         {
@@ -383,7 +409,8 @@ const TEMPERATE_BIOME = {
             spawnWeight: 0,
             isDecoration: false,
             spriteScale: 0.8,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
+            collisionShape: { 
+                type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -393,7 +420,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
             spriteScale: 0.65,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radius: (w => w * 0.1) },
+            collisionShape: { 
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radius: (w => w * 0.1) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.4,
             canBeFlipped: true,
@@ -404,7 +432,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
             spriteScale: 0.65,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: ((w, h) => h * 0.085) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.12), radiusY: ((w, h) => h * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.4,
             canBeFlipped: true,
@@ -415,7 +444,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false,
             spriteScale: 0.35,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.45,
             canBeFlipped: true,
@@ -426,7 +456,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.4,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radius: (w => w * 0.08) },
+            collisionShape: { 
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.2,
             canBeFlipped: true,
@@ -438,7 +469,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.55), offsetY: (h => h * 0.85), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.55), offsetY: (h => h * 0.85), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/temperate/trees/birch/tree_birch_destroyed_1.png',
             spriteDestroyedScale: 0.2,
             canBeFlipped: true,
@@ -449,7 +481,8 @@ const TEMPERATE_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
             spriteScale: 0.7,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.16), radiusY: ((w, h) => h * 0.15) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radiusX: (w => w * 0.05), radiusY: ((w, h) => h * 0.07) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.2,
             canBeFlipped: true,
@@ -461,7 +494,8 @@ const TEMPERATE_BIOME = {
             spawnWeight: 1,
             isDecoration: false,
             spriteScale: 0.5,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
+            collisionShape: { 
+                type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
             canBeFlipped: true,
         },
         {
@@ -474,11 +508,12 @@ const TEMPERATE_BIOME = {
             blocksMovement: true,
             providesCover: true,
             spawnWeight: 10,
-            spriteScale: 0.70,
+            spriteScale: 0.6,
             spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.36), radiusY: ((w, h) => h * 0.35) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.32), radiusY: ((w, h) => h * 0.3) },
             placementBuffer: 150,
-            decorationBuffer: 35,
+            decorationBuffer: 50,
             canBeFlipped: true,
             isDecoration: true
         },
@@ -492,11 +527,12 @@ const TEMPERATE_BIOME = {
             blocksMovement: true,
             providesCover: true,
             spawnWeight: 15,
-            spriteScale: 0.7,
+            spriteScale: 0.6,
             spriteDestroyed: null,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.46), radiusY: ((w, h) => h * 0.35) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.37), radiusY: ((w, h) => h * 0.3) },
             placementBuffer: 150,
-            decorationBuffer: 35,
+            decorationBuffer: 50,
             canBeFlipped: true,
             isDecoration: true
         },
@@ -507,7 +543,8 @@ const TEMPERATE_BIOME = {
             spawnWeight: 0, isDecoration: true,
             spriteScale: 0.65,
             placementBuffer: 80,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
             canBeFlipped: true,
         },
         
@@ -582,23 +619,23 @@ const TEMPERATE_BIOME = {
         { name: 'bush_medium', files: ['bush_medium_1.png', 'bush_medium_3.png', 'bush_medium_4.png', 'bush_medium_5.png', 'temperate_grass_15.png',  ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
         { name: 'bush_large', files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
         
-        // BUSH
-        { name: 'oak_bush_small', files: ['palm_bush_small_1.png', 'palm_bush_small_2.png', 'palm_bush_small_3.png', 'palm_bush_small_4.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
-        { name: 'oak_bush_large', files: ['palm_bush_large_1.png', 'palm_bush_large_2.png'], path: 'assets/images/objects/biomes/tropical/bushes/', type: 'single' },
         
         //ROCK
         { name: 'rock_medium', files: ['rock_medium_temperate_1.png', 'rock_medium_temperate_2.png', 'rock_medium_temperate_3.png', 'rock_medium_temperate_4.png', 'rock_medium_temperate_5.png', 'rock_medium_temperate_6.png', 'rock_medium_temperate_7.png', 'rock_medium_temperate_8.png',], path: 'assets/images/objects/biomes/temperate/rocks/medium/', type: 'single' },
-
+        
         { name: 'rock_large', files: ['rock_large_temperate_1.png', 'rock_large_temperate_2.png', 'rock_large_temperate_3.png', 'rock_large_temperate_4.png', 'rock_large_temperate_5.png', 'rock_large_temperate_6.png', 'rock_large_temperate_7.png', 'rock_large_temperate_8.png', ], path: 'assets/images/objects/biomes/temperate/rocks/large/', type: 'single' },
         
         //TREE
         { name: 'tree_willow', files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ], path: 'assets/images/objects/biomes/temperate/trees/willow/', type: 'single' },
         
+            // OAK
+        { name: 'oak_bush_small', files: ['tree_oak_bush_1.png', 'tree_oak_bush_2.png', 'tree_oak_bush_3.png', 'tree_oak_bush_4.png', ], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
+        { name: 'oak_sapling', files: ['oak_sapling_1.png', 'oak_sapling_2.png', 'oak_sapling_3.png', 'oak_sapling_4.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_single', files: ['tree_oak_single_1.png', 'tree_oak_single_2.png', 'tree_oak_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_double', files: ['palm1_double.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_triple', files: [], path: 'assets/images/objects/biomes/tropical/trees/fullSize/', type: 'single' },
         { name: 'oak_fallen_small', files: ['tree_oak_fallen_small_1.png', 'tree_oak_fallen_small_2.png', 'tree_oak_fallen_small_3.png', 'tree_oak_fallen_small_4.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
-        
+            // SECONDARY TREE
         { name: 'secondary_fallen', files: ['palm_fallen_log_2.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
         { name: 'secondary_single', files: ['palm2_single_1.png', 'palm2_single_2.png', 'palm2_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
         { name: 'secondary_double', files: ['palm2_double_1.png', 'palm2_double_2.png', 'palm2_double_3.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
@@ -628,6 +665,7 @@ const TEMPERATE_BIOME = {
         // GROUND TILES
         { name: 'mud', files: ['mud_1.png', 'mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png', 'sand_new_1.png', 'sand_new_2.png', 'sand_new_3.png', 'sand_new_4.png', 'sand_new_5.png' ], path: 'assets/images/objects/biomes/mud/', type: 'single' },
          { name: 'grass', files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png', 'grass5.png', 'grass6.png', ], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' },
+         { name: 'grass_decorations', files: ['temperate_grass_1.png', 'temperate_grass_4.png',  'temperate_grass_6.png',  'temperate_grass_9.png', 'temperate_grass_12.png', 'temperate_grass_25.png', ], path: 'assets/images/objects/biomes/temperate/grass/', type: 'single' }
     ],
 
     // =========================================================================

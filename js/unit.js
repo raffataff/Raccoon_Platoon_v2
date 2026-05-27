@@ -69,6 +69,8 @@ class Unit {
 
         this.stuckFrameCounter = 0;
         this.repathFailCount = 0;
+        this.stuckSpeechTimer = 0;
+        this.stuckSpeechCooldown = 0;
 
         this.deadSpritePathKey = null;
         this.deadSpriteFilesKey = null;
@@ -101,6 +103,9 @@ class Unit {
         } else if (this instanceof PossumElite) {
             this.spriteBaseName = 'possum_elite';
             this.spriteScaleFactor = CONFIG.POSSUM_ELITE_SPRITE_SCALE_FACTOR || 1.0;
+        } else if (this instanceof PossumBoss3) {
+            this.spriteBaseName = 'possum_boss_3';
+            this.spriteScaleFactor = CONFIG.POSSUM_BOSS_3_SPRITE_SCALE_FACTOR || 1.0;
         }
         // --- MODIFICATION END ---
 
@@ -282,7 +287,7 @@ class Unit {
             this.currentVisualState = 'fire';
             this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
-            if (!(this instanceof PossumBoss1)) {
+            if (!(this instanceof PossumBoss1) && !(this instanceof PossumBoss3)) {
                 const fireAtX = this.isPlayerDirectFiring ? this.playerDirectFireTargetPos.x : target.x;
                 const fireAtY = this.isPlayerDirectFiring ? this.playerDirectFireTargetPos.y : target.y;
                 this._executeFire(fireAtX, fireAtY);
@@ -365,13 +370,6 @@ class Unit {
         const rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
 
         if (rawPathGridCoords && rawPathGridCoords.length > 0) {
-            const lastGridNode = rawPathGridCoords[rawPathGridCoords.length - 1];
-            if (lastGridNode.x !== endGrid.x || lastGridNode.y !== endGrid.y) {
-                const partialWorld = this.game.level.gridToWorldCoords(lastGridNode.x, lastGridNode.y);
-                this.worldTargetX = partialWorld.x;
-                this.worldTargetY = partialWorld.y;
-                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Partial path to closest reachable cell (${lastGridNode.x},${lastGridNode.y}).`);
-            }
             this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level);
             if (this.currentPath && this.currentPath.length > 0) {
                 this.currentPathNodeIndex = 0; this.isMoving = true;
@@ -443,11 +441,19 @@ class Unit {
         }
 
         if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
-            this.isMoving = false; this.currentPath = []; this.currentPathNodeIndex = 0;
+            this.currentPath = []; this.currentPathNodeIndex = 0;
             if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < this.size) {
+                this.isMoving = false;
                 this.x = this.worldTargetX; this.y = this.worldTargetY;
+            } else if (this.isMoving) {
+                this.setMoveTarget(this.worldTargetX, this.worldTargetY);
             }
-            this.lastDeltaX = 0; this.lastDeltaY = 0; return;
+            if (!this.isMoving) {
+                this.lastDeltaX = 0; this.lastDeltaY = 0; return;
+            }
+            if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
+                this.lastDeltaX = 0; this.lastDeltaY = 0; return;
+            }
         }
 
         const nextNodeWorldCoords = this.currentPath[this.currentPathNodeIndex];
@@ -474,7 +480,7 @@ class Unit {
         let finalDeltaX = desiredDeltaX; let finalDeltaY = desiredDeltaY;
 
         if (this.isMoving && this.game) {
-            const SEPARATION_CHECK_RADIUS = this.size * 13.0; const SEPARATION_FORCE_FACTOR = 1.9;
+            const SEPARATION_CHECK_RADIUS = this.size * 6.0; const SEPARATION_FORCE_FACTOR = 1.9;
             const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.MIN_SEPARATION_DISTANCE_FACTOR || 1.9;
             let separationDX = 0; let separationDY = 0; let unitsInSeparationRange = 0;
             let unitsToConsiderForSeparation = [];
@@ -504,15 +510,15 @@ class Unit {
                 const combinedRadii = (this.size / 2) + (otherUnit.size / 2);
                 const desiredSeparationDist = combinedRadii * MIN_SEPARATION_DISTANCE_FACTOR;
                 if (distSq < (SEPARATION_CHECK_RADIUS * SEPARATION_CHECK_RADIUS) && distSq < (desiredSeparationDist * desiredSeparationDist)) {
-                    const dist = Math.sqrt(distSq); const awayX = this.x - otherUnit.x; const awayY = this.y - otherUnit.y;
-                    const overlap = desiredSeparationDist - dist; const pushStrength = (overlap / desiredSeparationDist);
+                        const dist = Math.sqrt(distSq); const awayX = this.x - otherUnit.x; const awayY = this.y - otherUnit.y;
+                        const overlap = desiredSeparationDist - dist; const pushStrength = (overlap / desiredSeparationDist) * (overlap / desiredSeparationDist);
                     separationDX += (awayX / dist) * pushStrength; separationDY += (awayY / dist) * pushStrength;
                     unitsInSeparationRange++;
                 }
             }
             if (unitsInSeparationRange > 0) {
                 const avgSeparationDX = separationDX / unitsInSeparationRange; const avgSeparationDY = separationDY / unitsInSeparationRange;
-                const pushMagnitude = this.speed * SEPARATION_FORCE_FACTOR * deltaTime;
+                const pushMagnitude = this.speed * SEPARATION_FORCE_FACTOR * 1.5 * deltaTime;
                 finalDeltaX += avgSeparationDX * pushMagnitude; finalDeltaY += avgSeparationDY * pushMagnitude;
                 const totalMovementMagnitude = Math.hypot(finalDeltaX, finalDeltaY);
                 const originalDesiredMagnitude = Math.hypot(desiredDeltaX, desiredDeltaY);
@@ -730,13 +736,9 @@ class Unit {
 
         if (this.isMoving && attemptedToMoveFlag && !actualMovementMade) {
             this.stuckFrameCounter++;
+            this.stuckSpeechTimer += deltaTime;
             const stuckThreshold = CONFIG.STUCK_REPATH_FRAME_THRESHOLD || 10;
             if (this.stuckFrameCounter >= stuckThreshold && this.repathCooldown <= 0) {
-                if (this.repathFailCount > 3) {
-                    this.isMoving = false;
-                    this.currentPath = [];
-                    this.stuckFrameCounter = 0;
-                } else {
                     this.stuckFrameCounter = 0;
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Stuck for ${stuckThreshold} frames. Forcing repath with offset.`);
                     const currentGrid = this.game.level.worldToGridCoords(this.x, this.y);
@@ -760,15 +762,23 @@ class Unit {
                     }
                     if (!pathSucceeded) {
                         if (!this.calculatePath(currentGrid, this.isPhasing)) {
-                            this.repathFailCount++;
                         }
                     }
                     this.repathCooldown = 0.5 + Math.random();
                 }
+            if (this.stuckSpeechTimer >= 3.0 && this.stuckSpeechCooldown <= 0) {
+                if (this.game && this.game.trySpeech) {
+                    this.game.trySpeech(this, 'ON_PATH_BLOCKED', 0.5);
+                }
+                this.stuckSpeechTimer = 0;
+                this.stuckSpeechCooldown = 5.0 + Math.random() * 5.0;
             }
         } else {
             this.stuckFrameCounter = 0;
-            this.repathFailCount = 0;
+            this.stuckSpeechTimer = 0;
+        }
+        if (this.stuckSpeechCooldown > 0) {
+            this.stuckSpeechCooldown -= deltaTime;
         }
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
@@ -1342,7 +1352,7 @@ class Unit {
             if (!this.isAlive() && this.deadSpriteFlipped) {
                 ctx.save();
                 ctx.scale(-1, 1);
-                ctx.drawImage(spriteToDraw, -drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
+                ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
                 ctx.restore();
             } else {
                 ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);

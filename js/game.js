@@ -762,6 +762,15 @@ class Game {
                 },
                 deadPath: CONFIG.POSSUM_ELITE_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_ELITE_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_boss_3',
+                basePath: CONFIG.POSSUM_BOSS_3_SPRITE_PATH,
+                actions: {
+                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+                },
+                deadPath: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_FILES
             }
         ];
 
@@ -990,12 +999,15 @@ class Game {
             { name: 'tropical_ruins', files: TROPICAL_BIOME.spritePaths.tropical_ruins?.files, path: TROPICAL_BIOME.spritePaths.tropical_ruins?.path, type: 'single' },
 
             //TEMPERATE
+            { name: 'grass_decorations', files: TEMPERATE_BIOME.spritePaths.grass_decorations?.files, path: TEMPERATE_BIOME.spritePaths.grass_decorations?.path, type: 'single' },
             { name: 'grass', files: TEMPERATE_BIOME.spritePaths.grass?.files, path: TEMPERATE_BIOME.spritePaths.grass?.path, type: 'single' },
             { name: 'mud', files: TEMPERATE_BIOME.spritePaths.mud?.files, path: TEMPERATE_BIOME.spritePaths.mud?.path, type: 'single' },
             { name: 'bush_medium', files: TEMPERATE_BIOME.spritePaths.bush_medium?.files, path: TEMPERATE_BIOME.spritePaths.bush_medium?.path, type: 'single' },
             { name: 'bush_large', files: TEMPERATE_BIOME.spritePaths.bush_large?.files, path: TEMPERATE_BIOME.spritePaths.bush_large?.path, type: 'single' },
             { name: 'rock_medium', files: TEMPERATE_BIOME.spritePaths.rock_medium?.files, path: TEMPERATE_BIOME.spritePaths.rock_medium?.path, type: 'single' },
             { name: 'rock_large', files: TEMPERATE_BIOME.spritePaths.rock_large?.files, path: TEMPERATE_BIOME.spritePaths.rock_large?.path, type: 'single' },
+            { name: 'oak_bush_small', files: TEMPERATE_BIOME.spritePaths.oak_bush_small?.files, path: TEMPERATE_BIOME.spritePaths.oak_bush_small?.path, type: 'single' },
+            { name: 'oak_sapling', files: TEMPERATE_BIOME.spritePaths.oak_sapling?.files, path: TEMPERATE_BIOME.spritePaths.oak_sapling?.path, type: 'single' },
             { name: 'oak_single', files: TEMPERATE_BIOME.spritePaths.tree_oak_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_single?.path, type: 'single' },
             { name: 'oak_double', files: TEMPERATE_BIOME.spritePaths.tree_oak_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_double?.path, type: 'single' },
             { name: 'oak_fallen_small', files: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.path, type: 'single' },
@@ -1633,7 +1645,7 @@ class Game {
             const isBossMission = objectives.some(obj => {
                 if (obj.type === 'ASSASSINATION' && obj.targetDetails) {
                     const targetKey = obj.targetDetails.assassinationTypeKey;
-                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss';
+                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss' || targetKey === 'possum_boss_3';
                 }
                 return false;
             });
@@ -2019,8 +2031,10 @@ class Game {
             return { x: worldX, y: worldY };
         }
 
+        const maxSnapRadius = CONFIG.SNAP_TO_WALKABLE_MAX_RADIUS || 5;
+
         // Spiral search for nearest walkable cell
-        for (let r = 1; r <= 5; r++) {
+        for (let r = 1; r <= maxSnapRadius; r++) {
             for (let dy = -r; dy <= r; dy++) {
                 for (let dx = -r; dx <= r; dx++) {
                     if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
@@ -2359,12 +2373,23 @@ class Game {
     resizeCanvas() {
         if (!this.canvasContainer) this.canvasContainer = document.getElementById('canvas-container');
         if (!this.canvasContainer) return;
-        // Use clientWidth/clientHeight to get the actual rendered size after CSS flexbox layout
-        // This accounts for the left HUD panel reducing the canvas display area
         const containerWidth = this.canvasContainer.clientWidth;
         const containerHeight = this.canvasContainer.clientHeight;
-        this.canvas.width = Math.max(CONFIG.MIN_CANVAS_WIDTH || 800, containerWidth);
-        this.canvas.height = Math.max(CONFIG.MIN_CANVAS_HEIGHT || 600, containerHeight);
+        const aspectRatio = (CONFIG.BASE_WORLD_WIDTH || 1920) / (CONFIG.BASE_WORLD_HEIGHT || 1080);
+        // Fit canvas to container while maintaining the target aspect ratio
+        // Use the dimension that is more constrained relative to the ratio
+        let canvasWidth, canvasHeight;
+        if (containerWidth / containerHeight > aspectRatio) {
+            // Container is wider than target ratio — height is the constraint
+            canvasHeight = containerHeight;
+            canvasWidth = Math.round(containerHeight * aspectRatio);
+        } else {
+            // Container is taller than target ratio (or equal) — width is the constraint
+            canvasWidth = containerWidth;
+            canvasHeight = Math.round(containerWidth / aspectRatio);
+        }
+        this.canvas.width = Math.max(CONFIG.MIN_CANVAS_WIDTH || 800, canvasWidth);
+        this.canvas.height = Math.max(CONFIG.MIN_CANVAS_HEIGHT || 600, canvasHeight);
         if (this.gameState === 'RUNNING') this.clampCamera();
     }
 
@@ -4076,32 +4101,28 @@ class Game {
             allUnitsInGame.forEach(unit => {
                 if (!unit || !unit.isAlive()) return;
                 if (unit.speechCooldown > 0) unit.speechCooldown -= deltaTime;
-                unit.idleChatterTimer -= deltaTime;
-                if (unit.idleChatterTimer <= 0) {
-                    unit.idleChatterTimer = _sc.IDLE_CHATTER_INTERVAL_MIN + Math.random() * (_sc.IDLE_CHATTER_INTERVAL_MAX - _sc.IDLE_CHATTER_INTERVAL_MIN);
-                    this.trySpeech(unit, 'IDLE_CHATTER', _sc.IDLE_CHATTER_CHANCE);
+                if (!(unit instanceof RaccoonHostage)) {
+                    unit.idleChatterTimer -= deltaTime;
+                    if (unit.idleChatterTimer <= 0) {
+                        unit.idleChatterTimer = _sc.IDLE_CHATTER_INTERVAL_MIN + Math.random() * (_sc.IDLE_CHATTER_INTERVAL_MAX - _sc.IDLE_CHATTER_INTERVAL_MIN);
+                        this.trySpeech(unit, 'IDLE_CHATTER', _sc.IDLE_CHATTER_CHANCE);
+                    }
                 }
                 unit.furbyTimer -= deltaTime;
-                if (unit.furbyTimer <= 0) {
+                if (unit.furbyTimer <= 0 && this.spatialGrid && unit.speechCooldown <= 0) {
                     unit.furbyTimer = _sc.FURBY_COOLDOWN + Math.random() * 5.0;
-                    let _tk;
-                    if (unit instanceof RaccoonHostage) _tk = 'HOSTAGE';
-                    else if (unit instanceof Raccoon) _tk = 'RACCOON';
-                    else if (unit.team === 'enemy') _tk = 'POSSUM';
-                    else return;
-                    const _cats = Object.keys(SPEECH_CONFIG[_tk]);
-                    const _rc = _cats[Math.floor(Math.random() * _cats.length)];
-                    this.trySpeech(unit, _rc, 0.15);
-                }
-                if (this.spatialGrid && unit.speechCooldown <= 0) {
                     const _nearby = this.spatialGrid.queryRange(unit.x, unit.y, _sc.PROXIMITY_RANGE);
+                    let _ally = null;
                     for (let _j = 0; _j < _nearby.length; _j++) {
                         const _other = _nearby[_j];
                         if (!(_other instanceof Unit) || _other === unit || !_other.isAlive()) continue;
                         if (_other.team !== unit.team) continue;
                         if (_other.speechCooldown > 0) continue;
-                        this.tryProximitySpeech(unit, _other);
+                        _ally = _other;
                         break;
+                    }
+                    if (_ally) {
+                        this.tryProximitySpeech(unit, _ally);
                     }
                 }
             });
@@ -4515,16 +4536,45 @@ class Game {
                                 } else {
                                     this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height);
                                 }
+                                if (CONFIG.DEBUG_DRAW_OBSTACLE_NAMES && obstacle.name) {
+                                    this.ctx.fillStyle = 'white';
+                                    this.ctx.font = '10px Arial';
+                                    this.ctx.textAlign = 'center';
+                                    this.ctx.globalAlpha = 0.9;
+                                    const labelX = collisionShape.x + collisionShape.width / 2;
+                                    const labelY = collisionShape.y + collisionShape.height + 12;
+                                    const label = obstacle.name + (obstacle.isFlippedHorizontally ? ' (Flipped)' : '');
+                                    this.ctx.fillText(label, labelX, labelY);
+                                    this.ctx.globalAlpha = 0.5;
+                                }
                             } else if (collisionShape.type === 'circle') {
                                 this.ctx.strokeStyle = obstacle.blocksMovement ? 'yellow' : (obstacle.providesCover ? 'cyan' : 'magenta');
                                 this.ctx.beginPath();
                                 this.ctx.arc(collisionShape.x, collisionShape.y, collisionShape.radius, 0, Math.PI * 2);
                                 this.ctx.stroke();
+                                if (CONFIG.DEBUG_DRAW_OBSTACLE_NAMES && obstacle.name) {
+                                    this.ctx.fillStyle = 'white';
+                                    this.ctx.font = '10px Arial';
+                                    this.ctx.textAlign = 'center';
+                                    this.ctx.globalAlpha = 0.9;
+                                    const label = obstacle.name + (obstacle.isFlippedHorizontally ? ' (Flipped)' : '');
+                                    this.ctx.fillText(label, collisionShape.x, collisionShape.y + collisionShape.radius + 12);
+                                    this.ctx.globalAlpha = 0.5;
+                                }
                             } else if (collisionShape.type === 'ellipse') {
                                 this.ctx.strokeStyle = obstacle.blocksMovement ? 'lime' : (obstacle.providesCover ? 'pink' : 'orange');
                                 this.ctx.beginPath();
                                 this.ctx.ellipse(collisionShape.x, collisionShape.y, collisionShape.radiusX, collisionShape.radiusY, 0, 0, Math.PI * 2);
                                 this.ctx.stroke();
+                                if (CONFIG.DEBUG_DRAW_OBSTACLE_NAMES && obstacle.name) {
+                                    this.ctx.fillStyle = 'white';
+                                    this.ctx.font = '10px Arial';
+                                    this.ctx.textAlign = 'center';
+                                    this.ctx.globalAlpha = 0.9;
+                                    const label = obstacle.name + (obstacle.isFlippedHorizontally ? ' (Flipped)' : '');
+                                    this.ctx.fillText(label, collisionShape.x, collisionShape.y + collisionShape.radiusY + 12);
+                                    this.ctx.globalAlpha = 0.5;
+                                }
                             }
                         }
                     }

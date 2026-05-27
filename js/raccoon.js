@@ -130,8 +130,10 @@ class Raccoon extends Unit {
             else if (isInitialSetup || hpDiff > 0) { this.hp += hpDiff; if (this.hp > this.maxHp) this.hp = this.maxHp; }
             else if (hpDiff < 0 && this.hp > this.maxHp) this.hp = this.maxHp;
             this.accuracyBonus = rankData.statBoosts.accuracyBonus || 0;
+            if (rankData.statBoosts.turnRate) this.turnRate = rankData.statBoosts.turnRate;
         } else {
             this.maxHp = CONFIG.RACCOON_HP || 30; this.accuracyBonus = 0;
+            this.turnRate = CONFIG.RACCOON_TURN_RATE;
             if (isPromotion) { this.hp = this.maxHp; }
             else if (!isInitialSetup && this.hp > this.maxHp) this.hp = this.maxHp;
         }

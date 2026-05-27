@@ -175,6 +175,11 @@ const MANUAL_CONTENT = [
                         name: "General Possum (Boss)",
                         image: "assets/images/units/possum_boss_1/idle/possum_boss_1_idle_se.png",
                         description: "The commander of the possum forces. Cycles between grenade volleys and heavy MG fire. Watch out for his death explosion!"
+                    },
+                    {
+                        name: "Ironhide Igor (Boss)",
+                        image: "assets/images/units/possum_boss_3/idle/possum_boss_3_idle_se.png",
+                        description: "A heavily armored brute wielding a deadly minigun. He mows down anything in his path. Keep your distance and watch for his escort!"
                     }
                 ]
             }

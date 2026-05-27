@@ -166,28 +166,34 @@ const CAMPAIGN_RULES = {
         // unlocksPhase: The phase when this target becomes available.
         // isBoss: (boolean, optional, default false) Is this a boss-level target?
         {
-            assassinationTypeKey: "possum_boss_1",
-            name: "General Whiskers", callsign: "Whiskers",
-            description: "A cunning strategist known for his brutal tactics.",
-            weight: 3, unlocksPhase: 3, isBoss: true
-        },
-        {
             assassinationTypeKey: "possum_revolver_boss",
             name: "Six-Shooter Sid", callsign: "Sidewinder",
             description: "A notoriously fast and mobile gunslinger.",
-            weight: 5, unlocksPhase: 4, isBoss: true
+            weight: 0, unlocksPhase: 3, isBoss: true
+        },
+        {
+            assassinationTypeKey: "possum_boss_1",
+            name: "Maddog Whiskers", callsign: "Whiskers",
+            description: "A cunning strategist known for his brutal tactics.",
+            weight: 0, unlocksPhase: 4, isBoss: true
         },
         {
             assassinationTypeKey: "possum_boss_1",
             name: "Lieutenant Paws", callsign: "Paws",
             description: "A skilled tactician with a knack for ambushes.",
-            weight: 4, unlocksPhase: 4, isBoss: true
+            weight: 0, unlocksPhase: 5, isBoss: true
         },
         {
             assassinationTypeKey: "possum_revolver_boss",
             name: "Captain Fuzzy", callsign: "Fuzzy",
             description: "An experienced fighter with a history of leading successful raids.",
-            weight: 5, unlocksPhase: 5, isBoss: true
+            weight: 0, unlocksPhase: 6, isBoss: true
+        },
+        {
+            assassinationTypeKey: "possum_boss_3",
+            name: "Ironhide Igor", callsign: "Ironhide",
+            description: "A heavily armored nutter with a minigun. Slow but relentless.",
+            weight: 3, unlocksPhase: 7, isBoss: true
         },
 
     ],

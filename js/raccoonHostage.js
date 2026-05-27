@@ -120,11 +120,6 @@ class RaccoonHostage extends Raccoon {
             return;
         }
 
-        if (this.isPhasing) { 
-            this.phasingTimer -= deltaTime;
-            if (this.phasingTimer <= 0) this.isPhasing = false;
-        }
-        
         if (this.attackCooldown > 0) this.attackCooldown -= deltaTime;
         if (this.actionTimer > 0) this.actionTimer -= deltaTime;
         if (this.grenadeCooldownTimer > 0) this.grenadeCooldownTimer -= deltaTime;
@@ -142,7 +137,7 @@ class RaccoonHostage extends Raccoon {
             this.helpTextTimer -= deltaTime;
             if (this.helpTextTimer <= 0) {
                 if (this.game && this.game.trySpeech) {
-                    this.game.trySpeech(this, 'IDLE_CHATTER');
+                    this.game.trySpeech(this, 'CAPTURED');
                 }
                 this.helpTextTimer = (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0) + Math.random() * ((this.helpTextConfig.INTERVAL_MAX_SECONDS || 9.0) - (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0));
             }
@@ -155,11 +150,9 @@ class RaccoonHostage extends Raccoon {
             this.updateVisualDirection(this.facingAngle);
 
         } else {
+            const wasPhasing = this.isPhasing;
             super.update(deltaTime);
-
-            if (this.isPhasing) {
-                return;
-            }
+            const phasingJustEnded = wasPhasing && !this.isPhasing;
 
             if (!this.isHoldingPosition) {
                  if (this.followTarget && this.followTarget.isAlive()) {
@@ -184,15 +177,21 @@ class RaccoonHostage extends Raccoon {
                     const severelyStuck = this.stuckFrames > 60;
 
                     if (severelyStuck) {
-                        this.isMoving = false;
+                        this.stuckFrames = 0;
                         this.currentPath = [];
+                        this.isMoving = true;
+                        if (this.setMoveTarget(desiredFollowX, desiredFollowY)) {
+                            this.lastFollowTargetPosition.x = this.followTarget.x;
+                            this.lastFollowTargetPosition.y = this.followTarget.y;
+                            this.lastRepathTime = currentTime;
+                        }
                     } else if (distToDesiredFollowPoint > this.FOLLOW_DISTANCE * 0.5 || isStuck) {
                         const targetMoved = distance(this.followTarget.x, this.followTarget.y, this.lastFollowTargetPosition.x, this.lastFollowTargetPosition.y) > this.REPATH_TARGET_MOVE_THRESHOLD;
                         const pathOutdated = this.isMoving && this.currentPath.length > 0 && distance(this.worldTargetX, this.worldTargetY, desiredFollowX, desiredFollowY) > this.REPATH_TARGET_MOVE_THRESHOLD;
                         const needsRepath = !this.isMoving || pathOutdated || isStuck;
-                        const effectiveCooldown = isStuck ? Math.max(this.minTimeBetweenRepath, 2.0) : this.minTimeBetweenRepath;
+                        const effectiveCooldown = isStuck ? 0.1 : this.minTimeBetweenRepath;
 
-                        if (needsRepath && targetMoved && (currentTime - this.lastRepathTime) > effectiveCooldown) {
+                        if (needsRepath && (targetMoved || phasingJustEnded || isStuck) && (currentTime - this.lastRepathTime) > effectiveCooldown) {
                             if (this.setMoveTarget(desiredFollowX, desiredFollowY)) {
                                 this.lastFollowTargetPosition.x = this.followTarget.x;
                                 this.lastFollowTargetPosition.y = this.followTarget.y;
@@ -204,7 +203,7 @@ class RaccoonHostage extends Raccoon {
                         this.isMoving = false;
                         this.currentPath = [];
                     }
-                } else { 
+                } else {
                     let closestPlayer = null;
                     let minDistSq = Infinity;
                     if (this.game.deployedSquadRoster) {

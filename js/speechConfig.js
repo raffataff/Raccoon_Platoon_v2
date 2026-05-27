@@ -9,7 +9,8 @@ const SPEECH_CONFIG = {
         "PossumHeavy": 2,
         "PossumRevolver": 3,
         "PossumElite": 4,
-        "PossumBoss1": 5
+        "PossumBoss1": 5,
+        "PossumBoss3": 5
     },
 
     PROXIMITY_MATRIX: {
@@ -17,9 +18,9 @@ const SPEECH_CONFIG = {
             RACCOON: {
                 SAME_RANK: {
                     speaker: [
-                        "Hey, partner!", "Squad buddy!", "Right beside you!",
+                        "Hey, dude!", "Squad buddy!", "Right beside you!",
                         "We got this!", "Stick together!", "On your six!",
-                        "Flanking up!", "Rally here!", "Good to see you!",
+                        "Flanking up!", "Where you from?",
                         "Side by side!", "Together!", "Locked and loaded!"
                     ],
                     target: [
@@ -77,7 +78,7 @@ const SPEECH_CONFIG = {
                         "Ghost! It's an honor!", "The Ghost is here?!",
                         "I can't believe it's you!", "An honor, Ghost!",
                         "The legend himself!", "Ghost! You're real!",
-                        "The Ghost ...I heard you're unkillable!"
+                        "The Ghost ...I heard you're un-killable!"
                     ],
                     target: [
                         "...", "*nods*", "Stay focused, soldier.",
@@ -173,15 +174,13 @@ const SPEECH_CONFIG = {
             POSSUM: {
                 SAME_TYPE: {
                     speaker: [
-                        "Squeak squeak!", "Brother!", "Chitter chitter!",
-                        "Together!", "Squeak yap!", "Side by side!",
+                        "Brother!", "Together!", "Squeak yap!", "Side by side!",
                         "Fellow possum!", "Squeak!", "Chitter!",
                         "Same squad!", "Together we squeak!"
                     ],
                     target: [
-                        "Chitter chitter!", "Together!", "Squeak!",
-                        "Brother!", "Side by side!", "Squeak squeak!",
-                        "Right here!", "Chitter!", "Squeak yap!",
+                        "Together!", "Squeak!", "Brother!", "Side by side!",
+                        "Right here!", "For Squeekor!",
                         "Together!", "Fellow possum!"
                     ]
                 },
@@ -401,6 +400,13 @@ const SPEECH_CONFIG = {
             "Pull pin, count to three ...who am I kidding!", "Lob it!",
             "Here's an early Christmas present!", "One present, coming up!",
             "Frag delicieux!", "Abra cadabra boom!", "Explosive fisticuffs!"
+        ],
+        ON_PATH_BLOCKED: [
+            "I can't pass through there!", "I'm too fat for that!",
+            "No way through!", "Blocked!", "This path is a no-go!",
+            "Squeezing through? Not happening!", "I'm stuck!",
+            "Need another route!", "Can't get through!",
+            "Too tight for me!", "This ain't gonna work!"
         ]
     },
 
@@ -453,6 +459,12 @@ const SPEECH_CONFIG = {
             "Nice try!", "Hiss!", "Almost got 'em!",
             "Keep running if you want! No... actually STOP!", "After them!",
             "Squeaky pursuit!", "Fresh meat —wait, fresh raccoon!"
+        ],
+        ON_PATH_BLOCKED: [
+            "Squeak! Can't get through!", "Blocked!",
+            "No passage!", "Can't squeeze through!",
+            "Too tight!", "Obstacle in the way!",
+            "Need another path!", "Stuck!"
         ]
     },
 
@@ -464,10 +476,9 @@ const SPEECH_CONFIG = {
             "I'm not even armed!", "Unbelievable!"
         ],
         ON_PROXIMITY_ALLY: [
-            "Hey, buddy!", "Over here!", "A friend!",
-            "Another friendly!", "Tell me you're here to help!",
-            "*whimper of joy*", "Rally point!", "Stick together!",
-            "Coast is clear, right?", "Four more on the way?"
+            "Hey, buddy!", "A friend!", "You smell worse than I do...",
+            "I remember you!", "Sorry if I don't remember you, my memory's a little fuzzy...", "You look like you could use a shower!",
+             "Stick together!", "How's the missus? Pregnant again?", "Yea, my butt itches too..."
         ],
         ON_RESCUE: [
             "You came!", "Let's get out here!", "I knew someone would come!",
@@ -475,23 +486,36 @@ const SPEECH_CONFIG = {
             "Let's GO GO GO!", "I'm never volunteering for recon again!",
             "You guys smell worse than the possums but that's ok!", "Time to extract!"
         ],
-        IDLE_CHATTER: [
-            "I don't wanna die here...",
-            "Help!", "Over here!", "Psst!", "Save me!",
-            "I've got 5 kits to feed!", "I'm kinda a big deal...",
-            "I really need to pee!", "I'm too young to die!",
-            "Got a snack? I'm starving!", "I'm not great at this whole hostage thing...",
-            "I am not the raccoon you're looking for...", "Damn, you stink, possum scum!",
-            "We can be friends... not!", "Is it over yet?",
-            "I should've called in sick today...", "The food here is TERRIBLE",
-            "How long have I been here?", "Someone had better write a report about this!",
+        CAPTURED: [
+            "Help!", "Save me!", "Over here!", "Psst!",
+            "I don't wanna die here...", "I'm too young to die!",
+            "I've got 5 kits to feed!", "Tell my family...",
+            "I really need to pee!", "I'm not great at this whole hostage thing...",
+            "Damn, you stink, possum scum!", "Is it over yet?",
+            "I should've called in sick today...", "How long have I been here?",
+            "Someone had better write a report about this!",
             "I'm going to need so much therapy after this..."
+        ],
+        IDLE_CHATTER: [
+            "What's the plan?", "Glad to be out of there...",
+            "I can't believe you found me!", "My knees are still shaking...",
+            "Let's stick close, okay?", "I'll follow your lead...",
+            "That was way too close...", "Do you have any water?",
+            "Which way to extraction?", "I owe you one...",
+            "Not a word of this to anyone...", "Think they'll send us back out?",
+            "I need a vacation...", "Can we go home now?"
         ],
         ON_LOW_HP: [
             "I'm not gonna make it...", "Tell my family...",
             "It was nice knowing ...nobody...", "I'm done...",
             "At least I tried...", "This is it...",
             "Don't let me die a hostage!", "One last squeak..."
+        ],
+        ON_PATH_BLOCKED: [
+            "I can't get through!", "Excuse me, blocking my exit!",
+            "This way's stuck!", "Can someone move this?",
+            "I'm too wide for this!", "Need help here!",
+            "Can't squeeze through!", "Blocked in!"
         ]
     },
 
@@ -500,9 +524,9 @@ const SPEECH_CONFIG = {
         BASE_CHANCE: 0.10,
         COOLDOWN_MIN: 8.0,
         COOLDOWN_MAX: 18.0,
-        PROXIMITY_RANGE: 80,
+        PROXIMITY_RANGE: 110,
         PROXIMITY_TARGET_RESPONSE_CHANCE: 0.10,
-        PROXIMITY_TARGET_DELAY: 0.6,
+        PROXIMITY_TARGET_DELAY: 2.5,
         IDLE_CHATTER_INTERVAL_MIN: 15.0,
         IDLE_CHATTER_INTERVAL_MAX: 60.0,
         IDLE_CHATTER_CHANCE: 0.15,
