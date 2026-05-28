@@ -180,6 +180,11 @@ const MANUAL_CONTENT = [
                         name: "Ironhide Igor (Boss)",
                         image: "assets/images/units/possum_boss_3/idle/possum_boss_3_idle_se.png",
                         description: "A heavily armored brute wielding a deadly minigun. He mows down anything in his path. Keep your distance and watch for his escort!"
+                    },
+                    {
+                        name: "Grand Sentry Talon (Assassination Target)",
+                        image: "assets/images/units/possum_elite_guard/idle/possum_elite_guard_idle_se.png",
+                        description: "A highly-ranked possum commander clad in elite copper plating. He wields an advanced unknown-technology energy weapon that fires devastating cyan projectiles. Highly intelligent and lethal — treat with extreme caution."
                     }
                 ]
             }

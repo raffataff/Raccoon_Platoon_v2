@@ -1230,6 +1230,53 @@ class LevelGenerator {
                 if (!bossSpawned) {
 //                    console.warn(`[Level Gen] Could not find suitable spawn for Boss 3 Target: ${targetInfo.name}.`);
                 }
+            } else if (targetInfo.assassinationTypeKey === 'possum_elite_guard') {
+                let bossX, bossY, bossSpawned = false;
+                const bossMaxAttempts = 50;
+                const bossArenaRadius = CONFIG.AI.POSSUM_ELITE_GUARD.ARENA_RADIUS || 200;
+                const bossMinDistFromPlayer = CONFIG.AI.POSSUM_ELITE_GUARD.BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER || 600;
+                const playerSpawnCenterX = playerSpawnZone.x + playerSpawnZone.width / 2;
+                const playerSpawnCenterY = playerSpawnZone.y + playerSpawnZone.height / 2;
+
+                const bossSpawnMinX = playableMinX + bossArenaRadius;
+                const bossSpawnMaxX = playableMaxX - bossArenaRadius;
+                const bossSpawnMinY = playableMinY + bossArenaRadius;
+                const bossSpawnMaxY = playableMinY + (playableHeight * 0.7) - bossArenaRadius;
+
+                for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
+                    bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
+                    bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
+
+                    const distToPlayer = distance(bossX, bossY, playerSpawnCenterX, playerSpawnCenterY);
+                    if (distToPlayer < bossMinDistFromPlayer) continue;
+
+                    const arenaZoneShape = { type: 'circle', x: bossX, y: bossY, radius: bossArenaRadius };
+                    if (!this._isPlacementInvalid(arenaZoneShape, { isDecoration: false }, this.level.obstacles, extraKeepOutZones)) {
+                        const boss = new PossumEliteGuard(bossX, bossY, this.game);
+                        this.game.enemyUnits.push(boss);
+                        allSpawnedEnemiesDuringGen.push(boss);
+                        if (this.game.spatialGrid) {
+                            this.game.spatialGrid.addObject(boss);
+                        }
+                        assassinationObjectiveInstance.targetUnitId = boss.id;
+                        bossSpawned = true;
+
+                        const bossDefinition = { initialGuardPack: (CONFIG.AI.POSSUM_ELITE_GUARD && CONFIG.AI.POSSUM_ELITE_GUARD.initialGuardPack) ? CONFIG.AI.POSSUM_ELITE_GUARD.initialGuardPack : { enabled: false } };
+                        this._spawnInitialGuardsForObject(boss, bossDefinition, allSpawnedEnemiesDuringGen);
+
+                        const arenaKeepOutRect = {
+                            x: bossX - bossArenaRadius,
+                            y: bossY - bossArenaRadius,
+                            width: bossArenaRadius * 2,
+                            height: bossArenaRadius * 2
+                        };
+                        extraKeepOutZones.push(arenaKeepOutRect);
+                        break;
+                    }
+                }
+                if (!bossSpawned) {
+//                    console.warn(`[Level Gen] Could not find suitable spawn for Elite Guard Target: ${targetInfo.name}.`);
+                }
             }
         }
 
@@ -2017,8 +2064,8 @@ class LevelGenerator {
             const minRows = enemySpawnCfg.QUADRANT_MIN_ROWS || 2;
             const maxRows = enemySpawnCfg.QUADRANT_MAX_ROWS || 4;
 
-            const targetCols = baseCols + (worldSizeFactor - 1.0) * scaleCols;
-            const targetRows = baseRows + (worldSizeFactor - 1.0) * scaleRows;
+            const targetCols = baseCols + worldSizeFactor * scaleCols;
+            const targetRows = baseRows + worldSizeFactor * scaleRows;
             const randomFactor = 1.0 + this.rng.nextFloat(-randomness, randomness);
             quadrantCols = Math.round(targetCols * randomFactor);
             quadrantRows = Math.round(targetRows * randomFactor);

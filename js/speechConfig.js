@@ -10,7 +10,8 @@ const SPEECH_CONFIG = {
         "PossumRevolver": 3,
         "PossumElite": 4,
         "PossumBoss1": 5,
-        "PossumBoss3": 5
+        "PossumBoss3": 5,
+        "PossumEliteGuard": 5
     },
 
     PROXIMITY_MATRIX: {

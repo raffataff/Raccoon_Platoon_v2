@@ -160,6 +160,9 @@ class Raccoon extends Unit {
         if (this.game && this.game.raccoonKillsThisMission) {
             this.game.raccoonKillsThisMission.set(this.id, (this.game.raccoonKillsThisMission.get(this.id) || 0) + 1);
         }
+        if (this.game && this.game.raccoonKillsThisPhase) {
+            this.game.raccoonKillsThisPhase.set(this.id, (this.game.raccoonKillsThisPhase.get(this.id) || 0) + 1);
+        }
     }
 
     checkPromotion() {

@@ -195,6 +195,12 @@ const CAMPAIGN_RULES = {
             description: "A heavily armored nutter with a minigun. Slow but relentless.",
             weight: 3, unlocksPhase: 7, isBoss: true
         },
+        {
+            assassinationTypeKey: "possum_elite_guard",
+            name: "Grand Sentry Talon", callsign: "Arsenal",
+            description: "A highly-ranked possum commander clad in elite copper plating, wielding an advanced energy weapon of unknown origin. Extremely intelligent and deadly.",
+            weight: 2, unlocksPhase: 6, isBoss: false // Elite Guard is a mini-boss, not a main boss. Can appear as an assassination target in regular missions, but more likely in later phases.
+        },
 
     ],
 
@@ -221,14 +227,12 @@ const CAMPAIGN_RULES = {
             "New orders for Phase {phaseNum}, '{phaseName}'. Satellite imagery confirms heavy Possum activity in {biomeDescription}. Your mission: {phaseObjectiveSummary}. Good luck out there, you'll need it."
         ],
         CONCLUSION_TEMPLATES: [
-            "Phase {phaseNum}, '{phaseName}', is a success. {biomeDescription} has been {outcomeVerb}. {casualtyReport}. Prepare for the next phase.",
-            "Mission accomplished, Platoon. Phase {phaseNum}, '{phaseName}', is complete. {biomeDescription} is now {outcomeAdjective}. {casualtyReport}.",
-            "Phase {phaseNum} concluded. '{phaseName}' has achieved its objectives. {biomeDescription} is {outcomeVerb}. {casualtyReport}.",
-            "Excellent work on Phase {phaseNum}, '{phaseName}'. {biomeDescription} is temporarily pacified. Stand by for further orders. {casualtyReport}.",
-            "Phase {phaseNum}, '{phaseName}', is complete. {casualtyReport}. The theatre of operations in {biomeDescription} is now {outcomeAdjective}. Re-arm and resupply.",
-            "With Phase {phaseNum}, '{phaseName}', concluded, Possum influence in {biomeDescription} has been {outcomeVerb}. Prepare for the next front. {casualtyReport}.",
-            "That's a wrap on Phase {phaseNum}, '{phaseName}'. You stirred up a real hornet's nest in {biomeDescription}. It's {outcomeAdjective}, but the job's done. {casualtyReport}.",
-            "Target objectives for Phase {phaseNum}, '{phaseName}', achieved. {biomeDescription} is {outcomeVerb}. Medals for some, memorial for others. {casualtyReport}."
+            "Phase {phaseNum}, '{phaseName}', is complete. {missionCount} of {totalMissions} missions succeeded. {enemiesKilled} Possums eliminated. {casualtyReport}. Re-arm and resupply.",
+            "Mission accomplished, Platoon. Phase {phaseNum}, '{phaseName}', saw {enemiesKilled} enemy kills and {casualtyCount} casualties among our ranks. {casualtyReport}.",
+            "Phase {phaseNum} concluded. '{phaseName}' objectives achieved across {totalMissions} operations, neutralizing {enemiesKilled} hostiles. {casualtyReport}.",
+            "Phase {phaseNum}, '{phaseName}': {enemiesKilled} Possums down, {hostagesRescued}assets recovered. {casualtyReport}. Prepare for the next phase.",
+            "Report for Phase {phaseNum}: {totalMissions} missions, {enemiesKilled} kills, {casualtyCount} KIA. {casualtyReport}. The fight continues.",
+            "That's a wrap on Phase {phaseNum}, '{phaseName}'. {enemiesKilled} hostiles neutralized in {biomeDescription}. {casualtyReport}.",
         ],
         OBJECTIVE_SUMMARIES_POOL: [
             "eliminate all Possum forces in the area", "destroy key Possum infrastructure and supply lines",

@@ -3303,7 +3303,7 @@ class UI {
                     card.classList.add('promoted');
                     const badge = document.createElement('div');
                     badge.className = 'promotion-badge';
-                    badge.textContent = `PROMOTED TO ${r.rank.toUpperCase()}!`;
+                    badge.textContent = r.previousRank ? `${r.previousRank.toUpperCase()} → ${r.rank.toUpperCase()}` : `PROMOTED TO ${r.rank.toUpperCase()}!`;
                     card.appendChild(badge);
                     promotionsList.appendChild(card);
                 });
@@ -3338,7 +3338,7 @@ class UI {
             infoDiv.className = 'honor-roll-info';
             infoDiv.innerHTML = `
                 <div class="honor-roll-name">${r.name || 'Unknown'}</div>
-                <div class="honor-roll-details">${r.rank || 'Recruit'}</div>
+                <div class="honor-roll-details">${r.rank || 'Recruit'}${r.missionName ? ' — ' + r.missionName : ''}</div>
             `;
 
             const killsDiv = document.createElement('div');

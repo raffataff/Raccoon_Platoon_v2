@@ -292,7 +292,7 @@ const TEMPERATE_BIOME = {
             spawnWeight: 3, isDecoration: false, canBeFlipped: true,
             spriteScale: 0.5,
             collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.3), radiusY: ((w, h) => h * 0.2) },
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.24), radiusY: ((w, h) => h * 0.2) },
         },
         {
             type: 'oak_sapling', name: 'Large Oak Bush', color: '#228B22',

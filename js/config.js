@@ -128,11 +128,11 @@ const CONFIG = {
 
     RANK_THRESHOLDS: [
         { rankName: "Recruit", xpNeeded: 0, statBoosts: {}, nightVisionRadius: 180, defaultWeapon: 'RACCOON_MACHINE_GUN' },
-        { rankName: "Private", xpNeeded: 300, statBoosts: { maxHpBonus: 10, bulletLifetimeBonus: 0.2, turnRate: 12 }, nightVisionRadius: 200, defaultWeapon: 'RACCOON_PRIVATE_MG' },
-        { rankName: "Corporal", xpNeeded: 600, statBoosts: { maxHpBonus: 20, accuracyBonus: 0.05, bulletLifetimeBonus: 0.4, turnRate: 15 }, nightVisionRadius: 220, defaultWeapon: 'RACCOON_CORPORAL_MG' },
-        { rankName: "Sergeant", xpNeeded: 1200, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.1, bulletLifetimeBonus: 0.6, turnRate: 20 }, nightVisionRadius: 250, defaultWeapon: 'RACCOON_SERGEANT_MG' },
-        { rankName: "Elite", xpNeeded: 2400, statBoosts: { maxHpBonus: 50, accuracyBonus: 0.2, bulletLifetimeBonus: 1.0, turnRate: 30 }, nightVisionRadius: 290, defaultWeapon: 'RACCOON_ELITE_MG' },
-        { rankName: "Ghost", xpNeeded: 4800, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.4, bulletLifetimeBonus: 1.2, turnRate: 45 }, nightVisionRadius: 350, defaultWeapon: 'RACCOON_GHOST_MG' }
+        { rankName: "Private", xpNeeded: 300, statBoosts: { maxHpBonus: 20, bulletLifetimeBonus: 0.2, turnRate: 12 }, nightVisionRadius: 200, defaultWeapon: 'RACCOON_PRIVATE_MG' },
+        { rankName: "Corporal", xpNeeded: 1000, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.05, bulletLifetimeBonus: 0.4, turnRate: 15 }, nightVisionRadius: 220, defaultWeapon: 'RACCOON_CORPORAL_MG' },
+        { rankName: "Sergeant", xpNeeded: 2000, statBoosts: { maxHpBonus: 40, accuracyBonus: 0.1, bulletLifetimeBonus: 0.6, turnRate: 20 }, nightVisionRadius: 250, defaultWeapon: 'RACCOON_SERGEANT_MG' },
+        { rankName: "Elite", xpNeeded: 4000, statBoosts: { maxHpBonus: 60, accuracyBonus: 0.2, bulletLifetimeBonus: 1.0, turnRate: 30 }, nightVisionRadius: 290, defaultWeapon: 'RACCOON_ELITE_MG' },
+        { rankName: "Ghost", xpNeeded: 10000, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.4, bulletLifetimeBonus: 1.2, turnRate: 45 }, nightVisionRadius: 350, defaultWeapon: 'RACCOON_GHOST_MG' }
     ],
     MAX_RANK_NAME: "Ghost",
 
@@ -226,13 +226,28 @@ const CONFIG = {
     POSSUM_BOSS_3_COLOR: '#4a2810',
     POSSUM_BOSS_3_DEFAULT_WEAPON: 'POSSUM_BOSS_3_WEAPON',
     POSSUM_BOSS_3_SPRITE_PATH: 'assets/images/units/possum_boss_3/',
-    POSSUM_BOSS_3_SPRITE_SCALE_FACTOR: 0.7,
+    POSSUM_BOSS_3_SPRITE_SCALE_FACTOR: 0.6,
     POSSUM_BOSS_3_DEAD_SPRITE_PATH: 'assets/images/units/possum_boss_3/dead/',
     POSSUM_BOSS_3_DEAD_SPRITE_FILES: ['possum_boss3_dead1.png', 'possum_boss3_dead2.png', 'possum_boss3_dead3.png'],
     POSSUM_BOSS_3_DEAD_SPRITE_SCALE: 0.4,
     PROJECTILE_COLOR_POSSUM_BOSS_3: '#FF4500',
     XP_FOR_BOSS_3_KILL: 250,
     POSSUM_BOSS_3_TURN_RATE: 6.0,
+
+    // --- Possum Elite Guard ---
+    POSSUM_ELITE_GUARD_HP: 200,
+    POSSUM_ELITE_GUARD_SPEED: 210,
+    POSSUM_ELITE_GUARD_SIZE: 19,
+    POSSUM_ELITE_GUARD_COLOR: '#B87333',
+    POSSUM_ELITE_GUARD_DEFAULT_WEAPON: 'POSSUM_ELITE_GUARD_WEAPON',
+    POSSUM_ELITE_GUARD_SPRITE_PATH: 'assets/images/units/possum_elite_guard/',
+    POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR: 0.45,
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite_guard/dead/',
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES: ['possum_elite_guard_dead1.png', 'possum_elite_guard_dead2.png'],
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_SCALE: 0.35,
+    PROJECTILE_COLOR_POSSUM_ELITE_GUARD: '#00E5FF',
+    XP_FOR_ELITE_GUARD_KILL: 200,
+    POSSUM_ELITE_GUARD_TURN_RATE: 8.0,
 
     // --- Possum Revolver ---
     POSSUM_REVOLVER_HP: 150,
@@ -522,11 +537,28 @@ const CONFIG = {
             projectileColor: '#FF4500',
             accuracyStationary: 0.70,
             accuracyMoving: 0.35,
-            sfxFireKey: 'LASER_WEAPON_FIRE',
+            sfxFireKey: 'POSSUM_BOSS_3_WEAPON_FIRE',
             muzzleFlashScale: 1.5,
             bulletLifetime: 1.8,
-            bulletSpritePath: 'assets/images/projectiles/bullet_pw001_1.png',
-            bulletSpriteScale: 0.3,
+            bulletSpritePath: 'assets/images/projectiles/bullet_gold_boss.png',
+            bulletSpriteScale: 0.2,
+            isDefaultWeapon: true,
+            maxAmmo: Infinity
+        },
+        POSSUM_ELITE_GUARD_WEAPON: {
+            name: "Elite Guard Energy Repeater",
+            damage: 14,
+            rof: 12,
+            range: 580,
+            projectileSpeed: 800,
+            projectileColor: '#00E5FF',
+            accuracyStationary: 0.92,
+            accuracyMoving: 0.72,
+            sfxFireKey: 'POSSUM_ELITE_GUARD_WEAPON_FIRE',
+            muzzleFlashScale: 1.2,
+            bulletLifetime: 1.5,
+            bulletSpritePath: 'assets/images/projectiles/bullet_elite_guard_1.png',
+            bulletSpriteScale: 0.35,
             isDefaultWeapon: true,
             maxAmmo: Infinity
         },
@@ -742,7 +774,7 @@ const CONFIG = {
             ARENA_RADIUS: 250,
             DETECTION_RANGE: 550,
             PREFERRED_GRENADE_RANGE_MAX: 450,
-            MIN_ENGAGEMENT_DISTANCE: 120,
+            MIN_ENGAGEMENT_DISTANCE: 220,
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1500,
 
             GRENADE_COOLDOWN_BETWEEN_SHOTS: 0.6,
@@ -763,7 +795,7 @@ const CONFIG = {
                 spawnRadius: 100,
                 unitPool: [
                     { type: 'possum_grunt', weight: 2 },
-                    { type: 'possum_sniper', weight: 1 },
+                    { type: 'possum_sniper', weight: 3 },
                     { type: 'possum_heavy', weight: 3 },
                     { type: 'possum_elite', weight: 2 }
                 ]
@@ -775,7 +807,7 @@ const CONFIG = {
             BURST_SIZE: 8,
             STRAFE_DISTANCE: 75,
             STRAFE_CHANCE: 0.5,
-            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 600,
+            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1600,
             initialGuardPack: {
                 enabled: true,
                 countRange: [1, 3],
@@ -783,6 +815,7 @@ const CONFIG = {
                 spawnRadius: 120,
                 unitPool: [
                     { type: 'possum_grunt', weight: 3 },
+                    { type: 'possum_heavy', weight: 3 },
                     { type: 'possum_sniper', weight: 2 },
                     { type: 'possum_elite', weight: 2 }
                 ]
@@ -809,13 +842,41 @@ const CONFIG = {
                 spawnRadius: 120,
                 unitPool: [
                     { type: 'possum_grunt', weight: 2 },
-                    { type: 'possum_sniper', weight: 1 },
+                    { type: 'possum_sniper', weight: 2 },
                     { type: 'possum_heavy', weight: 3 },
                     { type: 'possum_elite', weight: 2 }
                 ]
             }
         },
-        
+
+        POSSUM_ELITE_GUARD: {
+            ARENA_RADIUS: 220,
+            DETECTION_RANGE: 550,
+            MIN_ENGAGEMENT_DISTANCE: 140,
+            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1400,
+
+            DEATH_EXPLOSION_RADIUS: 180,
+            DEATH_EXPLOSION_SFX: 'GRENADE_EXPLODE',
+
+            CHASE_DESTINATION_REFRESH_INTERVAL: 1.0,
+            MIN_CHASE_DEVIATION_UPDATE_INTERVAL: 0.5,
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 4,
+            CHASE_PREDICTION_TIME_FACTOR: 0.30,
+
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 4],
+                countPerPhaseBonus: 0,
+                spawnRadius: 120,
+                unitPool: [
+                    { type: 'possum_elite', weight: 3 },
+                    { type: 'possum_heavy', weight: 2 },
+                    { type: 'possum_sniper', weight: 2 },
+                    { type: 'possum_grunt', weight: 1 }
+                ]
+            }
+        },
+
     },
     
 
@@ -889,8 +950,8 @@ const CONFIG = {
     // =============================================================================
     Z_INDEX: {
         BACKGROUND: -5000,
-        DESTROYED_OBSTACLE: 0,
-        USED_PICKUP: 0,
+        DESTROYED_OBSTACLE: -1,
+        USED_PICKUP: -1,
         PICKUP: 0,
         PROJECTILE: 0,
         DEAD_UNIT: 10,
@@ -1458,8 +1519,8 @@ const CONFIG = {
         QUADRANT_RANDOMNESS_FACTOR: 0.3,
         QUADRANT_MIN_COLS: 3,
         QUADRANT_MIN_ROWS: 3,
-        QUADRANT_MAX_COLS: 7,
-        QUADRANT_MAX_ROWS: 5,
+        QUADRANT_MAX_COLS: 8,
+        QUADRANT_MAX_ROWS: 8,
         BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 20,
         RANDOM_ADDITION_FACTOR_MAX: 0.1,
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
@@ -1832,6 +1893,7 @@ const CONFIG = {
         LASER_WEAPON_2_FIRE: { path: 'assets/audio/sfx/advanced_laser_2.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
         POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.ogg', defaultVolume: 0.2, pitchVariation: 0.1 },
         POSSUM_BOSS_3_WEAPON_FIRE: { path: 'assets/audio/sfx/gun_possum_heavy.ogg', defaultVolume: 0.3, pitchVariation: 0.1 },
+        POSSUM_ELITE_GUARD_WEAPON_FIRE: { path: 'assets/audio/sfx/advanced_laser_2.ogg', defaultVolume: 0.35, pitchVariation: 0.05 },
 
         GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.ogg', defaultVolume: 0.3, pitchVariation: 0.4 },
 

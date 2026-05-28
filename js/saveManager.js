@@ -371,7 +371,38 @@ class SaveManager {
                 currentMissionIndex: game.currentMissionIndex,
                 masterRoster: this._serializeRoster(game.masterRoster),
                 fallenRaccoonsGlobal: this._serializeFallenRaccoons(game.fallenRaccoonsGlobal),
-                lastDeployedSquadIds: game.lastDeployedSquadIds || []
+                lastDeployedSquadIds: game.lastDeployedSquadIds || [],
+                enemiesKilledThisPhase: game.enemiesKilledThisPhase || 0,
+                hostagesRescuedThisPhase: game.hostagesRescuedThisPhase || 0,
+                fallenRaccoonsThisPhase: (game.fallenRaccoonsThisPhase || []).map(f => ({
+                    id: f.id, name: f.name, rank: f.rank, killCount: f.killCount,
+                    faceImageUrl: f.faceImageUrl, spriteBaseName: f.spriteBaseName,
+                    missionName: f.missionName
+                })),
+                newRecruitsThisPhase: (game.newRecruitsThisPhase || []).map(r => ({
+                    id: r.id, name: r.name, rank: r.rank, killCount: r.killCount,
+                    xp: r.xp, faceImageUrl: r.faceImageUrl, spriteBaseName: r.spriteBaseName
+                })),
+                promotedRaccoonsThisPhase: (game.promotedRaccoonsThisPhase || []).map(r => ({
+                    id: r.id, name: r.name, rank: r.rank, previousRank: r.previousRank,
+                    killCount: r.killCount, xp: r.xp, faceImageUrl: r.faceImageUrl,
+                    spriteBaseName: r.spriteBaseName
+                })),
+                missionResultsThisPhase: (game.missionResultsThisPhase || []).map(m => ({
+                    name: m.name, isVictory: m.isVictory, enemiesKilled: m.enemiesKilled,
+                    timeTaken: m.timeTaken,
+                    fallenRaccoons: m.fallenRaccoons || [],
+                    raccoonKills: m.raccoonKills ? Array.from(m.raccoonKills.entries()) : [],
+                    objectives: m.objectives || []
+                })),
+                raccoonKillsThisPhase: game.raccoonKillsThisPhase ? Array.from(game.raccoonKillsThisPhase.entries()) : [],
+                phaseStartTime: game.phaseStartTime || 0,
+                phaseStartRosterSnapshot: (game.phaseStartRosterSnapshot || []).map(r => ({
+                    id: r.id, name: r.name, rank: r.rank, xp: r.xp,
+                    killCount: r.killCount, faceImageUrl: r.faceImageUrl,
+                    spriteBaseName: r.spriteBaseName
+                })),
+                killsAtPhaseStart: game.killsAtPhaseStart ? Array.from(game.killsAtPhaseStart.entries()) : []
             }
         };
     }
@@ -429,6 +460,18 @@ class SaveManager {
         game.masterRoster = this._deserializeRoster(data.masterRoster, game);
         game.fallenRaccoonsGlobal = data.fallenRaccoonsGlobal || [];
         game.lastDeployedSquadIds = data.lastDeployedSquadIds || [];
+
+        // Restore phase accumulator stats
+        game.enemiesKilledThisPhase = data.enemiesKilledThisPhase || 0;
+        game.hostagesRescuedThisPhase = data.hostagesRescuedThisPhase || 0;
+        game.fallenRaccoonsThisPhase = data.fallenRaccoonsThisPhase || [];
+        game.newRecruitsThisPhase = data.newRecruitsThisPhase || [];
+        game.promotedRaccoonsThisPhase = data.promotedRaccoonsThisPhase || [];
+        game.missionResultsThisPhase = data.missionResultsThisPhase || [];
+        game.raccoonKillsThisPhase = new Map(data.raccoonKillsThisPhase || []);
+        game.phaseStartTime = data.phaseStartTime || 0;
+        game.phaseStartRosterSnapshot = data.phaseStartRosterSnapshot || [];
+        game.killsAtPhaseStart = new Map(data.killsAtPhaseStart || []);
 
         // Set game state to main menu (ready to start)
         game.gameState = 'LOADED_READY';

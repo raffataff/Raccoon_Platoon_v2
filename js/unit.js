@@ -106,6 +106,9 @@ class Unit {
         } else if (this instanceof PossumBoss3) {
             this.spriteBaseName = 'possum_boss_3';
             this.spriteScaleFactor = CONFIG.POSSUM_BOSS_3_SPRITE_SCALE_FACTOR || 1.0;
+        } else if (this instanceof PossumEliteGuard) {
+            this.spriteBaseName = 'possum_elite_guard';
+            this.spriteScaleFactor = CONFIG.POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR || 1.0;
         }
         // --- MODIFICATION END ---
 
@@ -287,7 +290,7 @@ class Unit {
             this.currentVisualState = 'fire';
             this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
-            if (!(this instanceof PossumBoss1) && !(this instanceof PossumBoss3)) {
+            if (!(this instanceof PossumBoss1) && !(this instanceof PossumBoss3) && !(this instanceof PossumEliteGuard)) {
                 const fireAtX = this.isPlayerDirectFiring ? this.playerDirectFireTargetPos.x : target.x;
                 const fireAtY = this.isPlayerDirectFiring ? this.playerDirectFireTargetPos.y : target.y;
                 this._executeFire(fireAtX, fireAtY);
@@ -1188,7 +1191,6 @@ class Unit {
                 if (this instanceof PossumHeavy) killXp += (CONFIG.XP_PER_HEAVY_KILL || 15);
                 attackerUnit.addXp(killXp);
                 if (typeof attackerUnit.incrementKillCount === 'function') attackerUnit.incrementKillCount();
-                if (this.team === 'enemy' && this.game) this.game.enemiesKilledThisMission++;
                 if (this.game && this.game.trySpeech) {
                     this.game.trySpeech(attackerUnit, 'ON_KILL', 0.25);
                 }

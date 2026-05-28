@@ -24,7 +24,6 @@ class Game {
         this.tempSelectedForDeployment = [];
         this.lastDeployedSquadIds = [];
 
-        this.enemiesKilledThisMission = 0;
         this.raccoonKillsThisMission = new Map();
 
         this.enemiesKilledThisPhase = 0;
@@ -771,6 +770,15 @@ class Game {
                 },
                 deadPath: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_elite_guard',
+                basePath: CONFIG.POSSUM_ELITE_GUARD_SPRITE_PATH,
+                actions: {
+                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+                },
+                deadPath: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES
             }
         ];
 
@@ -1401,6 +1409,7 @@ class Game {
             this.newRecruitsThisPhase = [];
             this.promotedRaccoonsThisPhase = [];
             this.missionResultsThisPhase = [];
+            this.raccoonKillsThisPhase = new Map();
             this.phaseStartTime = performance.now();
             this.phaseStartRosterSnapshot = this.masterRoster.filter(r => r.isAlive()).map(r => ({ id: r.id, name: r.name, rank: r.rank, xp: r.xp, killCount: r.killCount, faceImageUrl: r.faceImageUrl, spriteBaseName: r.spriteBaseName }));
             this.killsAtPhaseStart = new Map();
@@ -1446,7 +1455,7 @@ class Game {
 
             this.deployedSquadRoster.forEach(r => {
                 r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-                if (r.rank === "private") startGrenades += (CONFIG.GRENADE_BONUS_PRIVATE || 0);
+                if (r.rank === "Private") startGrenades += (CONFIG.GRENADE_BONUS_PRIVATE || 0);
                 if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0);
                 if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
                 if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0);
@@ -1465,6 +1474,7 @@ class Game {
             this.isObjectiveComplete = false;
             this.missionStartedAndPopulated = false;
             this.fallenRaccoonsThisMission = [];
+            this.raccoonKillsThisMission = new Map();
             this.missionStartTime = performance.now();
             this.hostageUnits = [];
             this.intelConsoles = [];
@@ -1645,7 +1655,7 @@ class Game {
             const isBossMission = objectives.some(obj => {
                 if (obj.type === 'ASSASSINATION' && obj.targetDetails) {
                     const targetKey = obj.targetDetails.assassinationTypeKey;
-                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss' || targetKey === 'possum_boss_3';
+                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss' || targetKey === 'possum_boss_3' || targetKey === 'possum_elite_guard';
                 }
                 return false;
             });
@@ -1808,32 +1818,20 @@ class Game {
         });
         
         if (allAvailable.length > 0) {
-            // Highest rank is captured
             const captured = allAvailable[0];
             this.takenHostageRaccoonId = captured.raccoon.id;
-//            console.log(`[Game] ${captured.raccoon.name} (${captured.raccoon.rank}) CAPTURED!`);
-            
-            // Remove captured from deployed squad
-            if (captured.source === 'deployed') {
-                // Mark as not alive (removed from squad)
-                captured.raccoon.hp = 0;
-            } else {
-                // Mark rescued hostage as killed
-                captured.raccoon.hp = 0;
-            }
+            captured.raccoon.hp = 0;
         }
-        
-        // All other deployed raccoons are KIA
+
         if (this.deployedSquadRoster) {
             this.deployedSquadRoster.forEach(r => {
                 if (r.isAlive() && r.id !== this.takenHostageRaccoonId) {
-                    r.hp = 0; // Kill them
-                    this.fallenRaccoonsThisMission.push(r);
+                    this.recordRaccoonFallen(r);
+                    r.die();
                 }
             });
         }
-        
-        // All rescued hostages are KIA too
+
         if (this.hostageUnits) {
             this.hostageUnits.forEach(h => {
                 if (h.isRescued && h.isAlive() && h.id !== this.takenHostageRaccoonId) {
@@ -2854,9 +2852,10 @@ class Game {
                 const phaseName = (this.campaignStructure[this.currentPhaseIndex])
                     ? this.campaignStructure[this.currentPhaseIndex].name
                     : CONFIG.UI_TEXT_STRINGS.UNKNOWN_PHASE_TEXT;
+                const missionName = this.currentMissionParams?.baseParams?.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
                 this.fallenRaccoonsGlobal.push({
                     id: raccoon.id, name: raccoon.name, rank: raccoon.rank, faceImageUrl: raccoon.faceImageUrl,
-                    missionDied: this.currentMissionParams.baseParams ? this.currentMissionParams.baseParams.name : (CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT),
+                    missionDied: missionName,
                     phaseDied: phaseName
                 });
             }
@@ -3044,24 +3043,25 @@ class Game {
 
         this.enemiesKilledThisPhase += enemiesKilledThisMission;
         this.hostagesRescuedThisPhase += rescuedHostagesCount;
+        const currentMissionName = this.currentMissionParams?.baseParams?.name || CONFIG.UI_TEXT_STRINGS.UNKNOWN_MISSION_TEXT;
         if (this.fallenRaccoonsThisMission) {
             this.fallenRaccoonsThisMission.forEach(fr => {
                 if (!this.fallenRaccoonsThisPhase.find(ffr => ffr.id === fr.id)) {
-                    this.fallenRaccoonsThisPhase.push(fr);
+                    this.fallenRaccoonsThisPhase.push({ ...fr, missionName: currentMissionName });
                 }
             });
         }
         if (newlyRecruitedRaccoons) {
             newlyRecruitedRaccoons.forEach(nr => {
                 if (!this.newRecruitsThisPhase.find(nnr => nnr.id === nr.id)) {
-                    this.newRecruitsThisPhase.push(nr);
+                    this.newRecruitsThisPhase.push({ id: nr.id, name: nr.name, rank: nr.rank, killCount: nr.killCount, xp: nr.xp, faceImageUrl: nr.faceImageUrl, spriteBaseName: nr.spriteBaseName });
                 }
             });
         }
         if (this.deployedSquadRoster) {
             this.deployedSquadRoster.forEach(r => {
                 if (r.promotedThisMission && !this.promotedRaccoonsThisPhase.find(pr => pr.id === r.id)) {
-                    this.promotedRaccoonsThisPhase.push(r);
+                    this.promotedRaccoonsThisPhase.push({ id: r.id, name: r.name, rank: r.rank, previousRank: r.previousRank, killCount: r.killCount, xp: r.xp, faceImageUrl: r.faceImageUrl, spriteBaseName: r.spriteBaseName });
                 }
             });
         }
@@ -3071,6 +3071,7 @@ class Game {
             enemiesKilled: enemiesKilledThisMission,
             timeTaken: missionDuration.toFixed(1),
             fallenRaccoons: [...this.fallenRaccoonsThisMission],
+            raccoonKills: new Map(this.raccoonKillsThisMission),
             objectives: this.currentMissionParams.objectives ? this.currentMissionParams.objectives.map(o => ({ type: o.type, isComplete: o.isComplete, isPrimary: o.isPrimary, hostagesKilled: o.hostagesKilled })) : []
         });
 
@@ -3146,12 +3147,28 @@ class Game {
         }
     }
 
-    _buildAndShowPhaseDebrief() {
-        const oldPhaseIndex = this.currentPhaseIndex;
-        const oldPhaseData = this.campaignStructure[oldPhaseIndex];
+    _generatePhaseConclusion(oldPhaseData, oldPhaseIndex) {
         const phaseRules = this.campaignRules.PHASE_GENERATION;
         const conclusionRNG = this.currentPhaseSeedRNG || this.campaignSeedRNG;
-        const casualtyReport = conclusionRNG.pickFrom(phaseRules.CASUALTY_REPORTS_POOL);
+        const missionCount = this.missionResultsThisPhase.filter(m => m.isVictory).length;
+        const totalMissions = this.missionResultsThisPhase.length;
+        const casualtyCount = this.fallenRaccoonsThisPhase.length;
+        const enemiesKilled = this.enemiesKilledThisPhase;
+        const hostagesRescued = this.hostagesRescuedThisPhase;
+        const promotedCount = this.promotedRaccoonsThisPhase.length;
+
+        let casualtyReport;
+        if (casualtyCount === 0) {
+            casualtyReport = phaseRules.CASUALTY_REPORTS_POOL.filter(t => / light|minimal|no loss/i.test(t));
+            casualtyReport = conclusionRNG.pickFrom(casualtyReport.length > 0 ? casualtyReport : phaseRules.CASUALTY_REPORTS_POOL);
+        } else if (casualtyCount <= 2) {
+            casualtyReport = phaseRules.CASUALTY_REPORTS_POOL.filter(t => /acceptable|some hit|minimal|light/i.test(t));
+            casualtyReport = conclusionRNG.pickFrom(casualtyReport.length > 0 ? casualtyReport : phaseRules.CASUALTY_REPORTS_POOL);
+        } else {
+            casualtyReport = phaseRules.CASUALTY_REPORTS_POOL.filter(t => /heavy|significant|high|grim|price|memorial|dear/i.test(t));
+            casualtyReport = conclusionRNG.pickFrom(casualtyReport.length > 0 ? casualtyReport : phaseRules.CASUALTY_REPORTS_POOL);
+        }
+
         const outcomeAdjective = conclusionRNG.pickFrom(phaseRules.OUTCOME_ADJECTIVES_POOL);
         const outcomeVerb = conclusionRNG.pickFrom(phaseRules.OUTCOME_VERBS_POOL);
         const conclusionTemplate = conclusionRNG.pickFrom(phaseRules.CONCLUSION_TEMPLATES);
@@ -3161,8 +3178,20 @@ class Game {
             biomeDescription: oldPhaseData.biomeDescription,
             casualtyReport: casualtyReport,
             outcomeAdjective: outcomeAdjective,
-            outcomeVerb: outcomeVerb
+            outcomeVerb: outcomeVerb,
+            enemiesKilled: enemiesKilled,
+            casualtyCount: casualtyCount,
+            missionCount: missionCount,
+            totalMissions: totalMissions,
+            hostagesRescued: hostagesRescued,
+            promotedCount: promotedCount
         });
+    }
+
+    _buildAndShowPhaseDebrief() {
+        const oldPhaseIndex = this.currentPhaseIndex;
+        const oldPhaseData = this.campaignStructure[oldPhaseIndex];
+        this._generatePhaseConclusion(oldPhaseData, oldPhaseIndex);
         this.currentPhaseIndex++;
         this.currentMissionIndex = 0;
         if (this.currentPhaseIndex >= this.totalCampaignPhases) {
@@ -3218,20 +3247,7 @@ class Game {
         if (this.currentMissionIndex >= currentPhaseStructure.missionsInPhase) {
             const oldPhaseIndex = this.currentPhaseIndex;
             const oldPhaseData = this.campaignStructure[oldPhaseIndex];
-            const phaseRules = this.campaignRules.PHASE_GENERATION;
-            const conclusionRNG = this.currentPhaseSeedRNG || this.campaignSeedRNG;
-            const casualtyReport = conclusionRNG.pickFrom(phaseRules.CASUALTY_REPORTS_POOL);
-            const outcomeAdjective = conclusionRNG.pickFrom(phaseRules.OUTCOME_ADJECTIVES_POOL);
-            const outcomeVerb = conclusionRNG.pickFrom(phaseRules.OUTCOME_VERBS_POOL);
-            const conclusionTemplate = conclusionRNG.pickFrom(phaseRules.CONCLUSION_TEMPLATES);
-            oldPhaseData.conclusion = this._fillTextTemplate(conclusionTemplate, {
-                phaseNum: oldPhaseIndex + 1,
-                phaseName: oldPhaseData.name,
-                biomeDescription: oldPhaseData.biomeDescription,
-                casualtyReport: casualtyReport,
-                outcomeAdjective: outcomeAdjective,
-                outcomeVerb: outcomeVerb
-            });
+            this._generatePhaseConclusion(oldPhaseData, oldPhaseIndex);
 
             this.currentPhaseIndex++;
             this.currentMissionIndex = 0;
@@ -3334,7 +3350,7 @@ class Game {
             totalEnemiesKilled: this.enemiesKilledThisPhase,
             totalHostagesRescued: this.hostagesRescuedThisPhase,
             totalFallenRaccoons: this.fallenRaccoonsThisPhase,
-            totalSurvivingRaccoons: endingRoster,
+            totalSurvivingRaccoons: endingRoster.map(r => ({ id: r.id, name: r.name, rank: r.rank, killCount: r.killCount, xp: r.xp, faceImageUrl: r.faceImageUrl, spriteBaseName: r.spriteBaseName })),
             phaseDuration: phaseDuration,
             missionResults: this.missionResultsThisPhase,
             startingRoster: this.phaseStartRosterSnapshot,
