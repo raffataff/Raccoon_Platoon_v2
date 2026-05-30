@@ -107,7 +107,7 @@ class Unit {
             this.spriteBaseName = 'possum_boss_3';
             this.spriteScaleFactor = CONFIG.POSSUM_BOSS_3_SPRITE_SCALE_FACTOR || 1.0;
         } else if (this instanceof PossumEliteGuard) {
-            this.spriteBaseName = 'possum_elite_guard';
+            this.spriteBaseName = 'possum_eliteGuard';
             this.spriteScaleFactor = CONFIG.POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR || 1.0;
         }
         // --- MODIFICATION END ---

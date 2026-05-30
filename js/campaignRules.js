@@ -196,7 +196,7 @@ const CAMPAIGN_RULES = {
             weight: 3, unlocksPhase: 7, isBoss: true
         },
         {
-            assassinationTypeKey: "possum_elite_guard",
+            assassinationTypeKey: "possum_eliteGuard",
             name: "Grand Sentry Talon", callsign: "Arsenal",
             description: "A highly-ranked possum commander clad in elite copper plating, wielding an advanced energy weapon of unknown origin. Extremely intelligent and deadly.",
             weight: 2, unlocksPhase: 6, isBoss: false // Elite Guard is a mini-boss, not a main boss. Can appear as an assassination target in regular missions, but more likely in later phases.

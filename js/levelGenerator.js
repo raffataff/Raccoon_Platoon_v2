@@ -1230,7 +1230,7 @@ class LevelGenerator {
                 if (!bossSpawned) {
 //                    console.warn(`[Level Gen] Could not find suitable spawn for Boss 3 Target: ${targetInfo.name}.`);
                 }
-            } else if (targetInfo.assassinationTypeKey === 'possum_elite_guard') {
+            } else if (targetInfo.assassinationTypeKey === 'possum_eliteGuard') {
                 let bossX, bossY, bossSpawned = false;
                 const bossMaxAttempts = 50;
                 const bossArenaRadius = CONFIG.AI.POSSUM_ELITE_GUARD.ARENA_RADIUS || 200;

@@ -183,7 +183,7 @@ const MANUAL_CONTENT = [
                     },
                     {
                         name: "Grand Sentry Talon (Assassination Target)",
-                        image: "assets/images/units/possum_elite_guard/idle/possum_elite_guard_idle_se.png",
+                        image: "assets/images/units/possum_eliteGuard/idle/possum_elite_guard_idle_se.png",
                         description: "A highly-ranked possum commander clad in elite copper plating. He wields an advanced unknown-technology energy weapon that fires devastating cyan projectiles. Highly intelligent and lethal — treat with extreme caution."
                     }
                 ]

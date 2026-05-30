@@ -9,7 +9,7 @@ const TEMPERATE_BIOME = {
     themeAdjectives: ["Crisp", "Wooded", "Serene"],
 
     landingVideos: [
-        'assets/video/landing/helicopter_landing_temperate_1.mp4',
+        'assets/video/landing/helicopter_landing_temperate_3.mp4',
         'assets/video/landing/helicopter_landing_temperate_2.mp4',
     ],
     extractionVideos: [

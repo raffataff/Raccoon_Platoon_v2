@@ -10,6 +10,7 @@ const TROPICAL_BIOME = {
     landingVideos: [
         'assets/video/landing/Raccoon_Combat_Team_Deploys_tropical.mp4',
         'assets/video/landing/Helicopter_Landing_tropical_1.mp4',
+        'assets/video/landing/Helicopter_Landing_tropical_2.mp4',
     ],
     extractionVideos: [
         'assets/video/extraction/extraction_takeoff_1.mp4',

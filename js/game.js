@@ -772,7 +772,7 @@ class Game {
                 deadFiles: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_FILES
             },
             {
-                name: 'possum_elite_guard',
+                name: 'possum_eliteGuard',
                 basePath: CONFIG.POSSUM_ELITE_GUARD_SPRITE_PATH,
                 actions: {
                     idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
@@ -1655,7 +1655,7 @@ class Game {
             const isBossMission = objectives.some(obj => {
                 if (obj.type === 'ASSASSINATION' && obj.targetDetails) {
                     const targetKey = obj.targetDetails.assassinationTypeKey;
-                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss' || targetKey === 'possum_boss_3' || targetKey === 'possum_elite_guard';
+                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss' || targetKey === 'possum_boss_3' || targetKey === 'possum_eliteGuard';
                 }
                 return false;
             });

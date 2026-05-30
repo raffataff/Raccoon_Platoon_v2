@@ -620,6 +620,11 @@ class UI {
             return Promise.resolve();
         }
 
+        // Clean up any previous listeners and state
+        this.extractionVideoPlayer.pause();
+        this.extractionVideoPlayer.removeAttribute('src');
+        this.extractionVideoPlayer.load();
+
         console.log('[ExtractionVideo] Loading video:', videoPath);
         this.extractionVideoPlayer.src = videoPath;
         this.extractionVideoPlayer.load();
@@ -632,11 +637,31 @@ class UI {
         return new Promise((resolve) => {
             const handleEnded = () => {
                 this.extractionVideoPlayer.removeEventListener('ended', handleEnded);
+                this.extractionVideoPlayer.removeEventListener('error', handleError);
                 this.hideExtractionVideoScreen();
                 resolve();
             };
             const handleError = (e) => {
-                console.error('[ExtractionVideo] Video error:', e);
+                const videoError = e.target.error;
+                let errorMsg = 'Unknown error';
+                if (videoError) {
+                    switch (videoError.code) {
+                        case MediaError.MEDIA_ERR_ABORTED:
+                            errorMsg = 'Aborted';
+                            break;
+                        case MediaError.MEDIA_ERR_NETWORK:
+                            errorMsg = 'Network error';
+                            break;
+                        case MediaError.MEDIA_ERR_DECODE:
+                            errorMsg = 'Decode error (corrupt or unsupported format)';
+                            break;
+                        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                            errorMsg = 'Format not supported';
+                            break;
+                    }
+                }
+                console.error('[ExtractionVideo] Video error:', errorMsg, 'path:', videoPath, 'error:', videoError);
+                this.extractionVideoPlayer.removeEventListener('ended', handleEnded);
                 this.extractionVideoPlayer.removeEventListener('error', handleError);
                 this.hideExtractionVideoScreen();
                 resolve();
