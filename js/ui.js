@@ -175,13 +175,12 @@ class UI {
             if (this.game) {
                 const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
                 const currentCount = this.game.tempSelectedForDeployment ? this.game.tempSelectedForDeployment.length : 0;
-                if (currentCount > 0 && currentCount <= maxSquadSize) {
-                    
+                const minSize = 1;
+                if (currentCount >= minSize && currentCount <= maxSquadSize) {
                     this.game.confirmSquadAndStartMission(this.game.tempSelectedForDeployment);
                 } else if (currentCount > maxSquadSize) {
                     this.showToast((this.uiText.START_MISSION_BUTTON_ALERT_MAX_SIZE || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()), 'warning');
-                }
-                if (minSize > 0 && this.game.tempSelectedForDeployment.length < minSize) {
+                } else if (currentCount < minSize) {
                     this.showToast(this.uiText.START_MISSION_BUTTON_ALERT_MIN_SIZE || "Select at least one Raccoon for the mission!", 'warning');
                 }
             }
@@ -2851,8 +2850,6 @@ class UI {
                 if (styleName !== 'default' && styleName !== 'attack' && styleName !== 'cell' &&
                     styleName !== 'target-mode-default' && styleName !== 'target-enemy-hover') {
                     this.game.canvas.style.cursor = styleName;
-                } else {
-                    this.game.canvas.style.cursor = 'default';
                 }
             }
         }
@@ -2885,6 +2882,13 @@ class UI {
             this.saveLoadModal.style.display = 'none';
         }
         this.selectedSlotIndex = null;
+
+        if (this.pendingNewCampaignSave) {
+            this.pendingNewCampaignSave = false;
+            if (this.game) this.game.quitToMainMenu();
+            this.currentSaveLoadMode = null;
+            return;
+        }
 
         // If we came from pause menu and are in save mode, show pause menu again
         if (this.currentSaveLoadMode === 'save' && this.game && this.game.gameState === 'PAUSED') {

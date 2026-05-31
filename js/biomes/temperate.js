@@ -166,9 +166,13 @@ const TEMPERATE_BIOME = {
         },
 
         // Ruins (temperate version)
-        temperate_ruins: {
-            path: 'assets/images/objects/BIOMES/tropical/ruins/',
-            files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',]
+        temperate_ruins_medium: {
+            path: 'assets/images/objects/biomes/temperate/ruins/',
+            files: ['temperate_ruins_arch_1.png', ]
+        },
+        temperate_ruins_large: {
+            path: 'assets/images/objects/biomes/temperate/ruins/',
+            files: ['temperate_ruins_tower.png',]
         },
 
         // Water bodies
@@ -502,51 +506,54 @@ const TEMPERATE_BIOME = {
             type: 'forest_patch_small_1',
             name: 'Small Forest Patch',
             color: '#0E2908',
-            destructible: false,
-            hp: Infinity,
-            maxHp: Infinity,
-            blocksMovement: true,
-            providesCover: true,
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: true, isDecoration: true,
+            canBeFlipped: true,
             spawnWeight: 10,
             spriteScale: 0.6,
-            spriteDestroyed: null,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.32), radiusY: ((w, h) => h * 0.3) },
             placementBuffer: 150,
             decorationBuffer: 50,
-            canBeFlipped: true,
-            isDecoration: true
         },
         {
             type: 'forest_patch_large_1',
             name: 'Large Forest Patch',
             color: '#0E2908',
-            destructible: false,
-            hp: Infinity,
-            maxHp: Infinity,
-            blocksMovement: true,
-            providesCover: true,
-            spawnWeight: 15,
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            canBeFlipped: true, blocksMovement: true, providesCover: true,
+            isDecoration: true,
+            spawnWeight: 12,
             spriteScale: 0.6,
-            spriteDestroyed: null,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.37), radiusY: ((w, h) => h * 0.3) },
             placementBuffer: 150,
             decorationBuffer: 50,
-            canBeFlipped: true,
-            isDecoration: true
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.37), radiusY: ((w, h) => h * 0.3) },
         },
         {
-            type: 'temperate_ruins', name: 'Temperate Ruins', color: '#afafaf',
+            type: 'temperate_ruins_medium', name: 'Temperate Ruins', color: '#afafaf',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0, isDecoration: true,
+            spawnWeight: 1, isDecoration: true,
             spriteScale: 0.65,
             placementBuffer: 80,
+            decorationBuffer: 80,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
             canBeFlipped: true,
         },
+        {
+            type: 'temperate_ruins_large', name: 'Large Temperate Ruins', color: '#afafaf',
+            destructible: false, hp: Infinity, maxHp: Infinity,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 1, isDecoration: true,
+            spriteScale: 0.8,
+            placementBuffer: 80,
+            decorationBuffer: 80,
+            collisionShape: { 
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
+            canBeFlipped: true,
+        }
         
     ],
 
@@ -595,7 +602,8 @@ const TEMPERATE_BIOME = {
         'tree_maple_triple',
         'forest_patch_small_1',
         'forest_patch_large_1',
-        'temperate_ruins',
+        'temperate_ruins_medium',
+        'temperate_ruins_large',
         'pond',
         'lake',
     ],
@@ -615,17 +623,17 @@ const TEMPERATE_BIOME = {
     preloadSpriteSets: [
         { name: 'temperate_wall_angled_long', files: ['tropical_wall_angled_long_1.png', 'tropical_wall_angled_long_2.png', 'tropical_wall_angled_long_3.png'], path: 'assets/images/objects/biomes/tropical/walls/', type: 'single' },
         
-        //BUSH
+        //BUSHES
         { name: 'bush_medium', files: ['bush_medium_1.png', 'bush_medium_3.png', 'bush_medium_4.png', 'bush_medium_5.png', 'temperate_grass_15.png',  ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
         { name: 'bush_large', files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
         
         
-        //ROCK
+        //ROCKS
         { name: 'rock_medium', files: ['rock_medium_temperate_1.png', 'rock_medium_temperate_2.png', 'rock_medium_temperate_3.png', 'rock_medium_temperate_4.png', 'rock_medium_temperate_5.png', 'rock_medium_temperate_6.png', 'rock_medium_temperate_7.png', 'rock_medium_temperate_8.png',], path: 'assets/images/objects/biomes/temperate/rocks/medium/', type: 'single' },
         
         { name: 'rock_large', files: ['rock_large_temperate_1.png', 'rock_large_temperate_2.png', 'rock_large_temperate_3.png', 'rock_large_temperate_4.png', 'rock_large_temperate_5.png', 'rock_large_temperate_6.png', 'rock_large_temperate_7.png', 'rock_large_temperate_8.png', ], path: 'assets/images/objects/biomes/temperate/rocks/large/', type: 'single' },
         
-        //TREE
+        //TREES
         { name: 'tree_willow', files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ], path: 'assets/images/objects/biomes/temperate/trees/willow/', type: 'single' },
         
             // OAK
@@ -650,12 +658,14 @@ const TEMPERATE_BIOME = {
         
         { name: 'tree_rubber_single', files: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/rubber/', type: 'single' },
         
-        
-        //FOREST
+        //FORESTS
         { name: 'forest_small', files: ['temperate_forest_small_1.png'], path: 'assets/images/objects/biomes/temperate/forests/', type: 'single' },
         { name: 'forest_large', files: ['temperate_forest_1.png', 'temperate_forest_2.png', 'temperate_forest_3.png', 'temperate_forest_4.png', 'temperate_forest_5.png', 'temperate_forest_6.png'], path: 'assets/images/objects/biomes/temperate/forests/', type: 'single' },
+        
         //RUINS
-        { name: 'temperate_ruins', files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',], path: 'assets/images/objects/BIOMES/tropical/ruins/', type: 'single' },
+        { name: 'temperate_ruins_medium', files: ['temperate_ruins_arch_1.png', ], path: 'assets/images/objects/biomes/temperate/ruins/', type: 'single' },
+        { name: 'temperate_ruins_large', files: ['temperate_ruins_tower.png',], path: 'assets/images/objects/biomes/temperate/ruins/', type: 'single' },
+
         //WATER
         { name: 'pond', files: ['pond_temperate_1.png', 'pond_temperate_2.png', 'pond_temperate_3.png', 'pond_temperate_4.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },
         { name: 'lake', files: ['lake_temperate_1.png', 'lake_temperate_2.png'], path: 'assets/images/objects/biomes/temperate/ponds/', type: 'single' },

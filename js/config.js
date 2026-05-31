@@ -1426,7 +1426,7 @@ const CONFIG = {
         BORDER_COLOR: '#25221D',
         BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long',
         PLAYER_SPAWN_ZONE: {
-            MIN_WIDTH: 580,
+            MIN_WIDTH: 680,
             MAX_WIDTH: 900,
             WIDTH_FACTOR: 0.80,
             MIN_HEIGHT: 280,
@@ -1443,6 +1443,9 @@ const CONFIG = {
                 'empty_possum_hut_2',
                 'general_possum_building_large',
                 'possum_turret',
+                'explosive_barrel',
+                'explosive_barrel_double',
+                'explosive_barrel_cluster',
                 'pickup_health'
             ]
         },
@@ -1786,7 +1789,7 @@ const CONFIG = {
             'Private': 'private.png',
             'Corporal': 'corporal.png',
             'Sergeant': 'sergeant.png',
-            'Elite': 'elite.png',
+            'Elite': 'Elite.png',
             'Ghost': 'ghost.png'
         }
     },

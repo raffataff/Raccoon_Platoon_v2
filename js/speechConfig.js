@@ -33,7 +33,7 @@ const SPEECH_CONFIG = {
                 },
                 HIGHER_TO_LOWER: {
                     speaker: [
-                        "Stay sharp, recruit.", "Keep up, private.",
+                        "Stay sniffy", "Keep up, private.",
                         "Watch your sector.", "Stay in formation.",
                         "You're doing fine, carry on.", "Eyes open, soldier.",
                         "Don't fall behind.", "Maintain spacing.",
@@ -62,8 +62,7 @@ const SPEECH_CONFIG = {
                 },
                 GHOST_to_ANY: {
                     speaker: [
-                        "...", "*nods silently*", "*barely visible*",
-                        "...", "*tactical silence*", "..."
+                        "...", 
                     ],
                     target: [
                         "The Ghost... legendary.",
@@ -82,14 +81,12 @@ const SPEECH_CONFIG = {
                         "The Ghost ...I heard you're un-killable!"
                     ],
                     target: [
-                        "...", "*nods*", "Stay focused, soldier.",
-                        "...", "*fades slightly*", "Carry on."
+                        "...",
                     ]
                 },
                 ELITE_to_SERGEANT: {
                     speaker: [
                         "Sergeant, your squad is ready.",
-                        "Good leadership out there.",
                         "Your squad fights well.", "Sergeant. Status green.",
                         "Coordinated and ready.", "Elite squad reporting."
                     ],

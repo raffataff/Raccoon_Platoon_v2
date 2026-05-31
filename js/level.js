@@ -645,6 +645,17 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         }
     }
 
+    isPositionReachable(worldX, worldY) {
+        const gp = this.worldToGridCoords(worldX, worldY);
+        if (gp.x < 0 || gp.x >= this.gridWidth || gp.y < 0 || gp.y >= this.gridHeight) {
+            return false;
+        }
+        if (!this.reachableGrid) {
+            return true;
+        }
+        return this.reachableGrid[gp.y][gp.x] === 1;
+    }
+
     gridToWorldCoords(gridX, gridY) {
         return {
             x: gridX * this.gridCellSize + this.gridCellSize / 2,

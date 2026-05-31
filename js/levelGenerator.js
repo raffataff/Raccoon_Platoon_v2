@@ -776,11 +776,300 @@ class LevelGenerator {
         if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Spawned weapon crate at (${finalCrateX.toFixed(0)}, ${finalCrateY.toFixed(0)}) with ${selectedWeapon}`);
     }
 
+    _placeMissionObjectives(missionObjectives, objectivePlacementMaxY, playableMinX, playableMaxX, playableMinY, playableMaxY, playerSpawnZone, extraKeepOutZones, allSpawnedEnemiesDuringGen, preloadedAssetImages) {
+        missionObjectives.forEach(objective => {
+            if (objective.type === 'DESTROY_TARGET' && objective.targetTypeKeyPrefix && objective.totalToAchieve > 0) {
+                const matchingTemplates = (CONFIG.OBSTACLE_DEFINITIONS || []).filter(def => def.type.startsWith(objective.targetTypeKeyPrefix));
+
+                if (matchingTemplates.length === 0) {
+                    console.error(`[Level Gen] CRITICAL: No templates found for destroyTargetTypeKeyPrefix: ${objective.targetTypeKeyPrefix}!`);
+                    return;
+                }
+
+                let successfulPlacements = 0;
+                let placementMinY = playableMinY;
+                let placementMaxY = objectivePlacementMaxY;
+
+                if (placementMaxY <= placementMinY) {
+                    placementMinY = playableMinY;
+                    placementMaxY = playableMinY + (playableMaxY - playableMinY) * 0.6;
+                }
+
+                for (let i = 0; i < objective.totalToAchieve; i++) {
+                    const targetTemplateOriginal = this.rng.pickFrom(matchingTemplates);
+                    let targetX, targetY, placedTarget = false;
+
+                    let actualSpritePath = null;
+                    let actualDestroyedSpritePath = null;
+                    if (targetTemplateOriginal.type === 'possum_hut') {
+                        const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
+                        const pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
+                        if (hutSpritePairs.length > 0) {
+                            const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                            actualSpritePath = pathBase + selectedPair.normal;
+                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                        }
+                    } else if (targetTemplateOriginal.type === 'possum_hut_round') {
+                        const hutSpritePairs = CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || [];
+                        const pathBase = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '';
+                        if (hutSpritePairs.length > 0) {
+                            const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                            actualSpritePath = pathBase + selectedPair.normal;
+                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                        }
+                    } else if (targetTemplateOriginal.type === 'possum_barracks_1') {
+                        const barracksSpritePairs = CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || [];
+                        const pathBase = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH || '';
+                        if (barracksSpritePairs.length > 0) {
+                            const selectedPair = this.rng.pickFrom(barracksSpritePairs);
+                            actualSpritePath = pathBase + selectedPair.normal;
+                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                        }
+                    } else if (targetTemplateOriginal.type === 'possum_relay_tower') {
+                        const towerSpritePairs = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
+                        if (towerSpritePairs.length > 0) {
+                            const selectedPair = this.rng.pickFrom(towerSpritePairs);
+                            const pathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || '';
+                            actualSpritePath = pathBase + selectedPair.normal;
+                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                        }
+                    } else {
+                        actualSpritePath = targetTemplateOriginal.spriteNormal || null;
+                        actualDestroyedSpritePath = targetTemplateOriginal.spriteDestroyed || null;
+                    }
+
+                    let targetImage = actualSpritePath ? preloadedAssetImages[actualSpritePath] : null;
+
+                    const targetWidth = targetImage ? targetImage.naturalWidth * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.width || 64);
+                    const targetHeight = targetImage ? targetImage.naturalHeight * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.height || 64);
+
+                    for (let attempt = 0; attempt < 100; attempt++) {
+                        targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
+                        targetY = this.rng.nextFloat(placementMinY, placementMaxY - targetHeight);
+
+                        const tempTargetForShapeCheck = {
+                            x: targetX, y: targetY,
+                            width: targetWidth, height: targetHeight,
+                            collisionShape: targetTemplateOriginal.collisionShape,
+                            collisionShapes: targetTemplateOriginal.collisionShapes
+                        };
+                        const collisionShapeForPlacementCheck = this.level._getObstacleCollisionShape(tempTargetForShapeCheck);
+
+                        if (!this._isPlacementInvalid(collisionShapeForPlacementCheck, targetTemplateOriginal, this.level.obstacles, extraKeepOutZones)) {
+                            const missionTargetObs = {
+                                x: targetX, y: targetY, width: targetWidth, height: targetHeight,
+                                type: targetTemplateOriginal.type, name: `${objective.targetNameSingular || targetTemplateOriginal.name || targetTemplateOriginal.type} (Objective)`,
+                                color: targetTemplateOriginal.color, destructible: targetTemplateOriginal.destructible,
+                                hp: targetTemplateOriginal.hp, maxHp: targetTemplateOriginal.maxHp, isDestroyed: false,
+                                blocksMovement: targetTemplateOriginal.blocksMovement, providesCover: targetTemplateOriginal.providesCover,
+                                isDecoration: targetTemplateOriginal.isDecoration,
+                                spriteNormalPath: actualSpritePath, imageNormal: targetImage,
+                                spriteDestroyedPath: actualDestroyedSpritePath, imageDestroyed: actualDestroyedSpritePath ? preloadedAssetImages[actualDestroyedSpritePath] : null,
+                                spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
+                                collisionShape: targetTemplateOriginal.collisionShape,
+                                isMissionTarget: true, objectiveId: objective.id,
+                                isSpawner: (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round' || targetTemplateOriginal.type === 'possum_barracks_1') && !targetTemplateOriginal.isDecoration,
+                                spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
+                                delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
+                            };
+                            this.level.obstacles.push(missionTargetObs);
+                            this.level.missionTargetObstacles.push(missionTargetObs);
+                            if (missionTargetObs.isSpawner) this.level.potentialSpawnerHuts.push(missionTargetObs);
+                            this._spawnInitialGuardsForObject(missionTargetObs, targetTemplateOriginal, allSpawnedEnemiesDuringGen);
+
+                            if (targetTemplateOriginal.type === 'possum_relay_tower') {
+                                const towerCollisionShapes = this.level._getObstacleCollisionShape(missionTargetObs);
+                                this._spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes);
+                                this._spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes);
+                                this._spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, (this.game.currentPhaseIndex || 0) + 1, towerCollisionShapes);
+                            }
+
+                            placedTarget = true;
+                            successfulPlacements++;
+                            break;
+                        }
+                    }
+                    if (!placedTarget) console.warn(`[Level Gen] Could not place mission target type ${objective.targetTypeKeyPrefix}`);
+                }
+                if (successfulPlacements < objective.totalToAchieve) {
+                    objective.totalToAchieve = successfulPlacements;
+                }
+            } else if (objective.type === 'INTERACT_INTEL' && objective.totalToAchieve > 0) {
+                const consoleTemplate = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === 'intel_console');
+                if (!consoleTemplate) {
+                    console.error('[Level Gen] CRITICAL: Intel console template not found in OBSTACLE_DEFINITIONS!');
+                    return;
+                }
+
+                const spriteVariants = CONFIG.INTEL.SPRITE_FILES;
+                const phase = this.game.currentPhaseIndex || 0;
+                const params = CAMPAIGN_RULES.BASE_PARAMETERS;
+                const numBase = params.numIntelConsoles?.initial || 1;
+                const numInc = params.numIntelConsoles?.perPhaseIncrement || 0.3;
+                const numMax = params.numIntelConsoles?.max || 3;
+                const numToPlace = Math.min(Math.floor(numBase + phase * numInc), numMax);
+
+                objective.totalToAchieve = Math.min(numToPlace, objective.totalToAchieve);
+
+                let successfulPlacements = 0;
+                const placementMinY = playableMinY;
+                const placementMaxY_intel = objectivePlacementMaxY > placementMinY ? objectivePlacementMaxY : playableMinY + (playableMaxY - playableMinY) * 0.6;
+
+                for (let i = 0; i < numToPlace; i++) {
+                    let placedConsole = false;
+
+                    const selectedVariant = spriteVariants[Math.floor(this.rng.nextFloat(0, spriteVariants.length))];
+                    const consoleSpritePath = CONFIG.INTEL.SPRITE_PATH + selectedVariant.on;
+                    const consoleSpriteDestroyedPath = CONFIG.INTEL.SPRITE_PATH + selectedVariant.off;
+                    const consoleImage = preloadedAssetImages[consoleSpritePath];
+                    const consoleImageDestroyed = preloadedAssetImages[consoleSpriteDestroyedPath];
+
+                    const consoleWidth = consoleImage ? consoleImage.naturalWidth * CONFIG.INTEL.SPRITE_SCALE : 64;
+                    const consoleHeight = consoleImage ? consoleImage.naturalHeight * CONFIG.INTEL.SPRITE_SCALE : 64;
+
+                    for (let attempt = 0; attempt < 100; attempt++) {
+                        const consoleX = this.rng.nextFloat(playableMinX, playableMaxX - consoleWidth);
+                        const consoleY = this.rng.nextFloat(placementMinY, placementMaxY_intel - consoleHeight);
+
+                        const tempShape = {
+                            x: consoleX, y: consoleY,
+                            width: consoleWidth, height: consoleHeight,
+                            collisionShape: consoleTemplate.collisionShape,
+                            collisionShapes: consoleTemplate.collisionShapes
+                        };
+                        const collisionShapeForCheck = this.level._getObstacleCollisionShape(tempShape);
+
+                        if (!this._isPlacementInvalid(collisionShapeForCheck, consoleTemplate, this.level.obstacles, extraKeepOutZones)) {
+                            const consoleObs = {
+                                x: consoleX, y: consoleY,
+                                width: consoleWidth, height: consoleHeight,
+                                type: 'intel_console',
+                                name: 'Intel Console',
+                                color: consoleTemplate.color,
+                                destructible: consoleTemplate.destructible,
+                                hp: consoleTemplate.hp,
+                                maxHp: consoleTemplate.maxHp,
+                                isDestroyed: false,
+                                blocksMovement: consoleTemplate.blocksMovement,
+                                providesCover: consoleTemplate.providesCover,
+                                isDecoration: consoleTemplate.isDecoration,
+                                spriteNormalPath: consoleSpritePath,
+                                imageNormal: consoleImage,
+                                spriteDestroyedPath: consoleSpriteDestroyedPath,
+                                imageDestroyed: consoleImageDestroyed,
+                                spriteScale: CONFIG.INTEL.SPRITE_SCALE,
+                                collisionShape: consoleTemplate.collisionShape,
+                                interactionRadius: CONFIG.INTEL.INTERACTION_RADIUS,
+                                isMissionTarget: true,
+                                objectiveId: objective.id,
+                                isIntelConsole: true,
+                                spriteVariant: selectedVariant
+                            };
+
+                            this.level.obstacles.push(consoleObs);
+
+                            const intelConsoleInstance = new IntelConsole(consoleX, consoleY, this.game, `intel_${this.game.intelConsoles.length}`, selectedVariant);
+                            intelConsoleInstance.width = consoleWidth;
+                            intelConsoleInstance.height = consoleHeight;
+                            intelConsoleInstance.collisionShape = consoleTemplate.collisionShape;
+                            intelConsoleInstance.isHacked = false;
+                            intelConsoleInstance.isBeingHacked = false;
+                            intelConsoleInstance.objectiveId = objective.id;
+                            this.game.intelConsoles.push(intelConsoleInstance);
+
+                            placedConsole = true;
+                            successfulPlacements++;
+                            break;
+                        }
+                    }
+                    if (!placedConsole) {
+                        console.warn(`[Level Gen] Could not place intel console ${i + 1}`);
+                    }
+                }
+
+                if (successfulPlacements < objective.totalToAchieve) {
+                    objective.totalToAchieve = successfulPlacements;
+                }
+            }
+        });
+    }
+
+    _isPositionReachable(worldX, worldY) {
+        if (!this.level.reachableGrid) {
+            return true;
+        }
+        return this.level.isPositionReachable(worldX, worldY);
+    }
+
+    _computeReachability() {
+        const playerSpawnCenterX = this.level.effectivePlayerSpawnZone
+            ? this.level.effectivePlayerSpawnZone.x + this.level.effectivePlayerSpawnZone.width / 2
+            : this.level.playerSpawnZone.x + this.level.playerSpawnZone.width / 2;
+        const playerSpawnCenterY = this.level.effectivePlayerSpawnZone
+            ? this.level.effectivePlayerSpawnZone.y + this.level.effectivePlayerSpawnZone.height / 2
+            : this.level.playerSpawnZone.y + this.level.playerSpawnZone.height / 2;
+        this.level.computeReachableCells(playerSpawnCenterX, playerSpawnCenterY);
+    }
+
+    _finalizeObjectivePositions(objectives) {
+        if (!this.level.navGrid || !this.level.reachableGrid) {
+            return;
+        }
+
+        const navGrid = this.level.navGrid;
+        const reachableGrid = this.level.reachableGrid;
+        const gridW = this.level.gridWidth;
+        const gridH = this.level.gridHeight;
+
+        for (const obj of objectives) {
+            if (obj.isDestroyed) continue;
+
+            const objCx = obj.x + obj.width / 2;
+            const objCy = obj.y + obj.height / 2;
+            const gridPos = this.level.worldToGridCoords(objCx, objCy);
+
+            const outOfBounds = gridPos.x < 0 || gridPos.x >= gridW || gridPos.y < 0 || gridPos.y >= gridH;
+            if (outOfBounds || navGrid[gridPos.y][gridPos.x] === 1 || reachableGrid[gridPos.y][gridPos.x] === 1) {
+                continue;
+            }
+
+            if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Objective ${obj.name || obj.type} at (${obj.x.toFixed(0)}, ${obj.y.toFixed(0)}) is in a dead area. Relocating...`);
+
+            let moved = false;
+
+            for (let r = 1; r <= 40 && !moved; r++) {
+                for (let dy = -r; dy <= r && !moved; dy++) {
+                    for (let dx = -r; dx <= r && !moved; dx++) {
+                        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                        const newGridX = gridPos.x + dx;
+                        const newGridY = gridPos.y + dy;
+                        if (newGridX < 0 || newGridX >= gridW || newGridY < 0 || newGridY >= gridH) continue;
+                        if (navGrid[newGridY][newGridX] !== 0 || reachableGrid[newGridY][newGridX] !== 1) continue;
+
+                        const candidate = this.level.gridToWorldCoords(newGridX, newGridY);
+                        const testObj = { x: candidate.x - obj.width / 2, y: candidate.y - obj.height / 2, width: obj.width, height: obj.height, collisionShape: obj.collisionShape, collisionShapes: obj.collisionShapes };
+                        const testShape = this.level._getObstacleCollisionShape(testObj);
+                        if (!this._isPlacementInvalid(testShape, obj, this.level.obstacles, [])) {
+                            obj.x = testObj.x;
+                            obj.y = testObj.y;
+                            moved = true;
+                        }
+                    }
+                }
+            }
+
+            if (!moved && CONFIG.DEBUG_LOGGING) {
+                console.warn(`[Level Gen] Could not relocate objective ${obj.name || obj.type} to a reachable cell.`);
+            }
+        }
+    }
+
     _finalizeEnemyPositions(allEnemies) {
         if (!this.level.navGrid) {
             return;
         }
 
+        const gridCellSize = this.level.gridCellSize;
         const navGrid = this.level.navGrid;
         const reachableGrid = this.level.reachableGrid;
         const gridW = this.level.gridWidth;
@@ -1321,232 +1610,10 @@ class LevelGenerator {
             }
         }
 
-        const objectivePlacementMaxY = playerSpawnZone.y - 280; // 280px buffer
+        const objectivePlacementMaxY = playerSpawnZone.y - 280;
 
-        missionObjectives.forEach(objective => {
-            if (objective.type === 'DESTROY_TARGET' && objective.targetTypeKeyPrefix && objective.totalToAchieve > 0) {
-                const matchingTemplates = (CONFIG.OBSTACLE_DEFINITIONS || []).filter(def => def.type.startsWith(objective.targetTypeKeyPrefix));
-
-                if (matchingTemplates.length === 0) {
-                    console.error(`[Level Gen] CRITICAL: No templates found for destroyTargetTypeKeyPrefix: ${objective.targetTypeKeyPrefix}!`);
-                    return;
-                }
-
-                let successfulPlacements = 0;
-                let placementMinY = playableMinY;
-                let placementMaxY = objectivePlacementMaxY;
-                
-                if (placementMaxY <= placementMinY) {
-                    placementMinY = playableMinY;
-                    placementMaxY = playableMinY + (playableMaxY - playableMinY) * 0.6;
-                }
-                
-                for (let i = 0; i < objective.totalToAchieve; i++) {
-                    const targetTemplateOriginal = this.rng.pickFrom(matchingTemplates);
-                    let targetX, targetY, placedTarget = false;
-
-                    let actualSpritePath = null;
-                    let actualDestroyedSpritePath = null;
-                    if (targetTemplateOriginal.type === 'possum_hut') {
-                        const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
-                        const pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
-                        if (hutSpritePairs.length > 0) {
-                            const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                            actualSpritePath = pathBase + selectedPair.normal;
-                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
-                        }
-                    } else if (targetTemplateOriginal.type === 'possum_hut_round') {
-                        const hutSpritePairs = CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || [];
-                        const pathBase = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '';
-                        if (hutSpritePairs.length > 0) {
-                            const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                            actualSpritePath = pathBase + selectedPair.normal;
-                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
-                        }
-                    } else if (targetTemplateOriginal.type === 'possum_barracks_1') {
-                        const barracksSpritePairs = CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || [];
-                        const pathBase = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH || '';
-                        if (barracksSpritePairs.length > 0) {
-                            const selectedPair = this.rng.pickFrom(barracksSpritePairs);
-                            actualSpritePath = pathBase + selectedPair.normal;
-                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
-                        }
-                    } else if (targetTemplateOriginal.type === 'possum_relay_tower') {
-                        const towerSpritePairs = CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES || [];
-                        if (towerSpritePairs.length > 0) {
-                            const selectedPair = this.rng.pickFrom(towerSpritePairs);
-                            const pathBase = CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH || '';
-                            actualSpritePath = pathBase + selectedPair.normal;
-                            actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
-                        }
-                    } else {
-                        actualSpritePath = targetTemplateOriginal.spriteNormal || null;
-                        actualDestroyedSpritePath = targetTemplateOriginal.spriteDestroyed || null;
-                    }
-
-                    let targetImage = actualSpritePath ? preloadedAssetImages[actualSpritePath] : null;
-
-                    const targetWidth = targetImage ? targetImage.naturalWidth * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.width || 64);
-                    const targetHeight = targetImage ? targetImage.naturalHeight * (targetTemplateOriginal.spriteScale || 1) : (targetTemplateOriginal.height || 64);
-
-                    for (let attempt = 0; attempt < 100; attempt++) {
-                        targetX = this.rng.nextFloat(playableMinX, playableMaxX - targetWidth);
-                        targetY = this.rng.nextFloat(placementMinY, placementMaxY - targetHeight);
-
-                        const tempTargetForShapeCheck = {
-                            x: targetX, y: targetY,
-                            width: targetWidth, height: targetHeight,
-                            collisionShape: targetTemplateOriginal.collisionShape,
-                            collisionShapes: targetTemplateOriginal.collisionShapes
-                        };
-                        const collisionShapeForPlacementCheck = this.level._getObstacleCollisionShape(tempTargetForShapeCheck);
-
-                        if (!this._isPlacementInvalid(collisionShapeForPlacementCheck, targetTemplateOriginal, this.level.obstacles, extraKeepOutZones)) {
-                            const missionTargetObs = {
-                                x: targetX, y: targetY, width: targetWidth, height: targetHeight,
-                                type: targetTemplateOriginal.type, name: `${objective.targetNameSingular || targetTemplateOriginal.name || targetTemplateOriginal.type} (Objective)`,
-                                color: targetTemplateOriginal.color, destructible: targetTemplateOriginal.destructible,
-                                hp: targetTemplateOriginal.hp, maxHp: targetTemplateOriginal.maxHp, isDestroyed: false,
-                                blocksMovement: targetTemplateOriginal.blocksMovement, providesCover: targetTemplateOriginal.providesCover,
-                                isDecoration: targetTemplateOriginal.isDecoration,
-                                spriteNormalPath: actualSpritePath, imageNormal: targetImage,
-                                spriteDestroyedPath: actualDestroyedSpritePath, imageDestroyed: actualDestroyedSpritePath ? preloadedAssetImages[actualDestroyedSpritePath] : null,
-                                spriteScale: targetTemplateOriginal.spriteScale || 1.0, spriteDestroyedScale: targetTemplateOriginal.spriteDestroyedScale,
-                                collisionShape: targetTemplateOriginal.collisionShape,
-                                isMissionTarget: true, objectiveId: objective.id,
-                                isSpawner: (targetTemplateOriginal.type === 'possum_hut' || targetTemplateOriginal.type === 'possum_hut_round' || targetTemplateOriginal.type === 'possum_barracks_1') && !targetTemplateOriginal.isDecoration,
-                                spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
-                                delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0
-                            };
-                            this.level.obstacles.push(missionTargetObs);
-                            this.level.missionTargetObstacles.push(missionTargetObs);
-                            if (missionTargetObs.isSpawner) this.level.potentialSpawnerHuts.push(missionTargetObs);
-                            this._spawnInitialGuardsForObject(missionTargetObs, targetTemplateOriginal, allSpawnedEnemiesDuringGen);
-                            
-                            if (targetTemplateOriginal.type === 'possum_relay_tower') {
-                                const towerCollisionShapes = this.level._getObstacleCollisionShape(missionTargetObs);
-                                this._spawnGrenadeCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes);
-                                this._spawnAmmoCrateNearTarget(targetX, targetY, targetWidth, targetHeight, towerCollisionShapes);
-                                this._spawnWeaponCrateNearTarget(targetX, targetY, targetWidth, targetHeight, (this.game.currentPhaseIndex || 0) + 1, towerCollisionShapes);
-                            }
-                            
-                            placedTarget = true;
-                            successfulPlacements++;
-                            break;
-                        }
-                    }
-                    if (!placedTarget) console.warn(`[Level Gen] Could not place mission target type ${objective.targetTypeKeyPrefix}`);
-                }
-                if (successfulPlacements < objective.totalToAchieve) {
-                    objective.totalToAchieve = successfulPlacements;
-                }
-            } else if (objective.type === 'INTERACT_INTEL' && objective.totalToAchieve > 0) {
-                const consoleTemplate = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === 'intel_console');
-                if (!consoleTemplate) {
-                    console.error('[Level Gen] CRITICAL: Intel console template not found in OBSTACLE_DEFINITIONS!');
-                    return;
-                }
-
-                const spriteVariants = CONFIG.INTEL.SPRITE_FILES;
-                const phase = this.game.currentPhaseIndex || 0;
-                const params = CAMPAIGN_RULES.BASE_PARAMETERS;
-                const numBase = params.numIntelConsoles?.initial || 1;
-                const numInc = params.numIntelConsoles?.perPhaseIncrement || 0.3;
-                const numMax = params.numIntelConsoles?.max || 3;
-                const numToPlace = Math.min(Math.floor(numBase + phase * numInc), numMax);
-
-                objective.totalToAchieve = Math.min(numToPlace, objective.totalToAchieve);
-
-                let successfulPlacements = 0;
-                const placementMinY = playableMinY;
-                const placementMaxY = objectivePlacementMaxY > placementMinY ? objectivePlacementMaxY : playableMinY + (playableMaxY - playableMinY) * 0.6;
-
-                for (let i = 0; i < numToPlace; i++) {
-                    let placedConsole = false;
-
-                    // Randomly select a sprite variant for this console
-                    const selectedVariant = spriteVariants[Math.floor(this.rng.nextFloat(0, spriteVariants.length))];
-                    const consoleSpritePath = CONFIG.INTEL.SPRITE_PATH + selectedVariant.on;
-                    const consoleSpriteDestroyedPath = CONFIG.INTEL.SPRITE_PATH + selectedVariant.off;
-                    const consoleImage = preloadedAssetImages[consoleSpritePath];
-                    const consoleImageDestroyed = preloadedAssetImages[consoleSpriteDestroyedPath];
-
-                    const consoleWidth = consoleImage ? consoleImage.naturalWidth * CONFIG.INTEL.SPRITE_SCALE : 64;
-                    const consoleHeight = consoleImage ? consoleImage.naturalHeight * CONFIG.INTEL.SPRITE_SCALE : 64;
-
-                    for (let attempt = 0; attempt < 100; attempt++) {
-                        const consoleX = this.rng.nextFloat(playableMinX, playableMaxX - consoleWidth);
-                        const consoleY = this.rng.nextFloat(placementMinY, placementMaxY - consoleHeight);
-
-                        const tempShape = {
-                            x: consoleX, y: consoleY,
-                            width: consoleWidth, height: consoleHeight,
-                            collisionShape: consoleTemplate.collisionShape,
-                            collisionShapes: consoleTemplate.collisionShapes
-                        };
-                        const collisionShapeForCheck = this.level._getObstacleCollisionShape(tempShape);
-
-                        if (!this._isPlacementInvalid(collisionShapeForCheck, consoleTemplate, this.level.obstacles, extraKeepOutZones)) {
-                            const consoleObs = {
-                                x: consoleX, y: consoleY,
-                                width: consoleWidth, height: consoleHeight,
-                                type: 'intel_console',
-                                name: 'Intel Console',
-                                color: consoleTemplate.color,
-                                destructible: consoleTemplate.destructible,
-                                hp: consoleTemplate.hp,
-                                maxHp: consoleTemplate.maxHp,
-                                isDestroyed: false,
-                                blocksMovement: consoleTemplate.blocksMovement,
-                                providesCover: consoleTemplate.providesCover,
-                                isDecoration: consoleTemplate.isDecoration,
-                                spriteNormalPath: consoleSpritePath,
-                                imageNormal: consoleImage,
-                                spriteDestroyedPath: consoleSpriteDestroyedPath,
-                                imageDestroyed: consoleImageDestroyed,
-                                spriteScale: CONFIG.INTEL.SPRITE_SCALE,
-                                collisionShape: consoleTemplate.collisionShape,
-                                interactionRadius: CONFIG.INTEL.INTERACTION_RADIUS,
-                                isMissionTarget: true,
-                                objectiveId: objective.id,
-                                isIntelConsole: true,
-                                spriteVariant: selectedVariant
-                            };
-
-                            this.level.obstacles.push(consoleObs);
-
-                            const intelConsoleInstance = new IntelConsole(consoleX, consoleY, this.game, `intel_${this.game.intelConsoles.length}`, selectedVariant);
-                            intelConsoleInstance.width = consoleWidth;
-                            intelConsoleInstance.height = consoleHeight;
-                            intelConsoleInstance.collisionShape = consoleTemplate.collisionShape;
-                            intelConsoleInstance.isHacked = false;
-                            intelConsoleInstance.isBeingHacked = false;
-                            intelConsoleInstance.objectiveId = objective.id;
-                            this.game.intelConsoles.push(intelConsoleInstance);
-
-                            placedConsole = true;
-                            successfulPlacements++;
-                            break;
-                        }
-                    }
-                    if (!placedConsole) {
-                        console.warn(`[Level Gen] Could not place intel console ${i + 1}`);
-                    }
-                }
-
-                if (successfulPlacements < objective.totalToAchieve) {
-                    objective.totalToAchieve = successfulPlacements;
-                }
-            }
-        });
-
-        const spawnedMissionTargets = this.level.missionTargetObstacles || [];
-        const hutsSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_hut')).length;
-        const barracksSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_barracks')).length;
-        const towersSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_relay_tower')).length;
-        if (hutsSpawned === 0 && barracksSpawned === 0 && towersSpawned === 0) {
-//            console.error(`[Level Gen] CRITICAL: No mission targets (huts/towers) were spawned! This will lock the mission!`);
-        }
+        // Mission target placement will be deferred to after obstacle placement
+        // so that reachability can be checked (dead areas detected).
 
         const obsGenCfg = genConfig.OBSTACLES || {};
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
@@ -2040,10 +2107,17 @@ class LevelGenerator {
         }
 
         this.level.generateNavigationGrid(worldWidth, worldHeight);
+        this._computeReachability();
 
-        const playerSpawnCenterX = playerSpawnZone.x + playerSpawnZone.width / 2;
-        const playerSpawnCenterY = playerSpawnZone.y + playerSpawnZone.height / 2;
-        this.level.computeReachableCells(playerSpawnCenterX, playerSpawnCenterY);
+        this._placeMissionObjectives(missionObjectives, objectivePlacementMaxY, playableMinX, playableMaxX, playableMinY, playableMaxY, playerSpawnZone, extraKeepOutZones, allSpawnedEnemiesDuringGen, preloadedAssetImages);
+
+        const spawnedMissionTargets = this.level.missionTargetObstacles || [];
+        const hutsSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_hut')).length;
+        const barracksSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_barracks')).length;
+        const towersSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_relay_tower')).length;
+        if (hutsSpawned === 0 && barracksSpawned === 0 && towersSpawned === 0) {
+//            console.error(`[Level Gen] CRITICAL: No mission targets (huts/towers) were spawned! This will lock the mission!`);
+        }
 
         const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {};
         const enemySpawnMinY = playableMinY;
@@ -2347,6 +2421,7 @@ class LevelGenerator {
             }
         }
 
+        this._finalizeObjectivePositions(this.level.missionTargetObstacles);
         this._finalizeEnemyPositions(allSpawnedEnemiesDuringGen);
 
         const playerSpawnLocations = [];

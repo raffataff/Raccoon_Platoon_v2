@@ -19,7 +19,6 @@ class InputHandler {
         // Dev mode drag state for shootout spawn editing
         this.isDraggingSpawnPoint = false;
 
-
         this.canvas.addEventListener('mousedown', (event) => this.handleMouseDown(event));
         this.canvas.addEventListener('mousemove', (event) => this.handleMouseMove(event));
         this.canvas.addEventListener('mouseup', (event) => this.handleMouseUp(event));
@@ -361,7 +360,7 @@ class InputHandler {
     }
 
     handleMouseMove(event) {
-        /* ... (Unchanged from previous complete version) ... */
+        /* ... (Unchanged from previous version) ... */
         if (!this.game) return;
         this._updateMousePositions(event);
 

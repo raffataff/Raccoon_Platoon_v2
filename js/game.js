@@ -1026,6 +1026,8 @@ class Game {
             { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
             { name: 'forest_small', files: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.path, type: 'single' },
             { name: 'forest_large', files: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.path, type: 'single' },
+            { name: 'temperate_ruins_medium', files: TEMPERATE_BIOME.spritePaths.temperate_ruins_medium?.files, path: TEMPERATE_BIOME.spritePaths.temperate_ruins_medium?.path, type: 'single' },
+            { name: 'temperate_ruins_large', files: TEMPERATE_BIOME.spritePaths.temperate_ruins_large?.files, path: TEMPERATE_BIOME.spritePaths.temperate_ruins_large?.path, type: 'single' },
             { name: 'pond', files: TEMPERATE_BIOME.spritePaths.pond?.files, path: TEMPERATE_BIOME.spritePaths.pond?.path, type: 'single'},
             { name: 'lake', files: TEMPERATE_BIOME.spritePaths.lake?.files, path: TEMPERATE_BIOME.spritePaths.lake?.path, type: 'single' },
             { name: 'water_well', files: TEMPERATE_BIOME.spritePaths.water_well?.files, path: TEMPERATE_BIOME.spritePaths.water_well?.path, type: 'single' },
@@ -2190,11 +2192,10 @@ class Game {
 
     quitToMainMenu() {
         this.audioManager.stopAllLoopingSounds();
+        this.lastPlayedMusicKey = null;
         if (this.musicManager) {
-            this.musicManager.stopAll();
             this.musicManager.onGameStateChange('MAIN_MENU');
         }
-        this.lastPlayedMusicKey = null;
         this.gameState = 'MAIN_MENU';
         this.missionStartedAndPopulated = false;
         this.isNightMission = false;

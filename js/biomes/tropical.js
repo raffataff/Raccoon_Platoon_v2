@@ -162,7 +162,7 @@ const TROPICAL_BIOME = {
 
         // Ruins
         tropical_ruins: {
-            path: 'assets/images/objects/BIOMES/tropical/ruins/',
+            path: 'assets/images/objects/biomes/tropical/ruins/',
             files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',]
         },
 
@@ -372,7 +372,7 @@ const TROPICAL_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.7, isDecoration: false,
             spriteScale: 0.35,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
             spriteDestroyedScale: 0.45,
             canBeFlipped: true,
@@ -393,8 +393,8 @@ const TROPICAL_BIOME = {
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.93), radius: (w => w * 0.08) },
+            spriteScale: 0.45,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.67), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.2,
             canBeFlipped: true,
@@ -405,7 +405,7 @@ const TROPICAL_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
             spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.98), radiusX: (w => w * 0.08), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.2,
             canBeFlipped: true,
@@ -458,7 +458,7 @@ const TROPICAL_BIOME = {
             maxHp: Infinity,
             blocksMovement: true,
             providesCover: true,
-            spawnWeight: 15,
+            spawnWeight: 12,
             spriteScale: 0.5,
             spriteDestroyed: null,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.46), radiusY: (h => h * 0.2) },
@@ -490,7 +490,7 @@ const TROPICAL_BIOME = {
         WORLD_GRASS_SKIP_MIN: 3,
         WORLD_GRASS_SKIP_MAX: 12,
         WORLD_MUD_TILE_SCALE: 0.6,
-        WORLD_MUD_TILE_OVERLAP_FACTOR: 0.45,
+        WORLD_MUD_TILE_OVERLAP_FACTOR: 0.55,
         WORLD_MUD_RANDOM_ROTATION: false,
         WORLD_MUD_NOISE_SCALE_X: 0.012,
         WORLD_MUD_NOISE_SCALE_Y: 0.012,
@@ -498,7 +498,7 @@ const TROPICAL_BIOME = {
         WORLD_MUD_NOISE_OCTAVES: 3,
         WORLD_MUD_PATCH_SCALE_X: 0.003,
         WORLD_MUD_PATCH_SCALE_Y: 0.003,
-        WORLD_MUD_BLEND_WIDTH: 0.85,
+        WORLD_MUD_BLEND_WIDTH: 0.99,
     },
 
     // =========================================================================
@@ -583,7 +583,7 @@ const TROPICAL_BIOME = {
         { name: 'rainforest_large', files: ['tropical_forest_long_1.png', 'tropical_forest_long_2.png', 'tropical_forest_long_3.png', 'tropical_forest_long_4.png'], path: 'assets/images/objects/biomes/tropical/forests/', type: 'single' },
         
         // Ruins
-        { name: 'tropical_ruins', files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',], path: 'assets/images/objects/BIOMES/tropical/ruins/', type: 'single' },
+        { name: 'tropical_ruins', files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',], path: 'assets/images/objects/biomes/tropical/ruins/', type: 'single' },
         
         // Ground textures
         { name: 'mud', files: ['mud_1.png','mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png', 'sand_new_1.png', 'sand_new_2.png', 'sand_new_3.png', 'sand_new_4.png', 'sand_new_5.png' ], path: 'assets/images/objects/biomes/mud/', type: 'single' },

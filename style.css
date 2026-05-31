@@ -1354,6 +1354,7 @@ canvas#gameCanvas {
     box-shadow: 2px 2px 0px #12110F, 3px 3px 5px rgba(0, 0, 0, 0.6);
     letter-spacing: 0.5px;
     z-index: 50;
+    pointer-events: none;
 }
 
 /* Last Objective Highlight in HUD */
