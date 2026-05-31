@@ -1565,6 +1565,38 @@ input[type="range"]::-moz-range-thumb {
     box-shadow: 0 5px 15px rgba(230, 157, 69, 0.2);
 }
 
+.dismiss-recruit-btn {
+    position: absolute;
+    bottom: 35px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 5;
+    display: none;
+    padding: 4px 10px;
+    background-color: rgba(180, 50, 50, 0.92);
+    color: #fff;
+    border: 1px solid #cc4444;
+    border-radius: 2px;
+    font-family: var(--font-ui);
+    font-size: 0.75em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    white-space: nowrap;
+}
+
+.dismiss-recruit-btn:hover {
+    background-color: rgba(210, 60, 60, 1);
+    border-color: #ee5555;
+    transform: translateX(-50%);
+}
+
+.roster-card:hover .dismiss-recruit-btn {
+    display: block;
+}
+
 
 
 .roster-card .roster-card-face {
@@ -3689,6 +3721,192 @@ input[type="range"]::-moz-range-thumb {
         transform: translateX(100%);
         opacity: 0;
     }
+}
+
+/* --- Custom Confirmation Dialog --- */
+.confirm-dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    z-index: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(3px);
+}
+
+.confirm-dialog {
+    background: var(--panel-bg);
+    border: 2px solid var(--panel-border);
+    border-top: 3px solid var(--brand-primary);
+    border-radius: 4px;
+    padding: 0;
+    min-width: 420px;
+    max-width: 520px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.9), inset 0 0 30px rgba(0, 0, 0, 0.4);
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
+    animation: confirmDialogIn 0.2s ease-out;
+}
+
+@keyframes confirmDialogIn {
+    from {
+        transform: scale(0.9);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.confirm-dialog-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--panel-border);
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+.confirm-dialog-icon {
+    color: #D09040;
+    font-size: 1.4em;
+}
+
+.confirm-dialog-title-text {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 1.1em;
+    color: var(--brand-primary);
+    text-transform: uppercase;
+    letter-spacing: 3px;
+}
+
+.confirm-dialog-body {
+    padding: 20px;
+}
+
+.confirm-dialog-message {
+    font-family: var(--font-ui);
+    font-size: 1em;
+    color: var(--text-main);
+    line-height: 1.5;
+    margin: 0 0 15px 0;
+}
+
+.confirm-dialog-warning {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background-color: rgba(180, 50, 50, 0.15);
+    border: 1px solid rgba(180, 50, 50, 0.3);
+    border-radius: 2px;
+    font-family: var(--font-ui);
+    font-size: 0.85em;
+    color: #cc8888;
+}
+
+.warning-icon {
+    color: #cc4444;
+    font-size: 1.1em;
+}
+
+.confirm-dialog-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    font-family: var(--font-ui);
+    font-size: 0.85em;
+    color: var(--text-main);
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+}
+
+.confirm-dialog-checkbox-label:hover {
+    color: var(--brand-primary);
+}
+
+.confirm-dialog-checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+.checkbox-custom {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 1px solid var(--panel-border);
+    border-radius: 2px;
+    background-color: var(--bg-color);
+    position: relative;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+}
+
+.confirm-dialog-checkbox-label input[type="checkbox"]:checked + .checkbox-custom {
+    background-color: var(--brand-primary);
+    border-color: var(--brand-primary);
+}
+
+.confirm-dialog-checkbox-label input[type="checkbox"]:checked + .checkbox-custom::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    width: 4px;
+    height: 8px;
+    border: solid var(--bg-color);
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.confirm-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 15px 20px;
+    border-top: 1px solid var(--panel-border);
+    background-color: rgba(0, 0, 0, 0.2);
+}
+
+.confirm-btn {
+    font-family: var(--font-ui);
+    font-weight: 700;
+    font-size: 0.9em;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    padding: 8px 24px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border: 1px solid;
+}
+
+.confirm-btn-cancel {
+    background-color: transparent;
+    color: var(--text-main);
+    border-color: var(--panel-border);
+}
+
+.confirm-btn-cancel:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-color: var(--text-main);
+}
+
+.confirm-btn-ok {
+    background-color: rgba(180, 50, 50, 0.8);
+    color: #fff;
+    border-color: #cc4444;
+}
+
+.confirm-btn-ok:hover {
+    background-color: rgba(210, 60, 60, 1);
+    border-color: #ee5555;
 }
 
 /* --- How To Play Screen --- */

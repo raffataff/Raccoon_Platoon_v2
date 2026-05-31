@@ -692,6 +692,32 @@
 
     <!-- Toast notification container -->
     <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Custom Confirmation Dialog -->
+    <div id="confirmDialogOverlay" class="confirm-dialog-overlay" style="display: none;">
+        <div class="confirm-dialog">
+            <div class="confirm-dialog-header">
+                <span class="confirm-dialog-icon">&#9888;</span>
+                <span class="confirm-dialog-title-text">CONFIRM</span>
+            </div>
+            <div class="confirm-dialog-body">
+                <p id="confirmDialogMessage" class="confirm-dialog-message"></p>
+                <div class="confirm-dialog-warning">
+                    <span class="warning-icon">&#9888;</span>
+                    <span>This action is permanent and cannot be undone.</span>
+                </div>
+            </div>
+            <label class="confirm-dialog-checkbox-label" id="dontShowAgainLabel">
+                <input type="checkbox" id="dontShowAgainCheckbox">
+                <span class="checkbox-custom"></span>
+                Don't show this again
+            </label>
+            <div class="confirm-dialog-actions">
+                <button id="confirmDialogCancel" class="confirm-btn confirm-btn-cancel">CANCEL</button>
+                <button id="confirmDialogOk" class="confirm-btn confirm-btn-ok">CONFIRM</button>
+            </div>
+        </div>
+    </div>
     <div id="howToPlayScreen" class="ui-panel" style="display: none;">
         <h2>TACTICAL FIELD MANUAL</h2>
         <div class="manual-container">

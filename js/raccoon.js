@@ -353,15 +353,16 @@ class Raccoon extends Unit {
             return;
         }
 
-        super._executeFire(pointX, pointY);
+        // Only consume ammo if all pre-fire guards pass (mirrors Unit._executeFire checks)
+        if (this.attackCooldown <= 0 && this.actionTimer <= 0) {
+            super._executeFire(pointX, pointY);
+            ammoState.currentMagazine--;
+            this._setCurrentAmmoState(ammoState);
+        }
 
         if (this.game && this.game.trySpeech) {
             this.game.trySpeech(this, 'ON_START_FIRING', 0.15);
         }
-
-        // Consume ammo from current magazine
-        ammoState.currentMagazine--;
-        this._setCurrentAmmoState(ammoState);
     }
 
     // Swap back to default weapon when special weapon ammo is exhausted

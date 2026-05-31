@@ -190,10 +190,22 @@ class InputHandler {
                             h.isMoving = false;
                             h.currentPath = [];
                         });
+                        this.game.trySpeech(rescuedHostages[0], 'ON_HOLD');
+                        const raccoons = this.game.getLivingPlayerControlledUnits();
+                        if (raccoons && raccoons.length > 0) {
+                            const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
+                            this.game.trySpeech(speaker, 'ON_ORDER_HOLD');
+                        }
                     } else {
                         rescuedHostages.forEach(h => {
                             h.isHoldingPosition = false;
                         });
+                        this.game.trySpeech(rescuedHostages[0], 'ON_FOLLOW');
+                        const raccoons = this.game.getLivingPlayerControlledUnits();
+                        if (raccoons && raccoons.length > 0) {
+                            const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
+                            this.game.trySpeech(speaker, 'ON_ORDER_FOLLOW');
+                        }
                     }
                 }
             }

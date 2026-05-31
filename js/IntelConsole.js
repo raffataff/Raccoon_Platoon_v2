@@ -135,6 +135,10 @@ class IntelConsole {
         this.hackDuration = duration;
         this.totalSpawnedThisHack = 0;
 
+        if (this.game && this.game.audioManager) {
+            this.game.audioManager.play('COMPUTER_HACK_GLITCH');
+        }
+
         // Set initial spawn timer
         const baseInterval = (CAMPAIGN_RULES.BASE_PARAMETERS.intelSpawnInterval && CAMPAIGN_RULES.BASE_PARAMETERS.intelSpawnInterval.initial) || 3.0;
         this.spawnTimer = baseInterval;

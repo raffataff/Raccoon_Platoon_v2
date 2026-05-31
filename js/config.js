@@ -32,8 +32,8 @@ const CONFIG = {
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true,
     DEBUG_DRAW_OBSTACLE_NAMES: true,
     DEBUG_DRAW_UNIT_PATHING_BOUNDS: false,
-    UNIT_PATHING_RADIUS_BUFFER: 18,
-    OBSTACLE_REPULSION_RADIUS_FACTOR: 5.0,
+    UNIT_PATHING_RADIUS_BUFFER: 8,
+    OBSTACLE_REPULSION_RADIUS_FACTOR: 2.0,
     OBSTACLE_REPULSION_FORCE: 2.5,
     STUCK_REPATH_FRAME_THRESHOLD: 10,
     PATHFINDING_MAX_EXPANSIONS: 20000,
@@ -45,6 +45,10 @@ const CONFIG = {
     ENEMY_ALERT_PROPAGATION_RADIUS: 150,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95,
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10,
+
+    // Hit reaction system: when enemies take damage, they flinch and immediately re-evaluate combat
+    ENEMY_HIT_STUN_DURATION_BASE: 0.35,
+    ENEMY_HIT_STUN_DURATION_BONUS: 0.25,
 
     UNIT_VISUALS: {
         STUCK_FRAMES_THRESHOLD: 2,
@@ -66,14 +70,14 @@ const CONFIG = {
     // Base Stats
     RACCOON_HP: 20,
     RACCOON_SPEED: 200,
-    RACCOON_SIZE: 12,
+    RACCOON_SIZE: 20,
     RACCOON_COLOR: '#808080',
     RACCOON_DETECTION_RANGE: 100,
 
     // Engagement
     RACCOON_MIN_ENGAGEMENT_DISTANCE: 100,
     RACCOON_PREFERRED_ENGAGEMENT_DISTANCE_MAX: 200,
-    RACCOON_ENGAGE_RANGE_BUFFER: 20,
+    RACCOON_ENGAGE_RANGE_BUFFER: 60,
 
     // Grenades
     RACCOON_GRENADE_DAMAGE: 50,
@@ -540,7 +544,7 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_BOSS_3_WEAPON_FIRE',
             muzzleFlashScale: 1.5,
             bulletLifetime: 1.8,
-            bulletSpritePath: 'assets/images/projectiles/bullet_gold_boss.png',
+            bulletSpritePath: 'assets/images/projectiles/bullet_pw001_1.png',
             bulletSpriteScale: 0.2,
             isDefaultWeapon: true,
             maxAmmo: Infinity
@@ -557,7 +561,7 @@ const CONFIG = {
             sfxFireKey: 'POSSUM_ELITE_GUARD_WEAPON_FIRE',
             muzzleFlashScale: 1.2,
             bulletLifetime: 1.5,
-            bulletSpritePath: 'assets/images/projectiles/bullet_elite_guard_1.png',
+            bulletSpritePath: 'assets/images/projectiles/bullet_pw001_1.png',
             bulletSpriteScale: 0.35,
             isDefaultWeapon: true,
             maxAmmo: Infinity
@@ -599,7 +603,7 @@ const CONFIG = {
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 40,
-            maxAmmo: 120,
+            maxAmmo: 200,
             phaseUnlocked: 1,
             crateColor: '#00ffcc',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/pr-1.png',
@@ -621,7 +625,7 @@ const CONFIG = {
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 8,
-            maxAmmo: 120,
+            maxAmmo: 40,
             phaseUnlocked: 3,
             pelletCount: 2,
             crateColor: '#ffaa00',
@@ -644,7 +648,7 @@ const CONFIG = {
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 8,
-            maxAmmo: 15,
+            maxAmmo: 40,
             phaseUnlocked: 5,
             crateColor: '#ff00ff',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/x1.png',
@@ -654,7 +658,7 @@ const CONFIG = {
             name: "PW-001",
             damage: 18,
             rof: 20,
-            range: 250,
+            range: 350,
             projectileSpeed: 750,
             projectileColor: '#ff4400',
             accuracyStationary: 0.6,
@@ -666,7 +670,7 @@ const CONFIG = {
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 60,
-            maxAmmo: 280,
+            maxAmmo: 240,
             phaseUnlocked: 4,
             crateColor: '#ff4400',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/pw001.png',
@@ -688,7 +692,7 @@ const CONFIG = {
             bulletSpriteScale: 0.5,
             isDefaultWeapon: false,
             magazineSize: 5,
-            maxAmmo: 22,
+            maxAmmo: 20,
             phaseUnlocked: 5,
             crateColor: '#ff6600',
             crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/mosin.png',
@@ -1084,8 +1088,8 @@ const CONFIG = {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1,
-            explosionDamage: 50, explosionAoeRadius: 80,
+            spawnWeight: 3,
+            explosionDamage: 50, explosionAoeRadius: 100,
             spriteScale: 0.13,
             spriteDestroyedScale: 0.13,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.3), offsetY: (h => h * 0.066), width: (w => w * 0.5), height: (h => h * 0.86) },
@@ -1096,7 +1100,7 @@ const CONFIG = {
             type: 'explosive_barrel_double', name: 'Double Explosive Barrel', color: '#A00000',
             destructible: true, hp: 15, maxHp: 15,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1,
+            spawnWeight: 2,
             explosionDamage: 75, explosionAoeRadius: 120,
             spriteScale: 0.1,
             spriteDestroyedScale: 0.1,
@@ -1108,7 +1112,7 @@ const CONFIG = {
             type: 'explosive_barrel_cluster', name: 'Cluster Explosive Barrel', color: '#A00000',
             destructible: true, hp: 20, maxHp: 20,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1,
+            spawnWeight: 2,
             explosionDamage: 100, explosionAoeRadius: 160,
             spriteScale: 0.1,
             spriteDestroyedScale: 0.1,
@@ -1128,12 +1132,12 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
-            placementBuffer: 250,
+            placementBuffer: 300,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 6],
                 countPerPhaseBonus: 0.3,
-                spawnRadius: 250,
+                spawnRadius: 300,
                 unitPool: [
                     { type: 'possum_grunt', weight: 10 },
                     { type: 'possum_heavy', weight: 5 },
@@ -1153,12 +1157,12 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
-            placementBuffer: 230,
+            placementBuffer: 280,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 4],
                 countPerPhaseBonus: 0.3,
-                spawnRadius: 230,
+                spawnRadius: 280,
                 unitPool: [
                     { type: 'possum_grunt', weight: 10 },
                     { type: 'possum_heavy', weight: 5 },
@@ -1179,12 +1183,12 @@ const CONFIG = {
             isDecoration: false,
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
-            placementBuffer: 230,
+            placementBuffer: 280,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 4],
                 countPerPhaseBonus: 0.3,
-                spawnRadius: 230,
+                spawnRadius: 280,
                 unitPool: [
                     { type: 'possum_grunt', weight: 10 },
                     { type: 'possum_heavy', weight: 5 },
@@ -1197,22 +1201,23 @@ const CONFIG = {
             type: 'general_possum_building_large', name: 'Large Possum Building', color: '#8B4513',
             destructible: false,
             blocksMovement: true, providesCover: true,
+            isDecoration: false,
+            canBeFlipped: true,
             spawnWeight: 2, phaseUnlocked: 3,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.53), radiusX: (w => w * 0.37), radiusY: (h => h * 0.26) },
-            isDecoration: false,
-            canBeFlipped: true,
-            placementBuffer: 280,
+            placementBuffer: 350,
             initialGuardPack: {
                 enabled: true,
                 countRange: [2, 6],
                 countPerPhaseBonus: 0.3,
-                spawnRadius: 280,
+                spawnRadius: 350,
                 unitPool: [
                     { type: 'possum_grunt', weight: 10 },
                     { type: 'possum_heavy', weight: 5 },
                     { type: 'possum_sniper', weight: 0.4 },
-                    { type: 'possum_elite', weight: 0.2 }
+                    { type: 'possum_elite', weight: 0.2 },
+                    { type: 'possum_eliteGuard', weight: 0.1 }
                 ]
             }
         },
@@ -1229,6 +1234,7 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             placementBuffer: 150,
+            decorationBuffer: 100,
         },
         {
             type: 'empty_possum_hut_2', name: 'Empty Possum Hut', color: '#8B4513',
@@ -1243,6 +1249,7 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.51), radiusX: (w => w * 0.35), radiusY: (h => h * 0.27) },
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             placementBuffer: 150,
+            decorationBuffer: 100,
         },
 
 
@@ -1458,8 +1465,8 @@ const CONFIG = {
         },
         DECORATIONS: {
             GRASS_CLUTTER: {
-                MIN_SCALE: 1.1,
-                MAX_SCALE: 1.5
+                MIN_SCALE: 0.7,
+                MAX_SCALE: 1.0
             },
             TREES: {
                 MIN_SCALE: 0.8,
@@ -1514,8 +1521,8 @@ const CONFIG = {
         QUADRANT_SCALING_ENABLED: true,
         QUADRANT_BASE_COLS: 3,
         QUADRANT_BASE_ROWS: 3,
-        QUADRANT_SCALE_COLS_PER_WORLD_FACTOR: 1.2,
-        QUADRANT_SCALE_ROWS_PER_WORLD_FACTOR: 1.1,
+        QUADRANT_SCALE_COLS_PER_WORLD_FACTOR: 1.5,
+        QUADRANT_SCALE_ROWS_PER_WORLD_FACTOR: 1.5,
         QUADRANT_RANDOMNESS_FACTOR: 0.3,
         QUADRANT_MIN_COLS: 3,
         QUADRANT_MIN_ROWS: 3,
@@ -1853,7 +1860,7 @@ const CONFIG = {
         OBJECTIVE_RESCUE_HOSTAGES_AT_EVAC: "Hostages at EVAC: {COUNT}/{TOTAL}",
         OBJECTIVE_EXTERMINATE_TEXT: "Eliminate Possums: {CURRENT}/{TOTAL}",
         OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT: "Destroy {TARGET_NAME_PLURAL}: {CURRENT}/{TOTAL}",
-        OBJECTIVE_RESCUE_HOSTAGES_TEXT: "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_SPAWNED} (Evac: {CURRENT_EVACUATED}/{MIN_TO_EVAC}){KIA_TEXT}",
+        OBJECTIVE_RESCUE_HOSTAGES_TEXT: "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_SPAWNED}{KIA_TEXT}",
         OBJECTIVE_RESCUE_TAKEN_HOSTAGE_TEXT: "Rescue Captured comrade from captivity",
         OBJECTIVE_EXTRACTION_TEXT: "Extract All Units: Get to Extraction Zone",
         OBJECTIVE_EXTRACTION_PROCEED: "All objectives complete! Proceed to Extraction Zone!",
@@ -1918,6 +1925,7 @@ const CONFIG = {
         POSSUM_HUT_DESTROYED: { path: 'assets/audio/sfx/structure_wood_destroy_01.mp3', defaultVolume: 0.5, pitchVariation: 0.1 },
         EXPLOSIVE_BARREL_DESTROYED: { path: 'assets/audio/sfx/barrel_explode.ogg', defaultVolume: 0.1, pitchVariation: 0.2 },
         EXPLOSIVE_BARREL_CLUSTER_DESTROYED: { path: 'assets/audio/sfx/barrel_cluster_explode.ogg', defaultVolume: 0.15, pitchVariation: 0.15 },
+        COMPUTER_HACK_GLITCH: { path: 'assets/audio/sfx/computer_hack_glitch.mp3', defaultVolume: 0.5 },
 
         MUSIC_MAIN_MENU: { path: 'assets/audio/music/March Through The Jungle.mp3', defaultVolume: 0.5 },
         MUSIC_COMBAT_1: { path: 'assets/audio/music/Broken Raccoon.mp3', defaultVolume: 0.3 },

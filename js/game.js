@@ -2368,6 +2368,17 @@ class Game {
         });
     }
 
+    dismissRecruit(raccoonId) {
+        const idx = this.masterRoster.findIndex(r => r.id === raccoonId);
+        if (idx === -1) return false;
+        this.masterRoster.splice(idx, 1);
+        this.lastDeployedSquadIds = this.lastDeployedSquadIds.filter(id => id !== raccoonId);
+        if (this.tempSelectedForDeployment) {
+            this.tempSelectedForDeployment = this.tempSelectedForDeployment.filter(r => r.id !== raccoonId);
+        }
+        return true;
+    }
+
     resizeCanvas() {
         if (!this.canvasContainer) this.canvasContainer = document.getElementById('canvas-container');
         if (!this.canvasContainer) return;
@@ -2972,9 +2983,20 @@ class Game {
         let newlyRecruitedRaccoons = [];
         const rescueObjective = this.currentMissionParams.objectives.find(obj => obj.type === 'RESCUE_HOSTAGES');
         if (isVictory && rescueObjective) {
+            const extractionZones = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
             if (this.hostageUnits) {
                 this.hostageUnits.forEach(hostage => {
                     if (hostage.isAlive() && hostage.isRescued) {
+                        // Only count hostages that are in the extraction zone
+                        let inZone = false;
+                        for (const zone of extractionZones) {
+                            if (hostage.x >= zone.x && hostage.x <= zone.x + zone.width &&
+                                hostage.y >= zone.y && hostage.y <= zone.y + zone.height) {
+                                inZone = true;
+                                break;
+                            }
+                        }
+                        if (!inZone) return;
                         const currentRosterNames = this.masterRoster.map(r => r.name);
                         let faceImageFile = 'default_face.png';
                         const availableFaceImages = CONFIG.RACCOON_FACE_IMAGES ? [...CONFIG.RACCOON_FACE_IMAGES] : [];
@@ -3449,6 +3471,7 @@ class Game {
         }
 
         let allObjectivesNowComplete = true;
+        const hasExtractionObjective = this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
 
         if (this.currentMissionParams.objectives.length === 0) {
             allObjectivesNowComplete = this.enemyUnits.every(e => !e.isAlive());
@@ -3460,126 +3483,75 @@ class Game {
 
                     obj.isComplete = (obj.currentProgress >= obj.totalToAchieve);
 
+                } else if (obj.type === 'RESCUE_HOSTAGES') {
+                    const allHostages = this.hostageUnits || [];
+                    const livingHostages = allHostages.filter(h => h.isAlive());
+                    const deadHostages = allHostages.filter(h => !h.isAlive());
+                    const rescuedAndAliveHostages = allHostages.filter(h => h.isRescued && h.isAlive());
+
+                    if (obj._originalTotalToAchieve === undefined) {
+                        obj._originalTotalToAchieve = obj.totalToAchieve;
+                        obj._originalMinToAchieve = obj.minToAchieveForCompletion || 1;
+                    }
+                    obj.totalToAchieve = livingHostages.length;
+                    obj.hostagesKilled = deadHostages.length;
+                    obj.minToAchieveForCompletion = Math.min(obj._originalMinToAchieve, livingHostages.length);
+                    obj.currentProgress = rescuedAndAliveHostages.length;
+
+                    const allLivingHostagesFreed = allHostages.every(h => !h.isAlive() || h.isRescued);
+                    const allHostagesRescued = obj.currentProgress >= obj.minToAchieveForCompletion;
+
+                    // If all hostages are dead and none were rescued, fail the mission (soft-lock prevention)
+                    if (livingHostages.length === 0 && obj.currentProgress === 0) {
+                        obj.statusText = "All hostages KIA - Objective Failed";
+                        obj.isComplete = false;
+                        if (this.gameState === 'RUNNING') {
+                            this.initiateMissionEnd(false);
+                        }
+                        return;
+                    }
+
+                    // RESCUE_HOSTAGES completes once all living hostages are rescued (not on evacuation)
+                    if (!obj.isComplete && allLivingHostagesFreed && allHostagesRescued) {
+                        obj.isComplete = true;
+                        if (CONFIG.DEBUG_LOGGING) console.log('[Game] RESCUE_HOSTAGES objective complete (all hostages rescued).');
+                        if (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION) {
+                            obj.displayText = CONFIG.UI_TEXT_STRINGS.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION;
+                        }
+                        if (this.ui) {
+                            this.ui.updateObjective();
+                        }
+                    }
+
+                    // Reveal extraction zone when ALL non-EXTRACTION objectives are complete
+                    // Runs every frame (even after RESCUE_HOSTAGES is complete) so it fires when the last other objective finishes
+                    if (!obj.extractionZoneRevealed && obj.isComplete) {
+                        const allOtherObjectivesComplete = this.currentMissionParams.objectives
+                            .filter(o => o.type !== 'EXTRACTION')
+                            .every(o => o.isComplete);
+                        if (allOtherObjectivesComplete) {
+                            obj.extractionZoneRevealed = true;
+                            const extractionObj = this.currentMissionParams.objectives.find(o => o.type === 'EXTRACTION');
+                            if (extractionObj) extractionObj.extractionZoneRevealed = true;
+                            const extractionZoneObs = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
+                            extractionZoneObs.forEach(ezObs => {
+                                ezObs.isHidden = false;
+                                this.addVisualEffect('extraction_zone', { obstacle: ezObs });
+                            });
+                            if (this.ui) {
+                                this.ui.updateObjective();
+                                const extractionMsg = CONFIG.UI_TEXT_STRINGS.EXTRACTION_ZONE_REVEALED || "Extraction Zone Revealed!";
+                                this.ui.showToast(extractionMsg, 'success');
+                            }
+                            if (CONFIG.DEBUG_LOGGING) console.log('[Game] All objectives complete! Extraction zone revealed.');
+                        }
+                    }
                 } else if (!obj.isComplete) {
                     if (obj.type === 'DESTROY_TARGET') {
                         obj.currentProgress = this.level.missionTargetObstacles ?
                             this.level.missionTargetObstacles.filter(t => t.type.startsWith(obj.targetTypeKeyPrefix) && t.isDestroyed && t.objectiveId === obj.id).length : 0;
                         if (obj.currentProgress >= obj.totalToAchieve) {
                             obj.isComplete = true;
-                        }
-                    } else if (obj.type === 'RESCUE_HOSTAGES') {
-                        const allHostages = this.hostageUnits || [];
-                        const livingHostages = allHostages.filter(h => h.isAlive());
-                        const deadHostages = allHostages.filter(h => !h.isAlive());
-                        const rescuedAndAliveHostages = allHostages.filter(h => h.isRescued && h.isAlive());
-
-                        // --- Dynamic objective adjustment for dead hostages ---
-                        // Store original values for reference (set once)
-                        if (obj._originalTotalToAchieve === undefined) {
-                            obj._originalTotalToAchieve = obj.totalToAchieve;
-                            obj._originalMinToAchieve = obj.minToAchieveForCompletion || 1;
-                        }
-                        // Adjust totals based on living hostages
-                        // Allow minToAchieveForCompletion to be 0 when all hostages are dead
-                        obj.totalToAchieve = livingHostages.length;
-                        obj.hostagesKilled = deadHostages.length;
-                        obj.minToAchieveForCompletion = Math.min(obj._originalMinToAchieve, livingHostages.length);
-                        obj.currentProgress = rescuedAndAliveHostages.length;
-
-                        // --- Extraction zone reveal logic ---
-                        // Reveal the zone once all LIVING hostages are rescued (dead hostages don't block reveal)
-                        // Extraction zone appears when all objectives (not including extraction) are complete AND all hostages rescued
-                        const hasExtractionObjective = this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
-                        const otherObjectivesComplete = this.currentMissionParams.objectives
-                            .filter(o => o.type !== 'EXTRACTION' && o.type !== 'RESCUE_HOSTAGES')
-                            .every(o => o.isComplete);
-                        const allLivingHostagesFreed = allHostages.every(h => !h.isAlive() || h.isRescued);
-                        const allHostagesRescued = obj.currentProgress >= obj.minToAchieveForCompletion;
-                        
-                        // Reveal extraction zone when: all other objectives complete AND all hostages rescued
-                        if (!obj.extractionZoneRevealed && allHostages.length > 0 && otherObjectivesComplete && allLivingHostagesFreed && allHostagesRescued) {
-                            obj.extractionZoneRevealed = true;
-                            // Un-hide all extraction zones and create their visual effects
-                            const extractionZoneObs = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
-                            extractionZoneObs.forEach(ezObs => {
-                                ezObs.isHidden = false;
-                                this.addVisualEffect('extraction_zone', { obstacle: ezObs });
-                            });
-                            // Update objective text to guide player
-                            if (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION) {
-                                obj.displayText = CONFIG.UI_TEXT_STRINGS.OBJECTIVE_RESCUE_PROCEED_TO_EXTRACTION;
-                            }
-                            if (this.ui) {
-                                this.ui.updateObjective();
-                                // Show popup notification for extraction available
-                                const extractionMsg = CONFIG.UI_TEXT_STRINGS.EXTRACTION_ZONE_REVEALED || "Extraction Zone Revealed!";
-                                this.ui.showToast(extractionMsg, 'success');
-                            }
-                            if (CONFIG.DEBUG_LOGGING) console.log('[Game] All objectives complete and hostages rescued! Extraction zone revealed.');
-                        }
-
-                        // If all hostages are dead and none were rescued, fail the mission (soft-lock prevention)
-                        if (livingHostages.length === 0 && obj.currentProgress === 0) {
-                            // No living hostages and none rescued — objective is unachievable
-                            // Mark as failed and trigger mission failure
-                            obj.statusText = "All hostages KIA - Objective Failed";
-                            obj.isComplete = false;
-                            // Force mission failure since primary objective cannot be completed
-                            if (this.gameState === 'RUNNING') {
-                                this.initiateMissionEnd(false);
-                            }
-                            return;
-                        }
-
-                        let hostagesAtEvacCount = 0;
-                        let playerRaccoonInZone = false;
-                        const extractionZones = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
-                        if (extractionZones.length > 0) {
-                            rescuedAndAliveHostages.forEach(hostage => {
-                                for (const zone of extractionZones) {
-                                    if (hostage.x >= zone.x && hostage.x <= zone.x + zone.width &&
-                                        hostage.y >= zone.y && hostage.y <= zone.y + zone.height) {
-                                        hostagesAtEvacCount++;
-                                        break;
-                                    }
-                                }
-                            });
-                            if (this.deployedSquadRoster) {
-                                for (const raccoon of this.deployedSquadRoster) {
-                                    if (raccoon.isAlive()) {
-                                        for (const zone of extractionZones) {
-                                            if (raccoon.x >= zone.x && raccoon.x <= zone.x + zone.width &&
-                                                raccoon.y >= zone.y && raccoon.y <= zone.y + zone.height) {
-                                                playerRaccoonInZone = true;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    if (playerRaccoonInZone) break;
-                                }
-                            }
-                        }
-                        obj.currentEvacuated = hostagesAtEvacCount;
-                        let enemiesClearedForThisRescue = false;
-                        const exterminateObjective = this.currentMissionParams.objectives.find(o => o.type === "EXTERMINATE");
-                        if (exterminateObjective) {
-                            enemiesClearedForThisRescue = exterminateObjective.isComplete;
-                        } else {
-                            enemiesClearedForThisRescue = this.enemyUnits.every(e => !e.isAlive());
-                        }
-                        // RESCUE_HOSTAGES is only complete when hostages are IN the extraction zone, not just rescued
-                        // hostagesAtEvacCount is calculated above and represents rescued hostages actually in the zone
-                        if (hostagesAtEvacCount >= obj.minToAchieveForCompletion &&
-                            enemiesClearedForThisRescue) {
-                            obj.isComplete = true;
-                            if (CONFIG.DEBUG_LOGGING) console.log('[Game] RESCUE_HOSTAGES objective complete (hostages evacuated + enemies cleared).');
-                        }
-                        if (!obj.isComplete && hasExtractionObjective) {
-                            const allHostagesEvacuated = hostagesAtEvacCount >= obj.minToAchieveForCompletion;
-                            if (allHostagesEvacuated && enemiesClearedForThisRescue) {
-                                obj.isComplete = true;
-                                if (CONFIG.DEBUG_LOGGING) console.log('[Game] RESCUE_HOSTAGES complete (with EXTRACTION objective present). EXTRACTION can now reveal zone.');
-                            }
                         }
                     } else if (obj.type === 'ASSASSINATION') {
                         if (obj.targetUnitId) {
@@ -3596,12 +3568,10 @@ class Game {
                             obj.isComplete = true;
                         }
                     } else if (obj.type === 'RESCUE_TAKEN_HOSTAGE') {
-                        // Find the captured raccoon in hostage units
                         const targetHostage = this.hostageUnits?.find(h => h.originalRaccoonId === obj.targetRaccoonId || h.id === obj.targetRaccoonId);
                         if (targetHostage && targetHostage.isRescued && targetHostage.isAlive()) {
                             obj.isComplete = true;
                             obj.currentProgress = 1;
-//                            console.log(`[Game] RESCUE_TAKEN_HOSTAGE completed: ${obj.targetRaccoonName} rescued!`);
                         }
                         if (!obj.isComplete && hasExtractionObjective && obj.currentProgress >= 1) {
                             obj.isComplete = true;
@@ -3670,13 +3640,13 @@ class Game {
             const rescueObj = hasRescueObjective ? this.currentMissionParams.objectives.find(o => o.type === 'RESCUE_HOSTAGES') : null;
             const extractionZoneRevealed = rescueObj && rescueObj.extractionZoneRevealed;
 
-            // Prevent ending mission for non-phase-finale missions with RESCUE_HOSTAGES until extraction happens
+            // Prevent ending mission for non-phase-finale missions with RESCUE_HOSTAGES until
+            // extraction zone is revealed and all rescued hostages are in the zone
             if (hasRescueObjective && !hasExtractionObjective) {
                 if (!extractionZoneRevealed) {
                     return;
                 }
-                const allHostagesInZone = this.checkAllRescuedHostagesInExtractionZone();
-                if (!allHostagesInZone) {
+                if (!this.checkAllRescuedHostagesInExtractionZone()) {
                     return;
                 }
             }

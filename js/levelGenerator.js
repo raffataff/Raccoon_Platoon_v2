@@ -953,7 +953,7 @@ class LevelGenerator {
         const playerSpawnZone = { x: playableMinX, y: playableMaxY - playerSpawnZoneHeight, width: playerSpawnZoneWidth, height: playerSpawnZoneHeight };
         this.level.playerSpawnZone = playerSpawnZone;
 
-        const playerUnitSize = CONFIG.RACCOON_SIZE || 12;
+        const playerUnitSize = CONFIG.RACCOON_SIZE || 20;
         const spawnAreaWidth = playerSpawnZone.width * CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_PLACEMENT.PLAYER_SPAWN_AREA;
         const spawnAreaHeight = playerSpawnZone.height * CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_PLACEMENT.PLAYER_SPAWN_AREA;
         const fixedPadding = 30;
@@ -1886,10 +1886,13 @@ class LevelGenerator {
                 const extractionZoneObs = this.level.obstacles.filter(o => o.type === 'extraction_zone');
                 if (extractionZoneObs.length > 0) {
                     extractionZoneObs.forEach(ez => {
-                        ez.x = helipad.x;
-                        ez.y = helipad.y;
-                        ez.width = helipad.width;
-                        ez.height = helipad.height;
+                        const scale = 0.46;
+                        const centerX = helipad.x + helipad.width / 2;
+                        const centerY = helipad.y + helipad.height / 2;
+                        ez.width = helipad.width * scale;
+                        ez.height = helipad.height * scale;
+                        ez.x = centerX - ez.width / 2;
+                        ez.y = centerY - ez.height / 2;
                     });
                     if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Extraction zone placed on helipad at (${helipad.x.toFixed(0)}, ${helipad.y.toFixed(0)})`);
                 }
@@ -1906,8 +1909,15 @@ class LevelGenerator {
                     extractionZoneObs.forEach(ez => {
                         const helipadWidth = helipadImage ? helipadImage.naturalWidth * helipadSpriteScale : ez.width;
                         const helipadHeight = helipadImage ? helipadImage.naturalHeight * helipadSpriteScale : ez.height;
+                        const centerX = ez.x + ez.width / 2;
+                        const centerY = ez.y + ez.height / 2;
+                        const ezScale = 0.46;
+                        ez.width = helipadWidth * ezScale;
+                        ez.height = helipadHeight * ezScale;
+                        ez.x = centerX - ez.width / 2;
+                        ez.y = centerY - ez.height / 2;
                         const newObstacle = {
-                            x: ez.x, y: ez.y, width: helipadWidth, height: helipadHeight,
+                            x: centerX - helipadWidth / 2, y: centerY - helipadHeight / 2, width: helipadWidth, height: helipadHeight,
                             type: 'helipad_concrete_square_1',
                             name: 'Square Concrete Helipad',
                             color: '#afafaf',

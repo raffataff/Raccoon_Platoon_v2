@@ -87,7 +87,7 @@ const TROPICAL_BIOME = {
         },
         tree_palm_triple: {
             path: 'assets/images/objects/biomes/tropical/trees/fullSize/',
-            files: ['palm1_triple.png']
+            files: []
         },
 
         // Palm2 trees
@@ -370,7 +370,7 @@ const TROPICAL_BIOME = {
             type: 'tree_fan_triple', name: 'Fan Tree Triple', color: '#005522',
             destructible: true, hp: 200, maxHp: 200,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0.7, isDecoration: false,
             spriteScale: 0.35,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/palm1_single_stump_2.png',
@@ -381,8 +381,8 @@ const TROPICAL_BIOME = {
             type: 'tree_rubber_single', name: 'Rubber Tree Single', color: '#005522',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 3, isDecoration: false,
-            spriteScale: 0.4,
+            spawnWeight: 2, isDecoration: false,
+            spriteScale: 0.35,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
             spriteDestroyedScale: 0.2,
@@ -392,7 +392,7 @@ const TROPICAL_BIOME = {
             type: 'tree_kapok_single', name: 'Kapok Tree Single', color: '#228B22',
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0, isDecoration: false,
+            spawnWeight: 1, isDecoration: false,
             spriteScale: 0.3,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.93), radius: (w => w * 0.08) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
@@ -403,7 +403,7 @@ const TROPICAL_BIOME = {
             type: 'tree_pheonix', name: 'Pheonix Palm', color: '#228B22',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 2, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',

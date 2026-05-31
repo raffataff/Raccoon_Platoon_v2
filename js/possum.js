@@ -95,6 +95,23 @@ class PossumGrunt extends Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
+        // --- Hit reaction: immediately engage attacker ---
+        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
+            this.manualTarget = this.recentlyHitBy;
+            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
+            const distToAttacker = distance(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y);
+            const hasLOS = hasLineOfSight(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y, this.game.level.activeObstacles, this.game.level);
+            if (hasLOS && distToAttacker <= this.weapon.range) {
+                this.aiState = 'ENGAGING_SHOOTING';
+            } else {
+                this.aiState = 'ENGAGING_CHASING';
+                this.chaseDestination = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
+                this.setMoveTarget(this.recentlyHitBy.x, this.recentlyHitBy.y);
+            }
+            this.propagateAlert(this.recentlyHitBy);
+            return;
+        }
+
         let currentTarget = this.manualTarget || this.autoTarget;
         const playerUnitsOnMap = this.game.getLivingPlayerControlledUnits();
 

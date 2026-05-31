@@ -43,6 +43,21 @@ class PossumEliteGuard extends Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
+        // --- Hit reaction: immediately engage attacker ---
+        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
+            this.manualTarget = this.recentlyHitBy;
+            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
+            const dist = distance(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y);
+            const hasLOS = hasLineOfSight(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y, this.game.level.activeObstacles, this.game.level);
+            if (hasLOS && dist <= this.weapon.range) {
+                this.aiState = 'ENGAGING_SHOOTING';
+            } else {
+                this.aiState = 'ENGAGING_CHASING';
+                this.setMoveTarget(this.recentlyHitBy.x, this.recentlyHitBy.y);
+            }
+            return;
+        }
+
         let target = this.manualTarget || this.autoTarget;
         if (!target || !target.isAlive()) {
             this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);

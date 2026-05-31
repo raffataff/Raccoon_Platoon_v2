@@ -48,16 +48,16 @@ const MANUAL_CONTENT = [
             {
                 type: "controls",
                 items: [
+                    { key: "RMB Click", desc: "Move Unit" },
                     { key: "LMB Click/Hold", desc: "Shoot" },
                     { key: "CTRL + LMB Drag", desc: "Box Select Multiple Units" },
-                    { key: "RMB Click", desc: "Move Unit" },
                     { key: "SPACE", desc: "Select ALL Squad Members" },
                     { key: "1 - 4", desc: "Select Specific Squad Member" },
                     { key: "SHIFT + LMB", desc: "Set Manual Target Lock (Focus Fire)" },
                     { key: "F", desc: "Toggle Formation" },
                     { key: "G", desc: "Throw Grenade (Aim & Click)" },
                     { key: "H", desc: "Toggle Hostage Hold/Follow" },
-                    { key: "P", desc: "Toggle Debug Visuals" },
+                    { key: "T", desc: "Call for Backup" },
                     { key: "ESC", desc: "Pause / Cancel Action" }
                 ]
             }
@@ -102,7 +102,15 @@ const MANUAL_CONTENT = [
             {
                 type: "paragraph",
                 content: "Rescued hostages will follow your squad by default. Press 'H' to command them to Hold Position/Follow. Keep them safe until extraction!"
-            }
+            },
+            {
+                type: "header-small",
+                content: "CALL FOR BACKUP (Key: T)"
+            },
+            {
+                type: "paragraph",
+                content: "Call for backup to reinforce your position, teammates are not selected."
+            },
         ]
     },
     {

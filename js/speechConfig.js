@@ -176,7 +176,7 @@ const SPEECH_CONFIG = {
                 SAME_TYPE: {
                     speaker: [
                         "Brother!", "Together!", "Squeak yap!", "Side by side!",
-                        "Fellow possum!", "Squeak!", "Chitter!",
+                        "Fellow possum!", "Squeak!",
                         "Same squad!", "Together we squeak!"
                     ],
                     target: [
@@ -307,8 +307,8 @@ const SPEECH_CONFIG = {
         ON_DAMAGE: [
             "Ouch!", "That stings!", "Gah!", "Ow ow ow!",
             "I felt that!", "Son of a—!", "Not cool!", "That didn't hurt...",
-            "Goddammit!", "That's gonna bruise!", "Eat lead, why don't ya!",
-            "I'm hit!", "Bastards!", "Oh come on!", "Watch it!"
+            "Merely a flesh wound!", "That's gonna bruise!", "'tis but a scratch!'!",
+            "I'm hit!", "Bastards!",
         ],
         ON_KILL: [
             "Got one!", "Down he goes!", "Scratch one possum!",
@@ -408,6 +408,21 @@ const SPEECH_CONFIG = {
             "Squeezing through? Not happening!", "I'm stuck!",
             "Need another route!", "Can't get through!",
             "Too tight for me!", "This ain't gonna work!"
+        ],
+        ON_ORDER_FOLLOW: [
+            "Let's move, hostages!", "Ok, you're with us now.",
+            "Stay close, civilians!", "Move out, we've got your backs!",
+            "Stick to us like glue!", "Follow the grey fur!",
+            "You're squad-adjacent now — move!", "With me, let's go!",
+            "Alright, you're coming with us!", "Keep up, stay close!", "We got you, now move!"
+        ],
+        ON_ORDER_HOLD: [
+            "Hold right there!", "Stay put, you're safe!",
+            "Don't move a muscle, civilians!", "Freeze! ...sorry, habit.",
+            "Hold position!", "You! Stay exactly where you are!",
+            "Plant your paws right there!", "Nobody move!",
+            "Hold! ...like, literally hold.", "Stay where you are!",
+            "Don't you dare move!", "Ground yourselves!"
         ]
     },
 
@@ -517,13 +532,24 @@ const SPEECH_CONFIG = {
             "This way's stuck!", "Can someone move this?",
             "I'm too wide for this!", "Need help here!",
             "Can't squeeze through!", "Blocked in!"
+        ],
+        ON_FOLLOW: [
+            "Ok, sticking with you!", "Right behind you!",
+            "Got it, let's move!", "I trust you!",
+            "Lead the way!", "Moving out!",
+            "I'm on you like white on rice!", "Let's do this!",
+            "Together now!", "Just don't forget about me!"
+        ],
+        ON_HOLD: [
+            "Got it, holding here.", "You're coming back for me, right?", 
+            "Alone again... fantastic.", "Creepy quiet over here...", "You gotta be kidding me... okay",
         ]
     },
 
     GLOBAL: {
         SPEECH_ENABLED: true,
         BASE_CHANCE: 0.10,
-        COOLDOWN_MIN: 8.0,
+        COOLDOWN_MIN: 5.0,
         COOLDOWN_MAX: 18.0,
         PROXIMITY_RANGE: 110,
         PROXIMITY_TARGET_RESPONSE_CHANCE: 0.10,
@@ -531,7 +557,7 @@ const SPEECH_CONFIG = {
         IDLE_CHATTER_INTERVAL_MIN: 15.0,
         IDLE_CHATTER_INTERVAL_MAX: 60.0,
         IDLE_CHATTER_CHANCE: 0.15,
-        FURBY_COOLDOWN: 10.0,
+        FURBY_COOLDOWN: 5.0,
         BUBBLE_LIFETIME: 2.5,
         BUBBLE_FONT: "bold 14px 'Consolas', 'Lucida Console', monospace",
         BUBBLE_COLOR_RACCOON: "#FFFFFF",

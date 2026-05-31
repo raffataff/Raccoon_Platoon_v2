@@ -340,7 +340,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         }
 
         const maxUnitSize = Math.max(
-            CONFIG.RACCOON_SIZE || 12,
+            CONFIG.RACCOON_SIZE || 20,
             CONFIG.POSSUM_GRUNT_SIZE || 14,
             CONFIG.POSSUM_HEAVY_SIZE || 18,
             CONFIG.POSSUM_SNIPER_SIZE || 14,

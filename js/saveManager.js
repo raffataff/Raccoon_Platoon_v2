@@ -32,6 +32,27 @@ class SaveManager {
         return prefs.hasOwnProperty(key) ? prefs[key] : defaultValue;
     }
 
+    static getDismissalPreference(key, defaultValue = false) {
+        return this.getPreference(`dismiss_${key}`, defaultValue);
+    }
+
+    static setDismissalPreference(key, value) {
+        this.savePreference(`dismiss_${key}`, value);
+    }
+
+    static resetAllDismissalPreferences() {
+        const prefs = this.getPreferences();
+        const keysToRemove = Object.keys(prefs).filter(k => k.startsWith('dismiss_'));
+        for (const k of keysToRemove) {
+            delete prefs[k];
+        }
+        try {
+            localStorage.setItem(this.PREFERENCES_KEY, JSON.stringify(prefs));
+        } catch (e) {
+            console.warn('Failed to reset dismissal preferences:', e);
+        }
+    }
+
     /**
      * Get all save slot metadata (for displaying in UI)
      * @returns {Array} Array of save slot info objects

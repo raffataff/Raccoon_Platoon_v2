@@ -25,21 +25,22 @@ const RACCOON_NAMES = [
     "Sparks", "Doc", "Wheels", "Radar", "Echo", "Alpha", "Bravo", "Charlie",
     "Delta", "Foxtrot", "Whiskey", "Tango", "Zero", "Ace", "Maverick", "Viper",
     "Blaze", "Bullet", "Cannon", "Tank", "Bomber", "Recon", "Stealth", "Striker",
-    "Cipher", "Hex", "Glitch", "Static", "Vector", "Gauge", "Digit", "Patch",
+    "Cipher", "Hex", "Glitch", "Static", "Vector", "Gauge", "Digit", "Patch", "DerGeissler",
+    "Gunslinger",
 
     // Slightly More Unique / Characterful
     "Barnaby", "Figaro", "Jasper", "Lysander", "Mortimer", "Nikolai", "Orville",
     "Phineas", "Quincy", "Reginald", "Silas", "Theodore", "Ulysses", "Vincent",
-    "Wilbur", "Beauregard", "Cornelius", "Ferdinand", "Horatio", "Ignatius",
-    "Jebediah", "Kingsley", "Leopold", "Montgomery", "Nathaniel", "Octavius",
-    "Peregrine", "Remington", "Sterling", "Thaddeus", "Algernon", "Bartholomew",
-    "Chauncey", "Digby", "Ebenezer", "Fitzwilliam", "Gideon", "Humphrey",
+    "Wilbur", "Beau", "Cornelius", "Ferdinand", "Horatio", "Ignatius",
+    "Jebediah", "Kingsley", "Leopold", "Monty", "Nathaniel", "Octavius",
+    "Peregrine", "Remington", "Sterling", "Thaddeus", "Algernon", "Bart",
+    "Chauncey", "Digby", "Ebenezer", "Fitz", "Gideon", "Humphrey",
 
     // Female-Sounding (Optional, or just mix them all)
     "Luna", "Bella", "Daisy", "Lucy", "Sadie", "Sophie", "Chloe", "Zoe", "Ruby",
     "Piper", "Willow", "Hazel", "Stella", "Nova", "Scarlett", "Penelope", "Cleo",
     "Fiona", "Juniper", "Olive", "Poppy", "Violet", "Astrid", "Freya", "Iris",
-    "Maeve", "Seraphina", "Athena", "Calliope", "Diana", "Guinevere", "Isolde"
+    "Maeve", "Seraphina", "Athena", "Calliope", "Diana", "Guinevere", "Isolde", "Xianah"
 ];
 
 function getRandomRaccoonName(existingNames = [], rng = Math) { // Accept RNG, default to Math.random

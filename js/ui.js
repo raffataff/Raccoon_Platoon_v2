@@ -179,9 +179,10 @@ class UI {
                     
                     this.game.confirmSquadAndStartMission(this.game.tempSelectedForDeployment);
                 } else if (currentCount > maxSquadSize) {
-                    alert((this.uiText.START_MISSION_BUTTON_ALERT_MAX_SIZE || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()));
-                } else {
-                    alert(this.uiText.START_MISSION_BUTTON_ALERT_MIN_SIZE || "Select at least one Raccoon for the mission!");
+                    this.showToast((this.uiText.START_MISSION_BUTTON_ALERT_MAX_SIZE || "Max squad size is {MAX_SQUAD_SIZE}. Please deselect some recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()), 'warning');
+                }
+                if (minSize > 0 && this.game.tempSelectedForDeployment.length < minSize) {
+                    this.showToast(this.uiText.START_MISSION_BUTTON_ALERT_MIN_SIZE || "Select at least one Raccoon for the mission!", 'warning');
                 }
             }
         });
@@ -580,6 +581,11 @@ class UI {
     showVideoLoadingScreen(videoPath) {
         if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return Promise.resolve();
 
+        const game = this.game;
+        if (game && game.audioManager) {
+            this.loadingVideoPlayer.volume = game.audioManager.globalVolume * game.audioManager.sfxVolume;
+        }
+
         this.loadingVideoPlayer.src = videoPath;
         this.loadingVideoPlayer.load();
         
@@ -628,6 +634,11 @@ class UI {
         console.log('[ExtractionVideo] Loading video:', videoPath);
         this.extractionVideoPlayer.src = videoPath;
         this.extractionVideoPlayer.load();
+
+        const game = this.game;
+        if (game && game.audioManager) {
+            this.extractionVideoPlayer.volume = game.audioManager.globalVolume * game.audioManager.sfxVolume;
+        }
 
         this.extractionVideoScreen.style.display = 'flex';
         setTimeout(() => {
@@ -1796,6 +1807,30 @@ class UI {
         nameDiv.className = 'roster-card-name';
         nameDiv.textContent = recruit.name || recruit.id;
 
+        const dismissBtn = document.createElement('button');
+        dismissBtn.className = 'dismiss-recruit-btn';
+        dismissBtn.textContent = 'Send Back Home';
+        dismissBtn.title = 'Remove this recruit from the roster permanently';
+        dismissBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const recruitName = recruit.name || recruit.id;
+            const contextKey = 'recruit_dismiss';
+            if (this.isDismissSuppressed(contextKey)) {
+                this.game.dismissRecruit(recruit.id);
+                this.refreshRecruitSelectionLists();
+                return;
+            }
+            const confirmed = await this.showConfirmDialog(
+                `Send ${recruitName} back home?\n\nThis will permanently remove them from your roster to make room for new recruits.`,
+                contextKey
+            );
+            if (confirmed && this.game) {
+                this.game.dismissRecruit(recruit.id);
+                this.refreshRecruitSelectionLists();
+            }
+        });
+
+        card.appendChild(dismissBtn);
         card.appendChild(faceDiv);
         card.appendChild(nameDiv);
 
@@ -1808,7 +1843,7 @@ class UI {
                 this.game.tempSelectedForDeployment.push(recruit);
                 this.refreshRecruitSelectionLists();
             } else {
-                alert((this.uiText.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()));
+                this.showToast((this.uiText.MAX_SQUAD_ALERT || "Max squad size is {MAX_SQUAD_SIZE}.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString()), 'warning');
             }
         });
         return card;
@@ -3066,6 +3101,78 @@ class UI {
                 }
             });
         }, 3000);
+    }
+
+    /**
+     * Show a custom confirmation dialog
+     * @param {string} message - The question/message to display
+     * @param {string} [contextKey] - Optional key for "Don't show again" persistence
+     * @returns {Promise<boolean>} Resolves to true if confirmed, false if cancelled
+     */
+    showConfirmDialog(message, contextKey) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('confirmDialogOverlay');
+            const msgEl = document.getElementById('confirmDialogMessage');
+            const okBtn = document.getElementById('confirmDialogOk');
+            const cancelBtn = document.getElementById('confirmDialogCancel');
+            const checkbox = document.getElementById('dontShowAgainCheckbox');
+            const checkboxLabel = document.getElementById('dontShowAgainLabel');
+
+            if (!overlay || !msgEl || !okBtn || !cancelBtn) {
+                resolve(confirm(message));
+                return;
+            }
+
+            msgEl.textContent = message;
+
+            if (contextKey) {
+                checkboxLabel.style.display = 'flex';
+                checkbox.checked = SaveManager.getDismissalPreference(contextKey, false);
+            } else {
+                checkboxLabel.style.display = 'none';
+                checkbox.checked = false;
+            }
+
+            overlay.style.display = 'flex';
+
+            const cleanup = () => {
+                overlay.style.display = 'none';
+                okBtn.removeEventListener('click', onOk);
+                cancelBtn.removeEventListener('click', onCancel);
+                overlay.removeEventListener('click', onOverlayClick);
+            };
+
+            const onOk = () => {
+                const dontShow = checkbox.checked;
+                if (contextKey && dontShow) {
+                    SaveManager.setDismissalPreference(contextKey, true);
+                }
+                cleanup();
+                resolve(true);
+            };
+
+            const onCancel = () => {
+                cleanup();
+                resolve(false);
+            };
+
+            const onOverlayClick = (e) => {
+                if (e.target === overlay) onCancel();
+            };
+
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+            overlay.addEventListener('click', onOverlayClick);
+        });
+    }
+
+    /**
+     * Check if a dismissal preference has been suppressed
+     * @param {string} contextKey - The dismissal context key
+     * @returns {boolean} True if the user selected "Don't show again"
+     */
+    isDismissSuppressed(contextKey) {
+        return SaveManager.getDismissalPreference(contextKey, false);
     }
 
     /**

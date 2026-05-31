@@ -53,6 +53,22 @@ class PossumBoss1 extends Unit {
     }
     
     _handleEnemyCombat(deltaTime, obstacles) {
+        // --- Hit reaction: immediately engage attacker ---
+        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
+            this.manualTarget = this.recentlyHitBy;
+            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
+            const dist = distance(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y);
+            const currentWeapon = this.attackMode === 'GRENADE_VOLLEY' ? WEAPONS[this.primaryWeaponName] : WEAPONS[this.secondaryWeaponName];
+            if (dist <= currentWeapon.range) {
+                this.aiState = 'ENGAGING_SHOOTING';
+            } else {
+                this.aiState = 'ENGAGING_CHASING';
+                this.chaseDestination = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
+                this.setMoveTarget(this.recentlyHitBy.x, this.recentlyHitBy.y);
+            }
+            return;
+        }
+
         // Find a target if we don't have one
         let target = this.manualTarget || this.autoTarget;
         if (!target || !target.isAlive()) {

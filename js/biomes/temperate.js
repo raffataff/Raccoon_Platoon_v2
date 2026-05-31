@@ -34,11 +34,11 @@ const TEMPERATE_BIOME = {
         },
         grass: {
             path: 'assets/images/objects/biomes/temperate/grass/',
-            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_3_3.png', 'temperate_grass_4.png', ,'temperate_grass_5.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png',  ]
+            files: ['temperate_grass_1.png', 'temperate_grass_2.png', 'temperate_grass_2_2.png', 'temperate_grass_2_3.png', 'temperate_grass_3.png', 'temperate_grass_3_2.png', 'temperate_grass_4.png', 'temperate_grass_6.png', 'temperate_grass_7.png', , 'temperate_grass_9.png', 'temperate_grass_10.png', 'temperate_grass_11.png', 'temperate_grass_12.png', 'temperate_grass_13.png',  ]
         },
         grass_decorations: {
             path: 'assets/images/objects/biomes/temperate/grass/',
-            files: ['temperate_grass_1.png', 'temperate_grass_4.png',  'temperate_grass_6.png',  'temperate_grass_9.png', 'temperate_grass_12.png', 'temperate_grass_25.png',  ]
+            files: ['temperate_grass_1.png', 'temperate_grass_6.png', 'temperate_grass_25.png',  ]
         },
 
         // Walls (reusing tropical wall assets as placeholders)

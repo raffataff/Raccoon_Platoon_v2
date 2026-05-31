@@ -64,13 +64,20 @@ class Unit {
         this.lastNudgeWasLeft = false;
         this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5;
         this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5;
-        this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.15;
+        this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.35;
         this.bumpRepathCooldown = 0;
+
+        this._slideDirX = 0;
+        this._slideDirY = 0;
+        this._slideFramesLeft = 0;
 
         this.stuckFrameCounter = 0;
         this.repathFailCount = 0;
         this.stuckSpeechTimer = 0;
         this.stuckSpeechCooldown = 0;
+
+        this.hitStunTimer = 0;
+        this.recentlyHitBy = null;
 
         this.deadSpritePathKey = null;
         this.deadSpriteFilesKey = null;
@@ -233,6 +240,14 @@ class Unit {
         if (this.attackCooldown > 0) {
             this.attackCooldown -= deltaTime;
             if (this.attackCooldown < 0) this.attackCooldown = 0;
+        }
+
+        if (this.hitStunTimer > 0) {
+            this.hitStunTimer -= deltaTime;
+            if (this.hitStunTimer <= 0) {
+                this.hitStunTimer = 0;
+                this.recentlyHitBy = null;
+            }
         }
 
         const prevX = this.x; const prevY = this.y;
@@ -666,69 +681,139 @@ class Unit {
                     else if (Math.abs(finalDeltaY) > 1e-5) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
                     else { finalDeltaX = 0; finalDeltaY = 0; }
                 } else {
-                    let slideDX = 0; let slideDY = 0; let foundSlide = false;
-                    for (const obs of obstaclesForCollision) {
-                        const obsShapes = this.game.level._getObstacleCollisionShape(obs);
-                        const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
-                        for (const obsCS of shapesArray) {
-                            const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
-                            const testShape = { type: 'circle', x: this.x + desiredDeltaX, y: this.y + desiredDeltaY, radius: collisionCheckRadius };
-                            let blocks = false;
-                            if (obsCS.type === 'rectangle') blocks = hasRotation ? obbCircleOverlap(obsCS, testShape) : rectCircleOverlap(obsCS, testShape);
-                            else if (obsCS.type === 'circle') blocks = circleOverlap(obsCS, testShape);
-                            else if (obsCS.type === 'ellipse') blocks = circleEllipseOverlap(testShape, obsCS);
-                            if (blocks) {
-                                let nx, ny;
-                                if (obsCS.type === 'circle') {
-                                    nx = this.x - obsCS.x; ny = this.y - obsCS.y;
-                                } else if (obsCS.type === 'ellipse') {
-                                    const rx = obsCS.radiusX || 1e-6;
-                                    const ry = obsCS.radiusY || 1e-6;
-                                    nx = (this.x - obsCS.x) / (rx * rx);
-                                    ny = (this.y - obsCS.y) / (ry * ry);
-                                } else {
-                                    const closestPt = closestPointOnCollisionShape(this.x, this.y, obsCS);
-                                    nx = this.x - closestPt.x; ny = this.y - closestPt.y;
+                    let foundSlide = false;
+                    const desiredMag = Math.hypot(desiredDeltaX, desiredDeltaY);
+
+                    if (this._slideFramesLeft > 0) {
+                        const testSlideX = desiredMag * this._slideDirX;
+                        const testSlideY = desiredMag * this._slideDirY;
+                        const slideTestShape = { type: 'circle', x: this.x + testSlideX, y: this.y + testSlideY, radius: collisionCheckRadius };
+                        let persistentSlideBlocked = false;
+                        for (const obs of obstaclesForCollision) {
+                            const obsShapes = this.game.level._getObstacleCollisionShape(obs);
+                            const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+                            for (const obsCS of shapesArray) {
+                                const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                                if ((obsCS.type === 'rectangle' && (hasRotation ? obbCircleOverlap(obsCS, slideTestShape) : rectCircleOverlap(obsCS, slideTestShape))) ||
+                                    (obsCS.type === 'circle' && circleOverlap(obsCS, slideTestShape)) ||
+                                    (obsCS.type === 'ellipse' && circleEllipseOverlap(slideTestShape, obsCS))) {
+                                    persistentSlideBlocked = true; break;
                                 }
-                                const nLen = Math.hypot(nx, ny);
-                                if (nLen > 1e-6) { nx /= nLen; ny /= nLen; }
-                                else { nx = -desiredDeltaX; ny = -desiredDeltaY; const dLen = Math.hypot(nx, ny); if (dLen > 1e-6) { nx /= dLen; ny /= dLen; } }
-                                const dot = desiredDeltaX * nx + desiredDeltaY * ny;
-                                slideDX = desiredDeltaX - nx * dot;
-                                slideDY = desiredDeltaY - ny * dot;
-                                const slideMag = Math.hypot(slideDX, slideDY);
-                                if (slideMag > 1e-5) {
-                                    const desiredMag2 = Math.hypot(desiredDeltaX, desiredDeltaY);
-                                    slideDX = (slideDX / slideMag) * desiredMag2;
-                                    slideDY = (slideDY / slideMag) * desiredMag2;
-                                    const slideTestShape = { type: 'circle', x: this.x + slideDX, y: this.y + slideDY, radius: collisionCheckRadius };
-                                    let slideBlocked = false;
-                                    for (const obs2 of obstaclesForCollision) {
-                                        const obs2Shapes = this.game.level._getObstacleCollisionShape(obs2);
-                                        const obs2Arr = Array.isArray(obs2Shapes) ? obs2Shapes : [obs2Shapes];
-                                        for (const obs2CS of obs2Arr) {
-                                            const hasRot2 = obs2CS.type === 'rectangle' && obs2CS.rotation !== undefined && obs2CS.rotation !== 0;
-                                            if ((obs2CS.type === 'rectangle' && (hasRot2 ? obbCircleOverlap(obs2CS, slideTestShape) : rectCircleOverlap(obs2CS, slideTestShape))) ||
-                                                (obs2CS.type === 'circle' && circleOverlap(obs2CS, slideTestShape)) ||
-                                                (obs2CS.type === 'ellipse' && circleEllipseOverlap(slideTestShape, obs2CS))) {
-                                                slideBlocked = true; break;
+                            }
+                            if (persistentSlideBlocked) break;
+                        }
+                        if (!persistentSlideBlocked) {
+                            finalDeltaX = testSlideX; finalDeltaY = testSlideY; collisionOccurredThisFrame = false; foundSlide = true;
+                            this._slideFramesLeft--;
+                        } else {
+                            this._slideFramesLeft = 0;
+                            this._slideDirX = 0; this._slideDirY = 0;
+                        }
+                    }
+
+                    if (!foundSlide) {
+                        const MAX_SLIDE_FRAMES = 8;
+                        for (const obs of obstaclesForCollision) {
+                            const obsShapes = this.game.level._getObstacleCollisionShape(obs);
+                            const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+                            for (const obsCS of shapesArray) {
+                                const hasRotation = obsCS.type === 'rectangle' && obsCS.rotation !== undefined && obsCS.rotation !== 0;
+                                const testShape = { type: 'circle', x: this.x + desiredDeltaX, y: this.y + desiredDeltaY, radius: collisionCheckRadius };
+                                let blocks = false;
+                                if (obsCS.type === 'rectangle') blocks = hasRotation ? obbCircleOverlap(obsCS, testShape) : rectCircleOverlap(obsCS, testShape);
+                                else if (obsCS.type === 'circle') blocks = circleOverlap(obsCS, testShape);
+                                else if (obsCS.type === 'ellipse') blocks = circleEllipseOverlap(testShape, obsCS);
+                                if (blocks) {
+                                    let nx, ny;
+                                    if (obsCS.type === 'circle') {
+                                        nx = this.x - obsCS.x; ny = this.y - obsCS.y;
+                                    } else if (obsCS.type === 'ellipse') {
+                                        const rx = obsCS.radiusX || 1e-6;
+                                        const ry = obsCS.radiusY || 1e-6;
+                                        nx = (this.x - obsCS.x) / (rx * rx);
+                                        ny = (this.y - obsCS.y) / (ry * ry);
+                                    } else {
+                                        const closestPt = closestPointOnCollisionShape(this.x, this.y, obsCS);
+                                        nx = this.x - closestPt.x; ny = this.y - closestPt.y;
+                                    }
+                                    const nLen = Math.hypot(nx, ny);
+                                    if (nLen > 1e-6) { nx /= nLen; ny /= nLen; }
+                                    else { nx = -desiredDeltaX; ny = -desiredDeltaY; const dLen = Math.hypot(nx, ny); if (dLen > 1e-6) { nx /= dLen; ny /= dLen; } }
+
+                                    let projDot = nx * desiredDeltaX + ny * desiredDeltaY;
+                                    let slideDX = desiredDeltaX - projDot * nx;
+                                    let slideDY = desiredDeltaY - projDot * ny;
+                                    let slideMag = Math.hypot(slideDX, slideDY);
+                                    if (slideMag < 1e-5) {
+                                        slideDX = -ny;
+                                        slideDY = nx;
+                                        slideMag = 1;
+                                    }
+
+                                    let bestSlideX = 0, bestSlideY = 0;
+                                    let bestScore = -Infinity;
+                                    const signAttempts = [1, -1];
+                                    for (const sign of signAttempts) {
+                                        let tryDX, tryDY;
+                                        if (Math.abs(slideMag) > 1e-5) {
+                                            const normX = slideDX / slideMag;
+                                            const normY = slideDY / slideMag;
+                                            tryDX = normX * sign * desiredMag;
+                                            tryDY = normY * sign * desiredMag;
+                                        } else {
+                                            tryDX = (-ny * sign) * desiredMag;
+                                            tryDY = (nx * sign) * desiredMag;
+                                        }
+                                        const tryTestShape = { type: 'circle', x: this.x + tryDX, y: this.y + tryDY, radius: collisionCheckRadius };
+                                        let tryBlocked = false;
+                                        for (const obs2 of obstaclesForCollision) {
+                                            const obs2Shapes = this.game.level._getObstacleCollisionShape(obs2);
+                                            const obs2Arr = Array.isArray(obs2Shapes) ? obs2Shapes : [obs2Shapes];
+                                            for (const obs2CS of obs2Arr) {
+                                                const hasRot2 = obs2CS.type === 'rectangle' && obs2CS.rotation !== undefined && obs2CS.rotation !== 0;
+                                                if ((obs2CS.type === 'rectangle' && (hasRot2 ? obbCircleOverlap(obs2CS, tryTestShape) : rectCircleOverlap(obs2CS, tryTestShape))) ||
+                                                    (obs2CS.type === 'circle' && circleOverlap(obs2CS, tryTestShape)) ||
+                                                    (obs2CS.type === 'ellipse' && circleEllipseOverlap(tryTestShape, obs2CS))) {
+                                                    tryBlocked = true; break;
+                                                }
+                                            }
+                                            if (tryBlocked) break;
+                                        }
+                                        if (!tryBlocked) {
+                                            const alignment = (tryDX * desiredDeltaX + tryDY * desiredDeltaY) / (desiredMag * desiredMag);
+                                            let score = alignment;
+                                            if (this._slideDirX !== 0 || this._slideDirY !== 0) {
+                                                const prevAlignment = tryDX * this._slideDirX + tryDY * this._slideDirY;
+                                                score += prevAlignment * 2.0;
+                                            }
+                                            if (score > bestScore) {
+                                                bestScore = score;
+                                                bestSlideX = tryDX;
+                                                bestSlideY = tryDY;
                                             }
                                         }
-                                        if (slideBlocked) break;
                                     }
-                                    if (!slideBlocked) {
-                                        finalDeltaX = slideDX; finalDeltaY = slideDY; collisionOccurredThisFrame = false; foundSlide = true;
+                                    if (bestScore > -Infinity) {
+                                        finalDeltaX = bestSlideX; finalDeltaY = bestSlideY;
+                                        if (desiredMag > 1e-5) {
+                                            this._slideDirX = bestSlideX / desiredMag;
+                                            this._slideDirY = bestSlideY / desiredMag;
+                                        } else {
+                                            this._slideDirX = 0; this._slideDirY = 0;
+                                        }
+                                        this._slideFramesLeft = MAX_SLIDE_FRAMES;
+                                        collisionOccurredThisFrame = false; foundSlide = true;
                                     }
+                                    break;
                                 }
-                                break;
                             }
+                            if (foundSlide) break;
                         }
-                        if (foundSlide) break;
                     }
-                    if (!foundSlide) { finalDeltaX = 0; finalDeltaY = 0; }
-                }
-            }
-        }
+                     if (!foundSlide) { finalDeltaX = 0; finalDeltaY = 0; }
+                 }
+             }
+         }
 
         this.x += finalDeltaX;
         this.y += finalDeltaY;
@@ -779,6 +864,9 @@ class Unit {
         } else {
             this.stuckFrameCounter = 0;
             this.stuckSpeechTimer = 0;
+            this._slideFramesLeft = 0;
+            this._slideDirX = 0;
+            this._slideDirY = 0;
         }
         if (this.stuckSpeechCooldown > 0) {
             this.stuckSpeechCooldown -= deltaTime;
@@ -1209,6 +1297,13 @@ class Unit {
             if (becameAware || (amount >= alertDmgThreshold) || (prevHp === this.maxHp && amount > 0)) {
                 this.propagateAlert(attackerUnit);
             }
+
+            // --- Hit reaction: stun and force immediate combat re-evaluation ---
+            const stunBase = CONFIG.ENEMY_HIT_STUN_DURATION_BASE || 0.35;
+            const stunBonus = CONFIG.ENEMY_HIT_STUN_DURATION_BONUS || 0.25;
+            this.hitStunTimer = stunBase + Math.random() * stunBonus;
+            this.recentlyHitBy = attackerUnit;
+            this.targetAcquisitionTimer = 0; // Force immediate target scan next frame
         }
 
         if (!died && this.game && this.game.ui && this.team === 'player') {
@@ -1248,6 +1343,7 @@ class Unit {
     die() {
         this.manualTarget = null; this.autoTarget = null; this.isMoving = false; this.currentPath = [];
         this.isPlayerDirectFiring = false; this.isHoldingPosition = false; this.isHoldingFire = false;
+        this.hitStunTimer = 0; this.recentlyHitBy = null;
         const wasSelected = this.game && this.game.selectedUnits.includes(this);
         if (this instanceof Raccoon && this.isAimingGrenade) this.cancelGrenadeAim();
         if (this.game && this.game.selectedUnits.includes(this)) {
@@ -1394,6 +1490,20 @@ class Unit {
         }
 
         ctx.restore();
+
+        const isUnitSelected = this.game && this.game.selectedUnits && this.game.selectedUnits.includes(this);
+        if (isUnitSelected && this.isAlive() && this.team === 'player') {
+            ctx.save();
+            ctx.globalCompositeOperation = 'destination-over';
+            ctx.beginPath();
+            ctx.ellipse(this.x, this.y + this.size * 1.3, this.size * 0.6, this.size * 0.22, 0, 0, Math.PI * 2);
+            ctx.lineWidth = 2.5;
+            ctx.strokeStyle = 'rgba(100, 180, 255, 0.55)';
+            ctx.shadowColor = 'rgba(100, 180, 255, 0.35)';
+            ctx.shadowBlur = 10;
+            ctx.stroke();
+            ctx.restore();
+        }
 
         if (this.isAlive() && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
             const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
