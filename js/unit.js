@@ -19,6 +19,10 @@ class Unit {
         this.lastDeltaX = 0;
         this.lastDeltaY = 0;
 
+        this.hovers = false;
+        this.hoverVelocityX = 0;
+        this.hoverVelocityY = 0;
+
         this.canShootWhileMoving = true;
         this.weapon = null;
         this.autoTarget = null; this.manualTarget = null;
@@ -113,6 +117,9 @@ class Unit {
         } else if (this instanceof PossumBoss3) {
             this.spriteBaseName = 'possum_boss_3';
             this.spriteScaleFactor = CONFIG.POSSUM_BOSS_3_SPRITE_SCALE_FACTOR || 1.0;
+        } else if (this instanceof PossumBoss4) {
+            this.spriteBaseName = 'possum_boss_4';
+            this.spriteScaleFactor = CONFIG.POSSUM_BOSS_4_SPRITE_SCALE_FACTOR || 1.0;
         } else if (this instanceof PossumEliteGuard) {
             this.spriteBaseName = 'possum_eliteGuard';
             this.spriteScaleFactor = CONFIG.POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR || 1.0;
@@ -255,7 +262,7 @@ class Unit {
         this._handleMovement(deltaTime);
 
         const isActuallyMovingForBobbing = this.isMoving && (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6);
-        if (isActuallyMovingForBobbing && this.isAlive()) {
+        if (isActuallyMovingForBobbing && this.isAlive() && !this.hovers) {
             const bobbingConfig = CONFIG.UNIT_VISUALS;
             if (bobbingConfig && bobbingConfig.UNIT_BOBBING_ENABLED) {
                 const speedFactor = bobbingConfig.UNIT_BOBBING_SPEED_FACTOR || 0.02;
@@ -305,7 +312,7 @@ class Unit {
             this.currentVisualState = 'fire';
             this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
-            if (!(this instanceof PossumBoss1) && !(this instanceof PossumBoss3) && !(this instanceof PossumEliteGuard)) {
+            if (!(this instanceof PossumBoss1) && !(this instanceof PossumBoss3) && !(this instanceof PossumBoss4) && !(this instanceof PossumEliteGuard)) {
                 const fireAtX = this.isPlayerDirectFiring ? this.playerDirectFireTargetPos.x : target.x;
                 const fireAtY = this.isPlayerDirectFiring ? this.playerDirectFireTargetPos.y : target.y;
                 this._executeFire(fireAtX, fireAtY);
@@ -815,8 +822,25 @@ class Unit {
              }
          }
 
-        this.x += finalDeltaX;
-        this.y += finalDeltaY;
+        if (this.hovers) {
+            const inertia = CONFIG.UNIT_VISUALS?.UNIT_HOVER_INERTIA ?? 0.15;
+            const friction = CONFIG.UNIT_VISUALS?.UNIT_HOVER_FRICTION ?? 3.0;
+            const hasInput = (Math.abs(finalDeltaX) > 1e-5 || Math.abs(finalDeltaY) > 1e-5);
+            if (hasInput) {
+                this.hoverVelocityX = this.hoverVelocityX * (1 - inertia) + finalDeltaX * inertia;
+                this.hoverVelocityY = this.hoverVelocityY * (1 - inertia) + finalDeltaY * inertia;
+            } else {
+                this.hoverVelocityX *= (1 - friction * deltaTime);
+                this.hoverVelocityY *= (1 - friction * deltaTime);
+                if (Math.abs(this.hoverVelocityX) < 0.01) this.hoverVelocityX = 0;
+                if (Math.abs(this.hoverVelocityY) < 0.01) this.hoverVelocityY = 0;
+            }
+            this.x += this.hoverVelocityX;
+            this.y += this.hoverVelocityY;
+        } else {
+            this.x += finalDeltaX;
+            this.y += finalDeltaY;
+        }
 
         const actualMovementMade = (Math.abs(this.x - originalX) > 1e-5 || Math.abs(this.y - originalY) > 1e-5);
         const attemptedToMoveFlag = (Math.abs(desiredDeltaX) > 1e-5 || Math.abs(desiredDeltaY) > 1e-5);
@@ -877,11 +901,19 @@ class Unit {
 
         if (distToNextNodeAfterMove <= arrivalTolerance || (moveSpeed >= distToNextNode && distToNextNode > 1e-5 && Math.abs(finalDeltaX - desiredDeltaX) < 1e-4 && Math.abs(finalDeltaY - desiredDeltaY) < 1e-4)) {
             this.x = nextNodeWorldCoords.x; this.y = nextNodeWorldCoords.y;
+            if (this.hovers) {
+                this.hoverVelocityX *= 0.5;
+                this.hoverVelocityY *= 0.5;
+            }
             this.currentPathNodeIndex++;
             if (this.currentPathNodeIndex >= this.currentPath.length) {
                 this.currentPath = []; this.currentPathNodeIndex = 0;
                 if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < arrivalTolerance * 1.5) {
                     this.isMoving = false; this.x = this.worldTargetX; this.y = this.worldTargetY;
+                    if (this.hovers) {
+                        this.hoverVelocityX = 0;
+                        this.hoverVelocityY = 0;
+                    }
                 } else if (this.isMoving) {
                     this.setMoveTarget(this.worldTargetX, this.worldTargetY);
                 }
@@ -1366,7 +1398,12 @@ class Unit {
 
         let yOffset = 0;
         const isActuallyMoving = this.isMoving && (Math.abs(this.lastDeltaX) > 1e-6 || Math.abs(this.lastDeltaY) > 1e-6);
-        if (isActuallyMoving && this.isAlive() && bobbingConfig && bobbingConfig.UNIT_BOBBING_ENABLED) {
+        if (this.isAlive() && this.hovers) {
+            const hoverBobAmp = bobbingConfig?.UNIT_HOVER_BOB_AMPLITUDE ?? 0.5;
+            const hoverBobSpeed = bobbingConfig?.UNIT_HOVER_BOB_SPEED ?? 1.5;
+            yOffset = Math.sin(this.bobbingCounter) * hoverBobAmp;
+            this.bobbingCounter += deltaTime * hoverBobSpeed;
+        } else if (isActuallyMoving && this.isAlive() && bobbingConfig && bobbingConfig.UNIT_BOBBING_ENABLED) {
             yOffset = Math.sin(this.bobbingCounter) * bobbingConfig.UNIT_BOBBING_AMPLITUDE;
         }
 

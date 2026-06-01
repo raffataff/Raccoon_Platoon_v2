@@ -3387,64 +3387,37 @@ class UI {
 
     _renderPhaseRosterTab(data) {
         const txt = this.uiText;
+        const unitList = this.endOfPhaseScreen.querySelector('#phaseRosterUnitList');
+        const newRecruitsList = this.endOfPhaseScreen.querySelector('#phaseNewRecruitsList');
+        const newRecruitsSection = this.endOfPhaseScreen.querySelector('#phaseNewRecruitsList')?.parentElement;
 
-        const beforeList = this.endOfPhaseScreen.querySelector('.roster-before-list');
-        if (beforeList) {
-            beforeList.innerHTML = '';
-            if (data.startingRoster && data.startingRoster.length > 0) {
-                data.startingRoster.forEach(r => {
-                    beforeList.appendChild(this._createPhaseDebriefRosterCard(r));
-                });
-            } else {
-                beforeList.innerHTML = '<div class="no-entry">No data</div>';
-            }
-        }
-
-        const afterList = this.endOfPhaseScreen.querySelector('.roster-after-list');
-        if (afterList) {
-            afterList.innerHTML = '';
+        if (unitList) {
+            unitList.innerHTML = '';
             if (data.endingRaccoons && data.endingRaccoons.length > 0) {
                 data.endingRaccoons.forEach(r => {
-                    afterList.appendChild(this._createPhaseDebriefRosterCard(r));
+                    unitList.appendChild(this._createPostMissionRecruitCard(r, 'survivor'));
                 });
-            } else {
-                afterList.innerHTML = '<div class="no-entry">No data</div>';
+            }
+            if (data.totalFallenRaccoons && data.totalFallenRaccoons.length > 0) {
+                data.totalFallenRaccoons.forEach(r => {
+                    unitList.appendChild(this._createPostMissionRecruitCard(r, 'fallen'));
+                });
+            }
+            if ((!data.endingRaccoons || data.endingRaccoons.length === 0) &&
+                (!data.totalFallenRaccoons || data.totalFallenRaccoons.length === 0)) {
+                unitList.innerHTML = '<div class="no-entry">Roster data unavailable.</div>';
             }
         }
 
-        const newRecruitsList = this.endOfPhaseScreen.querySelector('.roster-new-recruits-list');
-        const newRecruitsSection = this.endOfPhaseScreen.querySelector('.roster-new-recruits-section');
         if (newRecruitsList && newRecruitsSection) {
             newRecruitsList.innerHTML = '';
             if (data.newRecruitedRaccoons && data.newRecruitedRaccoons.length > 0) {
                 newRecruitsSection.style.display = 'flex';
-                newRecruitsSection.style.flexDirection = 'column';
                 data.newRecruitedRaccoons.forEach(r => {
-                    newRecruitsList.appendChild(this._createPhaseDebriefRosterCard(r));
+                    newRecruitsList.appendChild(this._createPostMissionRecruitCard(r, 'new'));
                 });
             } else {
                 newRecruitsSection.style.display = 'none';
-            }
-        }
-
-        const promotionsList = this.endOfPhaseScreen.querySelector('.roster-promotions-list');
-        const promotionsSection = this.endOfPhaseScreen.querySelector('.roster-promotions-section');
-        if (promotionsList && promotionsSection) {
-            promotionsList.innerHTML = '';
-            if (data.promotedRaccoons && data.promotedRaccoons.length > 0) {
-                promotionsSection.style.display = 'flex';
-                promotionsSection.style.flexDirection = 'column';
-                data.promotedRaccoons.forEach(r => {
-                    const card = this._createPhaseDebriefRosterCard(r);
-                    card.classList.add('promoted');
-                    const badge = document.createElement('div');
-                    badge.className = 'promotion-badge';
-                    badge.textContent = r.previousRank ? `${r.previousRank.toUpperCase()} → ${r.rank.toUpperCase()}` : `PROMOTED TO ${r.rank.toUpperCase()}!`;
-                    card.appendChild(badge);
-                    promotionsList.appendChild(card);
-                });
-            } else {
-                promotionsSection.style.display = 'none';
             }
         }
     }

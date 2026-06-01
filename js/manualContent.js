@@ -175,12 +175,22 @@ const MANUAL_CONTENT = [
                         description: "Long-range specialists. They aim for a few seconds (visible via laser) before firing a devastating shot. Eliminate them early!"
                     },
                     {
+                        name: "Possum Elite",
+                        image: "assets/images/units/possum_elite/type2/idle/possum_elite_idle_se.png",
+                        description: "Highly trained and intelligent, wielding an advanced machine gun that doesn't need reloading. Stay on your toes!"
+                    },
+                    {
+                        name: "Grand Sentry Talon (Assassination Target)",
+                        image: "assets/images/units/possum_eliteGuard/idle/possum_eliteGuard_idle_se.png",
+                        description: "A highly-ranked possum commander clad in elite copper plating. He wields an advanced unknown-technology energy weapon that fires devastating cyan projectiles. Highly intelligent and lethal — treat with extreme caution."
+                    },
+                    {
                         name: "The Gunslinger (Boss)",
                         image: "assets/images/units/possum_revolver/idle/possum_revolver_idle_se.png",
                         description: "Fast-moving elite with advanced assault rifles. He strafes while shooting and reloads quickly. High priority target."
                     },
                     {
-                        name: "General Possum (Boss)",
+                        name: "General Scratchus (Boss)",
                         image: "assets/images/units/possum_boss_1/idle/possum_boss_1_idle_se.png",
                         description: "The commander of the possum forces. Cycles between grenade volleys and heavy MG fire. Watch out for his death explosion!"
                     },
@@ -190,10 +200,11 @@ const MANUAL_CONTENT = [
                         description: "A heavily armored brute wielding a deadly minigun. He mows down anything in his path. Keep your distance and watch for his escort!"
                     },
                     {
-                        name: "Grand Sentry Talon (Assassination Target)",
-                        image: "assets/images/units/possum_eliteGuard/idle/possum_eliteGuard_idle_se.png",
-                        description: "A highly-ranked possum commander clad in elite copper plating. He wields an advanced unknown-technology energy weapon that fires devastating cyan projectiles. Highly intelligent and lethal — treat with extreme caution."
-                    }
+                        name: "Professor Flatbottom (Boss)",
+                        image: "assets/images/units/possum_boss_4/idle/possum_boss_4_idle_se.png",
+                        description: "A hovering possum mastermind in a levitating chair armed with an advanced rail gun. His charged shots pierce through multiple targets. While deadly at range, his hover chair makes him mobile — don't let him get the drop on you!"
+                    },
+                    
                 ]
             }
         ]

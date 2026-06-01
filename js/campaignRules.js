@@ -7,7 +7,7 @@ const CAMPAIGN_RULES = {
     BASE_PARAMETERS: {
         worldWidthFactor: { initial: 1.2, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness 
         worldHeightFactor: { initial: 1.1, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness
-        obstacleCountPhaseIncrement: { initial: 1.0, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.4  }, // 15% increase per phase, max 200% (3x)
+        obstacleCountPhaseIncrement: { initial: 1.0, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2  }, 
         enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.15, max: 5.0, randomnessFactor: 0.2 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 1 },
         sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
@@ -19,7 +19,7 @@ const CAMPAIGN_RULES = {
         intelHackTimeBase: { initial: [10, 20], perPhaseBonus: [2, 4] },
         intelSpawnChance: { initial: 0.3, perPhaseGrowthFactor: 0.1, max: 0.8 },
         intelSpawnCountMin: { initial: 1, perPhaseIncrement: 0.2, max: 1 },
-        intelSpawnCountMax: { initial: 2, perPhaseIncrement: 1, max: 4 },
+        intelSpawnCountMax: { initial: 1, perPhaseIncrement: 0.5, max: 4 },
         intelSpawnInterval: { initial: 3.0, perPhaseDecrement: 0.2, min: 1.0 },
         intelSpawnTotalLimit: { initial: 3, perPhaseIncrement: 1, max: 10 },
         numPrimaryObjectivesRange: [1, 1], // Likely always 1 primary
@@ -65,7 +65,7 @@ const CAMPAIGN_RULES = {
         },
         {
             type: "DESTROY_TARGET",
-            weight: 4,
+            weight: 3,
             unlocksPhase: 1,
             descriptionTemplateKey: "OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT", // e.g., "Destroy {targetNamePlural}: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_TARGET_TYPE_DESTROYED",
@@ -104,7 +104,7 @@ const CAMPAIGN_RULES = {
         {
             type: "INTERACT_INTEL",
             weight: 2,
-            unlocksPhase: 3,
+            unlocksPhase: 4,
             descriptionTemplateKey: "OBJECTIVE_INTERACT_INTEL_TEXT",
             completionCondition: "ALL_INTEL_CONSOLES_CAPTURED",
             isPrimary: false,
@@ -172,35 +172,36 @@ const CAMPAIGN_RULES = {
             weight: 0, unlocksPhase: 3, isBoss: true
         },
         {
+            assassinationTypeKey: "possum_eliteGuard",
+            name: "Grand Sentry Talon", callsign: "Arsenal",
+            description: "A highly-ranked possum commander clad in elite copper plating, wielding an advanced energy weapon of unknown origin. Extremely intelligent and deadly.",
+            weight: 3, unlocksPhase: 4, isBoss: false // Elite Guard is a mini-boss, not a main boss. Can appear as an assassination target in regular missions, but more likely in later phases.
+        },
+        {
             assassinationTypeKey: "possum_boss_1",
             name: "Maddog Whiskers", callsign: "Whiskers",
             description: "A cunning strategist known for his brutal tactics.",
-            weight: 0, unlocksPhase: 4, isBoss: true
-        },
-        {
-            assassinationTypeKey: "possum_boss_1",
-            name: "Lieutenant Paws", callsign: "Paws",
-            description: "A skilled tactician with a knack for ambushes.",
             weight: 0, unlocksPhase: 5, isBoss: true
-        },
-        {
-            assassinationTypeKey: "possum_revolver_boss",
-            name: "Captain Fuzzy", callsign: "Fuzzy",
-            description: "An experienced fighter with a history of leading successful raids.",
-            weight: 0, unlocksPhase: 6, isBoss: true
         },
         {
             assassinationTypeKey: "possum_boss_3",
             name: "Ironhide Igor", callsign: "Ironhide",
             description: "A heavily armored nutter with a minigun. Slow but relentless.",
+            weight: 3, unlocksPhase: 6, isBoss: true
+        },
+        {
+            assassinationTypeKey: "possum_boss_4",
+            name: "Professor Talon", callsign: "Overmind",
+            description: "A menacing possum mastermind who hovers above the battlefield in a levitating chair, wielding a devastating charged rail gun. Deadly accurate and cunning — he can fire piercing charged shots that cut through multiple targets.",
             weight: 3, unlocksPhase: 7, isBoss: true
         },
         {
-            assassinationTypeKey: "possum_eliteGuard",
-            name: "Grand Sentry Talon", callsign: "Arsenal",
-            description: "A highly-ranked possum commander clad in elite copper plating, wielding an advanced energy weapon of unknown origin. Extremely intelligent and deadly.",
-            weight: 3, unlocksPhase: 6, isBoss: false // Elite Guard is a mini-boss, not a main boss. Can appear as an assassination target in regular missions, but more likely in later phases.
+            assassinationTypeKey: "possum_revolver_boss",
+            name: "Captain Fuzzy", callsign: "Fuzzy",
+            description: "An experienced fighter with a history of leading successful raids.",
+            weight: 0, unlocksPhase: 7, isBoss: true
         },
+        
 
     ],
 

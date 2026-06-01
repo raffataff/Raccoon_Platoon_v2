@@ -60,7 +60,11 @@ const CONFIG = {
         GRENADE_AIM_INDICATOR: { COLOR: 'orange', LINE_WIDTH: 2, RADIUS_OFFSET: 6 },
         UNIT_BOBBING_ENABLED: true,
         UNIT_BOBBING_AMPLITUDE: 1,
-        UNIT_BOBBING_SPEED_FACTOR: 0.2
+        UNIT_BOBBING_SPEED_FACTOR: 0.2,
+        UNIT_HOVER_INERTIA: 0.15,
+        UNIT_HOVER_FRICTION: 3.0,
+        UNIT_HOVER_BOB_AMPLITUDE: 0.5,
+        UNIT_HOVER_BOB_SPEED: 1.5
     },
 
     // =============================================================================
@@ -165,7 +169,7 @@ const CONFIG = {
     POSSUM_GRUNT_TURN_RATE: 8.0,
 
     // --- Possum Heavy ---
-    POSSUM_HEAVY_HP: 40,
+    POSSUM_HEAVY_HP: 60,
     POSSUM_HEAVY_SPEED: 120,
     POSSUM_HEAVY_SIZE: 18,
     POSSUM_HEAVY_COLOR: '#6A4A3A',
@@ -198,16 +202,31 @@ const CONFIG = {
     POSSUM_ELITE_SIZE: 15,
     POSSUM_ELITE_COLOR: '#8B4513',
     POSSUM_ELITE_DEFAULT_WEAPON: 'POSSUM_ELITE_WEAPON',
-    POSSUM_ELITE_SPRITE_PATH: 'assets/images/units/possum_elite/',
+    POSSUM_ELITE_SPRITE_PATH: 'assets/images/units/possum_elite/type2/',
     POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.5,
     POSSUM_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite/dead/',
     POSSUM_ELITE_DEAD_SPRITE_FILES: ['possum_elite_dead1.png', 'possum_elite_dead2.png'],
     POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.275,
     PROJECTILE_COLOR_POSSUM_ELITE: '#FF4500',
     POSSUM_ELITE_TURN_RATE: 12.0,
+    
+    // --- Possum Elite Guard ---
+    POSSUM_ELITE_GUARD_HP: 200,
+    POSSUM_ELITE_GUARD_SPEED: 210,
+    POSSUM_ELITE_GUARD_SIZE: 19,
+    POSSUM_ELITE_GUARD_COLOR: '#B87333',
+    POSSUM_ELITE_GUARD_DEFAULT_WEAPON: 'POSSUM_ELITE_GUARD_WEAPON',
+    POSSUM_ELITE_GUARD_SPRITE_PATH: 'assets/images/units/possum_eliteGuard/',
+    POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR: 0.45,
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH: 'assets/images/units/possum_eliteGuard/dead/',
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES: ['possum_eliteGuard_dead1.png', 'possum_eliteGuard_dead2.png'],
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_SCALE: 0.35,
+    PROJECTILE_COLOR_POSSUM_ELITE_GUARD: '#00E5FF',
+    XP_FOR_ELITE_GUARD_KILL: 200,
+    POSSUM_ELITE_GUARD_TURN_RATE: 8.0,
 
     // --- Possum Boss 1 ---
-    POSSUM_BOSS_1_HP: 250,
+    POSSUM_BOSS_1_HP: 350,
     POSSUM_BOSS_1_SPEED: 200,
     POSSUM_BOSS_1_SIZE: 20,
     POSSUM_BOSS_1_COLOR: '#703510',
@@ -224,7 +243,7 @@ const CONFIG = {
     POSSUM_BOSS_1_TURN_RATE: 5.0,
 
     // --- Possum Boss 3 ---
-    POSSUM_BOSS_3_HP: 300,
+    POSSUM_BOSS_3_HP: 400,
     POSSUM_BOSS_3_SPEED: 150,
     POSSUM_BOSS_3_SIZE: 22,
     POSSUM_BOSS_3_COLOR: '#4a2810',
@@ -238,23 +257,24 @@ const CONFIG = {
     XP_FOR_BOSS_3_KILL: 250,
     POSSUM_BOSS_3_TURN_RATE: 6.0,
 
-    // --- Possum Elite Guard ---
-    POSSUM_ELITE_GUARD_HP: 200,
-    POSSUM_ELITE_GUARD_SPEED: 210,
-    POSSUM_ELITE_GUARD_SIZE: 19,
-    POSSUM_ELITE_GUARD_COLOR: '#B87333',
-    POSSUM_ELITE_GUARD_DEFAULT_WEAPON: 'POSSUM_ELITE_GUARD_WEAPON',
-    POSSUM_ELITE_GUARD_SPRITE_PATH: 'assets/images/units/possum_eliteGuard/',
-    POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR: 0.45,
-    POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH: 'assets/images/units/possum_eliteGuard/dead/',
-    POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES: ['possum_eliteGuard_dead1.png', 'possum_eliteGuard_dead2.png'],
-    POSSUM_ELITE_GUARD_DEAD_SPRITE_SCALE: 0.35,
-    PROJECTILE_COLOR_POSSUM_ELITE_GUARD: '#00E5FF',
-    XP_FOR_ELITE_GUARD_KILL: 200,
-    POSSUM_ELITE_GUARD_TURN_RATE: 8.0,
+    // --- Possum Boss 4 ---
+    POSSUM_BOSS_4_HP: 350,
+    POSSUM_BOSS_4_SPEED: 130,
+    POSSUM_BOSS_4_SIZE: 20,
+    POSSUM_BOSS_4_COLOR: '#1a0a2e',
+    POSSUM_BOSS_4_DEFAULT_WEAPON: 'POSSUM_BOSS_4_WEAPON',
+    POSSUM_BOSS_4_SPRITE_PATH: 'assets/images/units/possum_boss_4/',
+    POSSUM_BOSS_4_SPRITE_SCALE_FACTOR: 0.7,
+    POSSUM_BOSS_4_DEAD_SPRITE_PATH: 'assets/images/units/possum_boss_4/dead/',
+    POSSUM_BOSS_4_DEAD_SPRITE_FILES: ['possum_boss4_dead1.png', 'possum_boss4_dead2.png'],
+    POSSUM_BOSS_4_DEAD_SPRITE_SCALE: 0.4,
+    PROJECTILE_COLOR_POSSUM_BOSS_4: '#7B68EE',
+    PROJECTILE_COLOR_POSSUM_BOSS_4_CHARGED: '#00FFFF',
+    XP_FOR_BOSS_4_KILL: 300,
+    POSSUM_BOSS_4_TURN_RATE: 5.0,
 
     // --- Possum Revolver ---
-    POSSUM_REVOLVER_HP: 150,
+    POSSUM_REVOLVER_HP: 350,
     POSSUM_REVOLVER_SPEED: 180,
     POSSUM_REVOLVER_SIZE: 18,
     POSSUM_REVOLVER_COLOR: '#D2691E',
@@ -541,10 +561,27 @@ const CONFIG = {
             projectileColor: '#FF4500',
             accuracyStationary: 0.70,
             accuracyMoving: 0.35,
-            sfxFireKey: 'POSSUM_BOSS_3_WEAPON_FIRE',
+            sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.5,
             bulletLifetime: 1.8,
             bulletSpritePath: 'assets/images/projectiles/bullet_pw001_1.png',
+            bulletSpriteScale: 0.2,
+            isDefaultWeapon: true,
+            maxAmmo: Infinity
+        },
+        POSSUM_BOSS_4_WEAPON: {
+            name: "Boss 4 Rail Gun",
+            damage: 25,
+            rof: 1.5,
+            range: 700,
+            projectileSpeed: 1200,
+            projectileColor: '#7B68EE',
+            accuracyStationary: 0.90,
+            accuracyMoving: 0.75,
+            sfxFireKey: 'LASER_WEAPON_FIRE',
+            muzzleFlashScale: 2.0,
+            bulletLifetime: 2.0,
+            bulletSpritePath: 'assets/images/projectiles/bullet_gold_boss.png',
             bulletSpriteScale: 0.2,
             isDefaultWeapon: true,
             maxAmmo: Infinity
@@ -853,6 +890,36 @@ const CONFIG = {
             }
         },
 
+        POSSUM_BOSS_4: {
+            ARENA_RADIUS: 280,
+            DETECTION_RANGE: 600,
+            MIN_ENGAGEMENT_DISTANCE: 350,
+            BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1500,
+
+            DEATH_EXPLOSION_RADIUS: 250,
+            DEATH_EXPLOSION_SFX: 'GRENADE_EXPLODE',
+
+            CHASE_DESTINATION_REFRESH_INTERVAL: 0.8,
+            MIN_CHASE_DEVIATION_UPDATE_INTERVAL: 0.4,
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 4,
+            CHASE_PREDICTION_TIME_FACTOR: 0.3,
+
+            CHARGED_SHOT_COOLDOWN: 4.0,
+
+            initialGuardPack: {
+                enabled: true,
+                countRange: [3, 5],
+                countPerPhaseBonus: 0,
+                spawnRadius: 140,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 2 },
+                    { type: 'possum_sniper', weight: 2 },
+                    { type: 'possum_heavy', weight: 2 },
+                    { type: 'possum_elite', weight: 3 }
+                ]
+            }
+        },
+
         POSSUM_ELITE_GUARD: {
             ARENA_RADIUS: 220,
             DETECTION_RANGE: 550,
@@ -868,7 +935,7 @@ const CONFIG = {
             CHASE_PREDICTION_TIME_FACTOR: 0.30,
 
             initialGuardPack: {
-                enabled: true,
+                enabled: false,
                 countRange: [2, 4],
                 countPerPhaseBonus: 0,
                 spawnRadius: 120,
@@ -1213,11 +1280,11 @@ const CONFIG = {
                 countPerPhaseBonus: 0.3,
                 spawnRadius: 350,
                 unitPool: [
-                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_grunt', weight: 5 },
                     { type: 'possum_heavy', weight: 5 },
-                    { type: 'possum_sniper', weight: 0.4 },
-                    { type: 'possum_elite', weight: 0.2 },
-                    { type: 'possum_eliteGuard', weight: 0.1 }
+                    { type: 'possum_sniper', weight: 1 },
+                    { type: 'possum_elite', weight: 0.5 },
+                    { type: 'possum_eliteGuard', weight: 0.2 }
                 ]
             }
         },
@@ -1234,7 +1301,7 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             placementBuffer: 150,
-            decorationBuffer: 100,
+            decorationBuffer: 200,
         },
         {
             type: 'empty_possum_hut_2', name: 'Empty Possum Hut', color: '#8B4513',
@@ -1249,7 +1316,7 @@ const CONFIG = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.51), radiusX: (w => w * 0.35), radiusY: (h => h * 0.27) },
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             placementBuffer: 150,
-            decorationBuffer: 100,
+            decorationBuffer: 200,
         },
 
 
@@ -1903,6 +1970,7 @@ const CONFIG = {
         LASER_WEAPON_2_FIRE: { path: 'assets/audio/sfx/advanced_laser_2.ogg', defaultVolume: 0.4, pitchVariation: 0.05 },
         POSSUM_BOSS_1_WEAPON_FIRE: { path: 'assets/audio/sfx/grenade_launcher.ogg', defaultVolume: 0.2, pitchVariation: 0.1 },
         POSSUM_BOSS_3_WEAPON_FIRE: { path: 'assets/audio/sfx/gun_possum_heavy.ogg', defaultVolume: 0.3, pitchVariation: 0.1 },
+        POSSUM_BOSS_4_WEAPON_FIRE: { path: 'assets/audio/sfx/advanced_laser_1.ogg', defaultVolume: 0.5, pitchVariation: 0.05 },
         POSSUM_ELITE_GUARD_WEAPON_FIRE: { path: 'assets/audio/sfx/advanced_laser_2.ogg', defaultVolume: 0.35, pitchVariation: 0.05 },
 
         GRENADE_EXPLODE: { path: 'assets/audio/sfx/grenade_explode.ogg', defaultVolume: 0.3, pitchVariation: 0.4 },

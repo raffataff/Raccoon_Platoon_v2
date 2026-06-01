@@ -52,6 +52,9 @@ class PossumBoss3 extends Unit {
         this.deadSpriteFilesKey = 'POSSUM_BOSS_3_DEAD_SPRITE_FILES';
         this.deadSpriteScaleKey = 'POSSUM_BOSS_3_DEAD_SPRITE_SCALE';
 
+        // Set to true for bosses that use hovering-chair / flight movement (inertia + no walk bobbing)
+        // this.hovers = true;
+
         this.weaponName = CONFIG.POSSUM_BOSS_3_DEFAULT_WEAPON || 'POSSUM_BOSS_3_WEAPON';
         this.canShootWhileMoving = false; // or true for mobile bosses
 

@@ -11,6 +11,7 @@ const SPEECH_CONFIG = {
         "PossumElite": 4,
         "PossumBoss1": 5,
         "PossumBoss3": 5,
+        "PossumBoss4": 5,
         "PossumEliteGuard": 5
     },
 

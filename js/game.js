@@ -772,6 +772,15 @@ class Game {
                 deadFiles: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_FILES
             },
             {
+                name: 'possum_boss_4',
+                basePath: CONFIG.POSSUM_BOSS_4_SPRITE_PATH,
+                actions: {
+                    idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
+                },
+                deadPath: CONFIG.POSSUM_BOSS_4_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_BOSS_4_DEAD_SPRITE_FILES
+            },
+            {
                 name: 'possum_eliteGuard',
                 basePath: CONFIG.POSSUM_ELITE_GUARD_SPRITE_PATH,
                 actions: {
@@ -1019,8 +1028,10 @@ class Game {
             { name: 'oak_single', files: TEMPERATE_BIOME.spritePaths.tree_oak_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_single?.path, type: 'single' },
             { name: 'oak_double', files: TEMPERATE_BIOME.spritePaths.tree_oak_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_double?.path, type: 'single' },
             { name: 'oak_fallen_small', files: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.path, type: 'single' },
+            { name: 'tree_oak_fallen_large', files: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_large?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_large?.path, type: 'single' },
             { name: 'tree_willow', files: TEMPERATE_BIOME.spritePaths.tree_willow?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow?.path, type: 'single' },
             { name: 'tree_birch', files: TEMPERATE_BIOME.spritePaths.tree_birch?.files, path: TEMPERATE_BIOME.spritePaths.tree_birch?.path, type: 'single' },
+            { name: 'birch_fallen', files: TEMPERATE_BIOME.spritePaths.birch_fallen?.files, path: TEMPERATE_BIOME.spritePaths.birch_fallen?.path, type: 'single' },
             { name: 'tree_pine', files: TEMPERATE_BIOME.spritePaths.tree_pine?.files, path: TEMPERATE_BIOME.spritePaths.tree_pine?.path, type: 'single' },
             { name: 'tree_maple_single', files: TEMPERATE_BIOME.spritePaths.tree_maple_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_single?.path, type: 'single' },
             { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
@@ -1657,7 +1668,7 @@ class Game {
             const isBossMission = objectives.some(obj => {
                 if (obj.type === 'ASSASSINATION' && obj.targetDetails) {
                     const targetKey = obj.targetDetails.assassinationTypeKey;
-                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss' || targetKey === 'possum_boss_3' || targetKey === 'possum_eliteGuard';
+                    return targetKey === 'possum_boss_1' || targetKey === 'possum_revolver_boss' || targetKey === 'possum_boss_3' || targetKey === 'possum_boss_4' || targetKey === 'possum_eliteGuard';
                 }
                 return false;
             });

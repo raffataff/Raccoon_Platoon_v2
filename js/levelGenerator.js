@@ -1011,65 +1011,11 @@ class LevelGenerator {
         this.level.computeReachableCells(playerSpawnCenterX, playerSpawnCenterY);
     }
 
-    _finalizeObjectivePositions(objectives) {
-        if (!this.level.navGrid || !this.level.reachableGrid) {
-            return;
-        }
-
-        const navGrid = this.level.navGrid;
-        const reachableGrid = this.level.reachableGrid;
-        const gridW = this.level.gridWidth;
-        const gridH = this.level.gridHeight;
-
-        for (const obj of objectives) {
-            if (obj.isDestroyed) continue;
-
-            const objCx = obj.x + obj.width / 2;
-            const objCy = obj.y + obj.height / 2;
-            const gridPos = this.level.worldToGridCoords(objCx, objCy);
-
-            const outOfBounds = gridPos.x < 0 || gridPos.x >= gridW || gridPos.y < 0 || gridPos.y >= gridH;
-            if (outOfBounds || navGrid[gridPos.y][gridPos.x] === 1 || reachableGrid[gridPos.y][gridPos.x] === 1) {
-                continue;
-            }
-
-            if (CONFIG.DEBUG_LOGGING) console.log(`[Level Gen] Objective ${obj.name || obj.type} at (${obj.x.toFixed(0)}, ${obj.y.toFixed(0)}) is in a dead area. Relocating...`);
-
-            let moved = false;
-
-            for (let r = 1; r <= 40 && !moved; r++) {
-                for (let dy = -r; dy <= r && !moved; dy++) {
-                    for (let dx = -r; dx <= r && !moved; dx++) {
-                        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
-                        const newGridX = gridPos.x + dx;
-                        const newGridY = gridPos.y + dy;
-                        if (newGridX < 0 || newGridX >= gridW || newGridY < 0 || newGridY >= gridH) continue;
-                        if (navGrid[newGridY][newGridX] !== 0 || reachableGrid[newGridY][newGridX] !== 1) continue;
-
-                        const candidate = this.level.gridToWorldCoords(newGridX, newGridY);
-                        const testObj = { x: candidate.x - obj.width / 2, y: candidate.y - obj.height / 2, width: obj.width, height: obj.height, collisionShape: obj.collisionShape, collisionShapes: obj.collisionShapes };
-                        const testShape = this.level._getObstacleCollisionShape(testObj);
-                        if (!this._isPlacementInvalid(testShape, obj, this.level.obstacles, [])) {
-                            obj.x = testObj.x;
-                            obj.y = testObj.y;
-                            moved = true;
-                        }
-                    }
-                }
-            }
-
-            if (!moved && CONFIG.DEBUG_LOGGING) {
-                console.warn(`[Level Gen] Could not relocate objective ${obj.name || obj.type} to a reachable cell.`);
-            }
-        }
-    }
-
     _finalizeEnemyPositions(allEnemies) {
         if (!this.level.navGrid) {
             return;
         }
 
-        const gridCellSize = this.level.gridCellSize;
         const navGrid = this.level.navGrid;
         const reachableGrid = this.level.reachableGrid;
         const gridW = this.level.gridWidth;
@@ -1107,7 +1053,26 @@ class LevelGenerator {
                 }
 
                 if (!moved) {
-                    for (let r = 1; r <= 15 && !moved; r++) {
+                    for (let r = 31; r <= 60 && !moved; r++) {
+                        for (let dy = -r; dy <= r && !moved; dy++) {
+                            for (let dx = -r; dx <= r && !moved; dx++) {
+                                if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                                const newGridX = gridPos.x + dx;
+                                const newGridY = gridPos.y + dy;
+                                if (newGridX >= 0 && newGridX < gridW && newGridY >= 0 && newGridY < gridH
+                                    && navGrid[newGridY][newGridX] === 0 && reachableGrid[newGridY][newGridX] === 1) {
+                                    const newWorldPos = this.level.gridToWorldCoords(newGridX, newGridY);
+                                    enemy.x = newWorldPos.x;
+                                    enemy.y = newWorldPos.y;
+                                    moved = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!moved) {
+                    for (let r = 1; r <= 30 && !moved; r++) {
                         for (let dy = -r; dy <= r && !moved; dy++) {
                             for (let dx = -r; dx <= r && !moved; dx++) {
                                 if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
@@ -1519,6 +1484,53 @@ class LevelGenerator {
                 if (!bossSpawned) {
 //                    console.warn(`[Level Gen] Could not find suitable spawn for Boss 3 Target: ${targetInfo.name}.`);
                 }
+            } else if (targetInfo.assassinationTypeKey === 'possum_boss_4') {
+                let bossX, bossY, bossSpawned = false;
+                const bossMaxAttempts = 50;
+                const bossArenaRadius = CONFIG.AI.POSSUM_BOSS_4.ARENA_RADIUS || 200;
+                const bossMinDistFromPlayer = CONFIG.AI.POSSUM_BOSS_4.BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER || 600;
+                const playerSpawnCenterX = playerSpawnZone.x + playerSpawnZone.width / 2;
+                const playerSpawnCenterY = playerSpawnZone.y + playerSpawnZone.height / 2;
+
+                const bossSpawnMinX = playableMinX + bossArenaRadius;
+                const bossSpawnMaxX = playableMaxX - bossArenaRadius;
+                const bossSpawnMinY = playableMinY + bossArenaRadius;
+                const bossSpawnMaxY = playableMinY + (playableHeight * 0.7) - bossArenaRadius;
+
+                for (let attempt = 0; attempt < bossMaxAttempts; attempt++) {
+                    bossX = this.rng.nextFloat(bossSpawnMinX, bossSpawnMaxX);
+                    bossY = this.rng.nextFloat(bossSpawnMinY, bossSpawnMaxY);
+
+                    const distToPlayer = distance(bossX, bossY, playerSpawnCenterX, playerSpawnCenterY);
+                    if (distToPlayer < bossMinDistFromPlayer) continue;
+
+                    const arenaZoneShape = { type: 'circle', x: bossX, y: bossY, radius: bossArenaRadius };
+                    if (!this._isPlacementInvalid(arenaZoneShape, { isDecoration: false }, this.level.obstacles, extraKeepOutZones)) {
+                        const boss = new PossumBoss4(bossX, bossY, this.game);
+                        this.game.enemyUnits.push(boss);
+                        allSpawnedEnemiesDuringGen.push(boss);
+                        if (this.game.spatialGrid) {
+                            this.game.spatialGrid.addObject(boss);
+                        }
+                        assassinationObjectiveInstance.targetUnitId = boss.id;
+                        bossSpawned = true;
+
+                        const bossDefinition = { initialGuardPack: (CONFIG.AI.POSSUM_BOSS_4 && CONFIG.AI.POSSUM_BOSS_4.initialGuardPack) ? CONFIG.AI.POSSUM_BOSS_4.initialGuardPack : { enabled: false } };
+                        this._spawnInitialGuardsForObject(boss, bossDefinition, allSpawnedEnemiesDuringGen);
+
+                        const arenaKeepOutRect = {
+                            x: bossX - bossArenaRadius,
+                            y: bossY - bossArenaRadius,
+                            width: bossArenaRadius * 2,
+                            height: bossArenaRadius * 2
+                        };
+                        extraKeepOutZones.push(arenaKeepOutRect);
+                        break;
+                    }
+                }
+                if (!bossSpawned) {
+//                    console.warn(`[Level Gen] Could not find suitable spawn for Boss 4 Target: ${targetInfo.name}.`);
+                }
             } else if (targetInfo.assassinationTypeKey === 'possum_eliteGuard') {
                 let bossX, bossY, bossSpawned = false;
                 const bossMaxAttempts = 50;
@@ -1612,8 +1624,7 @@ class LevelGenerator {
 
         const objectivePlacementMaxY = playerSpawnZone.y - 280;
 
-        // Mission target placement will be deferred to after obstacle placement
-        // so that reachability can be checked (dead areas detected).
+        this._placeMissionObjectives(missionObjectives, objectivePlacementMaxY, playableMinX, playableMaxX, playableMinY, playableMaxY, playerSpawnZone, extraKeepOutZones, allSpawnedEnemiesDuringGen, preloadedAssetImages);
 
         const obsGenCfg = genConfig.OBSTACLES || {};
         const baseNumObstacles = obsGenCfg.BASE_COUNT || 20;
@@ -2109,16 +2120,6 @@ class LevelGenerator {
         this.level.generateNavigationGrid(worldWidth, worldHeight);
         this._computeReachability();
 
-        this._placeMissionObjectives(missionObjectives, objectivePlacementMaxY, playableMinX, playableMaxX, playableMinY, playableMaxY, playerSpawnZone, extraKeepOutZones, allSpawnedEnemiesDuringGen, preloadedAssetImages);
-
-        const spawnedMissionTargets = this.level.missionTargetObstacles || [];
-        const hutsSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_hut')).length;
-        const barracksSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_barracks')).length;
-        const towersSpawned = spawnedMissionTargets.filter(o => o.type.startsWith('possum_relay_tower')).length;
-        if (hutsSpawned === 0 && barracksSpawned === 0 && towersSpawned === 0) {
-//            console.error(`[Level Gen] CRITICAL: No mission targets (huts/towers) were spawned! This will lock the mission!`);
-        }
-
         const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {};
         const enemySpawnMinY = playableMinY;
         const enemySpawnMaxY = playerSpawnZone.y - (enemySpawnCfg.MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE || 100);
@@ -2421,7 +2422,6 @@ class LevelGenerator {
             }
         }
 
-        this._finalizeObjectivePositions(this.level.missionTargetObstacles);
         this._finalizeEnemyPositions(allSpawnedEnemiesDuringGen);
 
         const playerSpawnLocations = [];

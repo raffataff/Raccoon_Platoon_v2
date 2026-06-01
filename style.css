@@ -2213,68 +2213,67 @@ input[type="range"]::-moz-range-thumb {
     background: rgba(192, 57, 43, 0.12);
 }
 
-.roster-comparison {
+.phase-roster-content-wrapper {
     display: flex;
-    gap: 12px;
-    flex-shrink: 0;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    gap: 10px;
 }
 
-.roster-before-section,
-.roster-after-section {
+.phase-roster-section {
     flex: 1;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden;
 }
 
-.roster-before-section h4,
-.roster-after-section h4,
-.roster-new-recruits-section h4,
-.roster-promotions-section h4 {
-    margin: 0 0 6px 0;
-    font-size: 0.85em;
+.phase-roster-section h4,
+.phase-new-recruits-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 0.95em;
     color: #C8C6B8;
     text-transform: uppercase;
     letter-spacing: 0.5px;
     border-bottom: 1px solid #302D2A;
-    padding-bottom: 5px;
+    padding-bottom: 6px;
     flex-shrink: 0;
 }
 
-.roster-comparison .unit-cards-grid {
-    flex: 1;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    padding-right: 4px;
-    min-height: 0;
-}
-
-.roster-new-recruits-section,
-.roster-promotions-section {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    flex-shrink: 0;
-    margin-top: 8px;
-}
-
-.roster-new-recruits-section .unit-cards-grid,
-.roster-promotions-section .unit-cards-grid {
+#phaseRosterUnitList,
+#phaseNewRecruitsList {
     display: flex;
     flex-wrap: wrap;
-    gap: 4px;
-    max-height: 120px;
+    gap: 18px;
+    flex: 1;
     overflow-y: auto;
+    align-content: flex-start;
+    padding: 5px;
 }
 
-.roster-comparison .unit-card,
-.roster-new-recruits-section .unit-card,
-.roster-promotions-section .unit-card {
-    transform: scale(0.85);
+.phase-new-recruits-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: 240px;
+    flex-shrink: 0;
+}
+
+.phase-new-recruits-section .unit-cards-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+    overflow-y: auto;
+    align-content: flex-start;
+}
+
+#phaseTabRoster .unit-card {
+    transform: scale(0.82);
     transform-origin: top left;
-    margin-bottom: -20px;
+    margin-bottom: -28px;
+    margin-right: -18px;
 }
 
 .honor-roll-list {
