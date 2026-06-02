@@ -203,7 +203,7 @@ const CONFIG = {
     POSSUM_ELITE_COLOR: '#8B4513',
     POSSUM_ELITE_DEFAULT_WEAPON: 'POSSUM_ELITE_WEAPON',
     POSSUM_ELITE_SPRITE_PATH: 'assets/images/units/possum_elite/type2/',
-    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.5,
+    POSSUM_ELITE_SPRITE_SCALE_FACTOR: 0.25,
     POSSUM_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/possum_elite/dead/',
     POSSUM_ELITE_DEAD_SPRITE_FILES: ['possum_elite_dead1.png', 'possum_elite_dead2.png'],
     POSSUM_ELITE_DEAD_SPRITE_SCALE: 0.275,
@@ -1021,16 +1021,16 @@ const CONFIG = {
     // =============================================================================
     Z_INDEX: {
         BACKGROUND: -5000,
-        DESTROYED_OBSTACLE: -1,
-        USED_PICKUP: -1,
+        DESTROYED_OBSTACLE: -20,
+        USED_PICKUP: -10,
+        DESTROYED_BUILDING: -5,
         PICKUP: 0,
         PROJECTILE: 0,
         DEAD_UNIT: 10,
-        DEFAULT: 1100,
-        DESTROYED_BUILDING: 1500,
+        DEFAULT: 100,
+        VISUAL_EFFECT: 300,
         FLYING_BIRD: 2000,
         UFO: 2500,
-        VISUAL_EFFECT: 3000,
         NIGHT_OVERLAY: 4000,
     },
 
@@ -1044,6 +1044,8 @@ const CONFIG = {
         'fence_barbed_straight_short_1.png', 'fence_barbed_straight_short_2.png', 'fence_barbed_straight_short_3.png', 'fence_barbed_straight_short_4.png', 'fence_barbed_straight_short_5.png', 'fence_barbed_straight_short_6.png'
     ],
     FENCE_BARBED_LONG_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png', 'fence_barbed_straight_long_3.png', 'fence_barbed_straight_long_4.png', 'fence_barbed_straight_long_5.png', 'fence_barbed_straight_long_6.png'],
+
+    FENCE_BARBED_LONG_BORDER_SPRITE_FILES: ['fence_barbed_straight_long_1.png', 'fence_barbed_straight_long_2.png', 'fence_barbed_straight_long_3.png', 'fence_barbed_straight_long_4.png', 'fence_barbed_straight_long_5.png', 'fence_barbed_straight_long_6.png'],
 
     POSSUM_BARRACKS_1_SPRITE_PATH: 'assets/images/objects/possums/barracks/',
     POSSUM_BARRACKS_1_SPRITE_FILES: [
@@ -1150,13 +1152,24 @@ const CONFIG = {
             canBeFlipped: true,
             placementBuffer: 160,
         },
-
+        {
+            type: 'fence_barbed_straight_long_border', name: 'Barbed Wire Fence Straight Long Border',
+            color: '#8B4513', destructible: false,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 1, isDecoration: false,
+            spriteScale: 0.5,
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.98), height: (h => h * 0.03) },
+            canBeFlipped: true,
+            placementBuffer: 160,
+        },
         {
             type: 'explosive_barrel', name: 'Explosive Barrel', color: '#A00000',
             destructible: true, hp: 10, maxHp: 10,
             blocksMovement: true, providesCover: true,
             spawnWeight: 3,
             explosionDamage: 50, explosionAoeRadius: 100,
+            flameCount: 2,
+            flameOffsetY: 0,
             spriteScale: 0.13,
             spriteDestroyedScale: 0.13,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.3), offsetY: (h => h * 0.066), width: (w => w * 0.5), height: (h => h * 0.86) },
@@ -1169,6 +1182,8 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2,
             explosionDamage: 75, explosionAoeRadius: 120,
+            flameCount: 3,
+            flameOffsetY: 0,
             spriteScale: 0.1,
             spriteDestroyedScale: 0.1,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.2), offsetY: (h => h * 0.066), width: (w => w * 0.66), height: (h => h * 0.65) },
@@ -1181,6 +1196,8 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2,
             explosionDamage: 100, explosionAoeRadius: 160,
+            flameCount: 5,
+            flameOffsetY: 0,
             spriteScale: 0.1,
             spriteDestroyedScale: 0.1,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.03), offsetY: (h => h * 0.05), width: (w => w * 0.7), height: (h => h * 0.7) },
@@ -1313,7 +1330,7 @@ const CONFIG = {
             spriteScale: 0.6,
             spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_2_destroyed.png',
             spriteDestroyedScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.51), radiusX: (w => w * 0.35), radiusY: (h => h * 0.27) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
             sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             placementBuffer: 150,
             decorationBuffer: 200,
@@ -1491,7 +1508,7 @@ const CONFIG = {
         WORLD_MARGIN: 5,
         BORDER_WIDTH: 1,
         BORDER_COLOR: '#25221D',
-        BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long',
+        BORDER_OBSTACLE_TYPE: 'fence_barbed_straight_long_border',
         PLAYER_SPAWN_ZONE: {
             MIN_WIDTH: 680,
             MAX_WIDTH: 900,
@@ -1507,6 +1524,7 @@ const CONFIG = {
                 'possum_relay_tower',
                 'fence_barbed_straight_short',
                 'fence_barbed_straight_long',
+                'fence_barbed_straight_long_border',
                 'empty_possum_hut_2',
                 'general_possum_building_large',
                 'possum_turret',
@@ -1742,6 +1760,20 @@ const CONFIG = {
                 SCALE: 0.5
             }
         },
+        FIRE: {
+            SPRITE_PATH: 'assets/images/effects/fire_1.png',
+            FRAME_WIDTH: 85,
+            FRAME_HEIGHT: 85,
+            IGNITION_FRAMES: 12,
+            LOOP_FRAMES: 12,
+            LOOP_START_FRAME: 12,
+            ANIMATION_SPEED: 0.08,
+            SCALE: 0.4,
+            MAX_LIFETIME: 60.0,
+            SPREAD_X: 25,
+            SPREAD_Y: 20,
+            OPACITY_FADE_START_TIME: 55.0
+        },
         HOSTAGE_HELP_TEXT: {
             // Hostage help call out text
             TEXT_OPTIONS: [
@@ -1786,11 +1818,11 @@ const CONFIG = {
             MIN_Y_SPAWN_FACTOR: 0.1,
             MAX_Y_SPAWN_FACTOR: 0.6,
             FLOCK_SIZE_MIN: 1,
-            FLOCK_SIZE_MAX: 6,
-            FLOCK_SPACING_X: 50,
+            FLOCK_SIZE_MAX: 5,
+            FLOCK_SPACING_X: 30,
             FLOCK_SPACING_Y: 20,
             SPAWN_INTERVAL_MIN_SECONDS: 5,
-            SPAWN_INTERVAL_MAX_SECONDS: 30,
+            SPAWN_INTERVAL_MAX_SECONDS: 40,
             SCALE: 0.45,
         },
         UFO: {

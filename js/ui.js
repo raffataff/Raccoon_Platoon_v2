@@ -2142,25 +2142,13 @@ class UI {
             card.appendChild(promotionBadge);
         }
 
-        // Info Row - Dogtag container with rank icon and details
+        // Info Row - Dogtag container with name, stats, rank icon, xp
         const infoRow = document.createElement('div');
         infoRow.className = 'unit-card-info-row';
 
-        // Dogtag Container (background + rank icon + details)
         const dogtagContainer = document.createElement('div');
         dogtagContainer.className = 'unit-card-dogtag';
 
-        // Left side: Rank Icon
-        const rankIconDiv = document.createElement('div');
-        rankIconDiv.className = 'card-rank-icon';
-        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
-        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
-        if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
-            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
-        }
-        dogtagContainer.appendChild(rankIconDiv);
-
-        // Right side: Details (name, rank, status)
         const detailsDiv = document.createElement('div');
         detailsDiv.className = 'card-details';
 
@@ -2169,14 +2157,24 @@ class UI {
         nameDiv.textContent = recruit.name;
         detailsDiv.appendChild(nameDiv);
 
+        const statsRow = document.createElement('div');
+        statsRow.className = 'card-stats-row';
+
         const rankDiv = document.createElement('div');
         rankDiv.className = 'card-rank';
-        if (isPromoted) {
-            rankDiv.textContent = recruit.rank || 'Recruit';
-        } else {
-            rankDiv.textContent = recruit.rank || 'Recruit';
+        rankDiv.textContent = recruit.rank || 'Recruit';
+        statsRow.appendChild(rankDiv);
+
+        const rankIconDiv = document.createElement('div');
+        rankIconDiv.className = 'card-rank-icon';
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath && rankIconConfig[recruit.rank]) {
+            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[recruit.rank]}')`;
         }
-        detailsDiv.appendChild(rankDiv);
+        statsRow.appendChild(rankIconDiv);
+
+        detailsDiv.appendChild(statsRow);
 
         const statusDiv = document.createElement('div');
         if (type === 'fallen') {
@@ -3393,8 +3391,8 @@ class UI {
 
         if (unitList) {
             unitList.innerHTML = '';
-            if (data.endingRaccoons && data.endingRaccoons.length > 0) {
-                data.endingRaccoons.forEach(r => {
+            if (data.totalSurvivingRaccoons && data.totalSurvivingRaccoons.length > 0) {
+                data.totalSurvivingRaccoons.forEach(r => {
                     unitList.appendChild(this._createPostMissionRecruitCard(r, 'survivor'));
                 });
             }
@@ -3403,7 +3401,7 @@ class UI {
                     unitList.appendChild(this._createPostMissionRecruitCard(r, 'fallen'));
                 });
             }
-            if ((!data.endingRaccoons || data.endingRaccoons.length === 0) &&
+            if ((!data.totalSurvivingRaccoons || data.totalSurvivingRaccoons.length === 0) &&
                 (!data.totalFallenRaccoons || data.totalFallenRaccoons.length === 0)) {
                 unitList.innerHTML = '<div class="no-entry">Roster data unavailable.</div>';
             }
@@ -3489,15 +3487,6 @@ class UI {
         const dogtagContainer = document.createElement('div');
         dogtagContainer.className = 'unit-card-dogtag';
 
-        const rankIconDiv = document.createElement('div');
-        rankIconDiv.className = 'card-rank-icon';
-        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
-        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
-        if (rankIconConfig && rankIconPath && rankIconConfig[r.rank]) {
-            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[r.rank]}')`;
-        }
-        dogtagContainer.appendChild(rankIconDiv);
-
         const detailsDiv = document.createElement('div');
         detailsDiv.className = 'card-details';
 
@@ -3506,10 +3495,24 @@ class UI {
         nameDiv.textContent = r.name;
         detailsDiv.appendChild(nameDiv);
 
+        const statsRow = document.createElement('div');
+        statsRow.className = 'card-stats-row';
+
         const rankDiv = document.createElement('div');
         rankDiv.className = 'card-rank';
         rankDiv.textContent = r.rank || 'Recruit';
-        detailsDiv.appendChild(rankDiv);
+        statsRow.appendChild(rankDiv);
+
+        const rankIconDiv = document.createElement('div');
+        rankIconDiv.className = 'card-rank-icon';
+        const rankIconConfig = CONFIG.UI_SETTINGS?.RANK_ICON_FILES;
+        const rankIconPath = CONFIG.UI_SETTINGS?.RANK_ICON_PATH;
+        if (rankIconConfig && rankIconPath && rankIconConfig[r.rank]) {
+            rankIconDiv.style.backgroundImage = `url('${rankIconPath}${rankIconConfig[r.rank]}')`;
+        }
+        statsRow.appendChild(rankIconDiv);
+
+        detailsDiv.appendChild(statsRow);
 
         const xpDiv = document.createElement('div');
         xpDiv.className = 'card-xp';

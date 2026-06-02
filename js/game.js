@@ -392,6 +392,18 @@ class Game {
                     }));
                 }
             }
+            const fireConfig = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.FIRE;
+            if (fireConfig && fireConfig.SPRITE_PATH) {
+                const path = fireConfig.SPRITE_PATH;
+                if (!this.preloadedImages[path]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload FAILED - Misc] Fire sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                        img.src = path;
+                    }));
+                }
+            }
         }
         // Preload shootout enemy tilesheets (grunt and heavy)
         if (CONFIG.SHOOTOUT_MODE && CONFIG.SHOOTOUT_MODE.ENEMY_TILESHEET) {
@@ -989,6 +1001,7 @@ class Game {
             { name: 'tropical_pond', files: TROPICAL_BIOME.spritePaths.tropical_pond?.files, path: TROPICAL_BIOME.spritePaths.tropical_pond?.path, type: 'single' },
             { name: 'fence_barbed_short', files: CONFIG.FENCE_BARBED_SHORT_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
             { name: 'fence_barbed_long', files: CONFIG.FENCE_BARBED_LONG_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
+            { name: 'fence_barbed_straight_long_border', files: CONFIG.FENCE_BARBED_LONG_BORDER_SPRITE_FILES, path: CONFIG.FENCE_BARBED_SPRITE_PATH, type: 'single' },
             { name: 'bush_large', files: TROPICAL_BIOME.spritePaths.bush_large?.files, path: TROPICAL_BIOME.spritePaths.bush_large?.path, type: 'single' },
             { name: 'rock_medium', files: TROPICAL_BIOME.spritePaths.rock_medium?.files, path: TROPICAL_BIOME.spritePaths.rock_medium?.path, type: 'single' },
             { name: 'rock_large', files: TROPICAL_BIOME.spritePaths.rock_large?.files, path: TROPICAL_BIOME.spritePaths.rock_large?.path, type: 'single' },
@@ -3594,9 +3607,15 @@ class Game {
 
                 // EXTRACTION objective - always re-evaluate (handles hut spawns after extraction, re-entry after raccoon death)
                 if (obj.type === 'EXTRACTION') {
-                    const zoneStatus = this.checkRaccoonsInExtractionZone();
-                    obj.currentProgress = zoneStatus.anyInZone ? 1 : 0;
-                    obj.isComplete = zoneStatus.allInZone;
+                    const hasHostageRescue = this.currentMissionParams.objectives.some(o => o.type === 'RESCUE_HOSTAGES' || o.type === 'RESCUE_TAKEN_HOSTAGE');
+                    if (hasHostageRescue) {
+                        obj.currentProgress = this.checkAllRescuedHostagesInExtractionZone() ? 1 : 0;
+                        obj.isComplete = obj.currentProgress >= 1;
+                    } else {
+                        const zoneStatus = this.checkRaccoonsInExtractionZone();
+                        obj.currentProgress = zoneStatus.anyInZone ? 1 : 0;
+                        obj.isComplete = zoneStatus.allInZone;
+                    }
 
                     // Reveal extraction zone when ALL OTHER objectives are complete
                     // Don't include EXTRACTION itself in the check - circular dependency
@@ -3646,13 +3665,13 @@ class Game {
             const hasExtractionObjective = this.currentMissionParams && this.currentMissionParams.objectives &&
                 this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
             
-            // Check if there's a RESCUE_HOSTAGES objective and if extraction zone is revealed
+            // Check if there's a hostage rescue objective and if extraction zone is revealed
             const hasRescueObjective = this.currentMissionParams && this.currentMissionParams.objectives &&
-                this.currentMissionParams.objectives.some(o => o.type === 'RESCUE_HOSTAGES');
-            const rescueObj = hasRescueObjective ? this.currentMissionParams.objectives.find(o => o.type === 'RESCUE_HOSTAGES') : null;
+                this.currentMissionParams.objectives.some(o => o.type === 'RESCUE_HOSTAGES' || o.type === 'RESCUE_TAKEN_HOSTAGE');
+            const rescueObj = hasRescueObjective ? this.currentMissionParams.objectives.find(o => o.type === 'RESCUE_HOSTAGES' || o.type === 'RESCUE_TAKEN_HOSTAGE') : null;
             const extractionZoneRevealed = rescueObj && rescueObj.extractionZoneRevealed;
 
-            // Prevent ending mission for non-phase-finale missions with RESCUE_HOSTAGES until
+            // Prevent ending mission for non-phase-finale missions with hostage rescue until
             // extraction zone is revealed and all rescued hostages are in the zone
             if (hasRescueObjective && !hasExtractionObjective) {
                 if (!extractionZoneRevealed) {
@@ -5025,6 +5044,17 @@ try {
         }
         if (type === 'barrel_explosion' && data) {
             this.visualEffects.push(new SpriteExplosionEffect(data.x, data.y, data.radius, this, 'BARREL'));
+            return;
+        }
+        if (type === 'fire' && data && data.anchorObstacle) {
+            const cfg = CONFIG.VISUAL_EFFECTS.FIRE;
+            const flameCount = data.flameCount || 0;
+            const flameOffsetY = data.flameOffsetY || 0;
+            for (let i = 0; i < flameCount; i++) {
+                const spreadX = cfg ? ((Math.random() - 0.5) * cfg.SPREAD_X * 2) : 0;
+                const spreadY = cfg ? (-Math.random() * (cfg.SPREAD_Y || 15)) : 0;
+                this.visualEffects.push(new FireEffect(data.anchorObstacle, this, spreadX, spreadY, flameOffsetY));
+            }
             return;
         }
         if (type === 'promotion' && data && data.unitId) {

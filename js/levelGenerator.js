@@ -1147,8 +1147,8 @@ class LevelGenerator {
         let borderSpritePath = null;
 
         if (borderObstacleTemplate) {
-            if (borderObstacleTemplate.type === 'fence_barbed_straight_long' && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES && CONFIG.FENCE_BARBED_LONG_SPRITE_FILES.length > 0) {
-                borderSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + this.rng.pickFrom(CONFIG.FENCE_BARBED_LONG_SPRITE_FILES);
+            if (borderObstacleTemplate.type === 'fence_barbed_straight_long_border' && CONFIG.FENCE_BARBED_LONG_BORDER_SPRITE_FILES && CONFIG.FENCE_BARBED_LONG_BORDER_SPRITE_FILES.length > 0) {
+                borderSpritePath = (CONFIG.FENCE_BARBED_SPRITE_PATH || '') + this.rng.pickFrom(CONFIG.FENCE_BARBED_LONG_BORDER_SPRITE_FILES);
             } else if (borderObstacleTemplate.spriteNormal) {
                 borderSpritePath = borderObstacleTemplate.spriteNormal;
             }
@@ -1874,7 +1874,8 @@ class LevelGenerator {
                     }
                 }
                 if (placementValid) {
-                    const isTreeType = template.type.startsWith('tree_palm') || template.type.startsWith('tree_deciduous');
+                    const hasFallenTreeType = !!template.fallenTreeType;
+                    const isTreeType = hasFallenTreeType || template.type.startsWith('tree_palm') || template.type.startsWith('tree_deciduous');
                     const treeFallChance = isTreeType ? (CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS?.FALL_CHANCE ?? 0.45) : 0;
                     const willSpawnLog = isTreeType ? this.rng.chance(treeFallChance) : false;
                     let precomputedLogSpawnData = null;
@@ -1886,9 +1887,16 @@ class LevelGenerator {
                             CONFIG.LEVEL_GENERATION.TREE_FALL_SETTINGS.PLACEMENT_DISTANCE_MIN,
                             CONFIG.LEVEL_GENERATION.TREE_FALL_SETTINGS.PLACEMENT_DISTANCE_MAX
                         );
-                        let fallenLogType = 'tree_palm_fallen';
-                        if (template.type.startsWith('tree_palm2_')) fallenLogType = 'tree_palm2_fallen';
-                        else if (template.type.startsWith('tree_deciduous')) fallenLogType = 'tree_deciduous_fallen';
+                        let fallenLogType;
+                        if (template.fallenTreeType) {
+                            fallenLogType = template.fallenTreeType;
+                        } else if (template.type.startsWith('tree_palm2_')) {
+                            fallenLogType = 'tree_palm2_fallen';
+                        } else if (template.type.startsWith('tree_deciduous')) {
+                            fallenLogType = 'tree_deciduous_fallen';
+                        } else {
+                            fallenLogType = 'tree_palm_fallen';
+                        }
                         precomputedLogSpawnData = {
                             type: fallenLogType,
                             angle: fallAngle,
@@ -1922,6 +1930,8 @@ class LevelGenerator {
                         currentFrame: 0,
                         animationTimer: 0,
                         animationSpeed: template.animationSpeed || 0.25,
+                        flameCount: template.flameCount || 0,
+                        flameOffsetY: template.flameOffsetY || 0,
                     };
                     if (template.type === 'possum_turret') {
                         const turretArc = (obsY < (this.level.playableMinY + this.level.playableMaxY) / 2)

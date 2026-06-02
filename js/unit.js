@@ -42,7 +42,8 @@ class Unit {
             enumerable: true
         });
 
-        this.attackCooldown = 0; this.actionTimer = 0; this.isMarkedForDeletion = false;
+        const initialDelay = (this.weapon && this.team === 'enemy') ? Math.random() * (1 / this.weapon.rof) : 0;
+        this.attackCooldown = initialDelay; this.actionTimer = 0; this.isMarkedForDeletion = false;
         this.facingAngle = Math.PI / 2;
         this.gunAimAngle = this.facingAngle;
 

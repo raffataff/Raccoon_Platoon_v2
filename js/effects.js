@@ -13,6 +13,107 @@ class PromotionEffect {
     render(ctx) { ctx.font = this.font; ctx.fillStyle = `rgba(${this.colorRGB[0]}, ${this.colorRGB[1]}, ${this.colorRGB[2]}, ${Math.max(0, this.opacity)})`; ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.textAlign = 'left'; }
 }
 
+class FireEffect {
+    constructor(anchorObstacle, gameInstance, offsetX = 0, offsetY = 0, flameOffsetY = 0) {
+        this.game = gameInstance;
+        this.anchorObstacleId = anchorObstacle ? anchorObstacle.id : null;
+        this.anchorObstacle = anchorObstacle;
+        this.offsetX = offsetX;
+        this.offsetY = offsetY;
+        this.flameOffsetY = flameOffsetY;
+        this.type = 'fire';
+        this.isMarkedForDeletion = false;
+
+        const cfg = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.FIRE) || {};
+        this.spriteConfig = cfg;
+
+        this.image = this.game.preloadedImages[cfg.SPRITE_PATH] || null;
+        this.frameWidth = cfg.FRAME_WIDTH || 85;
+        this.frameHeight = cfg.FRAME_HEIGHT || 85;
+        this.ignitionFrames = cfg.IGNITION_FRAMES || 12;
+        this.loopFrames = cfg.LOOP_FRAMES || 12;
+        this.loopStartFrame = cfg.LOOP_START_FRAME || 12;
+        this.animationSpeed = cfg.ANIMATION_SPEED || 0.08;
+        this.scale = cfg.SCALE || 0.35;
+        this.maxLifetime = cfg.MAX_LIFETIME || 8.0;
+        this.spreadX = cfg.SPREAD_X || 30;
+        this.spreadY = cfg.SPREAD_Y || 15;
+        this.opacityFadeStartTime = cfg.OPACITY_FADE_START_TIME || 5.0;
+
+        this.currentFrame = 0;
+        this.animationTimer = 0;
+        this.isIgnitionDone = false;
+        this.elapsedTime = 0;
+
+        this.drawWidth = this.frameWidth * this.scale;
+        this.drawHeight = this.frameHeight * this.scale;
+
+        this._baseX = anchorObstacle ? (anchorObstacle.x + anchorObstacle.width / 2 + offsetX) : 0;
+        this._baseY = anchorObstacle ? (anchorObstacle.y + anchorObstacle.height + offsetY + flameOffsetY) : 0;
+    }
+
+    update(deltaTime) {
+        if (!this.image) { this.isMarkedForDeletion = true; return; }
+        const obs = this.anchorObstacle;
+        if (!obs) { this.isMarkedForDeletion = true; return; }
+
+        this.elapsedTime += deltaTime;
+        if (this.elapsedTime >= this.maxLifetime) { this.isMarkedForDeletion = true; return; }
+
+        this.animationTimer += deltaTime;
+        if (this.animationTimer >= this.animationSpeed) {
+            this.animationTimer = 0;
+            if (!this.isIgnitionDone) {
+                this.currentFrame++;
+                if (this.currentFrame >= this.ignitionFrames) {
+                    this.isIgnitionDone = true;
+                    this.currentFrame = this.loopStartFrame;
+                }
+            } else {
+                this.currentFrame++;
+                if (this.currentFrame >= this.loopStartFrame + this.loopFrames) {
+                    this.currentFrame = this.loopStartFrame;
+                }
+            }
+        }
+
+        const obsCenterX = obs.x + obs.width / 2 + this.offsetX;
+        this._baseX = obsCenterX;
+        this._baseY = obs.y + obs.height + this.offsetY + this.flameOffsetY;
+    }
+
+    getOpacity() {
+        if (this.elapsedTime < this.opacityFadeStartTime) return 1.0;
+        const fadeProgress = (this.elapsedTime - this.opacityFadeStartTime) / (this.maxLifetime - this.opacityFadeStartTime);
+        return Math.max(0, 1.0 - fadeProgress);
+    }
+
+    getBaseX() { return this._baseX; }
+    getBaseY() { return this._baseY; }
+
+    render(ctx) {
+        const x = this.getBaseX();
+        const y = this.getBaseY();
+        const col = this.currentFrame % 6;
+        const row = Math.floor(this.currentFrame / 6);
+        const sx = Math.floor(col * this.frameWidth);
+        const sy = Math.floor(row * this.frameHeight);
+        const sw = Math.floor(this.frameWidth);
+        const sh = Math.floor(this.frameHeight);
+        const opacity = this.getOpacity();
+        if (opacity <= 0) return;
+
+        ctx.save();
+        ctx.globalAlpha = opacity;
+        ctx.drawImage(
+            this.image,
+            sx, sy, sw, sh,
+            x - this.drawWidth / 2, y - this.drawHeight, this.drawWidth, this.drawHeight
+        );
+        ctx.restore();
+    }
+}
+
 class SpriteExplosionEffect {
     constructor(x, y, radius, gameInstance, type) {
         this.game = gameInstance;

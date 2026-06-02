@@ -209,9 +209,10 @@ class Level {
             const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
 
             const treeFallSettings = CONFIG.LEVEL_GENERATION?.TREE_FALL_SETTINGS;
+            const hasFallenTreeType = !!(obstacleDef?.fallenTreeType);
             const isPalmTree = obstacle.type.startsWith('tree_palm');
             const isDeciduousTree = obstacle.type.startsWith('tree_deciduous');
-            if ((isPalmTree || isDeciduousTree) && treeFallSettings?.ENABLED && obstacle.willSpawnLog && obstacle.precomputedLogSpawnData) {
+            if ((hasFallenTreeType || isPalmTree || isDeciduousTree) && treeFallSettings?.ENABLED && obstacle.willSpawnLog && obstacle.precomputedLogSpawnData) {
                 this._spawnFallenTree(obstacle.precomputedLogSpawnData);
             }
 
@@ -256,6 +257,9 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
             if (this.game && obstacleDef && obstacleDef.explosionDamage && obstacleDef.explosionAoeRadius) {
                 this.game.addVisualEffect('barrel_explosion', { x: obstacle.x + obstacle.width / 2, y: obstacle.y + obstacle.height / 2, radius: obstacleDef.explosionAoeRadius });
+                if (obstacleDef.flameCount && obstacleDef.flameCount > 0) {
+                    this.game.addVisualEffect('fire', { anchorObstacle: obstacle, flameCount: obstacleDef.flameCount, flameOffsetY: obstacleDef.flameOffsetY || 0 });
+                }
                 const explosionDmg = obstacleDef.explosionDamage;
                 const explosionRadius = obstacleDef.explosionAoeRadius;
                 (this.game.level.obstacles || []).forEach(otherObs => {
@@ -287,22 +291,33 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         const fallenLogTemplate = CONFIG.OBSTACLE_DEFINITIONS.find(def => def.type === fallenLogType);
         if (!fallenLogTemplate) return;
 
-        let filesArray, pathBase;
-        switch (fallenLogType) {
-            case 'tree_palm2_fallen':
-                filesArray = CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES || [];
-                pathBase = CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH || '';
-                break;
-            case 'tree_deciduous_fallen':
-                filesArray = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES || [];
-                pathBase = CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH || '';
-                break;
-            default:
-                filesArray = CONFIG.PALM_TREE_FALLEN_SPRITE_FILES || [];
-                pathBase = CONFIG.PALM_TREE_FALLEN_SPRITE_PATH || '';
-                break;
+        let filesArray = null;
+        let pathBase = null;
+        if (CONFIG.BIOMES) {
+            for (const biomeKey of Object.keys(CONFIG.BIOMES)) {
+                const biome = CONFIG.BIOMES[biomeKey];
+                if (biome.spritePaths && biome.spritePaths[fallenLogType]) {
+                    filesArray = biome.spritePaths[fallenLogType].files || [];
+                    pathBase = biome.spritePaths[fallenLogType].path || '';
+                    break;
+                }
+            }
         }
-        const actualSpritePath = (filesArray.length > 0 && pathBase) ? pathBase + this.rng.pickFrom(filesArray) : null;
+        if (!filesArray) {
+            const legacySpriteConfig = {
+                tree_palm2_fallen: { files: CONFIG.PALM2_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM2_TREE_FALLEN_SPRITE_PATH },
+                tree_deciduous_fallen: { files: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_FILES, path: CONFIG.DECIDUOUS_TREE_FALLEN_SPRITE_PATH },
+                tree_palm_fallen: { files: CONFIG.PALM_TREE_FALLEN_SPRITE_FILES, path: CONFIG.PALM_TREE_FALLEN_SPRITE_PATH },
+            };
+            const legacy = legacySpriteConfig[fallenLogType];
+            if (legacy) {
+                filesArray = legacy.files || [];
+                pathBase = legacy.path || '';
+            }
+        }
+        if (!filesArray || !pathBase) return;
+
+        const actualSpritePath = filesArray.length > 0 ? pathBase + this.rng.pickFrom(filesArray) : null;
         const logImage = actualSpritePath ? this.game.preloadedImages[actualSpritePath] : null;
         if (!logImage) return;
 

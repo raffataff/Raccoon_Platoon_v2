@@ -16,8 +16,8 @@ class PossumTurret {
         this.width = 64;
         this.height = 64;
         
-        this.fireTimer = 0;
         this.weapon = WEAPONS.POSSUM_TURRET_WEAPON;
+        this.fireTimer = Math.random() / this.weapon.rof;
         
         //console.log(`[PossumTurret] Created at (${x}, ${y}) with arc: [${directionArc.join(', ')}]`);
         
