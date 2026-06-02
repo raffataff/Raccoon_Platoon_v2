@@ -25,8 +25,7 @@ const RACCOON_NAMES = [
     "Sparks", "Doc", "Wheels", "Radar", "Echo", "Alpha", "Bravo", "Charlie",
     "Delta", "Foxtrot", "Whiskey", "Tango", "Zero", "Ace", "Maverick", "Viper",
     "Blaze", "Bullet", "Cannon", "Tank", "Bomber", "Recon", "Stealth", "Striker",
-    "Cipher", "Hex", "Glitch", "Static", "Vector", "Gauge", "Digit", "Patch", "DerGeissler",
-    "Gunslinger",
+    "Cipher", "Hex", "Glitch", "Static", "Vector", "Gauge", "Digit", "Patch",
 
     // Slightly More Unique / Characterful
     "Barnaby", "Figaro", "Jasper", "Lysander", "Mortimer", "Nikolai", "Orville",
@@ -40,7 +39,10 @@ const RACCOON_NAMES = [
     "Luna", "Bella", "Daisy", "Lucy", "Sadie", "Sophie", "Chloe", "Zoe", "Ruby",
     "Piper", "Willow", "Hazel", "Stella", "Nova", "Scarlett", "Penelope", "Cleo",
     "Fiona", "Juniper", "Olive", "Poppy", "Violet", "Astrid", "Freya", "Iris",
-    "Maeve", "Seraphina", "Athena", "Calliope", "Diana", "Guinevere", "Isolde", "Xianah"
+    "Maeve", "Seraphina", "Athena", "Calliope", "Diana", "Guinevere", "Isolde",
+
+    // Special Guests
+    "DerGeissler", "Raffataff", "Xianah", "Gunslinger",
 ];
 
 function getRandomRaccoonName(existingNames = [], rng = Math) { // Accept RNG, default to Math.random

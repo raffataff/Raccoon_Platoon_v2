@@ -149,6 +149,12 @@ class Game {
         this.ambushResultPending = false;         // True while ambush result UI is showing, before handleAmbushResult runs
         // --- END Ambush Tracking ---
 
+        // --- Scent Markers ---
+        this.scentMarkers = [];
+        this.scentRadialMenu = new ScentRadialMenu(this);
+        this.isScentMenuKeyHeld = false;
+        // --- END Scent Markers ---
+
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
 
@@ -1936,6 +1942,71 @@ class Game {
         if (this.ui) this.ui.updateSquadPanel();
     }
 
+    handleScentMenuKeyDown() {
+        if (!CONFIG.SCENT_MARKERS || !CONFIG.SCENT_MARKERS.ENABLED) return;
+        if (this.gameState !== 'RUNNING') return;
+        if (!this.selectedUnits || this.selectedUnits.length === 0) return;
+
+        const firstUnit = this.selectedUnits[0];
+        if (!firstUnit || !firstUnit.isAlive()) return;
+
+        const screen = this.worldToScreen(firstUnit.x, firstUnit.y);
+        this.scentRadialMenu.activate(screen.x, screen.y);
+    }
+
+    handleScentMenuKeyUp() {
+        if (!CONFIG.SCENT_MARKERS || !CONFIG.SCENT_MARKERS.ENABLED) return;
+        const menu = this.scentRadialMenu;
+        if (!menu.isActive) return;
+
+        const action = menu.handleClick();
+        menu.deactivate();
+
+        if (!action) return;
+
+        if (action.action === 'place') {
+            this._placeScentMarker(action.markerType);
+        } else if (action.action === 'remove') {
+            this._removeNearestScentMarker();
+        }
+    }
+
+    _placeScentMarker(markerType) {
+        if (!this.selectedUnits || this.selectedUnits.length === 0) return;
+        if (this.scentMarkers.length >= CONFIG.SCENT_MARKERS.MAX_MARKERS) {
+            const oldest = this.scentMarkers.shift();
+            oldest.isMarkedForDeletion = true;
+        }
+
+        const firstUnit = this.selectedUnits[0];
+        const marker = new ScentMarker(firstUnit.x, firstUnit.y, markerType);
+        this.scentMarkers.push(marker);
+    }
+
+    _removeNearestScentMarker() {
+        if (!this.selectedUnits || this.selectedUnits.length === 0) return;
+        if (this.scentMarkers.length === 0) return;
+
+        const firstUnit = this.selectedUnits[0];
+        let nearestIdx = -1;
+        let nearestDist = Infinity;
+
+        for (let i = 0; i < this.scentMarkers.length; i++) {
+            const m = this.scentMarkers[i];
+            const dx = m.worldX - firstUnit.x;
+            const dy = m.worldY - firstUnit.y;
+            const d = dx * dx + dy * dy;
+            if (d < nearestDist) {
+                nearestDist = d;
+                nearestIdx = i;
+            }
+        }
+
+        if (nearestIdx !== -1) {
+            this.scentMarkers[nearestIdx].isMarkedForDeletion = true;
+        }
+    }
+
     handleGrenadeThrowConfirm(worldX, worldY) {
         if (this.gameState !== 'RUNNING' || !this.selectedUnits || this.selectedUnits.length === 0) return;
 
@@ -2279,17 +2350,18 @@ class Game {
         let currentLivingNames = [];
         const initialRosterRng = new SeededRandom(this.campaignSeed + 1);
 
-        for (let i = 0; i < initialSize; i++) {
-            let faceImageFile = 'default_face.png';
-            if (availableFaceImages.length > 0) {
-                const randomIndex = initialRosterRng.nextInt(0, availableFaceImages.length - 1);
-                faceImageFile = availableFaceImages.splice(randomIndex, 1)[0];
-            } else if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGES.length > 0) {
-                faceImageFile = initialRosterRng.pickFrom(CONFIG.RACCOON_FACE_IMAGES);
-            }
-            const faceImageUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
-            const raccoonName = getRandomRaccoonName(currentLivingNames, initialRosterRng);
-            currentLivingNames.push(raccoonName);
+        const SPECIAL_GUEST_NAMES = ["DerGeissler", "Xianah", "Gunslinger", "Raffataff"];
+         for (let i = 0; i < initialSize; i++) {
+             let faceImageFile = 'default_face.png';
+             if (availableFaceImages.length > 0) {
+                 const randomIndex = initialRosterRng.nextInt(0, availableFaceImages.length - 1);
+                 faceImageFile = availableFaceImages.splice(randomIndex, 1)[0];
+             } else if (CONFIG.RACCOON_FACE_IMAGES && CONFIG.RACCOON_FACE_IMAGES.length > 0) {
+                 faceImageFile = initialRosterRng.pickFrom(CONFIG.RACCOON_FACE_IMAGES);
+             }
+             const faceImageUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
+             const raccoonName = i < SPECIAL_GUEST_NAMES.length ? SPECIAL_GUEST_NAMES[i] : getRandomRaccoonName(currentLivingNames, initialRosterRng);
+             currentLivingNames.push(raccoonName);
             const newRecruit = new Raccoon(0, 0, this, `RCN-MR${nextRaccoonIdNum++}`, faceImageUrl, raccoonName);
             this.masterRoster.push(newRecruit);
         }
@@ -3463,6 +3535,9 @@ class Game {
 
     deselectAllUnits() {
         if (this.selectedUnits.length === 0) return;
+        if (this.scentRadialMenu && this.scentRadialMenu.isActive) {
+            this.scentRadialMenu.deactivate();
+        }
         let aimingCancelled = false;
         if (this.selectedUnits) this.selectedUnits.forEach(unit => { if (unit instanceof Raccoon && unit.isAimingGrenade) { unit.cancelGrenadeAim(); aimingCancelled = true; } });
         this.selectedUnits = [];
@@ -3935,6 +4010,31 @@ class Game {
         this.ctx.restore();
     }
 
+    _renderScentMarkers() {
+        if (!CONFIG.SCENT_MARKERS || !CONFIG.SCENT_MARKERS.ENABLED) return;
+
+        const menu = this.scentRadialMenu;
+        if (menu.isActive && menu.animProgress > 0.5) {
+            const selectedUnits = this.selectedUnits;
+            if (selectedUnits && selectedUnits.length > 0) {
+                const firstUnit = selectedUnits[0];
+                if (firstUnit && firstUnit.isAlive()) {
+                    const screen = this.worldToScreen(firstUnit.x, firstUnit.y);
+                    if (Math.abs(screen.x - menu.unitScreenX) > 1 || Math.abs(screen.y - menu.unitScreenY) > 1) {
+                        menu.unitScreenX += (screen.x - menu.unitScreenX) * 0.15;
+                        menu.unitScreenY += (screen.y - menu.unitScreenY) * 0.15;
+                    }
+                }
+            }
+        }
+
+        for (const marker of this.scentMarkers) {
+            marker.render(this.ctx, this);
+        }
+
+        menu.render(this.ctx);
+    }
+
     spawnFlyingBirdFlock() {
 
         const rng = this.level.rng;
@@ -4186,6 +4286,14 @@ class Game {
             if (effect) effect.update(deltaTime);
             return effect && !effect.isMarkedForDeletion;
         });
+
+        if (CONFIG.SCENT_MARKERS && CONFIG.SCENT_MARKERS.ENABLED) {
+            this.scentMarkers = this.scentMarkers.filter(m => {
+                m.update(deltaTime);
+                return !m.isMarkedForDeletion;
+            });
+            this.scentRadialMenu.update(deltaTime);
+        }
 
         this.hostageUnits = this.hostageUnits.filter(h => !h.isMarkedForDeletion);
 
@@ -4807,6 +4915,9 @@ class Game {
 
         // --- Objective Directional Indicator ---
         this._renderObjectiveIndicator();
+
+        // --- Scent Markers ---
+        this._renderScentMarkers();
 
         // --- Night Mission Darkness Overlay ---
         if (this.isNightMission && CONFIG.NIGHT_MISSION &&

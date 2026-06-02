@@ -27,7 +27,7 @@ class InputHandler {
             if (this.game && this.game.gameState === 'RUNNING') {
                 event.preventDefault();
                 const scrollDelta = event.deltaY > 0 ? -0.2 : 0.2;
-                const currentSpacing = this.game.formationSpacingMultiplier || CONFIG.INITIAL_FORMATION_SPACING || 3.5;
+                const currentSpacing = this.game.formationSpacingMultiplier || CONFIG.INITIAL_FORMATION_SPACING || 1.5;
                 const newSpacing = Math.max(1.5, Math.min(6.0, currentSpacing + scrollDelta));
                 this.game.setFormationSpacing(newSpacing);
                 if (this.game.ui && this.game.ui.formationSpacingSlider) {
@@ -107,7 +107,7 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', 'e', '1', '2', '3', '4'];
+            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', 'e', 'q', '1', '2', '3', '4'];
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -121,13 +121,18 @@ class InputHandler {
                     if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
                     if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false; }
 
-                    const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade);
-                    if (aimingRaccoon) {
-                        aimingRaccoon.cancelGrenadeAim();
-                    } else if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
-                        this.game.deselectAllUnits();
+                    if (this.game.scentRadialMenu && this.game.scentRadialMenu.isActive) {
+                        this.game.isScentMenuKeyHeld = false;
+                        this.game.scentRadialMenu.deactivate();
                     } else {
-                        this.game.togglePause();
+                        const aimingRaccoon = this.game.selectedUnits && this.game.selectedUnits.find(u => u instanceof Raccoon && u.isAimingGrenade);
+                        if (aimingRaccoon) {
+                            aimingRaccoon.cancelGrenadeAim();
+                        } else if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                            this.game.deselectAllUnits();
+                        } else {
+                            this.game.togglePause();
+                        }
                     }
                     this.updateMouseCursor();
                 } else if (this.game.gameState === 'SHOOTOUT_PLAYING') {
@@ -176,6 +181,15 @@ class InputHandler {
                 // Possum turret shutdown
                 if (this.game.handlePossumTurretShutdown) {
                     this.game.handlePossumTurretShutdown();
+                }
+            }
+            if ((event.key === 'q' || event.key === 'Q') && !isInputFieldActive) {
+                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                if (!this.game.isScentMenuKeyHeld) {
+                    this.game.isScentMenuKeyHeld = true;
+                    if (this.game.handleScentMenuKeyDown) {
+                        this.game.handleScentMenuKeyDown();
+                    }
                 }
             }
             if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {
@@ -263,6 +277,11 @@ class InputHandler {
                     this.isCtrlDragSelecting = false;
                     this.game.isDragging = false;
                     this.game.draggedFarEnough = false;
+                }
+            } else if (event.key === 'q' || event.key === 'Q') {
+                this.game.isScentMenuKeyHeld = false;
+                if (this.game.handleScentMenuKeyUp) {
+                    this.game.handleScentMenuKeyUp();
                 }
             }
             this.updateMouseCursor();

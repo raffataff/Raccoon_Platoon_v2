@@ -282,7 +282,7 @@ class UI {
         });
         this._addSoundToButton(this.gameOverMemorialButton, () => this.showRecruitMemorialScreen());
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game) {
-            const initialSpacing = (this.game && this.game.formationSpacingMultiplier !== undefined) ? this.game.formationSpacingMultiplier : (CONFIG.INITIAL_FORMATION_SPACING || 3.5);
+            const initialSpacing = (this.game && this.game.formationSpacingMultiplier !== undefined) ? this.game.formationSpacingMultiplier : (CONFIG.INITIAL_FORMATION_SPACING || 1.5);
             this.formationSpacingSlider.value = initialSpacing.toString();
             if (this.spacingValueDisplay) this.spacingValueDisplay.textContent = initialSpacing.toFixed(1);
             this.formationSpacingSlider.addEventListener('input', () => {

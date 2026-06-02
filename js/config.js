@@ -1004,13 +1004,13 @@ const CONFIG = {
     // =============================================================================
     // ROSTER_CAMPAIGN
     // =============================================================================
-    INITIAL_ROSTER_SIZE: 3,
+    INITIAL_ROSTER_SIZE: 4,
     NEW_RECRUITS_PER_MISSION_WIN: 1,
     MAX_SQUAD_SIZE_MVP: 4,
     MAX_TOTAL_ROSTER_SIZE: 100,
 
     FORMATION_INDEX: 3,
-    INITIAL_FORMATION_SPACING: 3.0,
+    INITIAL_FORMATION_SPACING: 1.5,
 
     // =============================================================================
     // WORLD_TERRAIN (generic settings - biome-specific terrain moved to js/biomes/)
@@ -2430,5 +2430,78 @@ const CONFIG = {
             EXTRACTION: 'Extract',
             DEFAULT: 'Objective'
         }
-    }
+    },
+
+    // =============================================================================
+    // SCENT MARKERS (Raccoon waypoint system)
+    // =============================================================================
+    SCENT_MARKERS: {
+        ENABLED: true,
+        MAX_MARKERS: 20,
+        FADE_START_TIME: 120,
+        FADE_DURATION: 30,
+        RENDER: {
+            ICON_SIZE: 28,
+            PULSE_SPEED: 2.5,
+            PULSE_AMOUNT: 0.25,
+            OUTER_RING_RADIUS: 22,
+            INNER_CIRCLE_RADIUS: 14,
+            LABEL_FONT_SIZE: 12,
+            LABEL_OFFSET_Y: 38,
+            ARROW_SIZE: 12,
+            ARROW_OFFSET: 26,
+            EDGE_MARGIN: 50,
+            WORLD_MARKER_ON_SCREEN_MARGIN: 30,
+        },
+        TYPES: {
+            HOSTAGE: {
+                key: 'HOSTAGE',
+                label: 'Hostage',
+                color: '#44DDFF',
+                glowColor: 'rgba(68, 221, 255, 0.3)',
+                iconChar: '✚',
+            },
+            INTEL_CONSOLE: {
+                key: 'INTEL_CONSOLE',
+                label: 'Intel Console',
+                color: '#FFD700',
+                glowColor: 'rgba(255, 215, 0, 0.3)',
+                iconChar: '◆',
+            },
+            HELIPAD: {
+                key: 'HELIPAD',
+                label: 'Helipad',
+                color: '#44FF44',
+                glowColor: 'rgba(68, 255, 68, 0.3)',
+                iconChar: '⬡',
+            },
+        },
+        RADIAL_MENU: {
+            RADIUS: 80,
+            CENTER_GAP: 24,
+            SEGMENT_INNER_RADIUS: 28,
+            SEGMENT_OUTER_RADIUS: 72,
+            SEGMENT_LINE_WIDTH: 36,
+            SEGMENT_GAP_RADIANS: 0.08,
+            CENTER_CIRCLE_RADIUS: 20,
+            BG_ALPHA: 0.75,
+            BG_COLOR: '#1a1a2e',
+            STROKE_COLOR: 'rgba(255,255,255,0.25)',
+            HOVER_BRIGHTNESS: 1.3,
+            ICON_SIZE: 18,
+            LABEL_FONT_SIZE: 14,
+            LABEL_OFFSET: 8,
+            HOVER_COLOR: '#ffffff',
+            REMOVE_KEY: 'REMOVE',
+            REMOVE_LABEL: 'Remove Marker',
+            REMOVE_COLOR: '#FF4444',
+            REMOVE_HOVER_COLOR: '#FF6666',
+            ANIMATION_SPEED: 10,
+            EDGE_MARGIN: 60,
+            VISIBLE_TRANSITION_SPEED: 0.15,
+            DRIFT_SPEED: 0.3,
+            DRIFT_AMOUNT: 8,
+            DRIFT_INTERVAL: 4,
+        },
+    },
 };
