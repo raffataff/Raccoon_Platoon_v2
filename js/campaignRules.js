@@ -169,7 +169,7 @@ const CAMPAIGN_RULES = {
             assassinationTypeKey: "possum_revolver_boss",
             name: "Six-Shooter Sid", callsign: "Sidewinder",
             description: "A notoriously fast and mobile gunslinger.",
-            weight: 0, unlocksPhase: 3, isBoss: true
+            weight: 1, unlocksPhase: 3, isBoss: true
         },
         {
             assassinationTypeKey: "possum_eliteGuard",
@@ -181,7 +181,7 @@ const CAMPAIGN_RULES = {
             assassinationTypeKey: "possum_boss_1",
             name: "Maddog Whiskers", callsign: "Whiskers",
             description: "A cunning strategist known for his brutal tactics.",
-            weight: 0, unlocksPhase: 5, isBoss: true
+            weight: 2, unlocksPhase: 5, isBoss: true
         },
         {
             assassinationTypeKey: "possum_boss_3",

@@ -1022,6 +1022,8 @@ class Game {
             { name: 'deciduous_fallen', files: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.files, path: TROPICAL_BIOME.spritePaths.tree_deciduous_fallen?.path, type: 'single' },
             { name: 'kapok_single', files: TROPICAL_BIOME.spritePaths.tree_kapok_single?.files, path: TROPICAL_BIOME.spritePaths.tree_kapok_single?.path, type: 'single' },
             { name: 'tree_pheonix', files: TROPICAL_BIOME.spritePaths.tree_pheonix?.files, path: TROPICAL_BIOME.spritePaths.tree_pheonix?.path, type: 'single' },
+            { name: 'pheonix_fallen', files: TROPICAL_BIOME.spritePaths.pheonix_fallen?.files, path: TROPICAL_BIOME.spritePaths.pheonix_fallen?.path, type: 'single' },
+            { name: 'pheonix_stump', files: TROPICAL_BIOME.spritePaths.pheonix_stump?.files, path: TROPICAL_BIOME.spritePaths.pheonix_stump?.path, type: 'single' },
             { name: 'tree5_deciduous', files: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.files, path: TROPICAL_BIOME.spritePaths.tree5_deciduous_single?.path, type: 'single' },
             { name: 'tree_fan_single', files: TROPICAL_BIOME.spritePaths.tree_fan_single?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_single?.path, type: 'single' },
             { name: 'tree_fan_double', files: TROPICAL_BIOME.spritePaths.tree_fan_double?.files, path: TROPICAL_BIOME.spritePaths.tree_fan_double?.path, type: 'single' },
@@ -1051,7 +1053,9 @@ class Game {
             { name: 'tree_willow', files: TEMPERATE_BIOME.spritePaths.tree_willow?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow?.path, type: 'single' },
             { name: 'tree_birch', files: TEMPERATE_BIOME.spritePaths.tree_birch?.files, path: TEMPERATE_BIOME.spritePaths.tree_birch?.path, type: 'single' },
             { name: 'birch_fallen', files: TEMPERATE_BIOME.spritePaths.birch_fallen?.files, path: TEMPERATE_BIOME.spritePaths.birch_fallen?.path, type: 'single' },
+            { name: 'birch_stump', files: TEMPERATE_BIOME.spritePaths.birch_stump?.files, path: TEMPERATE_BIOME.spritePaths.birch_stump?.path, type: 'single' },
             { name: 'tree_pine', files: TEMPERATE_BIOME.spritePaths.tree_pine?.files, path: TEMPERATE_BIOME.spritePaths.tree_pine?.path, type: 'single' },
+            { name: 'pine_fallen', files: TEMPERATE_BIOME.spritePaths.pine_fallen?.files, path: TEMPERATE_BIOME.spritePaths.pine_fallen?.path, type: 'single' },
             { name: 'tree_maple_single', files: TEMPERATE_BIOME.spritePaths.tree_maple_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_single?.path, type: 'single' },
             { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
             { name: 'forest_small', files: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.path, type: 'single' },
@@ -1257,6 +1261,10 @@ class Game {
         const mudOverlapFactor = biomeLevelGen.WORLD_MUD_TILE_OVERLAP_FACTOR !== undefined ? biomeLevelGen.WORLD_MUD_TILE_OVERLAP_FACTOR : (CONFIG.WORLD_MUD_TILE_OVERLAP_FACTOR !== undefined ? CONFIG.WORLD_MUD_TILE_OVERLAP_FACTOR : overlapFactor);
         const mudParams = this.currentPhaseMudParams || {};
         const skipChance = mudParams.grassSkipChance ?? biomeLevelGen.WORLD_GRASS_SKIP_CHANCE ?? CONFIG.WORLD_GRASS_SKIP_CHANCE ?? 0.0;
+        const clumpChance = biomeLevelGen.WORLD_GRASS_CLUMP_CHANCE ?? CONFIG.WORLD_GRASS_CLUMP_CHANCE ?? 0.0;
+        const clumpMin = biomeLevelGen.WORLD_GRASS_CLUMP_MIN ?? CONFIG.WORLD_GRASS_CLUMP_MIN ?? 2;
+        const clumpMax = biomeLevelGen.WORLD_GRASS_CLUMP_MAX ?? CONFIG.WORLD_GRASS_CLUMP_MAX ?? 4;
+        const clumpRadius = biomeLevelGen.WORLD_GRASS_CLUMP_RADIUS ?? CONFIG.WORLD_GRASS_CLUMP_RADIUS ?? 24;
 
         const mudSpritePath = biome.spritePaths.mud?.path || CONFIG.MUD_SPRITE_PATH || '';
         const mudSpriteFiles = biome.spritePaths.mud?.files || CONFIG.MUD_SPRITE_FILES || [];
@@ -1309,6 +1317,21 @@ class Game {
             const stepX = configuredTileSize * (1 - overlapFactor + 0.1);
             const stepY = configuredTileSize * (1 - overlapFactor);
 
+            const drawGrassSprite = (img, flipH, drawX, drawY) => {
+                const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
+                const finalFlip = flipH * (localRng.chance(0.5) ? -1 : 1);
+                const px = drawX + offsetX;
+                const py = drawY + offsetY + configuredTileSize / 2;
+                const cx = px + configuredTileSize / 2;
+                const cy = py + configuredTileSize / 2;
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.scale(finalFlip, 1);
+                ctx.drawImage(img, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
+                ctx.restore();
+            };
+
             for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
                 const rowOffset = (Math.floor((y + configuredTileSize * overlapFactor) / stepY) % 2 === 1) ? stepX / 2 : 0;
                 for (let x = -configuredTileSize * overlapFactor; x < worldWidth; x += stepX) {
@@ -1337,18 +1360,19 @@ class Game {
                     const grassImg = this.preloadedImages[spritePath];
 
                     if (grassImg) {
-                        const offsetX = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                        const offsetY = (localRng.next() - 0.5) * configuredTileSize * overlapFactor * 0.5;
-                        const flipH = localRng.chance(0.5) ? -1 : 1;
-                        const drawX = effectiveX + offsetX;
-                        const drawY = y + offsetY + configuredTileSize / 2;
-                        const centerX = drawX + configuredTileSize / 2;
-                        const centerY = drawY + configuredTileSize / 2;
-                        ctx.save();
-                        ctx.translate(centerX, centerY);
-                        ctx.scale(flipH, 1);
-                        ctx.drawImage(grassImg, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
-                        ctx.restore();
+                        const baseFlipH = localRng.chance(0.5) ? -1 : 1;
+                        drawGrassSprite(grassImg, baseFlipH, effectiveX, y);
+
+                        if (clumpChance > 0 && localRng.chance(clumpChance)) {
+                            const clumpCount = localRng.nextInt(clumpMin, clumpMax);
+                            for (let i = 0; i < clumpCount; i++) {
+                                const angle = localRng.next() * Math.PI * 2;
+                                const dist = localRng.next() * clumpRadius;
+                                const clumpX = effectiveX + Math.cos(angle) * dist;
+                                const clumpY = y + Math.sin(angle) * dist;
+                                drawGrassSprite(grassImg, baseFlipH, clumpX, clumpY);
+                            }
+                        }
                     }
                 }
             }
@@ -2350,7 +2374,7 @@ class Game {
         let currentLivingNames = [];
         const initialRosterRng = new SeededRandom(this.campaignSeed + 1);
 
-        const SPECIAL_GUEST_NAMES = ["DerGeissler", "Xianah", "Gunslinger", "Raffataff"];
+        const SPECIAL_GUEST_NAMES = ["DerGeissler", "Raffataff", "Xianah", "Gunslinger"];
          for (let i = 0; i < initialSize; i++) {
              let faceImageFile = 'default_face.png';
              if (availableFaceImages.length > 0) {
@@ -3241,7 +3265,7 @@ class Game {
             const biomeConfig = CONFIG.BIOMES[biome];
             const hostageVideoPaths = (biomeConfig && biomeConfig.extractionHostageVideos) ? biomeConfig.extractionHostageVideos : [];
             if (hostageVideoPaths.length === 0) {
-                for (let i = 1; i <= 3; i++) {
+                for (let i = 1; i <= 4; i++) {
                     hostageVideoPaths.push(`assets/video/extraction/extraction_hostage_${i}.mp4`);
                 }
             }
@@ -4809,6 +4833,11 @@ class Game {
             this.ctx.restore();
         }
 
+        this.visualEffects.sort((a, b) => {
+            const aY = (typeof a.getBaseY === 'function') ? a.getBaseY() : (a.y || 0);
+            const bY = (typeof b.getBaseY === 'function') ? b.getBaseY() : (b.y || 0);
+            return aY - bY;
+        });
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function') { effect.render(this.ctx); } });
 
         if (this.selectedUnits) {

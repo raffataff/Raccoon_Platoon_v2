@@ -1131,7 +1131,7 @@ class UI {
         }
     }
 
-    deleteSelectedSpawn() {
+    async deleteSelectedSpawn() {
         if (!this.game || !this.game.shootoutController) return;
 
         const selectedIndex = this.game.shootoutController.selectedSpawnIndex;
@@ -1140,8 +1140,10 @@ class UI {
             return;
         }
 
-        // Confirm deletion for safety
-        if (!confirm(`Are you sure you want to delete spawn point #${selectedIndex}?`)) {
+        const confirmed = await this.showConfirmDialog(
+            `Are you sure you want to delete spawn point #${selectedIndex}?`
+        );
+        if (!confirmed) {
             return;
         }
 
@@ -2958,12 +2960,15 @@ class UI {
         });
     }
 
-    handleSlotClick(slotIndex, isEmpty) {
+    async handleSlotClick(slotIndex, isEmpty) {
         if (this.currentSaveLoadMode === 'save') {
-            // Saving to slot
             if (!isEmpty) {
                 const slots = SaveManager.getSaveSlots();
-                if (!confirm(`Overwrite save "${slots[slotIndex].slotName}"?`)) {
+                const confirmed = await this.showConfirmDialog(
+                    `Overwrite save "${slots[slotIndex].slotName}"?`,
+                    'save_overwrite'
+                );
+                if (!confirmed) {
                     return;
                 }
             }

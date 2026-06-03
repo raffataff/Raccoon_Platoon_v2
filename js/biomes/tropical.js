@@ -20,6 +20,7 @@ const TROPICAL_BIOME = {
         'assets/video/extraction/extraction_hostage_1.mp4',
         'assets/video/extraction/extraction_hostage_2.mp4',
         'assets/video/extraction/extraction_hostage_3.mp4',
+        'assets/video/extraction/extraction_hostage_4.mp4',
     ],
 
     // =========================================================================
@@ -33,7 +34,7 @@ const TROPICAL_BIOME = {
         },
         grass: {
             path: 'assets/images/objects/biomes/tropical/grass/',
-            files: ['tropical_grass_2.png', 'tropical_grass_3.png', 'tropical_grass_3_2.png', 'tropical_grass_3_3.png', 'tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_14.png', 'tropical_grass_15.png', 'tropical_grass_16.png', 'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png', 'tropical_grass_24.png', 'tropical_grass_25.png', 'tropical_grass_26.png', 'tropical_grass_27.png', 'tropical_grass_29.png', 'tropical_grass_30.png', 'tropical_grass_31.png',  ]
+            files: ['tropical_grass_2.png', 'tropical_grass_3.png', 'tropical_grass_3_2.png', 'tropical_grass_3_3.png', 'tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_14.png', 'tropical_grass_15.png', 'tropical_grass_16.png', 'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png', 'tropical_grass_24.png', 'tropical_grass_25.png', 'tropical_grass_26.png', 'tropical_grass_27.png', 'tropical_grass_29.png','tropical_grass_31.png', 'tropical_grass_37.png',  ]
         },
         grass_decoration: {
             path: 'assets/images/objects/biomes/tropical/grass/',
@@ -89,6 +90,11 @@ const TROPICAL_BIOME = {
             path: 'assets/images/objects/biomes/tropical/trees/fullSize/',
             files: []
         },
+        tree_palm_fallen: {
+            path: 'assets/images/objects/biomes/tropical/logs/',
+            files: ['palm_fallen_log_1.png']
+        },
+        
 
         // Palm2 trees
         tree_palm2_single: {
@@ -103,16 +109,13 @@ const TROPICAL_BIOME = {
             path: 'assets/images/objects/biomes/tropical/trees/palm2/',
             files: ['palm2_triple_1.png']
         },
+        tree_palm2_fallen: {
+            path: 'assets/images/objects/biomes/tropical/trees/palm2/',
+            files: ['palm2_fallen_log_1.png', 'palm2_fallen_log_2.png', 'palm2_fallen_log_3.png']
+        },
 
         // Fallen logs
-        tree_palm_fallen: {
-            path: 'assets/images/objects/biomes/tropical/logs/',
-            files: ['palm_fallen_log_1.png']
-        },
-        tree_palm2_fallen: {
-            path: 'assets/images/objects/biomes/tropical/logs/',
-            files: ['palm_fallen_log_2.png']
-        },
+        
         tree_deciduous_fallen: {
             path: 'assets/images/objects/biomes/tropical/logs/',
             files: ['tree_fallen_log_1.png']
@@ -132,19 +135,30 @@ const TROPICAL_BIOME = {
             files: ['tropical_fan_triple_1.png']
         },
 
-        // Other trees
+        // Rubber trees
         tree_rubber_single: {
             path: 'assets/images/objects/biomes/tropical/trees/rubber/',
             files: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png']
         },
+        // Kapok trees
         tree_kapok_single: {
             path: 'assets/images/objects/biomes/tropical/trees/kapok/',
             files: ['tropical_kapok_single_1.png', 'tropical_kapok_single_2.png', 'tropical_kapok_single_3.png']
         },
+        // Phoenix trees
         tree_pheonix: {
             path: 'assets/images/objects/biomes/tropical/trees/pheonix/',
             files: ['tree_pheonix_1.png', 'tree_pheonix_2.png', 'tree_pheonix_3.png']
         },
+        pheonix_fallen: {
+            path: 'assets/images/objects/biomes/tropical/trees/pheonix/',
+            files: ['pheonix_fallen_log_1.png', 'pheonix_fallen_log_2.png']
+        },
+        pheonix_stump: {
+            path: 'assets/images/objects/biomes/tropical/trees/pheonix/',
+            files: ['pheonix_stump_1.png', 'pheonix_stump_2.png', 'pheonix_stump_3.png']
+        },
+
         tree5_deciduous_single: {
             path: 'assets/images/objects/biomes/tropical/trees/',
             files: []
@@ -287,6 +301,17 @@ const TROPICAL_BIOME = {
             canBeFlipped: true,
         },
         {
+            type: 'tree_palm_fallen', name: 'Fallen Palm Tree', color: '#005522',
+            destructible: false, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.5,
+            isDecoration: false,
+            spriteScale: 1.2,
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
+            canBeFlipped: true,
+            placementBuffer: 60,
+        },
+        {
             type: 'tree_palm2_single', name: 'Palm Tree 2 Single', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
@@ -323,24 +348,13 @@ const TROPICAL_BIOME = {
             placementBuffer: 60,
         },
         {
-            type: 'tree_palm_fallen', name: 'Fallen Palm Tree', color: '#005522',
-            destructible: false, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
-            isDecoration: false,
-            spriteScale: 1.2,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
-            canBeFlipped: true,
-            placementBuffer: 60,
-        },
-        {
             type: 'tree_palm2_fallen', name: 'Fallen Palm2 Tree', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
+            spawnWeight: 1,
             isDecoration: false,
-            spriteScale: 0.8,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
+            spriteScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.425), radiusY: (h => h * 0.05) },
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -411,10 +425,32 @@ const TROPICAL_BIOME = {
             canBeFlipped: true,
         },
         {
+            type: 'pheonix_fallen', name: 'Fallen Pheonix Tree', color: '#005522',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 1,
+            isDecoration: false,
+            spriteScale: 0.4,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.22), radiusX: (w => w * 0.425), radiusY: (h => h * 0.05) },
+            canBeFlipped: true,
+            placementBuffer: 100,
+        },
+        {
+            type: 'pheonix_stump', name: 'Pheonix Tree Stump', color: '#005522',
+            destructible: false, 
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.5,
+            isDecoration: false,
+            spriteScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.15) },
+            canBeFlipped: true,
+            placementBuffer: 100,
+        },
+        {
             type: 'tree_deciduous_fallen', name: 'Fallen Deciduous Tree', color: '#228B22',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2,
+            spawnWeight: 0.5,
             isDecoration: false,
             spriteScale: 0.6,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.1), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: (h => h * 0.15) },
@@ -474,10 +510,14 @@ const TROPICAL_BIOME = {
         WORLD_BASE_MUD_COLOR: '#324824',
         WORLD_BASE_DIRT_COLOR: '#505c33',
         WORLD_GRASS_TILE_SCALE: 0.8,
-        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.65,
+        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.6,
         WORLD_GRASS_SKIP_CHANCE: 0.5,
         WORLD_GRASS_SKIP_MIN: 3,
         WORLD_GRASS_SKIP_MAX: 12,
+        WORLD_GRASS_CLUMP_CHANCE: 0.2,
+        WORLD_GRASS_CLUMP_MIN: 2,
+        WORLD_GRASS_CLUMP_MAX: 5,
+        WORLD_GRASS_CLUMP_RADIUS: 32,
         WORLD_MUD_TILE_SCALE: 0.6,
         WORLD_MUD_TILE_OVERLAP_FACTOR: 0.6,
         WORLD_MUD_RANDOM_ROTATION: false,
@@ -554,10 +594,14 @@ const TROPICAL_BIOME = {
         { name: 'palm2_single', files: ['palm2_single_1.png', 'palm2_single_2.png', 'palm2_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/palm2/', type: 'single' },
         { name: 'palm2_double', files: ['palm2_double_1.png', 'palm2_double_2.png', 'palm2_double_3.png'], path: 'assets/images/objects/biomes/tropical/trees/palm2/', type: 'single' },
         { name: 'palm2_triple', files: ['palm2_triple_1.png'], path: 'assets/images/objects/biomes/tropical/trees/palm2/', type: 'single' },
-        { name: 'palm2_fallen', files: ['palm_fallen_log_2.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
+        { name: 'palm2_fallen', files: ['palm2_fallen_log_1.png', 'palm2_fallen_log_2.png', 'palm2_fallen_log_3.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
         
         { name: 'kapok_single', files: ['tropical_kapok_single_1.png', 'tropical_kapok_single_2.png', 'tropical_kapok_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/kapok/', type: 'single' },
+        
         { name: 'tree_pheonix', files: ['tree_pheonix_1.png', 'tree_pheonix_2.png', 'tree_pheonix_3.png'], path: 'assets/images/objects/biomes/tropical/trees/pheonix/', type: 'single' },
+        { name: 'pheonix_fallen', files: ['pheonix_fallen_log_1.png', 'pheonix_fallen_log_2.png', 'pheonix_fallen_log_3.png'], path: 'assets/images/objects/biomes/tropical/trees/pheonix/', type: 'single' },
+        { name: 'pheonix_stump', files: ['pheonix_stump_1.png', 'pheonix_stump_2.png', 'pheonix_stump_3.png'], path: 'assets/images/objects/biomes/tropical/trees/pheonix/', type: 'single' },
+
         { name: 'tree5_deciduous', files: ['tree5_single_1.png', 'tree5_single_2.png', 'tree5_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/', type: 'single' },
         { name: 'deciduous_fallen', files: ['tree_fallen_log_1.png'], path: 'assets/images/objects/biomes/tropical/logs/', type: 'single' },
         
@@ -577,9 +621,9 @@ const TROPICAL_BIOME = {
         // Ground textures
         { name: 'mud', files: ['mud_1.png','mud_2.png', 'mud_3.png', 'mud_4.png', 'mud_5.png', 'mud_6.png', 'sand_new_1.png', 'sand_new_2.png', 'sand_new_3.png', 'sand_new_4.png', 'sand_new_5.png' ], path: 'assets/images/objects/biomes/mud/', type: 'single' },
         
-        { name: 'grass', files: ['tropical_grass_1.png', 'tropical_grass_2.png', 'tropical_grass_3.png', 'tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_14.png', 'tropical_grass_15.png', 'tropical_grass_16.png', 'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png', 'tropical_grass_24.png', 'tropical_grass_25.png', 'tropical_grass_26.png', 'tropical_grass_27.png', 'tropical_grass_28.png', 'tropical_grass_29.png', 'tropical_grass_30.png', 'tropical_grass_31.png',  ], path: 'assets/images/objects/biomes/tropical/grass/', type: 'single' },
+        { name: 'grass', files: ['tropical_grass_2.png', 'tropical_grass_3.png', 'tropical_grass_3_2.png', 'tropical_grass_3_3.png', 'tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_14.png', 'tropical_grass_15.png', 'tropical_grass_16.png', 'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png', 'tropical_grass_24.png', 'tropical_grass_25.png', 'tropical_grass_26.png', 'tropical_grass_27.png', 'tropical_grass_29.png', 'tropical_grass_30.png', 'tropical_grass_31.png',  'tropical_grass_32.png', 'tropical_grass_33.png', 'tropical_grass_34.png', 'tropical_grass_35.png', 'tropical_grass_36.png', 'tropical_grass_37.png', ], path: 'assets/images/objects/biomes/tropical/grass/', type: 'single' },
         
-        { name: 'grass_decoration', files: ['tropical_grass_1.png', 'tropical_grass_2.png', 'tropical_grass_3.png', 'tropical_grass_3_2.png', 'tropical_grass_3_3.png', 'tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_14.png', 'tropical_grass_15.png', 'tropical_grass_16.png', 'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png', 'tropical_grass_24.png', 'tropical_grass_25.png', 'tropical_grass_26.png', 'tropical_grass_27.png', 'tropical_grass_29.png', 'tropical_grass_30.png', 'tropical_grass_31.png',  ], path: 'assets/images/objects/biomes/tropical/grass/', type: 'single' },
+        { name: 'grass_decoration', files: ['tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_15.png',  'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png',  ], path: 'assets/images/objects/biomes/tropical/grass/', type: 'single' },
     ],
 
     // =========================================================================

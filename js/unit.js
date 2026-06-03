@@ -1403,7 +1403,7 @@ class Unit {
             const hoverBobAmp = bobbingConfig?.UNIT_HOVER_BOB_AMPLITUDE ?? 0.5;
             const hoverBobSpeed = bobbingConfig?.UNIT_HOVER_BOB_SPEED ?? 1.5;
             yOffset = Math.sin(this.bobbingCounter) * hoverBobAmp;
-            this.bobbingCounter += deltaTime * hoverBobSpeed;
+            this.bobbingCounter += (this.game?._frameDeltaTime || 0.016) * hoverBobSpeed;
         } else if (isActuallyMoving && this.isAlive() && bobbingConfig && bobbingConfig.UNIT_BOBBING_ENABLED) {
             yOffset = Math.sin(this.bobbingCounter) * bobbingConfig.UNIT_BOBBING_AMPLITUDE;
         }
