@@ -53,6 +53,8 @@ const MANUAL_CONTENT = [
                     { key: "CTRL + LMB Drag", desc: "Box Select Multiple Units" },
                     { key: "SPACE", desc: "Select ALL Squad Members" },
                     { key: "1 - 4", desc: "Select Specific Squad Member" },
+                    { key: "5 - 0", desc: "Recall Saved Squad Group" },
+                    { key: "CTRL + 5 - 0", desc: "Save Current Selection as Squad Group" },
                     { key: "SHIFT + LMB", desc: "Set Manual Target Lock (Focus Fire)" },
                     { key: "F", desc: "Toggle Formation" },
                     { key: "G", desc: "Throw Grenade (Aim & Click)" },

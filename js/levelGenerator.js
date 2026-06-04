@@ -1642,6 +1642,7 @@ class LevelGenerator {
             let normalSpriteScale = template.spriteScale || 1.0, destroyedSpriteScale = template.spriteDestroyedScale;
             let filesArray = [], pathBase = '', useRandomSpriteFromList = false, useSpritePair = false;
             let useTilesheet = false, tilesheetFrameWidth = 400, tilesheetFrameHeight = 400, tilesheetNumFrames = 6, tilesheetFramesPerRow = 2;
+            let treeStumpType = template.treeStumpType || null;
 
             if (template.type === 'possum_hut') {
                 const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
@@ -1798,6 +1799,21 @@ class LevelGenerator {
             }
             actualImageObject = actualSpritePath ? (preloadedAssetImages[actualSpritePath] || null) : null;
             if (actualDestroyedSpritePath) actualDestroyedImageObject = preloadedAssetImages[actualDestroyedSpritePath] || null;
+
+            if (treeStumpType && !actualDestroyedSpritePath && this.currentBiome?.spritePaths?.[treeStumpType]) {
+                const stumpSpriteInfo = this.currentBiome.spritePaths[treeStumpType];
+                const stumpFiles = stumpSpriteInfo.files || [];
+                const stumpPath = stumpSpriteInfo.path || '';
+                if (stumpFiles.length > 0) {
+                    const selectedStumpFile = this.rng.pickFrom(stumpFiles);
+                    actualDestroyedSpritePath = stumpPath + selectedStumpFile;
+                    actualDestroyedImageObject = preloadedAssetImages[actualDestroyedSpritePath] || null;
+                    const stumpObstacleDef = this.currentBiome.obstacleDefinitions?.find(o => o.type === treeStumpType);
+                    if (stumpObstacleDef && stumpObstacleDef.spriteScale !== undefined) {
+                        destroyedSpriteScale = stumpObstacleDef.spriteScale;
+                    }
+                }
+            }
 
             if (template.type.startsWith('tree_')) {
                 const treeConfig = (CONFIG.LEVEL_GENERATION && CONFIG.LEVEL_GENERATION.DECORATIONS && CONFIG.LEVEL_GENERATION.DECORATIONS.TREES) || {};
@@ -1974,7 +1990,7 @@ class LevelGenerator {
                 const extractionZoneObs = this.level.obstacles.filter(o => o.type === 'extraction_zone');
                 if (extractionZoneObs.length > 0) {
                     extractionZoneObs.forEach(ez => {
-                        const scale = 0.46;
+                        const scale = 0.92;
                         const centerX = helipad.x + helipad.width / 2;
                         const centerY = helipad.y + helipad.height / 2;
                         ez.width = helipad.width * scale;
@@ -1999,9 +2015,10 @@ class LevelGenerator {
                         const helipadHeight = helipadImage ? helipadImage.naturalHeight * helipadSpriteScale : ez.height;
                         const centerX = ez.x + ez.width / 2;
                         const centerY = ez.y + ez.height / 2;
-                        const ezScale = 0.46;
-                        ez.width = helipadWidth * ezScale;
-                        ez.height = helipadHeight * ezScale;
+                        const ezScaleX = 0.92;
+                        const ezScaleY = 0.79;
+                        ez.width = helipadWidth * ezScaleX;
+                        ez.height = helipadHeight * ezScaleY;
                         ez.x = centerX - ez.width / 2;
                         ez.y = centerY - ez.height / 2;
                         const newObstacle = {

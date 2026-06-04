@@ -742,7 +742,8 @@ const CONFIG = {
     // =====================
     POSSUM_TURRET: {
         spriteScale: 0.3,
-        muzzleOffset: 20
+        muzzleOffset: 20,
+        sfxShutdownKey: 'COMPUTER_HACK_GLITCH'
     },
 
     // =============================================================================
@@ -2341,7 +2342,7 @@ const CONFIG = {
         AMBUSH_NIGHT_MODE_ENABLED: true,
         AMBUSH_BACKGROUNDS: {
                 TROPICAL: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK', 'JUNGLE_RUINS_2', 'JUNGLE_AMBUSH', 'JUNGLE_RUINS'],
-                TEMPERATE: ['TEMPERATE_FOREST_1', 'TEMPERATE_FOREST_2', 'TEMPERATE_RUINS'],
+                TEMPERATE: ['TEMPERATE_FOREST_1',],
             },
         AMBUSH_UNLOCKS_PHASE: 2,
 

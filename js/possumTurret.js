@@ -118,6 +118,10 @@ class PossumTurret {
         this.isShutdown = true;
         this.facingDirection = this.directionArc[Math.floor(this.directionArc.length / 2)];
         //console.log(`[POSSUM TURRET] Shutdown at (${this.x.toFixed(0)}, ${this.y.toFixed(0)})`);
+        const turretConfig = CONFIG.POSSUM_TURRET || {};
+        if (this.game && this.game.audioManager && turretConfig.sfxShutdownKey) {
+            this.game.audioManager.play(turretConfig.sfxShutdownKey);
+        }
     }
     
     update(deltaTime) {

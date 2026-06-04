@@ -15,10 +15,24 @@ class ShootoutSpawner {
         this.loadTreePositionsFromConfig();
     }
 
-    loadTreePositionsFromConfig(backgroundKey = null) {
+    loadTreePositionsFromConfig(backgroundKey = null, biomeName = null) {
         // Use provided key or fall back to default
         const bgKey = backgroundKey || CONFIG.SHOOTOUT_MODE.DEFAULT_BACKGROUND;
-        const positions = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[bgKey].TREE_SPAWN_POSITIONS;
+
+        // Get background config, checking biome-specific backgrounds first
+        let bgConfig;
+        if (biomeName && typeof getBiomeShootoutBackground === 'function') {
+            bgConfig = getBiomeShootoutBackground(biomeName, bgKey);
+        } else {
+            bgConfig = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[bgKey];
+        }
+
+        if (!bgConfig) {
+//            console.error(`[ShootoutSpawner] Background config not found for key: ${bgKey}`);
+            return;
+        }
+
+        const positions = bgConfig.TREE_SPAWN_POSITIONS;
 
         if (positions && positions.length > 0) {
             this.treePositions = positions.map(pos => this.migrateSpawnPosition(pos));

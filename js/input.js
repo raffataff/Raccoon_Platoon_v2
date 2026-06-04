@@ -107,7 +107,7 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', 'e', 'q', '1', '2', '3', '4'];
+            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', 'e', 'q', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
 
@@ -246,10 +246,38 @@ class InputHandler {
 
             const keyNumber = parseInt(event.key, 10);
             if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) {
-                if (this.game.deployedSquadRoster && this.game.deployedSquadRoster.length >= keyNumber) {
-                    const targetUnit = this.game.deployedSquadRoster[keyNumber - 1];
+                if (this.isCtrlPressed && keyNumber >= 5) {
+                    if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                        const groupIndex = keyNumber - 5;
+                        this.game.squadGroups[groupIndex] = [...this.game.selectedUnits];
+                    }
+                } else {
+                    if (this.game.deployedSquadRoster && this.game.deployedSquadRoster.length >= keyNumber) {
+                        const targetUnit = this.game.deployedSquadRoster[keyNumber - 1];
 
-                    if (targetUnit && targetUnit.isAlive()) {
+                        if (targetUnit && targetUnit.isAlive()) {
+                            if (this.game.selectedUnits) {
+                                this.game.selectedUnits.forEach(unit => {
+                                    if (unit instanceof Raccoon && unit.isAimingGrenade) {
+                                        unit.cancelGrenadeAim();
+                                    }
+                                });
+                            }
+
+                            this.game.selectedUnits = [targetUnit];
+
+                            this.game.ui.updateSquadPanel();
+                            this.updateMouseCursor();
+                        }
+                    }
+                }
+            }
+
+            if (!isNaN(keyNumber) && keyNumber === 0 && !isInputFieldActive && !this.isCtrlPressed) {
+                const groupIndex = 5;
+                if (this.game.squadGroups[groupIndex]) {
+                    const aliveUnits = this.game.squadGroups[groupIndex].filter(u => u.isAlive());
+                    if (aliveUnits.length > 0) {
                         if (this.game.selectedUnits) {
                             this.game.selectedUnits.forEach(unit => {
                                 if (unit instanceof Raccoon && unit.isAimingGrenade) {
@@ -257,12 +285,17 @@ class InputHandler {
                                 }
                             });
                         }
-
-                        this.game.selectedUnits = [targetUnit];
-
+                        this.game.selectedUnits = aliveUnits;
                         this.game.ui.updateSquadPanel();
                         this.updateMouseCursor();
                     }
+                }
+            }
+
+            if (!isNaN(keyNumber) && keyNumber === 0 && this.isCtrlPressed && !isInputFieldActive) {
+                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                    const groupIndex = 5;
+                    this.game.squadGroups[groupIndex] = [...this.game.selectedUnits];
                 }
             }
         });

@@ -77,3 +77,23 @@ function getBiomeExtractionHostageVideos(biomeName) {
     }
     return defaults;
 }
+
+// Helper: get shootout background config for a biome-specific background key
+// Returns the biome-specific background config if available, otherwise falls back to CONFIG.SHOOTOUT_MODE.BACKGROUNDS
+function getBiomeShootoutBackground(biomeName, backgroundKey) {
+    const biome = getBiomeConfig(biomeName);
+    if (biome.shootoutBackgrounds && biome.shootoutBackgrounds[backgroundKey]) {
+        return biome.shootoutBackgrounds[backgroundKey];
+    }
+    return CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey];
+}
+
+// Helper: get all shootout background keys available for a biome
+function getBiomeShootoutBackgroundKeys(biomeName) {
+    const biome = getBiomeConfig(biomeName);
+    const biomeKeys = biome.shootoutBackgrounds ? Object.keys(biome.shootoutBackgrounds) : [];
+    if (biomeKeys.length > 0) {
+        return biomeKeys;
+    }
+    return CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeName] || CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS['TROPICAL'];
+}

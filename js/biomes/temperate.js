@@ -47,24 +47,6 @@ const TEMPERATE_BIOME = {
             files: ['tropical_wall_angled_long_1.png', 'tropical_wall_angled_long_2.png', 'tropical_wall_angled_long_3.png']
         },
 
-        // Bushes (temperate versions using tropical bush assets as placeholders)
-        bush_medium: {
-            path: 'assets/images/objects/biomes/temperate/bushes/',
-            files: ['bush_medium_1.png', 'bush_medium_3.png', 'bush_medium_4.png', 'bush_medium_5.png', 'temperate_grass_15.png', ]
-        },
-        bush_large: {
-            path: 'assets/images/objects/biomes/temperate/bushes/',
-            files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', ]
-        },
-        oak_bush_small: {
-            path: 'assets/images/objects/biomes/temperate/trees/oak/',
-            files: ['tree_oak_bush_1.png', 'tree_oak_bush_2.png', 'tree_oak_bush_3.png', 'tree_oak_bush_4.png', ]
-        },
-        oak_sapling: {
-            path: 'assets/images/objects/biomes/temperate/trees/oak/',
-            files: ['oak_sapling_4.png', ]
-        },
-
         // Rocks
         rock_medium: {
             path: 'assets/images/objects/biomes/temperate/rocks/medium/',
@@ -74,6 +56,21 @@ const TEMPERATE_BIOME = {
             path: 'assets/images/objects/biomes/temperate/rocks/large/',
             files: ['rock_large_temperate_1.png', 'rock_large_temperate_2.png', 'rock_large_temperate_3.png', 'rock_large_temperate_4.png', 'rock_large_temperate_5.png', 'rock_large_temperate_6.png', 'rock_large_temperate_7.png', 'rock_large_temperate_8.png', ]
         },
+
+        // Bushes (temperate versions using tropical bush assets as placeholders)
+        bush_medium: {
+            path: 'assets/images/objects/biomes/temperate/bushes/',
+            files: ['bush_medium_1.png', 'bush_medium_3.png', 'bush_medium_4.png', 'bush_medium_5.png', 'temperate_grass_15.png', ]
+        },
+        bush_large: {
+            path: 'assets/images/objects/biomes/temperate/bushes/',
+            files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', 'bush_berry_1.png', 'bush_berry_2.png', 'bush_berry_3.png', 'bush_berry_4.png', 'bush_berry_5.png', 'bush_berry_6.png', 'bush_berry_7.png' ]
+        },
+        oak_bush_small: {
+            path: 'assets/images/objects/biomes/temperate/trees/oak/',
+            files: ['tree_oak_bush_1.png', 'tree_oak_bush_2.png', 'tree_oak_bush_3.png', 'tree_oak_bush_4.png', ]
+        },
+        
 
         // Oak trees
         tree_oak_single: {
@@ -118,7 +115,7 @@ const TEMPERATE_BIOME = {
         },
         birch_fallen: {
             path: 'assets/images/objects/biomes/temperate/trees/birch/',
-            files: ['tree_birch_fallen_1.png' ]
+            files: ['tree_birch_fallen_1.png', 'tree_birch_fallen_2.png']
         },
         birch_stump: {
             path: 'assets/images/objects/biomes/temperate/trees/birch/',
@@ -132,6 +129,10 @@ const TEMPERATE_BIOME = {
         pine_fallen: {
             path: 'assets/images/objects/biomes/temperate/trees/pine/',
             files: ['pine_fallen_log_1.png', 'pine_fallen_log_2.png', ]
+        },
+        pine_stump: {
+            path: 'assets/images/objects/biomes/temperate/trees/pine/',
+            files: ['pine_stump_1.png', 'pine_stump_2.png', 'pine_stump_3.png' ]
         },
 
         // Forest patches
@@ -284,54 +285,37 @@ const TEMPERATE_BIOME = {
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.1) },
         },
         {
-            type: 'oak_sapling', name: 'Large Oak Bush', color: '#228B22',
-            destructible: true, hp: 50, maxHp: 50,
-            blocksMovement: true, providesCover: false,
-            spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.5,
-            canBeFlipped: true,
-            collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.3), radiusY: ((w, h) => h * 0.2) },
-        },
-        {
             type: 'tree_oak_single', name: 'Oak Tree Single', color: '#bb5912',
-            destructible: false,
-            blocksMovement: true, providesCover: true,
+            destructible: false, blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
+            canBeFlipped: true,
+            placementBuffer: 80,
             spriteScale: 0.75,
             collisionShape: {
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.78), radius: (w => w * 0.1) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.5,
-            canBeFlipped: true,
-            placementBuffer: 60,
-            fallenTreeType: 'tree_oak_fallen_large',
+            type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.78), radius: (w => w * 0.1) },
         },
         {
             type: 'tree_oak_double', name: 'Oak Tree Double', color: '#8B4513',
             destructible: false,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
+            canBeFlipped: true,
+            placementBuffer: 100,
             spriteScale: 0.6,
             collisionShape: {
                 type: 'ellipse', offsetX: (w => w * 0.47), offsetY: (h => h * 0.7), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.5,
-            canBeFlipped: true,
-            fallenTreeType: 'tree_oak_fallen_large',
         },
         
         {
             type: 'tree_oak_fallen_small', name: 'SmallFallen Oak Tree', color: '#8B4513',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
+            isDecoration: false, canBeFlipped: true,
             spawnWeight: 0.5,
-            isDecoration: false,
+            placementBuffer: 80,
             spriteScale: 0.3,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.35) },
-            canBeFlipped: true,
-            placementBuffer: 80,
         },
         {
             type: 'tree_oak_fallen_large', name: 'LargeFallen Oak Tree', color: '#228B22',
@@ -357,41 +341,32 @@ const TEMPERATE_BIOME = {
         
         {
             type: 'tree_maple_single', name: 'Maple Tree Single', color: '#8B4513',
-            destructible: true, hp: 200, maxHp: 200,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            destructible: false, blocksMovement: true, providesCover: true,
+            spawnWeight: 2, isDecoration: false, canBeFlipped: true,
             spriteScale: 0.65,
             collisionShape: { 
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radius: (w => w * 0.1) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.4,
-            canBeFlipped: true,
         },
         {
             type: 'tree_maple_double', name: 'Maple Tree Double', color: '#8B4513',
-            destructible: true, hp: 150, maxHp: 150,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            destructible: false, blocksMovement: true, providesCover: true,
+            canBeFlipped: true, isDecoration: false,
+            spawnWeight: 2,
             spriteScale: 0.65,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.12), radiusY: ((w, h) => h * 0.08) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.4,
-            canBeFlipped: true,
         },
         {
             type: 'tree_rubber_single', name: 'Rubber Tree Single', color: '#8B4513',
             destructible: true, hp: 150, maxHp: 150,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: false,
+            blocksMovement: true, providesCover: true, isDecoration: false,
+            canBeFlipped: true,
+            spawnWeight: 0.5,
             spriteScale: 0.3,
+            treeStumpType: 'birch_stump',
             collisionShape: { 
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.87), radius: (w => w * 0.06) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.2,
-            canBeFlipped: true,
         },
-        
         {
             type: 'tree_birch', name: 'Birch Tree', color: '#228B22',
             destructible: true, hp: 75, maxHp: 75,
@@ -400,8 +375,7 @@ const TEMPERATE_BIOME = {
             spriteScale: 0.5,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.55), offsetY: (h => h * 0.85), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
-            spriteDestroyed: 'assets/images/objects/biomes/temperate/trees/birch/tree_birch_destroyed_1.png',
-            spriteDestroyedScale: 0.2,
+            treeStumpType: 'birch_stump',
             canBeFlipped: true,
             fallenTreeType: 'birch_fallen',
         },
@@ -409,23 +383,21 @@ const TEMPERATE_BIOME = {
             type: 'birch_fallen', name: 'Fallen Birch Tree', color: '#228B22',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1,
-            isDecoration: false,
+            isDecoration: false, canBeFlipped: true,
+            spawnWeight: 0.5,
             spriteScale: 0.2,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.33), radiusX: (w => w * 0.5), radiusY: (h => h * 0.07) },
-            canBeFlipped: true,
         },
         {
             type: 'birch_stump', name: 'Birch Tree Stump', color: '#228B22',
             destructible: false,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1,
-            isDecoration: false,
+            isDecoration: false, canBeFlipped: true,
+            spawnWeight: 0.4,
             spriteScale: 0.2,
             collisionShape: { 
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.6), radius: (w => w * 0.2) },
-            canBeFlipped: true,
         },
         {
             type: 'tree_pine', name: 'Pine Tree', color: '#228B22',
@@ -435,8 +407,7 @@ const TEMPERATE_BIOME = {
             spriteScale: 0.7,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radiusX: (w => w * 0.05), radiusY: ((w, h) => h * 0.07) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.2,
+            treeStumpType: 'pine_stump',
             canBeFlipped: true,
         },
         {
@@ -446,9 +417,16 @@ const TEMPERATE_BIOME = {
             spriteScale: 0.2,
             collisionShape: { 
                 type: 'rectangle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: ((w, h) => h * 0.15) },
-            spriteDestroyed: 'assets/images/objects/biomes/tropical/trees/tree_single_stump_1.png',
-            spriteDestroyedScale: 0.2,
             canBeFlipped: true,
+        },
+        {
+            type: 'pine_stump', name: 'Pine Tree Stump', color: '#228B22',
+            destructible: false, blocksMovement: true, providesCover: true,
+            isDecoration: false, canBeFlipped: true,
+            spawnWeight: 0.4,
+            spriteScale: 0.2,
+            collisionShape: { 
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.6), radius: (w => w * 0.2) },
         },
         {
             type: 'forest_patch_small_1',
@@ -577,8 +555,7 @@ const TEMPERATE_BIOME = {
         
         //BUSHES
         { name: 'bush_medium', files: ['bush_medium_1.png', 'bush_medium_3.png', 'bush_medium_4.png', 'bush_medium_5.png', 'temperate_grass_15.png',  ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
-        { name: 'bush_large', files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
-        
+        { name: 'bush_large', files: ['bush_large_1.png', 'bush_large_2.png', 'bush_large_3.png', 'bush_berry_1.png', 'bush_berry_2.png', 'bush_berry_3.png', 'bush_berry_4.png', 'bush_berry_5.png', 'bush_berry_6.png', 'bush_berry_7.png' ], path: 'assets/images/objects/biomes/temperate/bushes/', type: 'single' },
         
         //ROCKS
         { name: 'rock_medium', files: ['rock_medium_temperate_1.png', 'rock_medium_temperate_2.png', 'rock_medium_temperate_3.png', 'rock_medium_temperate_4.png', 'rock_medium_temperate_5.png', 'rock_medium_temperate_6.png', 'rock_medium_temperate_7.png', 'rock_medium_temperate_8.png',], path: 'assets/images/objects/biomes/temperate/rocks/medium/', type: 'single' },
@@ -590,11 +567,13 @@ const TEMPERATE_BIOME = {
         { name: 'tree_willow', files: ['tree_willow_1.png', 'tree_willow_2.png', 'tree_willow_3.png', 'tree_willow_4.png' ], path: 'assets/images/objects/biomes/temperate/trees/willow/', type: 'single' },
             // OAK
         { name: 'oak_bush_small', files: ['tree_oak_bush_1.png', 'tree_oak_bush_2.png', 'tree_oak_bush_3.png', 'tree_oak_bush_4.png', ], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
-        { name: 'oak_sapling', files: ['oak_sapling_1.png', 'oak_sapling_2.png', 'oak_sapling_3.png', 'oak_sapling_4.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_single', files: ['tree_oak_single_1.png', 'tree_oak_single_2.png', 'tree_oak_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_double', files: ['palm1_double.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'oak_fallen_small', files: ['tree_oak_fallen_small_1.png', 'tree_oak_fallen_small_2.png', 'tree_oak_fallen_small_3.png', 'tree_oak_fallen_small_4.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
         { name: 'tree_oak_fallen_large', files: ['tree_oak_fallen_large_1.png', 'tree_oak_fallen_large_2.png'], path: 'assets/images/objects/biomes/temperate/trees/oak/', type: 'single' },
+            // MAPLE
+        { name: 'tree_maple_single', files: ['tree_maple_single_1.png', 'tree_maple_single_2.png', 'tree_maple_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
+        { name: 'tree_maple_double', files: ['tree_maple_double_1.png', 'tree_maple_double_2.png',], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
             // BIRCH
         { name: 'tree_birch', files: ['tree_birch_1.png', 'tree_birch_2.png', 'tree_birch_3.png', 'tree_birch_4.png',  ], path: 'assets/images/objects/biomes/temperate/trees/birch', type: 'single' },
         { name: 'birch_fallen', files: ['tree_birch_fallen_1.png', 'tree_birch_fallen_2.png'], path: 'assets/images/objects/biomes/temperate/trees/birch/', type: 'single' },
@@ -602,9 +581,7 @@ const TEMPERATE_BIOME = {
             // PINE
         { name: 'tree_pine', files: ['tree_pine_1.png', 'tree_pine_2.png', 'tree_pine_3.png'], path: 'assets/images/objects/biomes/temperate/trees/pine/', type: 'single' },
         { name: 'pine_fallen', files: ['pine_fallen_log_1.png', 'pine_fallen_log_2.png', ], path: 'assets/images/objects/biomes/temperate/trees/pine/', type: 'single' },
-            // MAPLE
-        { name: 'tree_maple_single', files: ['tree_maple_single_1.png', 'tree_maple_single_2.png', 'tree_maple_single_3.png'], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
-        { name: 'tree_maple_double', files: ['tree_maple_double_1.png', 'tree_maple_double_2.png',], path: 'assets/images/objects/biomes/temperate/trees/maple/', type: 'single' },
+        { name: 'pine_stump', files: ['pine_stump_1.png', 'pine_stump_2.png', 'pine_stump_3.png' ], path: 'assets/images/objects/biomes/temperate/trees/pine/', type: 'single' },
             // RUBBER
         { name: 'tree_rubber_single', files: ['tree_rubber_single_2.png', 'tree_rubber_single_3.png'], path: 'assets/images/objects/biomes/tropical/trees/rubber/', type: 'single' },
         

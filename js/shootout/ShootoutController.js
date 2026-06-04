@@ -8,6 +8,7 @@ class ShootoutController {
 
         this.backgroundImage = null;
         this.currentBackgroundKey = CONFIG.SHOOTOUT_MODE.DEFAULT_BACKGROUND || 'JUNGLE_AMBUSH';
+        this.currentBiomeName = null;
         this.isNightMode = false;
         this.loadBackgroundImage();
 
@@ -90,13 +91,12 @@ class ShootoutController {
     }
 
     init() {
-        // Initialize spawner with positions from the current background
         this.spawner = new ShootoutSpawner(this.game);
-        this.spawner.loadTreePositionsFromConfig(this.currentBackgroundKey);
+        this.spawner.loadTreePositionsFromConfig(this.currentBackgroundKey, this.currentBiomeName);
     }
 
     loadBackgroundImage() {
-        const bgConfig = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[this.currentBackgroundKey];
+        const bgConfig = this.getBackgroundConfig(this.currentBackgroundKey);
         if (!bgConfig) {
 //            console.error(`[Shootout] Background config not found for key: ${this.currentBackgroundKey}`);
             return;
@@ -128,21 +128,44 @@ class ShootoutController {
     }
 
     /**
-     * Set the current background and update spawn positions
-     * @param {string} backgroundKey 
+     * Get background config, checking biome-specific backgrounds first
+     * @param {string} backgroundKey
+     * @returns {object|null}
      */
-    setBackground(backgroundKey) {
-        if (!CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey]) {
+    getBackgroundConfig(backgroundKey) {
+        if (this.currentBiomeName && typeof getBiomeShootoutBackground === 'function') {
+            return getBiomeShootoutBackground(this.currentBiomeName, backgroundKey);
+        }
+        return CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey];
+    }
+
+    /**
+     * Set the current background and update spawn positions
+     * @param {string} backgroundKey
+     * @param {string} biomeName - Optional biome name for biome-specific backgrounds
+     */
+    setBackground(backgroundKey, biomeName = null) {
+        const bgConfig = biomeName
+            ? getBiomeShootoutBackground(biomeName, backgroundKey)
+            : CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey];
+
+        if (!bgConfig) {
 //            console.error(`[Shootout] Invalid background key: ${backgroundKey}`);
             return;
         }
 
         this.currentBackgroundKey = backgroundKey;
+        if (biomeName) {
+            this.currentBiomeName = biomeName;
+        }
         this.loadBackgroundImage();
 
         // If we have a spawner, update its positions
-        if (this.spawner && CONFIG.SHOOTOUT_MODE.BACKGROUNDS[this.currentBackgroundKey].TREE_SPAWN_POSITIONS) {
-            this.spawner.setTreePositions(CONFIG.SHOOTOUT_MODE.BACKGROUNDS[this.currentBackgroundKey].TREE_SPAWN_POSITIONS);
+        if (this.spawner) {
+            const positions = this.getBackgroundConfig(this.currentBackgroundKey)?.TREE_SPAWN_POSITIONS;
+            if (positions) {
+                this.spawner.setTreePositions(positions);
+            }
         }
 
 //        console.log(`[Shootout] Background set to: ${backgroundKey}`);
@@ -172,25 +195,29 @@ class ShootoutController {
      * Select a random map different from the current one, with random night mode
      */
     selectRandomMap() {
-        const backgrounds = CONFIG.SHOOTOUT_MODE.BACKGROUNDS;
-        const allMapKeys = Object.keys(backgrounds);
-        
+        let allMapKeys;
+        if (this.currentBiomeName && typeof getBiomeShootoutBackgroundKeys === 'function') {
+            allMapKeys = getBiomeShootoutBackgroundKeys(this.currentBiomeName);
+        } else {
+            allMapKeys = Object.keys(CONFIG.SHOOTOUT_MODE.BACKGROUNDS);
+        }
+
         // Filter out current map to avoid immediate repeats
         const availableMaps = allMapKeys.filter(key => key !== this.currentBackgroundKey);
-        
+
         // If only one map available or all filtered, use all maps
         const mapsToChooseFrom = availableMaps.length > 0 ? availableMaps : allMapKeys;
-        
+
         // Random selection
         const randomIndex = Math.floor(Math.random() * mapsToChooseFrom.length);
         const selectedMap = mapsToChooseFrom[randomIndex];
-        
+
         // Random night mode (50/50 chance)
         const useNightMode = Math.random() > 0.5;
-        
-        this.setBackground(selectedMap);
+
+        this.setBackground(selectedMap, this.currentBiomeName);
         this.setNightMode(useNightMode);
-        
+
 //        console.log(`[Shootout] Random map selected: ${selectedMap} (Night: ${useNightMode})`);
     }
 
@@ -264,18 +291,24 @@ class ShootoutController {
      * @param {string} backgroundKey - Optional background key from config
      * @param {boolean} isNight - Whether to use night mode
      * @param {function} callback - Callback function when ambush ends
+     * @param {string} biomeName - Optional biome name for biome-specific backgrounds
      */
-    startAmbush(backgroundKey = null, isNight = false, callback = null) {
-//        console.log('[Shootout] startAmbush called, backgroundKey:', backgroundKey, 'isNight:', isNight);
-        
+    startAmbush(backgroundKey = null, isNight = false, callback = null, biomeName = null) {
+//        console.log('[Shootout] startAmbush called, backgroundKey:', backgroundKey, 'isNight:', isNight, 'biomeName:', biomeName);
+
         // Set ambush mode
         this.isAmbushMode = true;
         this.ambushCallback = callback;
 
+        // Store biome name for biome-specific backgrounds
+        if (biomeName) {
+            this.currentBiomeName = biomeName;
+        }
+
         // Only set background/night if not already configured (prevents double initialization)
         if (backgroundKey && this.currentBackgroundKey !== backgroundKey) {
 //            console.log('[Shootout] Calling setBackground...');
-            this.setBackground(backgroundKey);
+            this.setBackground(backgroundKey, this.currentBiomeName);
         }
         if (isNight !== this.isNightMode) {
 //            console.log('[Shootout] Calling setNightMode...');

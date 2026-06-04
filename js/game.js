@@ -41,6 +41,7 @@ class Game {
         this.enemyUnits = [];
         this.hostageUnits = [];
         this.selectedUnits = [];
+        this.squadGroups = [null, null, null, null, null]; // indices 0-4 map to keys 5-0
         this.visualEffects = [];
         this.delayedSpeech = [];
         this.intelConsoles = [];
@@ -1045,19 +1046,20 @@ class Game {
             { name: 'rock_medium', files: TEMPERATE_BIOME.spritePaths.rock_medium?.files, path: TEMPERATE_BIOME.spritePaths.rock_medium?.path, type: 'single' },
             { name: 'rock_large', files: TEMPERATE_BIOME.spritePaths.rock_large?.files, path: TEMPERATE_BIOME.spritePaths.rock_large?.path, type: 'single' },
             { name: 'oak_bush_small', files: TEMPERATE_BIOME.spritePaths.oak_bush_small?.files, path: TEMPERATE_BIOME.spritePaths.oak_bush_small?.path, type: 'single' },
-            { name: 'oak_sapling', files: TEMPERATE_BIOME.spritePaths.oak_sapling?.files, path: TEMPERATE_BIOME.spritePaths.oak_sapling?.path, type: 'single' },
+            
             { name: 'oak_single', files: TEMPERATE_BIOME.spritePaths.tree_oak_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_single?.path, type: 'single' },
             { name: 'oak_double', files: TEMPERATE_BIOME.spritePaths.tree_oak_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_double?.path, type: 'single' },
             { name: 'oak_fallen_small', files: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_small?.path, type: 'single' },
             { name: 'tree_oak_fallen_large', files: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_large?.files, path: TEMPERATE_BIOME.spritePaths.tree_oak_fallen_large?.path, type: 'single' },
+            { name: 'tree_maple_single', files: TEMPERATE_BIOME.spritePaths.tree_maple_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_single?.path, type: 'single' },
+            { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
             { name: 'tree_willow', files: TEMPERATE_BIOME.spritePaths.tree_willow?.files, path: TEMPERATE_BIOME.spritePaths.tree_willow?.path, type: 'single' },
             { name: 'tree_birch', files: TEMPERATE_BIOME.spritePaths.tree_birch?.files, path: TEMPERATE_BIOME.spritePaths.tree_birch?.path, type: 'single' },
             { name: 'birch_fallen', files: TEMPERATE_BIOME.spritePaths.birch_fallen?.files, path: TEMPERATE_BIOME.spritePaths.birch_fallen?.path, type: 'single' },
             { name: 'birch_stump', files: TEMPERATE_BIOME.spritePaths.birch_stump?.files, path: TEMPERATE_BIOME.spritePaths.birch_stump?.path, type: 'single' },
             { name: 'tree_pine', files: TEMPERATE_BIOME.spritePaths.tree_pine?.files, path: TEMPERATE_BIOME.spritePaths.tree_pine?.path, type: 'single' },
             { name: 'pine_fallen', files: TEMPERATE_BIOME.spritePaths.pine_fallen?.files, path: TEMPERATE_BIOME.spritePaths.pine_fallen?.path, type: 'single' },
-            { name: 'tree_maple_single', files: TEMPERATE_BIOME.spritePaths.tree_maple_single?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_single?.path, type: 'single' },
-            { name: 'tree_maple_double', files: TEMPERATE_BIOME.spritePaths.tree_maple_double?.files, path: TEMPERATE_BIOME.spritePaths.tree_maple_double?.path, type: 'single' },
+            { name: 'pine_stump', files: TEMPERATE_BIOME.spritePaths.pine_stump?.files, path: TEMPERATE_BIOME.spritePaths.pine_stump?.path, type: 'single' },
             { name: 'forest_small', files: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_small_1?.path, type: 'single' },
             { name: 'forest_large', files: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.files, path: TEMPERATE_BIOME.spritePaths.forest_patch_large_1?.path, type: 'single' },
             { name: 'temperate_ruins_medium', files: TEMPERATE_BIOME.spritePaths.temperate_ruins_medium?.files, path: TEMPERATE_BIOME.spritePaths.temperate_ruins_medium?.path, type: 'single' },
@@ -1741,16 +1743,15 @@ class Game {
      */
     executeStartAmbush(callback) {
 //        console.log('[Game] START AMBUSH TRIGGERED!');
-        
+
         // Set flag so mission doesn't start while ambush alert is showing
         this.ambushTriggered = true;
-        
+
         // Initialize shootout controller if needed
         this.initShootoutForAmbush();
-        
-        const background = this.getRandomAmbushBackground(
-            this.currentMissionParams?.baseParams?.biome
-        );
+
+        const biomeName = this.currentMissionParams?.baseParams?.biome;
+        const background = this.getRandomAmbushBackground(biomeName);
         const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
 
         // Store previous game state
@@ -1758,36 +1759,36 @@ class Game {
 
         // Pre-configure shootout with background and start music BEFORE showing alert
         if (this.shootoutController) {
-            this.shootoutController.setBackground(background);
+            this.shootoutController.setBackground(background, biomeName);
             this.shootoutController.setNightMode(isNight);
             // Crossfade from campaign music to ambush music
             if (this.musicManager) {
                 this.musicManager.playMusic(this.musicManager.config.STATE_TRACKS.SHOOTOUT_AMBUSH || this.musicManager.config.STATE_TRACKS.SHOOTOUT_PLAYING, { fade: true, loop: true });
             }
         }
-        
+
         // Show ambush alert
         const game = this;
-        const backgroundImagePath = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[background]?.IMAGE;
+        const backgroundImagePath = this.getAmbushBackgroundImage(background, biomeName);
         if (this.ui) {
             this.ui.showShootoutAmbushAlert('START_AMBUSH', function() {
                 // Start the ambush
                 game.shootoutController.startAmbush(background, isNight, function(result) {
                     // Ambush ended
 //                    console.log('[Game] Start ambush ended with result:', result);
-                    
+
                     // Handle ambush result (START type)
                     game.handleAmbushResult('START', result);
-                    
+
                     if (callback) callback(result === 'VICTORY');
-                });
+                }, biomeName);
             }, backgroundImagePath);
         } else {
             // No UI - just run ambush immediately
             this.shootoutController.startAmbush(background, isNight, function(result) {
                 game.handleAmbushResult('START', result);
                 if (callback) callback(result === 'VICTORY');
-            });
+            }, biomeName);
         }
     }
 
@@ -5498,6 +5499,20 @@ try {
     }
 
     /**
+     * Get the image path for an ambush background, checking biome-specific backgrounds first
+     * @param {string} backgroundKey - Background key (e.g. 'JUNGLE_ATTACK')
+     * @param {string} biomeName - Biome key (e.g. 'TROPICAL', 'TEMPERATE')
+     * @returns {string}
+     */
+    getAmbushBackgroundImage(backgroundKey, biomeName) {
+        if (biomeName && typeof getBiomeShootoutBackground === 'function') {
+            const bgConfig = getBiomeShootoutBackground(biomeName, backgroundKey);
+            if (bgConfig) return bgConfig.IMAGE;
+        }
+        return CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey]?.IMAGE;
+    }
+
+    /**
      * Trigger an extraction ambush
      * @param {function} callback - Callback when ambush ends
      */
@@ -5509,25 +5524,24 @@ try {
         }
 
 //        console.log('[Game] EXTRACTION AMBUSH TRIGGERED!');
-        
+
         // Set flag so extraction doesn't proceed while ambush alert is showing
         this.ambushTriggered = true;
-        
+
         // Initialize shootout controller if needed
         this.initShootoutForAmbush();
-        
+
         // Get random background and night mode setting
-        const background = this.getRandomAmbushBackground(
-            this.currentMissionParams?.baseParams?.biome
-        );
+        const biomeName = this.currentMissionParams?.baseParams?.biome;
+        const background = this.getRandomAmbushBackground(biomeName);
         const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
-        
+
         // Store previous game state
         this.previousGameState = this.gameState;
 
         // Pre-configure shootout with background and music BEFORE showing alert
         if (this.shootoutController) {
-            this.shootoutController.setBackground(background);
+            this.shootoutController.setBackground(background, biomeName);
             this.shootoutController.setNightMode(isNight);
             // Set game state to SHOOTOUT_AMBUSH so we render the shootout background behind alert
             this.gameState = 'SHOOTOUT_AMBUSH';
@@ -5542,20 +5556,20 @@ try {
 
         // Show ambush alert
         const game = this;
-        const backgroundImagePath = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[background]?.IMAGE;
+        const backgroundImagePath = this.getAmbushBackgroundImage(background, biomeName);
         if (this.ui) {
             this.ui.showShootoutAmbushAlert('EXTRACTION_AMBUSH', function() {
                 // Start the ambush
                 game.shootoutController.startAmbush(background, isNight, function(result) {
                     // Ambush ended
 //                    console.log('[Game] Extraction ambush ended with result:', result);
-                    
+
                     // Handle ambush result (EXTRACTION type)
                     game.handleAmbushResult('EXTRACTION', result);
-                    
+
                     // Return to campaign mode
                     if (callback) callback(result === 'VICTORY');
-                });
+                }, biomeName);
             }, backgroundImagePath);
         }
     }
