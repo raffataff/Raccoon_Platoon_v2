@@ -4184,6 +4184,7 @@ input[type="range"]::-moz-range-thumb {
     z-index: 150;
     display: none;
     flex-direction: column;
+    justify-content: center;
     background: radial-gradient(circle at 40% 50%, rgba(10, 18, 10, 0.85) 0%, rgba(4, 6, 4, 0.97) 100%);
     overflow: hidden;
 }
@@ -4227,12 +4228,12 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #shootoutPreGameScreen .hud-left {
-    width: 320px;
+    width: 520px;
     min-width: 300px;
     flex-shrink: 0;
     overflow-y: auto;
     align-items: stretch;
-    justify-content: flex-start;
+    justify-content: center;
     border-right: 2px solid rgba(76, 175, 80, 0.5);
 }
 
@@ -4249,8 +4250,8 @@ input[type="range"]::-moz-range-thumb {
 
 /* -- right column -- */
 #shootoutPreGameScreen .hud-right {
-    width: 880px;
-    min-width: 520px;
+    width: 1100px;
+    min-width: 1000px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
