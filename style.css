@@ -3623,6 +3623,15 @@ input[type="range"]::-moz-range-thumb {
     color: #9A968A;
 }
 
+.save-slot-night-indicator {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 1em;
+    color: #88AAFF;
+    text-shadow: 0 0 8px rgba(136, 170, 255, 0.8);
+    vertical-align: middle;
+}
+
 .save-slot-empty-text {
     color: #666;
     font-style: italic;

@@ -2920,8 +2920,9 @@ class UI {
             if (slot.isEmpty) {
                 slotInfo.innerHTML = `<div class="save-slot-empty-text">Empty Slot</div>`;
             } else {
+                const nightIndicator = slot.isNightMission ? '<span class="save-slot-night-indicator" title="Night Mission">🌙</span>' : '';
                 slotInfo.innerHTML = `
-                    <div class="save-slot-name">${slot.slotName}</div>
+                    <div class="save-slot-name">${slot.slotName} ${nightIndicator}</div>
                     <div class="save-slot-timestamp">${slot.timestampDisplay}</div>
                 `;
             }

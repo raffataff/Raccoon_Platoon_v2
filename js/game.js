@@ -41,7 +41,7 @@ class Game {
         this.enemyUnits = [];
         this.hostageUnits = [];
         this.selectedUnits = [];
-        this.squadGroups = [null, null, null, null, null]; // indices 0-4 map to keys 5-0
+        this.squadGroups = [null, null, null, null, null, null]; // indices 0-5 map to keys 5-9, 0
         this.visualEffects = [];
         this.delayedSpeech = [];
         this.intelConsoles = [];
@@ -2006,6 +2006,10 @@ class Game {
         const firstUnit = this.selectedUnits[0];
         const marker = new ScentMarker(firstUnit.x, firstUnit.y, markerType);
         this.scentMarkers.push(marker);
+
+        if (this.audioManager) {
+            this.audioManager.play('SCENT_MARKER_PLACE');
+        }
     }
 
     _removeNearestScentMarker() {
@@ -3053,6 +3057,7 @@ class Game {
         // --- MODIFICATION START ---
         // This is the primary check for the "total loss" condition.
         if (!isVictory && this.getAvailableRecruits().length === 0) {
+            this.scentMarkers = [];
             this.gameState = 'GAME_OVER_NO_RECRUITS';
             this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.GAMEOVER_ALL_RECRUITS_KIA; // Store message for UI
             if (this.ui) {
@@ -3077,6 +3082,8 @@ class Game {
         // this.audioManager.stopAllLoopingSounds();
         // this.lastPlayedMusicKey = null;
         this.gameState = 'POST_MISSION_DEBRIEF';
+
+        this.scentMarkers = [];
         
         this.missionEndMessage = "";
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
@@ -4990,6 +4997,15 @@ class Game {
                 octx.arc(sx, sy, r, 0, Math.PI * 2);
                 octx.fill();
             });
+
+            // Pass 2b: Fire lights - cut holes in darkness for flame effects
+            if (this.visualEffects) {
+                this.visualEffects.forEach(effect => {
+                    if (effect && effect.type === 'fire' && typeof effect.renderLight === 'function') {
+                        effect.renderLight(octx, this.cameraX, this.cameraY, zoom);
+                    }
+                });
+            }
 
             // Pass 3: Paint the residual tint into the transparent (vision) areas only.
             // destination-over draws BEHIND existing pixels, so it only fills where alpha=0

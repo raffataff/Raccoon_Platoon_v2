@@ -90,6 +90,7 @@ class InputHandler {
             } else if (event.key === 'Control' || event.key === 'Meta') {
                 if (!this.isCtrlPressed) {
                     this.isCtrlPressed = true;
+                    console.log('[DEBUG] Ctrl pressed, isCtrlPressed:', this.isCtrlPressed);
                     if (this.isLeftMouseDown && this.isLMBHoldFiringActionActive) {
                         this.game.handleLMBFireActionEnd();
                         this.isLMBHoldFiringActionActive = false;
@@ -246,10 +247,30 @@ class InputHandler {
 
             const keyNumber = parseInt(event.key, 10);
             if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) {
+                console.log('[DEBUG] Number key:', keyNumber, 'Ctrl pressed:', this.isCtrlPressed, 'selectedUnits:', this.game.selectedUnits?.length);
                 if (this.isCtrlPressed && keyNumber >= 5) {
                     if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
                         const groupIndex = keyNumber - 5;
                         this.game.squadGroups[groupIndex] = [...this.game.selectedUnits];
+                        console.log('[DEBUG] Saved squad group', groupIndex, 'with', this.game.squadGroups[groupIndex].length, 'units');
+                    }
+                } else if (!this.isCtrlPressed && keyNumber >= 5) {
+                    const groupIndex = keyNumber - 5;
+                    if (this.game.squadGroups[groupIndex]) {
+                        const aliveUnits = this.game.squadGroups[groupIndex].filter(u => u.isAlive());
+                        if (aliveUnits.length > 0) {
+                            if (this.game.selectedUnits) {
+                                this.game.selectedUnits.forEach(unit => {
+                                    if (unit instanceof Raccoon && unit.isAimingGrenade) {
+                                        unit.cancelGrenadeAim();
+                                    }
+                                });
+                            }
+                            this.game.selectedUnits = aliveUnits;
+                            this.game.ui.updateSquadPanel();
+                            this.updateMouseCursor();
+                            console.log('[DEBUG] Recalled squad group', groupIndex, 'with', aliveUnits.length, 'units');
+                        }
                     }
                 } else {
                     if (this.game.deployedSquadRoster && this.game.deployedSquadRoster.length >= keyNumber) {
@@ -274,6 +295,7 @@ class InputHandler {
             }
 
             if (!isNaN(keyNumber) && keyNumber === 0 && !isInputFieldActive && !this.isCtrlPressed) {
+                console.log('[DEBUG] Recall squad group 5 (key 0), Ctrl:', this.isCtrlPressed);
                 const groupIndex = 5;
                 if (this.game.squadGroups[groupIndex]) {
                     const aliveUnits = this.game.squadGroups[groupIndex].filter(u => u.isAlive());
@@ -288,14 +310,17 @@ class InputHandler {
                         this.game.selectedUnits = aliveUnits;
                         this.game.ui.updateSquadPanel();
                         this.updateMouseCursor();
+                        console.log('[DEBUG] Recalled squad group 5 with', aliveUnits.length, 'units');
                     }
                 }
             }
 
             if (!isNaN(keyNumber) && keyNumber === 0 && this.isCtrlPressed && !isInputFieldActive) {
+                console.log('[DEBUG] Save squad group 5 (key 0), Ctrl:', this.isCtrlPressed, 'selectedUnits:', this.game.selectedUnits?.length);
                 if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
                     const groupIndex = 5;
                     this.game.squadGroups[groupIndex] = [...this.game.selectedUnits];
+                    console.log('[DEBUG] Saved squad group 5 with', this.game.squadGroups[groupIndex].length, 'units');
                 }
             }
         });
@@ -304,6 +329,7 @@ class InputHandler {
             if (event.key === 'Shift') {
                 this.isShiftPressed = false;
             } else if (event.key === 'Control' || event.key === 'Meta') {
+                console.log('[DEBUG] Ctrl released, isCtrlPressed:', this.isCtrlPressed);
                 this.isCtrlPressed = false;
                 if (this.isCtrlDragSelecting) {
                     if (this.game.draggedFarEnough) this.game.selectUnitsInCtrlDragRectangle();

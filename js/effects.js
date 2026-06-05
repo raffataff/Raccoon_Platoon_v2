@@ -112,6 +112,42 @@ class FireEffect {
         );
         ctx.restore();
     }
+
+    renderLight(ctx, cameraX, cameraY, zoom) {
+        const nightLightCfg = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.FIRE && CONFIG.VISUAL_EFFECTS.FIRE.NIGHT_LIGHT) || {};
+        if (!nightLightCfg.ENABLED) return;
+
+        const x = this.getBaseX();
+        const y = this.getBaseY();
+        const opacity = this.getOpacity();
+        if (opacity <= 0) return;
+
+        const sx = (x - cameraX) * zoom;
+        const sy = (y - cameraY) * zoom;
+
+        const baseRadius = nightLightCfg.RADIUS || 180;
+        const intensity = nightLightCfg.INTENSITY || 0.85;
+        const innerRadiusFactor = nightLightCfg.INNER_RADIUS_FACTOR || 0.3;
+        const colorRGB = nightLightCfg.COLOR_RGB || [255, 140, 40];
+        const pulseSpeed = nightLightCfg.PULSE_SPEED || 2.5;
+        const pulseAmount = nightLightCfg.PULSE_AMOUNT || 0.15;
+
+        const pulse = 1 + pulseAmount * Math.sin(this.elapsedTime * pulseSpeed);
+        const radius = baseRadius * zoom * pulse;
+        const innerRadius = radius * innerRadiusFactor;
+
+        const grad = ctx.createRadialGradient(sx, sy, innerRadius, sx, sy, radius);
+        const alpha = intensity * opacity;
+        grad.addColorStop(0, `rgba(${colorRGB[0]}, ${colorRGB[1]}, ${colorRGB[2]}, ${alpha})`);
+        grad.addColorStop(1, `rgba(${colorRGB[0]}, ${colorRGB[1]}, ${colorRGB[2]}, 0)`);
+
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+    }
 }
 
 class SpriteExplosionEffect {

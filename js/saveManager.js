@@ -68,7 +68,8 @@ class SaveManager {
                     slotName: saves[i].slotName || `Save ${i + 1}`,
                     timestamp: saves[i].timestamp,
                     timestampDisplay: this._formatTimestamp(saves[i].timestamp),
-                    version: saves[i].version
+                    version: saves[i].version,
+                    isNightMission: saves[i].data?.isNightMission || false
                 });
             } else {
                 slots.push({
@@ -77,7 +78,8 @@ class SaveManager {
                     slotName: `Empty Slot ${i + 1}`,
                     timestamp: null,
                     timestampDisplay: null,
-                    version: null
+                    version: null,
+                    isNightMission: false
                 });
             }
         }
@@ -390,6 +392,7 @@ class SaveManager {
                 totalCampaignPhases: game.totalCampaignPhases,
                 currentPhaseIndex: game.currentPhaseIndex,
                 currentMissionIndex: game.currentMissionIndex,
+                isNightMission: game.isNightMission,
                 masterRoster: this._serializeRoster(game.masterRoster),
                 fallenRaccoonsGlobal: this._serializeFallenRaccoons(game.fallenRaccoonsGlobal),
                 lastDeployedSquadIds: game.lastDeployedSquadIds || [],
@@ -461,6 +464,7 @@ class SaveManager {
         // Restore progress
         game.currentPhaseIndex = data.currentPhaseIndex;
         game.currentMissionIndex = data.currentMissionIndex;
+        game.isNightMission = data.isNightMission || false;
 
         // Clear current state
         game.deployedSquadRoster = [];
