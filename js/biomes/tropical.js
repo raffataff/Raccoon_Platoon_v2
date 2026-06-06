@@ -267,7 +267,7 @@ const TROPICAL_BIOME = {
             canBeFlipped: true,
         },
         {
-            type: 'tree_robusta_tall', name: 'Palm Tree Single', color: '#005522',
+            type: 'tree_robusta_tall', name: 'Robusta Tree Single', color: '#005522',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, isDecoration: false,
@@ -278,12 +278,12 @@ const TROPICAL_BIOME = {
             placementBuffer: 60,
         },
         {
-            type: 'tree_robusta_small', name: 'Palm Tree Double', color: '#005522',
+            type: 'tree_robusta_small', name: 'Robusta Tree Small', color: '#005522',
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
             spawnWeight: 3, isDecoration: false,
             spriteScale: 0.8,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.97), radiusX: (w => w * 0.17), radiusY: (h => h * 0.09) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.99), radiusX: (w => w * 0.14), radiusY: (h => h * 0.09) },
             treeStumpType: 'pheonix_stump',
             canBeFlipped: true,
         },
@@ -398,7 +398,7 @@ const TROPICAL_BIOME = {
             spawnWeight: 1, isDecoration: false,
             spriteScale: 0.45,
             canBeFlipped: true,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.67), radius: (w => w * 0.08) },
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.63), radius: (w => w * 0.08) },
         },
         {
             type: 'tree_pheonix', name: 'Pheonix Palm', color: '#228B22',

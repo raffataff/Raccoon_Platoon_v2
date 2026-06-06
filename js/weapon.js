@@ -70,14 +70,14 @@ class Projectile {
         this.shooterUnit = shooterUnit;
         this.shooterTeam = shooterUnit ? shooterUnit.team : null;
         this.effectiveAccuracy = effectiveAccuracy;
-        this.size = CONFIG.PROJECTILE_SIZE || 2;
-
         const bulletConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET) ? CONFIG.PROJECTILES.BULLET : {};
 
         if (shooterUnit && shooterUnit.weapon) {
+            this.size = shooterUnit.weapon.bulletSize || CONFIG.PROJECTILE_SIZE || 2;
             this.bulletSpritePath = shooterUnit.weapon.bulletSpritePath || bulletConfig.SPRITE_PATH || null;
             this.bulletSpriteScale = shooterUnit.weapon.bulletSpriteScale || bulletConfig.SPRITE_SCALE || 1.0;
         } else {
+            this.size = CONFIG.PROJECTILE_SIZE || 2;
             this.bulletSpritePath = bulletConfig.SPRITE_PATH || null;
             this.bulletSpriteScale = bulletConfig.SPRITE_SCALE || 1.0;
         }

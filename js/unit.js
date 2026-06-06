@@ -398,6 +398,7 @@ class Unit {
         if (rawPathGridCoords && rawPathGridCoords.length > 0) {
             this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level);
             if (this.currentPath && this.currentPath.length > 0) {
+                this.currentPath = deflatePath(this.currentPath, this.size / 2, this.game.level);
                 this.currentPathNodeIndex = 0; this.isMoving = true;
                 // --- FIX: Skip the first path node if it's just the start grid center
                 // and we're already very close to it. This prevents a 1-frame snap

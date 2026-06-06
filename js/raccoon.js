@@ -130,9 +130,10 @@ class Raccoon extends Unit {
             else if (isInitialSetup || hpDiff > 0) { this.hp += hpDiff; if (this.hp > this.maxHp) this.hp = this.maxHp; }
             else if (hpDiff < 0 && this.hp > this.maxHp) this.hp = this.maxHp;
             this.accuracyBonus = rankData.statBoosts.accuracyBonus || 0;
+            this.grenadeThrowRangeBonus = rankData.statBoosts.grenadeRangeBonus || 0;
             if (rankData.statBoosts.turnRate) this.turnRate = rankData.statBoosts.turnRate;
         } else {
-            this.maxHp = CONFIG.RACCOON_HP || 30; this.accuracyBonus = 0;
+            this.maxHp = CONFIG.RACCOON_HP || 30; this.accuracyBonus = 0; this.grenadeThrowRangeBonus = 0;
             this.turnRate = CONFIG.RACCOON_TURN_RATE;
             if (isPromotion) { this.hp = this.maxHp; }
             else if (!isInitialSetup && this.hp > this.maxHp) this.hp = this.maxHp;
@@ -490,7 +491,8 @@ class Raccoon extends Unit {
         if (!this.isAimingGrenade || !enemyTarget || this.actionTimer > 0 || this.grenadeCooldownTimer > 0) return;
 
         const preferredRangeFactor = CONFIG.RACCOON_GRENADE_PREFERRED_THROW_RANGE_FACTOR || 0.9;
-        const preferredThrowRange = CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX * preferredRangeFactor;
+        const effectiveMaxRange = CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX + (this.grenadeThrowRangeBonus || 0);
+        const preferredThrowRange = effectiveMaxRange * preferredRangeFactor;
         const distToEnemy = distance(this.x, this.y, enemyTarget.x, enemyTarget.y);
 
         if (distToEnemy <= preferredThrowRange) {

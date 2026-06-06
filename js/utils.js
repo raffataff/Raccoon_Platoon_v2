@@ -691,3 +691,162 @@ function closestPointOnCollisionShape(px, py, shape) {
     }
     return { x: px, y: py };
 }
+
+function deflatePath(pathNodes, unitRadius, levelInstance) {
+    if (!pathNodes || pathNodes.length < 2 || !levelInstance) return pathNodes;
+
+    const pathingRadius = unitRadius + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 8);
+    const obstacles = (levelInstance.activeObstacles || []).filter(o => o.blocksMovement && !o.isDestroyed);
+    const useSpatialGrid = levelInstance.game && levelInstance.game.spatialGrid;
+
+    const OFFSET_QUERY_MARGIN = 30; // extra margin beyond pathingRadius for spatial query
+    const queryRadius = pathingRadius + OFFSET_QUERY_MARGIN;
+
+    for (let iteration = 0; iteration < 3; iteration++) {
+        let anyMoved = false;
+
+        for (let i = 1; i < pathNodes.length - 1; i++) {
+            const node = pathNodes[i];
+            const prev = pathNodes[i - 1];
+            const next = pathNodes[i + 1];
+
+            // Gather nearby obstacles via spatial grid or full list
+            let nearbyObstacles;
+            if (useSpatialGrid) {
+                const nearbyObjects = useSpatialGrid.queryRange(node.x, node.y, queryRadius);
+                nearbyObstacles = nearbyObjects.filter(o => obstacles.indexOf(o) !== -1);
+            } else {
+                nearbyObstacles = obstacles;
+            }
+
+            let totalOffsetX = 0;
+            let totalOffsetY = 0;
+            let pushed = false;
+
+            for (const obs of nearbyObstacles) {
+                const obsShapes = levelInstance._getObstacleCollisionShape(obs);
+                const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+
+                for (const shape of shapesArray) {
+                    const dist = pointToCollisionShapeDist(node.x, node.y, shape);
+                    if (dist < pathingRadius) {
+                        const closest = closestPointOnCollisionShape(node.x, node.y, shape);
+                        const awayX = node.x - closest.x;
+                        const awayY = node.y - closest.y;
+                        const awayDist = Math.hypot(awayX, awayY);
+                        if (awayDist < 1e-6) {
+                            if (dist < 0) {
+                                // Inside geometry: find nearest edge midpoint
+                                if (shape.type === 'rectangle') {
+                                    const cx = shape.x + shape.width / 2;
+                                    const cy = shape.y + shape.height / 2;
+                                    const hw = shape.width / 2;
+                                    const hh = shape.height / 2;
+                                    // Pick the nearest edge to exit through
+                                    const candidates = [
+                                        { x: shape.x, y: cy }, { x: shape.x + shape.width, y: cy },
+                                        { x: cx, y: shape.y }, { x: cx, y: shape.y + shape.height }
+                                    ];
+                                    let best = candidates[0];
+                                    let bestDist = Infinity;
+                                    for (const c of candidates) {
+                                        const d = Math.hypot(node.x - c.x, node.y - c.y);
+                                        if (d < bestDist) { bestDist = d; best = c; }
+                                    }
+                                    const edx = node.x - best.x;
+                                    const edy = node.y - best.y;
+                                    const ed = Math.hypot(edx, edy);
+                                    if (ed > 1e-6) {
+                                        totalOffsetX += (edx / ed) * (pathingRadius - dist);
+                                        totalOffsetY += (edy / ed) * (pathingRadius - dist);
+                                        pushed = true;
+                                    }
+                                } else if (shape.type === 'circle') {
+                                    const angle = Math.atan2(node.y - shape.y, node.x - shape.x);
+                                    totalOffsetX += Math.cos(angle) * (pathingRadius - dist);
+                                    totalOffsetY += Math.sin(angle) * (pathingRadius - dist);
+                                    pushed = true;
+                                } else {
+                                    const pathTangentX = next.x - prev.x;
+                                    const pathTangentY = next.y - prev.y;
+                                    const perpX = -pathTangentY;
+                                    const perpY = pathTangentX;
+                                    const perpLen = Math.hypot(perpX, perpY);
+                                    if (perpLen > 1e-6) {
+                                        totalOffsetX += (perpX / perpLen) * (pathingRadius - dist);
+                                        totalOffsetY += (perpY / perpLen) * (pathingRadius - dist);
+                                        pushed = true;
+                                    }
+                                }
+                            } else {
+                                // On the edge; push along path perpendicular
+                                const pathTangentX = next.x - prev.x;
+                                const pathTangentY = next.y - prev.y;
+                                const perpX = -pathTangentY;
+                                const perpY = pathTangentX;
+                                const perpLen = Math.hypot(perpX, perpY);
+                                if (perpLen > 1e-6) {
+                                    totalOffsetX += (perpX / perpLen) * (pathingRadius);
+                                    totalOffsetY += (perpY / perpLen) * (pathingRadius);
+                                    pushed = true;
+                                }
+                            }
+                        } else {
+                            const penetration = pathingRadius - dist;
+                            totalOffsetX += (awayX / awayDist) * penetration * 0.5;
+                            totalOffsetY += (awayY / awayDist) * penetration * 0.5;
+                            pushed = true;
+                        }
+                    }
+                }
+            }
+
+            if (pushed) {
+                node.x += totalOffsetX;
+                node.y += totalOffsetY;
+                anyMoved = true;
+            }
+        }
+
+        if (!anyMoved) break;
+    }
+
+    return pathNodes;
+}
+
+function pointToCollisionShapeDist(px, py, shape) {
+    if (shape.type === 'rectangle') {
+        const closestX = Math.max(shape.x, Math.min(px, shape.x + shape.width));
+        const closestY = Math.max(shape.y, Math.min(py, shape.y + shape.height));
+        const dx = px - closestX;
+        const dy = py - closestY;
+        const dist = Math.hypot(dx, dy);
+        // Inside rectangle
+        if (px >= shape.x && px <= shape.x + shape.width && py >= shape.y && py <= shape.y + shape.height) {
+            const toLeft = px - shape.x;
+            const toRight = shape.x + shape.width - px;
+            const toTop = py - shape.y;
+            const toBottom = shape.y + shape.height - py;
+            return -Math.min(toLeft, toRight, toTop, toBottom);
+        }
+        return dist;
+    } else if (shape.type === 'circle') {
+        const dx = px - shape.x;
+        const dy = py - shape.y;
+        const dist = Math.hypot(dx, dy) - shape.radius;
+        return dist;
+    } else if (shape.type === 'ellipse') {
+        const dx = px - shape.x;
+        const dy = py - shape.y;
+        const rx = shape.radiusX || 1;
+        const ry = shape.radiusY || 1;
+        const closestAngle = Math.atan2(dy / ry, dx / rx);
+        const ecx = shape.x + rx * Math.cos(closestAngle);
+        const ecy = shape.y + ry * Math.sin(closestAngle);
+        const dist = Math.hypot(px - ecx, py - ecy);
+        // Approximate inside check
+        const normalized = (dx * dx) / (rx * rx) + (dy * dy) / (ry * ry);
+        return normalized < 1 ? -dist : dist;
+    }
+    return Infinity;
+}

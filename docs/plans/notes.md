@@ -4,6 +4,8 @@
 
 * scent markers need sniffing to detect and show arrows/markers, and not always show arrow
 
+* add debug visuals for bullet sizes
+
 * implement classes
 
 * fix shootout failure sequence

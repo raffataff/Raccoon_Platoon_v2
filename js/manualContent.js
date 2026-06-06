@@ -179,7 +179,7 @@ const MANUAL_CONTENT = [
                     {
                         name: "Possum Elite",
                         image: "assets/images/units/possum_elite/type2/idle/possum_elite_idle_se.png",
-                        description: "Highly trained and intelligent, wielding an advanced machine gun that doesn't need reloading. Stay on your toes!"
+                        description: "Highly trained and intelligent, wielding an advanced machine gun that doesn't need reloading. Rumour has it they were genetically modified with rats... Stay on your toes!"
                     },
                     {
                         name: "Grand Sentry Talon (Assassination Target)",

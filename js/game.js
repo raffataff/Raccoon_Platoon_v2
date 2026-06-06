@@ -2053,7 +2053,8 @@ class Game {
                 }
             }
 
-            if (distance(leadAimer.x, leadAimer.y, worldX, worldY) <= CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
+            const effectiveMaxRange = CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX + (leadAimer.grenadeThrowRangeBonus || 0);
+            if (distance(leadAimer.x, leadAimer.y, worldX, worldY) <= effectiveMaxRange) {
                 leadAimer.confirmThrowGrenade(worldX, worldY);
             } else if (clickedEnemy) {
                 if (leadAimer.isHoldingPosition) {
@@ -4689,7 +4690,6 @@ class Game {
                                     this.ctx.translate(cx, cy);
                                     this.ctx.rotate(collisionShape.rotation);
                                     this.ctx.strokeRect(-collisionShape.width / 2, -collisionShape.height / 2, collisionShape.width, collisionShape.height);
-                                    this.ctx.restore();
                                 } else {
                                     this.ctx.strokeRect(collisionShape.x, collisionShape.y, collisionShape.width, collisionShape.height);
                                 }
@@ -4838,6 +4838,34 @@ class Game {
                 });
             }
 
+            // Draw Bullet Size Debug Visuals
+            if (CONFIG.DEBUG_DRAW_BULLET_SIZES) {
+                this.gameObjects.forEach(obj => {
+                    if (obj instanceof Projectile && !obj.isMarkedForDeletion) {
+                        // Draw bullet size circle
+                        this.ctx.strokeStyle = 'rgba(255, 165, 0, 0.9)';
+                        this.ctx.fillStyle = 'rgba(255, 165, 0, 0.15)';
+                        this.ctx.lineWidth = 1.5;
+                        this.ctx.beginPath();
+                        this.ctx.arc(obj.x, obj.y, obj.size, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        this.ctx.stroke();
+
+                        // Draw center dot
+                        this.ctx.fillStyle = 'white';
+                        this.ctx.beginPath();
+                        this.ctx.arc(obj.x, obj.y, 1.5, 0, Math.PI * 2);
+                        this.ctx.fill();
+
+                        // Draw size label
+                        this.ctx.fillStyle = 'orange';
+                        this.ctx.font = '10px monospace';
+                        this.ctx.textAlign = 'center';
+                        this.ctx.fillText(`s:${obj.size}`, obj.x, obj.y - obj.size - 4);
+                    }
+                });
+            }
+
             this.ctx.restore();
         }
 
@@ -4897,17 +4925,18 @@ class Game {
             this.ctx.lineWidth = 3;
             this.ctx.beginPath();
             this.ctx.moveTo(aimingRaccoon.x, aimingRaccoon.y);
-            if (throwDist > CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX) {
+            const effectiveMaxRange = CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX + (aimingRaccoon.grenadeThrowRangeBonus || 0);
+            if (throwDist > effectiveMaxRange) {
                 const angle = Math.atan2(
                     worldMouseY - aimingRaccoon.y,
                     worldMouseX - aimingRaccoon.x
                 );
                 const cappedX =
                     aimingRaccoon.x +
-                    Math.cos(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                    Math.cos(angle) * effectiveMaxRange;
                 const cappedY =
                     aimingRaccoon.y +
-                    Math.sin(angle) * CONFIG.RACCOON_GRENADE_THROW_RANGE_MAX;
+                    Math.sin(angle) * effectiveMaxRange;
                 this.ctx.lineTo(cappedX, cappedY);
                 this.ctx.stroke();
                 this.ctx.beginPath();

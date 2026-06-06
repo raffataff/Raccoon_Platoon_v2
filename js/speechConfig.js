@@ -282,7 +282,7 @@ const SPEECH_CONFIG = {
                     ],
                     target: [
                         "Yes sir!", "On it!", "Moving!",
-                        "Understood!", "Squeak!", "Right away!"
+                        "Understood!", "Right away!"
                     ]
                 },
                 LOWER_TO_HIGHER: {
@@ -547,7 +547,7 @@ const SPEECH_CONFIG = {
     GLOBAL: {
         SPEECH_ENABLED: true,
         BASE_CHANCE: 0.10,
-        COOLDOWN_MIN: 5.0,
+        COOLDOWN_MIN: 3.0,
         COOLDOWN_MAX: 18.0,
         PROXIMITY_RANGE: 110,
         PROXIMITY_TARGET_RESPONSE_CHANCE: 0.10,
@@ -555,10 +555,10 @@ const SPEECH_CONFIG = {
         IDLE_CHATTER_INTERVAL_MIN: 15.0,
         IDLE_CHATTER_INTERVAL_MAX: 60.0,
         IDLE_CHATTER_CHANCE: 0.15,
-        FURBY_COOLDOWN: 5.0,
+        FURBY_COOLDOWN: 3.0,
         BUBBLE_LIFETIME: 2.5,
         BUBBLE_FONT: "bold 14px 'Consolas', 'Lucida Console', monospace",
-        BUBBLE_COLOR_RACCOON: "#FFFFFF",
+        BUBBLE_COLOR_RACCOON: "#23a5fc",
         BUBBLE_COLOR_POSSUM: "#ff0000",
         BUBBLE_COLOR_HOSTAGE: "#FFFF88",
         BUBBLE_Y_OFFSET: -50,
