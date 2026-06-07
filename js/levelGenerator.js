@@ -1937,6 +1937,7 @@ class LevelGenerator {
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
                         willSpawnLog: willSpawnLog,
                         precomputedLogSpawnData: precomputedLogSpawnData,
+                        treeStumpType: treeStumpType,
                         isAnimated: template.isAnimated || false,
                         tilesheetPath: useTilesheet ? actualSpritePath : null,
                         frameWidth: useTilesheet ? tilesheetFrameWidth : null,

@@ -240,6 +240,13 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                 obstacle.providesCover = obstacleDef.providesCoverOnDestroy !== undefined ? obstacleDef.providesCoverOnDestroy : false;
                 if (obstacleDef.collisionShapeDestroyed) {
                     obstacle.collisionShape = obstacleDef.collisionShapeDestroyed;
+                } else if (obstacle.treeStumpType) {
+                    const stumpDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.treeStumpType);
+                    if (stumpDef && stumpDef.collisionShape) {
+                        obstacle.collisionShape = stumpDef.collisionShape;
+                    } else if (obstacle.blocksMovement === false) {
+                        obstacle.collisionShape = null;
+                    }
                 } else if (obstacle.blocksMovement === false) {
                     obstacle.collisionShape = null;
                 }

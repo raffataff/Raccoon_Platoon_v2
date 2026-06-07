@@ -1777,7 +1777,7 @@ const CONFIG = {
             IGNITION_FRAMES: 12,
             LOOP_FRAMES: 12,
             LOOP_START_FRAME: 12,
-            ANIMATION_SPEED: 0.2,
+            ANIMATION_SPEED: 0.13,
             SCALE: 0.6,
             MAX_LIFETIME: 60.0,
             SPREAD_X: 25,
