@@ -2932,12 +2932,13 @@ class Game {
         });
         baseP.biome = phaseBiome;
 
-        // --- Night Mission Roll ---
-        const nightCfg = CONFIG.NIGHT_MISSION;
-        const nightUnlocked = nightCfg && phaseIdx >= (nightCfg.UNLOCKS_PHASE !== undefined ? nightCfg.UNLOCKS_PHASE : 1);
-        baseP.isNightMission = nightUnlocked && this.currentMissionSeedRNG.chance(nightCfg.CHANCE || 0.3);
+         // --- Night Mission Roll ---
+         const nightCfg = CONFIG.NIGHT_MISSION;
+         const nightUnlocked = nightCfg && phaseIdx >= (nightCfg.UNLOCKS_PHASE !== undefined ? nightCfg.UNLOCKS_PHASE : 1);
+         baseP.isNightMission = nightUnlocked && this.currentMissionSeedRNG.chance(nightCfg.CHANCE || 0.3);
+         this.isNightMission = !!baseP.isNightMission;
 
-        if (baseP.isNightMission && this.campaignRules.BRIEFING_PARTS.NIGHT_BRIEFING_PREFIXES) {
+         if (baseP.isNightMission && this.campaignRules.BRIEFING_PARTS.NIGHT_BRIEFING_PREFIXES) {
             const prefix = this.currentMissionSeedRNG.pickFrom(this.campaignRules.BRIEFING_PARTS.NIGHT_BRIEFING_PREFIXES);
             const suffix = this.currentMissionSeedRNG.pickFrom(this.campaignRules.BRIEFING_PARTS.NIGHT_BRIEFING_SUFFIXES);
             baseP.briefing = `${prefix} ${baseP.briefing} ${suffix}`;

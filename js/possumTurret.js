@@ -91,6 +91,37 @@ class PossumTurret {
         return this._isAngleInArc(angle);
     }
 
+    _hasLineOfSight(x1, y1, x2, y2, obstacles, gameLevelInstance) {
+        let candidateObstacles = obstacles;
+        if (gameLevelInstance && gameLevelInstance.game && gameLevelInstance.game.spatialGrid) {
+            const gridCandidates = gameLevelInstance.game.spatialGrid.queryLine(x1, y1, x2, y2);
+            candidateObstacles = gridCandidates.filter(obj => gameLevelInstance.obstacles.includes(obj) && obj !== this.obstacle);
+        }
+        if (!candidateObstacles) return true;
+        for (const obs of candidateObstacles) {
+            const relevantObstacleProperty = obs.blocksMovement;
+            if (relevantObstacleProperty && !obs.isDestroyed) {
+                let collisionDetected = false;
+                const obsShapeOrShapes = (gameLevelInstance && typeof gameLevelInstance._getObstacleCollisionShape === 'function')
+                    ? gameLevelInstance._getObstacleCollisionShape(obs)
+                    : { type: 'rectangle', x: obs.x, y: obs.y, width: obs.width, height: obs.height };
+                if (!obsShapeOrShapes) continue;
+                const shapesArray = Array.isArray(obsShapeOrShapes) ? obsShapeOrShapes : [obsShapeOrShapes];
+                for (const obsShape of shapesArray) {
+                    if (obsShape.type === 'rectangle') {
+                        if (lineIntersectsRect(x1, y1, x2, y2, obsShape)) { collisionDetected = true; break; }
+                    } else if (obsShape.type === 'circle') {
+                        if (lineIntersectsCircle(x1, y1, x2, y2, obsShape)) { collisionDetected = true; break; }
+                    } else if (obsShape.type === 'ellipse') {
+                        if (lineIntersectsEllipse(x1, y1, x2, y2, obsShape)) { collisionDetected = true; break; }
+                    }
+                }
+                if (collisionDetected) return false;
+            }
+        }
+        return true;
+    }
+
     getNearestRaccoonBehind() {
         if (!this.game || !this.game.deployedSquadRoster) return null;
 
@@ -190,11 +221,13 @@ class PossumTurret {
         let nearest = null;
         let nearestDist = Infinity;
 
+        const obstacles = this.game.level ? this.game.level.activeObstacles : [];
         for (const raccoon of this.game.deployedSquadRoster) {
             if (!raccoon.isAlive()) continue;
             const dist = distance(centerX, centerY, raccoon.x, raccoon.y);
             if (dist > range || dist >= nearestDist) continue;
             if (!this._isTargetInArc(raccoon)) continue;
+            if (!_hasLineOfSight(centerX, centerY, raccoon.x, raccoon.y, obstacles, this.game.level)) continue;
             nearest = raccoon;
             nearestDist = dist;
         }

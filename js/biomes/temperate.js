@@ -372,12 +372,12 @@ const TEMPERATE_BIOME = {
             destructible: true, hp: 75, maxHp: 75,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1, isDecoration: false,
+            canBeFlipped: true,
             spriteScale: 0.5,
+            treeStumpType: 'birch_stump',
+            fallenTreeType: 'birch_fallen',
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.55), offsetY: (h => h * 0.85), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
-            treeStumpType: 'birch_stump',
-            canBeFlipped: true,
-            fallenTreeType: 'birch_fallen',
         },
         {
             type: 'birch_fallen', name: 'Fallen Birch Tree', color: '#228B22',
@@ -408,6 +408,7 @@ const TEMPERATE_BIOME = {
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radiusX: (w => w * 0.05), radiusY: ((w, h) => h * 0.07) },
             treeStumpType: 'pine_stump',
+            treeFallenType: 'pine_fallen',
             canBeFlipped: true,
         },
         {

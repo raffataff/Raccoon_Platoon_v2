@@ -1,6 +1,6 @@
 class Weapon {
     constructor(name, damage, rof, range, projectileSpeed, projectileColor,
-                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null, muzzleFlashScale = 1.0, bulletLifetime = 0.7, bulletSpritePath = null, bulletSpriteScale = 1.0, grenadeSpritePath = null, grenadeSpriteScale = 1.0) {
+                accuracyStationary, accuracyMoving = accuracyStationary * 0.75, sfxFireKey = null, muzzleFlashScale = 1.0, bulletLifetime = 0.7, bulletSpritePath = null, bulletSpriteScale = 1.0, grenadeSpritePath = null, grenadeSpriteScale = 1.0, pelletCount = 1, spreadAngle = 0) {
         this.name = name;
         this.damage = damage;
         this.rof = rof;
@@ -16,6 +16,8 @@ class Weapon {
         this.bulletSpriteScale = bulletSpriteScale;
         this.grenadeSpritePath = grenadeSpritePath;
         this.grenadeSpriteScale = grenadeSpriteScale;
+        this.pelletCount = pelletCount;
+        this.spreadAngle = spreadAngle;
     }
 }
 
@@ -39,7 +41,9 @@ function buildWEAPONSFromConfig() {
             def.bulletSpritePath,
             def.bulletSpriteScale,
             def.grenadeSpritePath,
-            def.grenadeSpriteScale
+            def.grenadeSpriteScale,
+            def.pelletCount || 1,
+            def.spreadAngle || 0
         );
     }
     

@@ -1266,8 +1266,21 @@ class Unit {
             this.game.addVisualEffect('muzzle_flash', { x: muzzleX, y: muzzleY, scale: this.weapon.muzzleFlashScale });
         }
 
-        const projectile = this.game.getProjectileFromPool(this.x, this.y, this.x + Math.cos(fireAngle) * this.weapon.range, this.y + Math.sin(fireAngle) * this.weapon.range, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this, effectiveAccuracy);
-        this.game.addProjectile(projectile);
+        const pelletCount = this.weapon.pelletCount || 1;
+        const spreadAngle = this.weapon.spreadAngle || 0;
+
+        for (let i = 0; i < pelletCount; i++) {
+            let pelletAngle = fireAngle;
+            if (pelletCount > 1 && spreadAngle > 0) {
+                const angleOffset = (Math.random() - 0.5) * spreadAngle;
+                pelletAngle = fireAngle + angleOffset;
+            }
+            const targetX = this.x + Math.cos(pelletAngle) * this.weapon.range;
+            const targetY = this.y + Math.sin(pelletAngle) * this.weapon.range;
+            const projectile = this.game.getProjectileFromPool(this.x, this.y, targetX, targetY, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this, effectiveAccuracy);
+            this.game.addProjectile(projectile);
+        }
+
         const baseCooldown = 1 / this.weapon.rof;
         const jitterPercentage = (CONFIG.WEAPON_SETTINGS && CONFIG.WEAPON_SETTINGS.ROF_JITTER_PERCENTAGE !== undefined) ? CONFIG.WEAPON_SETTINGS.ROF_JITTER_PERCENTAGE : 0;
         const jitter = Math.random() * baseCooldown * jitterPercentage;
