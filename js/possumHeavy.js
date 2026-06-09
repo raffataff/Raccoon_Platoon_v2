@@ -101,7 +101,7 @@ class PossumHeavy extends Unit {
                 const distToGuardPostCurrent = distance(this.x, this.y, this.guardPost.x, this.guardPost.y);
 
                 if (distToGuardPostCurrent > atPostTolerance) {
-                    if (!this.isMoving || (this.worldTargetX !== this.guardPost.x || this.worldTargetY !== this.guardPost.y)) {
+                    if (this.repathCooldown <= 0 && (!this.isMoving || (this.worldTargetX !== this.guardPost.x || this.worldTargetY !== this.guardPost.y))) {
                         this.setMoveTarget(this.guardPost.x, this.guardPost.y);
                     }
                 } else {
@@ -118,12 +118,12 @@ class PossumHeavy extends Unit {
                     const distToLKP = distance(this.x, this.y, this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
                     const arrivalToleranceLKP = this.game.level.gridCellSize * 1.5;
 
-                    if (!this.isMoving || (this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y)) {
+                    if (this.repathCooldown <= 0 && (!this.isMoving || (this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y))) {
                         if (distToLKP > arrivalToleranceLKP) {
                            if(!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)){
-                                this.aiState = 'GUARDING'; // Fallback if can't path to LKP
+                                this.aiState = 'GUARDING';
                                 this.setMoveTarget(this.guardPost.x, this.guardPost.y);
-                           }
+                            }
                         }
                     }
 
@@ -146,7 +146,16 @@ class PossumHeavy extends Unit {
                     this.isMoving = false;
                     this.currentPath = [];
                 }
-                // Firing is now handled by the base Unit class.
+                if (currentTarget && currentTarget.isAlive()) {
+                    const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
+                    const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.activeObstacles, this.game.level);
+                    if (distToTarget > this.weapon.range + this.ENGAGE_RANGE_BUFFER || !losToTarget) {
+                        this.aiState = 'ENGAGING_CHASING_HEAVY';
+                        this.repathCooldown = 0;
+                    }
+                } else {
+                    this.aiState = (this.lastKnownPlayerPosition) ? 'SUSPICIOUS' : 'GUARDING';
+                }
                 break;
 
             case 'ENGAGING_CHASING_HEAVY':
@@ -169,7 +178,7 @@ class PossumHeavy extends Unit {
                     } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
                         distanceSq(currentTarget.x, currentTarget.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
                         shouldUpdateChaseDest = true;
-                    } else if (!this.isMoving && distance(this.x, this.y, currentTarget.x, currentTarget.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
+                    } else if (!this.isMoving && this.repathCooldown <= 0 && distance(this.x, this.y, currentTarget.x, currentTarget.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
                         shouldUpdateChaseDest = true;
                     }
 
@@ -184,22 +193,26 @@ class PossumHeavy extends Unit {
 
                         const distToThisPredicted = distance(this.x, this.y, predictedX, predictedY);
                         if (distToThisPredicted < this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY) {
-                             if (distance(this.x, this.y, currentTarget.x, currentTarget.y) > 1.0) {
+                             if (distance(this.x, this.y, currentTarget.x, currentTarget.y) > this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY * 0.5) {
                                 const angleToActualTarget = Math.atan2(currentTarget.y - this.y, currentTarget.x - this.x);
                                 predictedX = this.x + Math.cos(angleToActualTarget) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
                                 predictedY = this.y + Math.sin(angleToActualTarget) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
                             } else {
-                                predictedX = this.x;
-                                predictedY = this.y;
-                                if(this.isMoving) {this.isMoving = false; this.currentPath = [];}
+                                const angleAway = Math.atan2(this.y - currentTarget.y, this.x - currentTarget.x);
+                                predictedX = currentTarget.x + Math.cos(angleAway) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
+                                predictedY = currentTarget.y + Math.sin(angleAway) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
                             }
                         }
 
                         this.chaseDestination = { x: predictedX, y: predictedY };
                         if(this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y)){
                             this.timeSinceLastChaseDestUpdate = 0;
+                        } else if (!this.isMoving && this.repathCooldown <= 0) {
+                            this.repathCooldown = 0.5;
                         }
                     }
+                } else {
+                    this.aiState = (this.lastKnownPlayerPosition) ? 'SUSPICIOUS' : 'GUARDING';
                 }
                 break;
         }
@@ -227,7 +240,7 @@ class PossumHeavy extends Unit {
         }
         this.lastOnStuckTime = currentTime;
 
-        const maxStuckBeforePhasing = this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL + 2; // Inherited
+        const maxStuckBeforePhasing = (this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL || 3) + 2; // Inherited
         if (this.consecutiveStuckAttempts >= maxStuckBeforePhasing && !this.isPhasing) {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
 //                console.warn(`[${this.id} onStuck HEAVY] Max consecutive stuck attempts (${this.consecutiveStuckAttempts}). Initiating Phasing.`);

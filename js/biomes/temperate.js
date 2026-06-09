@@ -1,6 +1,6 @@
 // js/biomes/temperate.js
 // Temperate biome definition - self-contained with all sprites, obstacles, and settings
-// Uses tropical sprite paths as placeholders until temperate assets are created
+
 
 const TEMPERATE_BIOME = {
     name: "TEMPERATE",
@@ -9,8 +9,8 @@ const TEMPERATE_BIOME = {
     themeAdjectives: ["Crisp", "Wooded", "Serene"],
 
     landingVideos: [
-        'assets/video/landing/helicopter_landing_temperate_3.mp4',
         'assets/video/landing/helicopter_landing_temperate_2.mp4',
+        'assets/video/landing/helicopter_landing_temperate_3.mp4',
     ],
     extractionVideos: [
         'assets/video/extraction/helicopter_extraction_team_temperate_2.mp4',

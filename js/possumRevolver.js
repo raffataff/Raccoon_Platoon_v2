@@ -67,7 +67,7 @@ class PossumRevolver extends Unit {
         if (!target) {
             this.aiState = 'GUARDING';
             if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > 10) {
-                if (!this.isMoving) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
+                if (!this.isMoving && this.repathCooldown <= 0) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
             } else {
                 this.isMoving = false;
             }

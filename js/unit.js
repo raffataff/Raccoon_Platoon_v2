@@ -80,6 +80,12 @@ class Unit {
         this.repathFailCount = 0;
         this.stuckSpeechTimer = 0;
         this.stuckSpeechCooldown = 0;
+        this.stuckMovementThreshold = this.speed * 0.15;
+        this.consecutiveStuckAttempts = 0;
+        this.lastOnStuckTime = 0;
+        this.STUCK_RECOVERY_COOLDOWN_INTERNAL = 1.5;
+        this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL = 3;
+        this.repathFailCooldown = 0;
 
         this.hitStunTimer = 0;
         this.recentlyHitBy = null;
@@ -350,13 +356,44 @@ class Unit {
         }
     }
 
+    _attemptDesperateMove() {
+        if (!this.game || !this.game.level) return false;
+        const navGrid = this.game.level.getNavigationGrid();
+        if (!navGrid) return false;
+        const cellSize = this.game.level.gridCellSize;
+        const radius = (this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL || 5) * cellSize;
+        const currentGrid = this.game.level.worldToGridCoords(this.x, this.y);
+        for (let attempt = 0; attempt < 16; attempt++) {
+            const angle = (attempt / 16) * Math.PI * 2;
+            const dist = radius * (0.5 + Math.random() * 0.5);
+            const tryX = this.x + Math.cos(angle) * dist;
+            const tryY = this.y + Math.sin(angle) * dist;
+            const tryGrid = this.game.level.worldToGridCoords(tryX, tryY);
+            if (tryGrid.x >= 0 && tryGrid.x < this.game.level.gridWidth &&
+                tryGrid.y >= 0 && tryGrid.y < this.game.level.gridHeight &&
+                navGrid[tryGrid.y][tryGrid.x] === 0) {
+                if (this.game.level.isSpawnPointClear(tryX, tryY, this.size, this.game.level.obstacles)) {
+                    this.worldTargetX = tryX;
+                    this.worldTargetY = tryY;
+                    if (this.calculatePath(null, false)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    onStuck(reason = 'unknown') {
+    }
+
     getCollisionShape() {
         return { type: 'circle', x: this.x, y: this.y, radius: this.size / 2 };
     }
 
     calculatePath(explicitStartGrid = null, isPhasingOverride = false) {
         if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; return false; }
-        const navGrid = this.game.level.getNavigationGrid();
+        const navGrid = isPhasingOverride ? this.game.level.getNavigationGrid() : this.game.level.getNavigationGridWithUnits(this, 1);
         if (!navGrid) { this.isMoving = false; this.currentPath = []; return false; }
 
         const startGrid = explicitStartGrid || this.game.level.worldToGridCoords(this.x, this.y);
@@ -389,8 +426,30 @@ class Unit {
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.error(`[${this.id} calculatePath] CRITICAL: No walkable start cell. Pathing aborted.`);
                 this.isMoving = false; this.currentPath = []; return false;
             }
-        } else if (navGrid[startGrid.y][startGrid.x] === 1 && isPhasingOverride) {
+        } else         if (navGrid[startGrid.y][startGrid.x] === 1 && isPhasingOverride) {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Phasing: Allowing path start from 'blocked' navGrid cell.`);
+        }
+
+        if (navGrid[endGrid.y][endGrid.x] === 1 && !isPhasingOverride) {
+            let foundAltEnd = false;
+            for (let r = 1; r <= 3 && !foundAltEnd; r++) {
+                for (let dy = -r; dy <= r && !foundAltEnd; dy++) {
+                    for (let dx = -r; dx <= r && !foundAltEnd; dx++) {
+                        if (dx === 0 && dy === 0) continue;
+                        const ax = endGrid.x + dx;
+                        const ay = endGrid.y + dy;
+                        if (ax >= 0 && ax < this.game.level.gridWidth && ay >= 0 && ay < this.game.level.gridHeight && navGrid[ay][ax] === 0) {
+                            endGrid.x = ax;
+                            endGrid.y = ay;
+                            foundAltEnd = true;
+                        }
+                    }
+                }
+            }
+            if (!foundAltEnd) {
+                endGrid.x = startGrid.x;
+                endGrid.y = startGrid.y;
+            }
         }
 
         const rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
@@ -507,55 +566,49 @@ class Unit {
         let finalDeltaX = desiredDeltaX; let finalDeltaY = desiredDeltaY;
 
         if (this.isMoving && this.game) {
-            const SEPARATION_CHECK_RADIUS = this.size * 6.0; const SEPARATION_FORCE_FACTOR = 1.9;
-            const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.MIN_SEPARATION_DISTANCE_FACTOR || 1.9;
-            let separationDX = 0; let separationDY = 0; let unitsInSeparationRange = 0;
-            let unitsToConsiderForSeparation = [];
-
-            // --- OPTIMIZATION: Use Spatial Grid for Separation ---
+            const SEPARATION_CHECK_RADIUS = this.size * 1.1;
+            const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.MIN_SEPARATION_DISTANCE_FACTOR || 1.2;
+            const UNIT_SEPARATION_FORCE_FACTOR = CONFIG.UNIT_SEPARATION_FORCE_FACTOR || 1.5;
+            let separationDX = 0; let separationDY = 0;
             let nearbyUnits = null;
             if (this.game.spatialGrid) {
-                // Query slightly larger radius to be safe
-                const queryRadius = SEPARATION_CHECK_RADIUS * 1.2;
+                const queryRadius = SEPARATION_CHECK_RADIUS;
                 const gridObjects = this.game.spatialGrid.queryRange(this.x, this.y, queryRadius);
                 nearbyUnits = gridObjects.filter(o => o instanceof Unit);
             } else {
-                // Get all living units for separation (player + enemy + hostages)
-                const allUnits = [
+                nearbyUnits = [
                     ...(this.game.getLivingPlayerControlledUnits?.() || []),
                     ...(this.game.enemyUnits || []),
                     ...(this.game.hostageUnits || [])
                 ];
-                nearbyUnits = allUnits;
             }
-
             for (const otherUnit of nearbyUnits) {
                 if (otherUnit === this || !otherUnit.isAlive() || otherUnit.isPhasing) continue;
-                // Removed team restrictions - all units should separate from each other
-                const distSq = (this.x - otherUnit.x) ** 2 + (this.y - otherUnit.y) ** 2;
+                const dx = this.x - otherUnit.x;
+                const dy = this.y - otherUnit.y;
+                const distSq = dx * dx + dy * dy;
                 if (distSq === 0) continue;
-                const combinedRadii = (this.size / 2) + (otherUnit.size / 2);
-                const desiredSeparationDist = combinedRadii * MIN_SEPARATION_DISTANCE_FACTOR;
-                if (distSq < (SEPARATION_CHECK_RADIUS * SEPARATION_CHECK_RADIUS) && distSq < (desiredSeparationDist * desiredSeparationDist)) {
-                        const dist = Math.sqrt(distSq); const awayX = this.x - otherUnit.x; const awayY = this.y - otherUnit.y;
-                        const overlap = desiredSeparationDist - dist; const pushStrength = (overlap / desiredSeparationDist) * (overlap / desiredSeparationDist);
-                    separationDX += (awayX / dist) * pushStrength; separationDY += (awayY / dist) * pushStrength;
-                    unitsInSeparationRange++;
+                const dist = Math.sqrt(distSq);
+                const combinedRadii = (this.size + otherUnit.size) * 0.5;
+                const minDist = combinedRadii * MIN_SEPARATION_DISTANCE_FACTOR;
+                if (dist < SEPARATION_CHECK_RADIUS) {
+                    const overlap = minDist - dist;
+                    let pushStrength;
+                    if (overlap > 0) {
+                        pushStrength = (overlap / minDist) * 1.5 + 0.5;
+                    } else {
+                        const proximity = 1.0 - (dist / SEPARATION_CHECK_RADIUS);
+                        pushStrength = proximity * proximity * 0.4;
+                    }
+                    separationDX += (dx / dist) * pushStrength;
+                    separationDY += (dy / dist) * pushStrength;
                 }
             }
-            if (unitsInSeparationRange > 0) {
-                const avgSeparationDX = separationDX / unitsInSeparationRange; const avgSeparationDY = separationDY / unitsInSeparationRange;
-                const pushMagnitude = this.speed * SEPARATION_FORCE_FACTOR * 1.5 * deltaTime;
-                finalDeltaX += avgSeparationDX * pushMagnitude; finalDeltaY += avgSeparationDY * pushMagnitude;
-                const totalMovementMagnitude = Math.hypot(finalDeltaX, finalDeltaY);
-                const originalDesiredMagnitude = Math.hypot(desiredDeltaX, desiredDeltaY);
-                if (totalMovementMagnitude > originalDesiredMagnitude * 1.5 && originalDesiredMagnitude > 0.1) {
-                    const scale = (originalDesiredMagnitude * 1.5) / totalMovementMagnitude;
-                    finalDeltaX *= scale; finalDeltaY *= scale;
-                } else if (totalMovementMagnitude > this.speed * deltaTime * 1.2) {
-                    const scale = (this.speed * deltaTime * 1.2) / totalMovementMagnitude;
-                    finalDeltaX *= scale; finalDeltaY *= scale;
-                }
+            const sepMag = Math.hypot(separationDX, separationDY);
+            if (sepMag > 1e-6) {
+                const pushMagnitude = this.speed * UNIT_SEPARATION_FORCE_FACTOR * deltaTime;
+                finalDeltaX += (separationDX / sepMag) * pushMagnitude;
+                finalDeltaY += (separationDY / sepMag) * pushMagnitude;
             }
         }
 
@@ -636,6 +689,21 @@ class Unit {
                 }
                 if (isCollisionWithDesiredMove) break;
             }
+            if (!isCollisionWithDesiredMove) {
+                const unitColR = this.size * 0.5;
+                const nearbyUnitsCol = this.game.spatialGrid ?
+                    this.game.spatialGrid.queryRange(this.x, this.y, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
+                    [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
+                for (const otherUnit of nearbyUnitsCol) {
+                    const combinedR = unitColR + otherUnit.size * 0.5;
+                    const dx = potentialNewX_combined - otherUnit.x;
+                    const dy = potentialNewY_combined - otherUnit.y;
+                    if ((dx * dx + dy * dy) < (combinedR * combinedR)) {
+                        isCollisionWithDesiredMove = true;
+                        break;
+                    }
+                }
+            }
             if (isCollisionWithDesiredMove) {
                 collisionOccurredThisFrame = true;
                 let canMoveX = false;
@@ -657,6 +725,21 @@ class Unit {
                     }
                     if (!collisionX) canMoveX = true;
                 }
+                if (canMoveX) {
+                    const testX = this.x + finalDeltaX;
+                    const unitColR = this.size * 0.5;
+                    const nearbyUnitsX = this.game.spatialGrid ?
+                        this.game.spatialGrid.queryRange(testX, this.y, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
+                        [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
+                    for (const otherUnit of nearbyUnitsX) {
+                        const combinedR = unitColR + otherUnit.size * 0.5;
+                        const dx = testX - otherUnit.x;
+                        const dy = this.y - otherUnit.y;
+                        if ((dx * dx + dy * dy) < (combinedR * combinedR)) {
+                            canMoveX = false; break;
+                        }
+                    }
+                }
                 let canMoveY = false;
                 if (Math.abs(finalDeltaY) > 1e-5) {
                     const unitBodyShape_Y_Only = { type: 'circle', x: this.x, y: this.y + finalDeltaY, radius: collisionCheckRadius };
@@ -675,6 +758,21 @@ class Unit {
                         if (collisionY) break;
                     }
                     if (!collisionY) canMoveY = true;
+                }
+                if (canMoveY) {
+                    const testY = this.y + finalDeltaY;
+                    const unitColR = this.size * 0.5;
+                    const nearbyUnitsY = this.game.spatialGrid ?
+                        this.game.spatialGrid.queryRange(this.x, testY, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
+                        [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
+                    for (const otherUnit of nearbyUnitsY) {
+                        const combinedR = unitColR + otherUnit.size * 0.5;
+                        const dx = this.x - otherUnit.x;
+                        const dy = testY - otherUnit.y;
+                        if ((dx * dx + dy * dy) < (combinedR * combinedR)) {
+                            canMoveY = false; break;
+                        }
+                    }
                 }
                 if (canMoveX && !canMoveY) { finalDeltaY = 0; collisionOccurredThisFrame = false; }
                 else if (!canMoveX && canMoveY) { finalDeltaX = 0; collisionOccurredThisFrame = false; }
@@ -844,14 +942,17 @@ class Unit {
             this.y += finalDeltaY;
         }
 
-        const actualMovementMade = (Math.abs(this.x - originalX) > 1e-5 || Math.abs(this.y - originalY) > 1e-5);
+        const actualMoveDist = Math.hypot(this.x - originalX, this.y - originalY);
         const attemptedToMoveFlag = (Math.abs(desiredDeltaX) > 1e-5 || Math.abs(desiredDeltaY) > 1e-5);
-        const fullBlockEncountered = attemptedToMoveFlag && !actualMovementMade && collisionOccurredThisFrame;
+        const meaningfullyMoved = actualMoveDist > this.stuckMovementThreshold;
+        const fullBlockEncountered = attemptedToMoveFlag && !meaningfullyMoved && collisionOccurredThisFrame;
 
-        if (this.isMoving && attemptedToMoveFlag && !actualMovementMade) {
+        if (this.repathFailCooldown > 0) this.repathFailCooldown -= deltaTime;
+
+        if (this.isMoving && attemptedToMoveFlag && !meaningfullyMoved && collisionOccurredThisFrame) {
             this.stuckFrameCounter++;
             this.stuckSpeechTimer += deltaTime;
-            const stuckThreshold = CONFIG.STUCK_REPATH_FRAME_THRESHOLD || 10;
+            const stuckThreshold = CONFIG.STUCK_REPATH_FRAME_THRESHOLD || 30;
             if (this.stuckFrameCounter >= stuckThreshold && this.repathCooldown <= 0) {
                     this.stuckFrameCounter = 0;
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Stuck for ${stuckThreshold} frames. Forcing repath with offset.`);
@@ -876,16 +977,41 @@ class Unit {
                     }
                     if (!pathSucceeded) {
                         if (!this.calculatePath(currentGrid, this.isPhasing)) {
+                            this.repathFailCount++;
+                            this.repathFailCooldown = 1.0;
+                            if (this.repathFailCount >= 3 && !this.isPhasing) {
+                                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} _HM] ${this.repathFailCount} consecutive repath failures. Auto-phasing to unblock.`);
+                                this.isPhasing = true;
+                                this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75;
+                                this.repathFailCount = 0;
+                                if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
+                                    this.isMoving = true;
+                                    if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
+                                        const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
+                                        this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
+                                        this.currentPathNodeIndex = 0;
+                                    }
+                                } else {
+                                    this.isMoving = false;
+                                }
+                            }
+                        } else {
+                            this.repathFailCount = 0;
                         }
+                    } else {
+                        this.repathFailCount = 0;
                     }
                     this.repathCooldown = 0.5 + Math.random();
+                    if (typeof this.onStuck === 'function') {
+                        this.onStuck('stuck_repath');
+                    }
                 }
-            if (this.stuckSpeechTimer >= 3.0 && this.stuckSpeechCooldown <= 0) {
+            if (this.stuckSpeechTimer >= 5.0 && this.stuckSpeechCooldown <= 0) {
                 if (this.game && this.game.trySpeech) {
                     this.game.trySpeech(this, 'ON_PATH_BLOCKED', 0.5);
                 }
                 this.stuckSpeechTimer = 0;
-                this.stuckSpeechCooldown = 5.0 + Math.random() * 5.0;
+                this.stuckSpeechCooldown = 8.0 + Math.random() * 7.0;
             }
         } else {
             this.stuckFrameCounter = 0;
@@ -893,21 +1019,26 @@ class Unit {
             this._slideFramesLeft = 0;
             this._slideDirX = 0;
             this._slideDirY = 0;
+            this.repathFailCount = 0;
         }
         if (this.stuckSpeechCooldown > 0) {
             this.stuckSpeechCooldown -= deltaTime;
         }
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
-        const arrivalTolerance = Math.max(moveSpeed * 0.3, this.size * 0.3);
+        const arrivalTolerance = Math.max(moveSpeed * 0.5, this.size * 0.5);
 
         if (distToNextNodeAfterMove <= arrivalTolerance || (moveSpeed >= distToNextNode && distToNextNode > 1e-5 && Math.abs(finalDeltaX - desiredDeltaX) < 1e-4 && Math.abs(finalDeltaY - desiredDeltaY) < 1e-4)) {
-            this.x = nextNodeWorldCoords.x; this.y = nextNodeWorldCoords.y;
-            if (this.hovers) {
-                this.hoverVelocityX *= 0.5;
-                this.hoverVelocityY *= 0.5;
-            }
             this.currentPathNodeIndex++;
+            while (this.currentPathNodeIndex < this.currentPath.length) {
+                const nextNode = this.currentPath[this.currentPathNodeIndex];
+                const distToNext = distance(this.x, this.y, nextNode.x, nextNode.y);
+                if (distToNext < arrivalTolerance * 0.5) {
+                    this.currentPathNodeIndex++;
+                } else {
+                    break;
+                }
+            }
             if (this.currentPathNodeIndex >= this.currentPath.length) {
                 this.currentPath = []; this.currentPathNodeIndex = 0;
                 if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < arrivalTolerance * 1.5) {

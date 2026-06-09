@@ -10,7 +10,7 @@ const CONFIG = {
     MIN_CANVAS_HEIGHT: 1080,
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
-    CAMERA_ZOOM: 1.2,
+    CAMERA_ZOOM: 1.4,
 
     // =============================================================================
     // INPUT
@@ -35,11 +35,13 @@ const CONFIG = {
     DEBUG_DRAW_BULLET_SIZES: true,
     UNIT_PATHING_RADIUS_BUFFER: 10,
     OBSTACLE_REPULSION_RADIUS_FACTOR: 1.50,
-    OBSTACLE_REPULSION_FORCE: 2.5,
-    STUCK_REPATH_FRAME_THRESHOLD: 10,
+    OBSTACLE_REPULSION_FORCE: 1.0,
+    STUCK_REPATH_FRAME_THRESHOLD: 30,
     PATHFINDING_MAX_EXPANSIONS: 20000,
-    MIN_SEPARATION_DISTANCE_FACTOR: 3.0, // Prevents unit clumping (1.0 = touch, >1.0 = spacing)
-    UNIT_STUCK_FRAMES_THRESHOLD: 2,
+    MIN_SEPARATION_DISTANCE_FACTOR: 1.1,
+    UNIT_SEPARATION_FORCE_FACTOR: 1.3,
+    UNIT_COLLISION_CHECK_ENABLED: true,
+    UNIT_STUCK_FRAMES_THRESHOLD: 6,
     STUCK_FRAMES_THRESHOLD_PATHING: 30,
     REPATH_STUCK_COOLDOWN: 0.3,
 
@@ -52,8 +54,8 @@ const CONFIG = {
     ENEMY_HIT_STUN_DURATION_BONUS: 0.25,
 
     UNIT_VISUALS: {
-        STUCK_FRAMES_THRESHOLD: 2,
-        UNIT_PHASING_DURATION: 2.75,
+        STUCK_FRAMES_THRESHOLD: 6,
+        UNIT_PHASING_DURATION: 1.5,
         UNIT_PHASING_OPACITY: 0.5,
         DRAW_GUN_AIM_INDICATOR: false,
         FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 1 },
@@ -2100,7 +2102,8 @@ const CONFIG = {
         // INTERACTIONS        
         COMPUTER_HACK_GLITCH: { path: 'assets/audio/sfx/computer_hack_glitch.mp3', defaultVolume: 0.5 },
         SCENT_MARKER_PLACE: { path: 'assets/audio/sfx/scentMarkerPlace.wav', defaultVolume: 0.3, pitchVariation: 0.2 },
-       
+        SCENT_SNIFF: { path: 'assets/audio/sfx/scentSniff_1.wav', defaultVolume: 0.4, pitchVariation: 0.15 },
+
         // UI
         UI_BUTTON_CLICK: { path: 'assets/audio/sfx/ui_click_soft.ogg', defaultVolume: 0.1 },
         UI_BUTTON_HOVER: { path: 'assets/audio/sfx/ui_hover_gentle.mp3', defaultVolume: 0.3, pitchVariation: 0.1 },
@@ -2145,19 +2148,19 @@ const CONFIG = {
                 ambient: ['AMBIENT_FOREST_1', 'AMBIENT_FOREST_2', 'AMBIENT_FOREST_3', 'AMBIENT_FOREST_4', 'AMBIENT_FOREST_5'],
                 combat: ['MUSIC_COMBAT_1'],
                 victory: 'MUSIC_VICTORY_DEFAULT',
-                defeat: 'MUSIC_DEFEAT'
+                defeat: null
             },
             TEMPERATE: {
                 ambient: ['AMBIENT_FOREST_1', 'AMBIENT_FOREST_2', 'AMBIENT_FOREST_3', 'AMBIENT_FOREST_4', 'AMBIENT_FOREST_5'],
                 combat: ['MUSIC_COMBAT_1'],
                 victory: 'MUSIC_VICTORY_DEFAULT',
-                defeat: 'MUSIC_DEFEAT'
+                defeat: null
             },
             SWAMP: {
-                ambient: ['AMBIENT_FOREST_1', 'AMBIENT_FOREST_2', 'AMBIENT_FOREST_3', 'AMBIENT_FOREST_4', 'AMBIENT_FOREST_5'],
+                ambient: ['AMBIENT_FOREST_5'],
                 combat: ['MUSIC_COMBAT_1'],
                 victory: 'MUSIC_VICTORY_DEFAULT',
-                defeat: 'MUSIC_DEFEAT'
+                defeat: null
             }
         },
 
@@ -2652,6 +2655,10 @@ const CONFIG = {
             REMOVE_LABEL: 'Remove Marker',
             REMOVE_COLOR: '#FF4444',
             REMOVE_HOVER_COLOR: '#FF6666',
+            SNIFF_LABEL: 'Sniff',
+            SNIFF_COLOR: '#DDA0DD',
+            SNIFF_HOVER_COLOR: '#E8B8E8',
+            SNIFF_DURATION: 10,
             ANIMATION_SPEED: 10,
             EDGE_MARGIN: 60,
             VISIBLE_TRANSITION_SPEED: 0.15,

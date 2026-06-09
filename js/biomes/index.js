@@ -7,6 +7,7 @@ CONFIG.BIOMES = {};
 // Register each biome
 CONFIG.BIOMES[TROPICAL_BIOME.name] = TROPICAL_BIOME;
 CONFIG.BIOMES[TEMPERATE_BIOME.name] = TEMPERATE_BIOME;
+CONFIG.BIOMES[JUNKYARD_BIOME.name] = JUNKYARD_BIOME;
 
 // Helper: get biome config by name (fallback to TROPICAL)
 function getBiomeConfig(biomeName) {

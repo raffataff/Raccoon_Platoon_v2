@@ -176,10 +176,9 @@ class PossumGrunt extends Unit {
                 } else {
                     const distToCurrentPatrolPoint = distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                     const arrivalTolerance = this.game.level.gridCellSize * 0.75;
-                    if (!this.isMoving || (this.worldTargetX !== this.currentTargetPatrolPoint.x || this.worldTargetY !== this.currentTargetPatrolPoint.y)) {
-                        if (distToCurrentPatrolPoint > arrivalTolerance) {
-                            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
-                        }
+                    const alreadyPathingToThisTarget = this.isMoving && this.worldTargetX === this.currentTargetPatrolPoint.x && this.worldTargetY === this.currentTargetPatrolPoint.y;
+                    if (!alreadyPathingToThisTarget && distToCurrentPatrolPoint > arrivalTolerance && this.repathCooldown <= 0) {
+                        this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                     }
                     if (!this.isMoving && distToCurrentPatrolPoint <= arrivalTolerance) {
                         this.x = this.currentTargetPatrolPoint.x;
@@ -194,10 +193,10 @@ class PossumGrunt extends Unit {
                 if (this.lastKnownPlayerPosition) {
                     const distToLKP = distance(this.x, this.y, this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y);
                     const arrivalToleranceLKP = this.game.level.gridCellSize * 1.5;
-                    if (!this.isMoving || (this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y)) {
+                    if ((!this.isMoving || (this.worldTargetX !== this.lastKnownPlayerPosition.x || this.worldTargetY !== this.lastKnownPlayerPosition.y)) && this.repathCooldown <= 0) {
                         if (distToLKP > arrivalToleranceLKP) {
                             if (!this.setMoveTarget(this.lastKnownPlayerPosition.x, this.lastKnownPlayerPosition.y)) {
-                                this.aiState = 'PATROLLING'; // Fallback if can't path to LKP
+                                this.aiState = 'PATROLLING';
                                 this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                             }
                         }
@@ -236,7 +235,7 @@ class PossumGrunt extends Unit {
                     } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
                         distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
                         shouldUpdateChaseDest = true;
-                    } else if (!this.isMoving && distance(this.x, this.y, target.x, target.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
+                    } else if (!this.isMoving && this.repathCooldown <= 0 && distance(this.x, this.y, target.x, target.y) > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
                         shouldUpdateChaseDest = true;
                     }
 
@@ -264,6 +263,7 @@ class PossumGrunt extends Unit {
                             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogic] CHASING: Updated chase destination to (${predictedX.toFixed(0)}, ${predictedY.toFixed(0)}). Pathing success.`);
                         } else {
                             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} aiLogic] CHASING: setMoveTarget failed for new chase destination.`);
+                            this.timeSinceLastChaseDestUpdate = this.CHASE_DESTINATION_REFRESH_INTERVAL * 0.5;
                         }
                     }
                 } else {
@@ -294,7 +294,7 @@ class PossumGrunt extends Unit {
         }
         this.lastOnStuckTime = currentTime;
 
-        const maxStuckBeforePhasing = this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL + 2; // Inherited from Unit.js or defined in config
+        const maxStuckBeforePhasing = (this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL || 3) + 2;
         if (this.consecutiveStuckAttempts >= maxStuckBeforePhasing && !this.isPhasing) {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
 //                console.warn(`[${this.id} onStuck GRUNT] Max consecutive stuck attempts (${this.consecutiveStuckAttempts}). Initiating Phasing.`);

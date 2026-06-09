@@ -125,7 +125,7 @@ class PossumBoss4 extends Unit {
             }
         }
 
-        if (!this.isMoving && dist > this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE || 120) {
+        if (!this.isMoving && this.repathCooldown <= 0 && dist > (this.bossAIConfig.MIN_ENGAGEMENT_DISTANCE || 120)) {
             this.setMoveTarget(target.x, target.y);
         }
     }

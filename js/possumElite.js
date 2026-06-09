@@ -278,7 +278,7 @@ class PossumElite extends Unit {
     }
 
     _updatePatrolState(deltaTime, obstacles) {
-        if (!this.isMoving && distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y) > 5) {
+        if (this.repathCooldown <= 0 && !this.isMoving && distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y) > 5) {
             this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
         }
 
@@ -291,7 +291,9 @@ class PossumElite extends Unit {
                 this.patrolPoint1 = this.currentTargetPatrolPoint;
                 this.currentTargetPatrolPoint = this.patrolPoint2;
                 this.patrolPoint2 = temp;
-                this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+                if (this.repathCooldown <= 0) {
+                    this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+                }
             }
         }
     }
@@ -378,7 +380,7 @@ class PossumElite extends Unit {
         } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
             distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
             shouldUpdateChaseDest = true;
-        } else if (!this.isMoving && distToTarget > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
+        } else if (!this.isMoving && this.repathCooldown <= 0 && distToTarget > this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
             shouldUpdateChaseDest = true;
         }
 

@@ -59,12 +59,24 @@ class ScentMarker {
             sy >= -renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN &&
             sy <= canvas.height + renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN;
 
+        const sniffActive = game.scentSniffActive && now < game.scentSniffExpiry;
+
+        if (!isOnScreen && !sniffActive) {
+            ctx.restore();
+            return;
+        }
+
         ctx.save();
 
-        if (isOnScreen) {
-            this._renderWorldMarker(ctx, sx, sy, typeCfg, renderCfg, pulse, zoom, opacity, now);
+        if (sniffActive) {
+            let sniffFadeOpacity = 1.0;
+            const sniffDuration = this.cfg.RADIAL_MENU.SNIFF_DURATION || 10;
+            const sniffElapsed = now - (game.scentSniffExpiry - sniffDuration);
+            const sniffProgress = sniffElapsed / sniffDuration;
+            sniffFadeOpacity = sniffProgress < 0.5 ? 1.0 : Math.max(0, 1.0 - (sniffProgress - 0.5) * 2);
+            this._renderEdgeArrow(ctx, sx, sy, typeCfg, renderCfg, pulse, zoom, opacity * sniffFadeOpacity, now, game);
         } else {
-            this._renderEdgeArrow(ctx, sx, sy, typeCfg, renderCfg, pulse, zoom, opacity, now, game);
+            this._renderWorldMarker(ctx, sx, sy, typeCfg, renderCfg, pulse, zoom, opacity, now);
         }
 
         ctx.restore();
@@ -208,7 +220,7 @@ class ScentRadialMenu {
             ? this.game.config.SCENT_MARKERS.RADIAL_MENU
             : CONFIG.SCENT_MARKERS.RADIAL_MENU;
         const typeKeys = Object.keys(CONFIG.SCENT_MARKERS.TYPES);
-        const totalSegments = typeKeys.length + 1;
+        const totalSegments = typeKeys.length + 2;
         const segmentCount = totalSegments;
         const bottomAngle = Math.PI / 2;
         const totalSpan = Math.PI * 2;
@@ -232,12 +244,23 @@ class ScentRadialMenu {
             });
         }
 
+        const removeIndex = typeKeys.length;
         this.removeItem = {
             label: radCfg.REMOVE_LABEL,
             color: radCfg.REMOVE_COLOR,
             hoverColor: radCfg.REMOVE_HOVER_COLOR,
-            angle: this.segmentAngles[this.segmentAngles.length - 1],
-            index: this.segmentAngles.length - 1,
+            angle: this.segmentAngles[removeIndex],
+            index: removeIndex,
+        };
+
+        const sniffIndex = typeKeys.length + 1;
+        this.sniffItem = {
+            label: radCfg.SNIFF_LABEL,
+            color: radCfg.SNIFF_COLOR,
+            hoverColor: radCfg.SNIFF_HOVER_COLOR,
+            iconChar: '\u00A1',
+            angle: this.segmentAngles[sniffIndex],
+            index: sniffIndex,
         };
     }
 
@@ -303,6 +326,7 @@ class ScentRadialMenu {
         const checkSegments = [
             ...this.childMarkerItems.map(s => ({ angle: s.angle, index: s.index })),
             { angle: this.removeItem.angle, index: this.removeItem.index },
+            { angle: this.sniffItem.angle, index: this.sniffItem.index },
         ];
 
         for (const seg of checkSegments) {
@@ -337,6 +361,10 @@ class ScentRadialMenu {
 
         if (this.hoveredIndex === this.removeItem.index) {
             return { action: 'remove' };
+        }
+
+        if (this.hoveredIndex === this.sniffItem.index) {
+            return { action: 'sniff' };
         }
 
         return null;
@@ -374,8 +402,11 @@ class ScentRadialMenu {
                 seg.typeConfig.label, seg.index, ease, seg.typeConfig.color);
         }
 
-        this._renderSegment(ctx, cx, cy, this.removeItem.angle, this.removeItem.color, '✕',
+        this._renderSegment(ctx, cx, cy, this.removeItem.angle, this.removeItem.color, '\u2715',
             this.removeItem.label, this.removeItem.index, ease, this.removeItem.hoverColor);
+
+        this._renderSegment(ctx, cx, cy, this.sniffItem.angle, this.sniffItem.color, '\u00A1',
+            this.sniffItem.label, this.sniffItem.index, ease, this.sniffItem.hoverColor);
 
         ctx.beginPath();
         ctx.arc(cx, cy, radCfg.CENTER_GAP * ease, 0, Math.PI * 2);
@@ -387,6 +418,7 @@ class ScentRadialMenu {
             this._renderConnectorLine(ctx, cx, cy, seg.angle, seg.typeConfig.color, ease);
         }
         this._renderConnectorLine(ctx, cx, cy, this.removeItem.angle, this.removeItem.color, ease);
+        this._renderConnectorLine(ctx, cx, cy, this.sniffItem.angle, this.sniffItem.color, ease);
 
         ctx.globalAlpha = 1.0;
         ctx.restore();

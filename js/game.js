@@ -154,6 +154,8 @@ class Game {
         this.scentMarkers = [];
         this.scentRadialMenu = new ScentRadialMenu(this);
         this.isScentMenuKeyHeld = false;
+        this.scentSniffActive = false;
+        this.scentSniffExpiry = 0;
         // --- END Scent Markers ---
 
         this.resizeCanvas();
@@ -1036,7 +1038,7 @@ class Game {
             { name: 'rainforest_large', files: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.files, path: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.path, type: 'single' },
             { name: 'helipad_square', files: CONFIG.HELIPAD_SQUARE_SPRITE_FILES, path: CONFIG.HELIPAD_SQUARE_SPRITE_PATH, type: 'single' },
             { name: 'tropical_ruins', files: TROPICAL_BIOME.spritePaths.tropical_ruins?.files, path: TROPICAL_BIOME.spritePaths.tropical_ruins?.path, type: 'single' },
-
+            // ====================
             //TEMPERATE
             { name: 'grass_decorations', files: TEMPERATE_BIOME.spritePaths.grass_decorations?.files, path: TEMPERATE_BIOME.spritePaths.grass_decorations?.path, type: 'single' },
             { name: 'grass', files: TEMPERATE_BIOME.spritePaths.grass?.files, path: TEMPERATE_BIOME.spritePaths.grass?.path, type: 'single' },
@@ -1067,6 +1069,11 @@ class Game {
             { name: 'pond', files: TEMPERATE_BIOME.spritePaths.pond?.files, path: TEMPERATE_BIOME.spritePaths.pond?.path, type: 'single'},
             { name: 'lake', files: TEMPERATE_BIOME.spritePaths.lake?.files, path: TEMPERATE_BIOME.spritePaths.lake?.path, type: 'single' },
             { name: 'water_well', files: TEMPERATE_BIOME.spritePaths.water_well?.files, path: TEMPERATE_BIOME.spritePaths.water_well?.path, type: 'single' },
+            // ====================
+            // JUNKYARD SPRITE SETS
+            { name: 'junk_small_round', files: JUNKYARD_BIOME.spritePaths.junk_small_round?.files, path: JUNKYARD_BIOME.spritePaths.junk_small_round?.path, type: 'single' },
+            { name: 'junk_small_tall', files: JUNKYARD_BIOME.spritePaths.junk_small_tall?.files, path: JUNKYARD_BIOME.spritePaths.junk_small_tall?.path, type: 'single' },
+            { name: 'junk_vehicle', files: JUNKYARD_BIOME.spritePaths.junk_vehicle?.files, path: JUNKYARD_BIOME.spritePaths.junk_vehicle?.path, type: 'single' },
 
             // ====================
             // INTEL CONSOLES (on/off pairs)
@@ -1993,6 +2000,8 @@ class Game {
             this._placeScentMarker(action.markerType);
         } else if (action.action === 'remove') {
             this._removeNearestScentMarker();
+        } else if (action.action === 'sniff') {
+            this._triggerScentSniff();
         }
     }
 
@@ -2033,6 +2042,15 @@ class Game {
 
         if (nearestIdx !== -1) {
             this.scentMarkers[nearestIdx].isMarkedForDeletion = true;
+        }
+    }
+
+    _triggerScentSniff() {
+        if (!CONFIG.SCENT_MARKERS || !CONFIG.SCENT_MARKERS.ENABLED) return;
+        this.scentSniffActive = true;
+        this.scentSniffExpiry = performance.now() / 1000 + CONFIG.SCENT_MARKERS.RADIAL_MENU.SNIFF_DURATION;
+        if (this.audioManager) {
+            this.audioManager.play('SCENT_SNIFF');
         }
     }
 
@@ -3060,7 +3078,7 @@ class Game {
         // This is the primary check for the "total loss" condition.
         if (!isVictory && this.getAvailableRecruits().length === 0) {
             this.scentMarkers = [];
-            this.gameState = 'GAME_OVER_NO_RECRUITS';
+            this.scentSniffActive = false;
             this.missionEndMessage = CONFIG.UI_TEXT_STRINGS.GAMEOVER_ALL_RECRUITS_KIA; // Store message for UI
             if (this.ui) {
                 this.ui.hideHUD();
@@ -3086,6 +3104,7 @@ class Game {
         this.gameState = 'POST_MISSION_DEBRIEF';
 
         this.scentMarkers = [];
+        this.scentSniffActive = false;
         
         this.missionEndMessage = "";
         const missionDuration = (performance.now() - this.missionStartTime) / 1000;
@@ -4327,6 +4346,9 @@ class Game {
                 return !m.isMarkedForDeletion;
             });
             this.scentRadialMenu.update(deltaTime);
+            if (this.scentSniffActive && performance.now() / 1000 >= this.scentSniffExpiry) {
+                this.scentSniffActive = false;
+            }
         }
 
         this.hostageUnits = this.hostageUnits.filter(h => !h.isMarkedForDeletion);
@@ -4339,6 +4361,9 @@ class Game {
             this.checkMissionStatus();
             if (this.level && typeof this.level.updateHutSpawning === 'function') {
                 this.level.updateHutSpawning(deltaTime);
+            }
+            if (this.level && typeof this.level.updateExplosionQueue === 'function') {
+                this.level.updateExplosionQueue(deltaTime);
             }
             if (this.intelConsoles && this.intelConsoles.length > 0) {
                 this.intelConsoles.forEach(console => {

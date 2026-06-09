@@ -33,9 +33,9 @@ const CAMPAIGN_RULES = {
     // --- Pools of Options ---
     BIOME_POOL: [
         { name: "TROPICAL", weight: 4, unlocksPhase: 0, description: "dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
-        { name: "TEMPERATE", weight: 4, unlocksPhase: 2, description: "temperate forest", themeAdjectives: ["Autumn", "Golden", "Crisp", "Wooded", "Serene"] },
-    /*    { name: "JUNKYARD", weight: 3, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
-        { name: "SWAMP", weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
+        { name: "TEMPERATE", weight: 4, unlocksPhase: 0, description: "temperate forest", themeAdjectives: ["Autumn", "Golden", "Crisp", "Wooded", "Serene"] },
+        { name: "JUNKYARD", weight: 0, unlocksPhase: 0, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
+    /*    { name: "SWAMP", weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY", weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
     */   ],
 

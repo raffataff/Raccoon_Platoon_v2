@@ -31,7 +31,12 @@ class Level {
         // --- NEW: Add property to store quadrant data ---
         this.quadrantBoundaries = null;
         // --- END NEW ---
-        
+
+        // Explosion propagation queue for wave-based chain reactions
+        this.explosionQueue = [];
+        this.explosionWaveSpeed = 250; // pixels per second - speed of the shockwave
+        this.explosionWaveDelay = 0.05; // minimum delay between chained explosions (seconds)
+
         this.levelGenerator = new LevelGenerator(this);
     }
     
@@ -269,21 +274,40 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                 }
                 const explosionDmg = obstacleDef.explosionDamage;
                 const explosionRadius = obstacleDef.explosionAoeRadius;
-                (this.game.level.obstacles || []).forEach(otherObs => {
-                    if (otherObs !== obstacle && otherObs.destructible && !otherObs.isDestroyed) {
+                const explosionCenterX = obstacle.x + obstacle.width / 2;
+                const explosionCenterY = obstacle.y + obstacle.height / 2;
+
+                (this.obstacles || []).forEach(otherObs => {
+                    if (otherObs !== obstacle && otherObs.destructible && !otherObs.isDestroyed &&
+                        (otherObs.type === 'explosive_barrel' || otherObs.type === 'explosive_barrel_double' ||
+                         otherObs.type === 'explosive_barrel_cluster')) {
                         const centerObsX = otherObs.x + otherObs.width / 2;
                         const centerObsY = otherObs.y + otherObs.height / 2;
-                        const explosionCenterX = obstacle.x + obstacle.width / 2;
-                        const explosionCenterY = obstacle.y + obstacle.height / 2;
-                        if (distance(explosionCenterX, explosionCenterY, centerObsX, centerObsY) < explosionRadius + (otherObs.width + otherObs.height) / 4) {
-                           this.damageObstacle(otherObs, explosionDmg, attackerUnit);
+                        const dist = distance(explosionCenterX, explosionCenterY, centerObsX, centerObsY);
+                        const hitRadius = explosionRadius + (otherObs.width + otherObs.height) / 4;
+
+                        if (dist < hitRadius) {
+                            const delay = Math.max(
+                                this.explosionWaveDelay,
+                                dist / this.explosionWaveSpeed
+                            );
+                            const alreadyQueued = this.explosionQueue && this.explosionQueue.some(q => q.obstacle === otherObs);
+                            if (!alreadyQueued) {
+                                this.explosionQueue.push({
+                                    obstacle: otherObs,
+                                    damage: explosionDmg,
+                                    attackerUnit: attackerUnit,
+                                    remainingDelay: delay
+                                });
+                            }
                         }
                     }
                 });
-                const allUnits = this.game.getLivingPlayerControlledUnits().concat(this.game.enemyUnits || []); 
+
+                const allUnits = this.game.getLivingPlayerControlledUnits().concat(this.game.enemyUnits || []);
                 allUnits.forEach(unit => {
                     if (unit.isAlive()) {
-                        const distToUnit = distance(obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2, unit.x, unit.y);
+                        const distToUnit = distance(explosionCenterX, explosionCenterY, unit.x, unit.y);
                         if (distToUnit <= explosionRadius + unit.size) {
                             unit.takeDamage(explosionDmg, attackerUnit);
                         }
@@ -579,7 +603,6 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
     getNavigationGrid() {
         if (!this.navGrid) {
-//            console.warn("[Level] Navigation grid requested but not yet generated!");
             if (CONFIG.WORLD_WIDTH && CONFIG.WORLD_HEIGHT) {
                 this.generateNavigationGrid(CONFIG.WORLD_WIDTH, CONFIG.WORLD_HEIGHT);
             } else {
@@ -587,6 +610,40 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
             }
         }
         return this.navGrid;
+    }
+
+    getNavigationGridWithUnits(requesterUnit, unitRadiusCells) {
+        const baseGrid = this.getNavigationGrid();
+        if (!baseGrid) return null;
+        const gridCopy = [];
+        for (let y = 0; y < this.gridHeight; y++) {
+            gridCopy[y] = new Uint8Array(baseGrid[y]);
+        }
+        if (!this.game) return gridCopy;
+        const allUnits = [
+            ...(this.game.getLivingPlayerControlledUnits?.() || []),
+            ...(this.game.enemyUnits || []),
+            ...(this.game.hostageUnits || [])
+        ];
+        const requesterGrid = this.worldToGridCoords(requesterUnit.x, requesterUnit.y);
+        for (const unit of allUnits) {
+            if (unit === requesterUnit || !unit.isAlive() || unit.isPhasing) continue;
+            const unitGrid = this.worldToGridCoords(unit.x, unit.y);
+            const r = Math.ceil((unit.size * 0.5 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 10)) / this.gridCellSize) + unitRadiusCells;
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    const gx = unitGrid.x + dx;
+                    const gy = unitGrid.y + dy;
+                    if (gx >= 0 && gx < this.gridWidth && gy >= 0 && gy < this.gridHeight) {
+                        if (dx * dx + dy * dy <= r * r) {
+                            gridCopy[gy][gx] = 1;
+                        }
+                    }
+                }
+            }
+        }
+        gridCopy[requesterGrid.y][requesterGrid.x] = 0;
+        return gridCopy;
     }
 
     rebuildActiveObstacles() {
@@ -813,7 +870,121 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
             }
         }
     }
-    
+
+    updateExplosionQueue(deltaTime) {
+        if (!this.explosionQueue || this.explosionQueue.length === 0) return;
+
+        for (let i = 0; i < this.explosionQueue.length; i++) {
+            const entry = this.explosionQueue[i];
+            entry.remainingDelay -= deltaTime;
+
+            if (entry.remainingDelay <= 0) {
+                if (entry.obstacle && !entry.obstacle.isDestroyed) {
+                    const obstacle = entry.obstacle;
+                    const obstacleDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.type);
+
+                    if (obstacleDef && obstacleDef.explosionDamage && obstacleDef.explosionAoeRadius) {
+                        obstacle.isDestroyed = true;
+                        obstacle.hp = 0;
+
+                        obstacle.blocksMovement = obstacleDef.blocksMovementOnDestroy !== undefined ? obstacleDef.blocksMovementOnDestroy : false;
+                        obstacle.providesCover = obstacleDef.providesCoverOnDestroy !== undefined ? obstacleDef.providesCoverOnDestroy : false;
+                        if (obstacleDef.collisionShapeDestroyed) {
+                            obstacle.collisionShape = obstacleDef.collisionShapeDestroyed;
+                        } else if (obstacle.treeStumpType) {
+                            const stumpDef = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === obstacle.treeStumpType);
+                            if (stumpDef && stumpDef.collisionShape) {
+                                obstacle.collisionShape = stumpDef.collisionShape;
+                            } else if (obstacle.blocksMovement === false) {
+                                obstacle.collisionShape = null;
+                            }
+                        } else if (obstacle.blocksMovement === false) {
+                            obstacle.collisionShape = null;
+                        }
+
+                        if (this.navGrid) {
+                            this.updateNavigationGridForObstacle(obstacle, true);
+                        }
+                        this.rebuildActiveObstacles();
+
+                        const centerX = obstacle.x + obstacle.width / 2;
+                        const centerY = obstacle.y + obstacle.height / 2;
+
+                        if (this.game) {
+                            this.game.addVisualEffect('barrel_explosion', {
+                                x: centerX,
+                                y: centerY,
+                                radius: obstacleDef.explosionAoeRadius
+                            });
+
+                            if (obstacleDef.flameCount && obstacleDef.flameCount > 0) {
+                                this.game.addVisualEffect('fire', {
+                                    anchorObstacle: obstacle,
+                                    flameCount: obstacleDef.flameCount,
+                                    flameOffsetY: obstacleDef.flameOffsetY || 0
+                                });
+                            }
+
+                            if (obstacleDef.sfxOnDestroy && this.game.audioManager) {
+                                this.game.audioManager.play(obstacleDef.sfxOnDestroy);
+                            }
+                        }
+
+                        const explosionDmg = obstacleDef.explosionDamage;
+                        const explosionRadius = obstacleDef.explosionAoeRadius;
+
+                        (this.obstacles || []).forEach(otherObs => {
+                            if (otherObs !== obstacle && otherObs.destructible && !otherObs.isDestroyed &&
+                                (otherObs.type === 'explosive_barrel' || otherObs.type === 'explosive_barrel_double' ||
+                                 otherObs.type === 'explosive_barrel_cluster')) {
+
+                                const otherCenterX = otherObs.x + otherObs.width / 2;
+                                const otherCenterY = otherObs.y + otherObs.height / 2;
+                                const dist = distance(centerX, centerY, otherCenterX, otherCenterY);
+                                const hitRadius = explosionRadius + (otherObs.width + otherObs.height) / 4;
+
+                                if (dist < hitRadius) {
+                                    const delay = Math.max(
+                                        this.explosionWaveDelay,
+                                        dist / this.explosionWaveSpeed
+                                    );
+
+                                    const alreadyQueued = this.explosionQueue.some(q => q.obstacle === otherObs);
+                                    if (!alreadyQueued) {
+                                        this.explosionQueue.push({
+                                            obstacle: otherObs,
+                                            damage: explosionDmg,
+                                            attackerUnit: entry.attackerUnit,
+                                            remainingDelay: delay
+                                        });
+                                    }
+                                }
+                            }
+                        });
+
+                        const allUnits = (this.game ? this.game.getLivingPlayerControlledUnits() : [])
+                            .concat(this.game ? this.game.enemyUnits : []);
+                        allUnits.forEach(unit => {
+                            if (unit.isAlive()) {
+                                const distToUnit = distance(centerX, centerY, unit.x, unit.y);
+                                if (distToUnit <= explosionRadius + unit.size) {
+                                    unit.takeDamage(explosionDmg, entry.attackerUnit);
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+
+        for (let i = this.explosionQueue.length - 1; i >= 0; i--) {
+            const entry = this.explosionQueue[i];
+            if (entry.remainingDelay <= 0 || !entry.obstacle || entry.obstacle.isDestroyed) {
+                this.explosionQueue.splice(i, 1);
+            }
+        }
+    }
+
     attemptSingleSpawnFromHut(hut) {
         if (hut.isDestroyed || !this.rng) return false;
 
