@@ -21,8 +21,8 @@ class ShootoutSpawner {
 
         // Get background config, checking biome-specific backgrounds first
         let bgConfig;
-        if (biomeName && typeof getBiomeShootoutBackground === 'function') {
-            bgConfig = getBiomeShootoutBackground(biomeName, bgKey);
+        if (typeof getBiomeShootoutBackground === 'function') {
+            bgConfig = getBiomeShootoutBackground(biomeName || 'TROPICAL', bgKey);
         } else {
             bgConfig = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[bgKey];
         }

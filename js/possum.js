@@ -28,7 +28,7 @@ class PossumGrunt extends Unit {
         this.CHASE_DESTINATION_REFRESH_INTERVAL = this.gruntAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
         // --- OPTIMIZATION Phase 4: Throttle deviation updates ---
         this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.gruntAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
-        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.gruntAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.GRID_CELL_SIZE) ** 2;
+        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.gruntAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2;
         this.ENGAGE_RANGE_BUFFER = this.gruntAIConfig.ENGAGE_RANGE_BUFFER || 10;
 
 
@@ -95,23 +95,6 @@ class PossumGrunt extends Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
-        // --- Hit reaction: immediately engage attacker ---
-        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
-            this.manualTarget = this.recentlyHitBy;
-            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-            const distToAttacker = distance(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y);
-            const hasLOS = hasLineOfSight(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y, this.game.level.activeObstacles, this.game.level);
-            if (hasLOS && distToAttacker <= this.weapon.range) {
-                this.aiState = 'ENGAGING_SHOOTING';
-            } else {
-                this.aiState = 'ENGAGING_CHASING';
-                this.chaseDestination = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-                this.setMoveTarget(this.recentlyHitBy.x, this.recentlyHitBy.y);
-            }
-            this.propagateAlert(this.recentlyHitBy);
-            return;
-        }
-
         let currentTarget = this.manualTarget || this.autoTarget;
         const playerUnitsOnMap = this.game.getLivingPlayerControlledUnits();
 
@@ -176,16 +159,25 @@ class PossumGrunt extends Unit {
                 } else {
                     const distToCurrentPatrolPoint = distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                     const arrivalTolerance = this.game.level.gridCellSize * 0.75;
-                    const alreadyPathingToThisTarget = this.isMoving && this.worldTargetX === this.currentTargetPatrolPoint.x && this.worldTargetY === this.currentTargetPatrolPoint.y;
-                    if (!alreadyPathingToThisTarget && distToCurrentPatrolPoint > arrivalTolerance && this.repathCooldown <= 0) {
-                        this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
-                    }
+                    const targetMatch = this.isMoving && this.worldTargetX !== undefined &&
+                        Math.abs(this.worldTargetX - this.currentTargetPatrolPoint.x) < this.game.level.gridCellSize * 2 &&
+                        Math.abs(this.worldTargetY - this.currentTargetPatrolPoint.y) < this.game.level.gridCellSize * 2;
+                    const targetIsPatrolPoint = this.worldTargetX !== undefined &&
+                        Math.abs(this.worldTargetX - this.currentTargetPatrolPoint.x) < this.game.level.gridCellSize * 2 &&
+                        Math.abs(this.worldTargetY - this.currentTargetPatrolPoint.y) < this.game.level.gridCellSize * 2;
+
                     if (!this.isMoving && distToCurrentPatrolPoint <= arrivalTolerance) {
                         this.x = this.currentTargetPatrolPoint.x;
                         this.y = this.currentTargetPatrolPoint.y;
                         this.patrolWaitTimer = this.PATROL_WAIT_TOTAL_DURATION;
                         this.currentTargetPatrolPoint = (this.currentTargetPatrolPoint === this.patrolPoint1) ? this.patrolPoint2 : this.patrolPoint1;
                         this.PATROL_WAIT_TOTAL_DURATION = (this.gruntAIConfig.PATROL_WAIT_BASE || 1.5) + Math.random() * (this.gruntAIConfig.PATROL_WAIT_RANDOM_ADD || 2.0);
+                    } else if (!this.isMoving && targetIsPatrolPoint && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75) {
+                        this.patrolWaitTimer = this.PATROL_WAIT_TOTAL_DURATION;
+                        this.currentTargetPatrolPoint = (this.currentTargetPatrolPoint === this.patrolPoint1) ? this.patrolPoint2 : this.patrolPoint1;
+                        this.PATROL_WAIT_TOTAL_DURATION = (this.gruntAIConfig.PATROL_WAIT_BASE || 1.5) + Math.random() * (this.gruntAIConfig.PATROL_WAIT_RANDOM_ADD || 2.0);
+                    } else if (!targetMatch && distToCurrentPatrolPoint > arrivalTolerance && this.repathCooldown <= 0) {
+                        this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                     }
                 }
                 break;
@@ -228,9 +220,16 @@ class PossumGrunt extends Unit {
                     const target = this.manualTarget;
                     let shouldUpdateChaseDest = false;
 
+                    const throttleCount = CONFIG.PATHFINDING.ENEMY_CHASE_THROTTLE_COUNT || 20;
+                    const throttleMult = CONFIG.PATHFINDING.ENEMY_CHASE_THROTTLE_MULTIPLIER || 2.0;
+                    const enemyCount = this.game ? this.game.enemyUnits.length : 0;
+                    const effectiveRefreshInterval = enemyCount > throttleCount
+                        ? this.CHASE_DESTINATION_REFRESH_INTERVAL * throttleMult
+                        : this.CHASE_DESTINATION_REFRESH_INTERVAL;
+
                     if (!this.chaseDestination) {
                         shouldUpdateChaseDest = true;
-                    } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
+                    } else if (this.timeSinceLastChaseDestUpdate >= effectiveRefreshInterval) {
                         shouldUpdateChaseDest = true;
                     } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
                         distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
@@ -245,7 +244,6 @@ class PossumGrunt extends Unit {
                         let predictedX, predictedY;
 
                         if (isNightInDark) {
-                            // If they are in the dark, stop predicting. Just head to where they are/were.
                             predictedX = target.x;
                             predictedY = target.y;
                         } else {
@@ -260,9 +258,7 @@ class PossumGrunt extends Unit {
                         this.chaseDestination = { x: predictedX, y: predictedY };
                         if (this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y)) {
                             this.timeSinceLastChaseDestUpdate = 0;
-                            if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} aiLogic] CHASING: Updated chase destination to (${predictedX.toFixed(0)}, ${predictedY.toFixed(0)}). Pathing success.`);
                         } else {
-                            if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} aiLogic] CHASING: setMoveTarget failed for new chase destination.`);
                             this.timeSinceLastChaseDestUpdate = this.CHASE_DESTINATION_REFRESH_INTERVAL * 0.5;
                         }
                     }
@@ -300,7 +296,7 @@ class PossumGrunt extends Unit {
 //                console.warn(`[${this.id} onStuck GRUNT] Max consecutive stuck attempts (${this.consecutiveStuckAttempts}). Initiating Phasing.`);
             }
             this.isPhasing = true;
-            this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75;
+            this.phasingTimer = CONFIG.PATHFINDING.PHASING_DURATION || 0.75;
             this.consecutiveStuckAttempts = 0;
             if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
                 this.isMoving = true;

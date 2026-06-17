@@ -227,7 +227,7 @@ class PossumTurret {
             const dist = distance(centerX, centerY, raccoon.x, raccoon.y);
             if (dist > range || dist >= nearestDist) continue;
             if (!this._isTargetInArc(raccoon)) continue;
-            if (!_hasLineOfSight(centerX, centerY, raccoon.x, raccoon.y, obstacles, this.game.level)) continue;
+            if (!this._hasLineOfSight(centerX, centerY, raccoon.x, raccoon.y, obstacles, this.game.level)) continue;
             nearest = raccoon;
             nearestDist = dist;
         }

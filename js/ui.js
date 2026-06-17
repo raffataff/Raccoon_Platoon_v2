@@ -559,7 +559,43 @@ class UI {
         });
         // --- END SHOOTOUT MODE UI ELEMENTS ---
 
-        // Prevent context menu on HUD elements during campaign gameplay
+        // --- DEBUG PANEL ELEMENTS ---
+        this.debugPanel = document.getElementById('debugPanel');
+        this.debugPanelClose = document.getElementById('debugPanelClose');
+        if (this.debugPanelClose) {
+            this.debugPanelClose.addEventListener('click', () => {
+                if (this.game) {
+                    this.game.isDebugVisualsActive = false;
+                    this.updateDebugPanelVisibility();
+                }
+            });
+        }
+
+        // Checkbox event listeners
+        const dbgToggles = [
+            ['dbgNavGridBlocked', () => this.game && this.game.toggleDebugNavGridBlocked()],
+            ['dbgNavGridTiles', () => this.game && this.game.toggleDebugNavGridTiles()],
+            ['dbgSpatialGrid', () => this.game && this.game.toggleDebugSpatialGrid()],
+            ['dbgObstacleShapes', () => this.game && this.game.toggleDebugObstacleShapes()],
+            ['dbgObstacleNames', () => this.game && this.game.toggleDebugObstacleNames()],
+            ['dbgPathingBounds', () => this.game && this.game.toggleDebugPathingBounds()],
+            ['dbgBulletSizes', () => this.game && this.game.toggleDebugBulletSizes()],
+            ['dbgHutSpawnAreas', () => this.game && this.game.toggleDebugHutSpawnAreas()],
+            ['dbgHutStatus', () => this.game && this.game.toggleDebugHutStatus()],
+        ];
+        dbgToggles.forEach(([id, handler]) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => handler());
+            }
+        });
+
+        // Prevent debug panel clicks from propagating to the game canvas
+        if (this.debugPanel) {
+            this.debugPanel.addEventListener('mousedown', (e) => e.stopPropagation());
+            this.debugPanel.addEventListener('click', (e) => e.stopPropagation());
+        }
+
         if (this.leftHudPanel) {
             this.leftHudPanel.addEventListener('contextmenu', (event) => {
                 if (this.game && this.game.campaignSeed && this.game.gameState === 'RUNNING') {
@@ -812,12 +848,30 @@ class UI {
         if (!this.shootoutMapList || !this.game || !this.game.shootoutController) return;
 
         this.shootoutMapList.innerHTML = '';
-        const backgrounds = CONFIG.SHOOTOUT_MODE.BACKGROUNDS;
+
+        // Aggregate all biome-specific backgrounds into a single map
+        const allBackgrounds = {};
+        if (typeof CONFIG !== 'undefined' && CONFIG.BIOMES) {
+            for (const biomeName of Object.keys(CONFIG.BIOMES)) {
+                const biome = CONFIG.BIOMES[biomeName];
+                if (biome.shootoutBackgrounds) {
+                    for (const [key, bg] of Object.entries(biome.shootoutBackgrounds)) {
+                        if (!allBackgrounds[key]) {
+                            allBackgrounds[key] = bg;
+                        }
+                    }
+                }
+            }
+        }
+
         const currentBg = this.game.shootoutController.currentBackgroundKey;
         const isNight = this.game.shootoutController.isNightMode;
 
-        Object.keys(backgrounds).forEach(key => {
-            const bg = backgrounds[key];
+        const bgKeys = Object.keys(allBackgrounds);
+        if (bgKeys.length === 0) return;
+
+        bgKeys.forEach(key => {
+            const bg = allBackgrounds[key];
             const card = document.createElement('div');
             card.className = 'map-card';
             if (key === currentBg) card.classList.add('selected');
@@ -831,13 +885,13 @@ class UI {
             nightToggle.innerHTML = `<span class="icon">${isNight ? '🌙' : '☀️'}</span>`;
 
             nightToggle.addEventListener('click', (e) => {
-                e.stopPropagation(); // Don't select the map just yet
+                e.stopPropagation();
                 if (this.game.audioManager) {
                     this.game.audioManager.play('UI_BUTTON_CLICK');
                 }
                 const newNightState = !this.game.shootoutController.isNightMode;
                 this.game.shootoutController.setNightMode(newNightState);
-                this.populateShootoutMapList(); // Refresh all cards
+                this.populateShootoutMapList();
             });
             card.appendChild(nightToggle);
 
@@ -851,7 +905,7 @@ class UI {
                     this.game.audioManager.play('UI_BUTTON_CLICK');
                 }
                 this.game.shootoutController.setBackground(key);
-                this.populateShootoutMapList(); // Refresh selection
+                this.populateShootoutMapList();
             });
 
             this.shootoutMapList.appendChild(card);
@@ -3540,5 +3594,32 @@ class UI {
             return `${mins}m ${secs}s`;
         }
         return `${secs}s`;
+    }
+
+    // --- DEBUG PANEL METHODS ---
+
+    updateDebugPanelVisibility() {
+        if (!this.debugPanel || !this.game) return;
+        this.debugPanel.style.display = this.game.isDebugVisualsActive ? 'flex' : 'none';
+        if (this.game.isDebugVisualsActive) {
+            this.syncDebugPanelFromConfig();
+        }
+    }
+
+    syncDebugPanelFromConfig() {
+        if (!this.game) return;
+        const setChecked = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.checked = !!value;
+        };
+        setChecked('dbgNavGridBlocked', CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED);
+        setChecked('dbgNavGridTiles', CONFIG.DEBUG_DRAW_NAV_GRID_TILES);
+        setChecked('dbgSpatialGrid', CONFIG.DEBUG_DRAW_SPATIAL_GRID);
+        setChecked('dbgObstacleShapes', CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES);
+        setChecked('dbgObstacleNames', CONFIG.DEBUG_DRAW_OBSTACLE_NAMES);
+        setChecked('dbgPathingBounds', CONFIG.DEBUG_DRAW_UNIT_PATHING_BOUNDS);
+        setChecked('dbgBulletSizes', CONFIG.DEBUG_DRAW_BULLET_SIZES);
+        setChecked('dbgHutSpawnAreas', CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_SPAWN_AREAS);
+        setChecked('dbgHutStatus', CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_HUT_STATUS_TEXT);
     }
 }

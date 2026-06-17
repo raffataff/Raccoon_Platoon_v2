@@ -1771,10 +1771,12 @@ class ShootoutController {
     initializeEditablePositions() {
         // Copy spawn positions from config for editing based on CURRENT background
         const bgKey = this.currentBackgroundKey;
-        const positions = CONFIG.SHOOTOUT_MODE.BACKGROUNDS[bgKey].TREE_SPAWN_POSITIONS;
+        const bgConfig = this.getBackgroundConfig(bgKey);
+        if (!bgConfig) return;
+        const positions = bgConfig.TREE_SPAWN_POSITIONS;
         // If we have a spawner, update its positions
-        if (this.spawner && CONFIG.SHOOTOUT_MODE.BACKGROUNDS[this.currentBackgroundKey].TREE_SPAWN_POSITIONS) {
-            this.spawner.setTreePositions(CONFIG.SHOOTOUT_MODE.BACKGROUNDS[this.currentBackgroundKey].TREE_SPAWN_POSITIONS);
+        if (this.spawner && positions) {
+            this.spawner.setTreePositions(positions);
         }
         // Deep copy and migrate so we don't modify config directly
         this.editableSpawnPositions = positions.map((pos, index) => this.migratePositionToNewFormat({

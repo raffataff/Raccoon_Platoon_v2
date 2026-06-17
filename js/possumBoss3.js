@@ -27,7 +27,7 @@ class PossumBoss3 extends Unit {
 
         this.CHASE_DESTINATION_REFRESH_INTERVAL = this.bossAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
         this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.bossAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
-        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.bossAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.GRID_CELL_SIZE) ** 2;
+        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.bossAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2;
         this.timeSinceLastChaseDestUpdate = 0;
     }
 
@@ -43,21 +43,6 @@ class PossumBoss3 extends Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
-        // --- Hit reaction: immediately engage attacker ---
-        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
-            this.manualTarget = this.recentlyHitBy;
-            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-            const dist = distance(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y);
-            const hasLOS = hasLineOfSight(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y, this.game.level.activeObstacles, this.game.level);
-            if (hasLOS && dist <= this.weapon.range) {
-                this.aiState = 'ENGAGING_SHOOTING';
-            } else {
-                this.aiState = 'ENGAGING_CHASING';
-                this.setMoveTarget(this.recentlyHitBy.x, this.recentlyHitBy.y);
-            }
-            return;
-        }
-
         let target = this.manualTarget || this.autoTarget;
         if (!target || !target.isAlive()) {
             this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);

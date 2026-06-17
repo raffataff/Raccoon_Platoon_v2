@@ -13,7 +13,7 @@ class Unit {
 
         this.lastPosition = { x: x, y: y };
         this.currentVelocity = { x: 0, y: 0 };
-        this.velocitySampleTime = 0.1;
+        this.velocitySampleTime = CONFIG.PATHFINDING.STUCK_VELOCITY_SAMPLE_TIME;
         this.timeSinceLastVelocitySample = 0;
 
         this.lastDeltaX = 0;
@@ -69,8 +69,14 @@ class Unit {
         this.lastNudgeWasLeft = false;
         this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5;
         this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5;
-        this.IMMEDIATE_BUMP_REPATH_COOLDOWN = 0.35;
+        this.IMMEDIATE_BUMP_REPATH_COOLDOWN = CONFIG.PATHFINDING.BUMP_REPATH_COOLDOWN;
         this.bumpRepathCooldown = 0;
+
+        this.overlapEscapeCooldown = 0;
+        this.overlapStuckFrames = 0;
+        this._lastOverlapEscapeDir = { x: 0, y: 0 };
+        this._overlapEscapeFramesLeft = 0;
+        this.obstacleStuckFrames = 0;
 
         this._slideDirX = 0;
         this._slideDirY = 0;
@@ -80,15 +86,14 @@ class Unit {
         this.repathFailCount = 0;
         this.stuckSpeechTimer = 0;
         this.stuckSpeechCooldown = 0;
-        this.stuckMovementThreshold = this.speed * 0.15;
+        this.stuckMovementThreshold = this.speed * CONFIG.PATHFINDING.STUCK_MOVEMENT_THRESHOLD_FACTOR;
         this.consecutiveStuckAttempts = 0;
         this.lastOnStuckTime = 0;
-        this.STUCK_RECOVERY_COOLDOWN_INTERNAL = 1.5;
-        this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL = 3;
+        this.STUCK_RECOVERY_COOLDOWN_INTERNAL = CONFIG.PATHFINDING.STUCK_RECOVERY_COOLDOWN;
+        this.MAX_CONSECUTIVE_STUCK_ATTEMPTS_INTERNAL = CONFIG.PATHFINDING.MAX_CONSECUTIVE_STUCK_ATTEMPTS;
         this.repathFailCooldown = 0;
-
-        this.hitStunTimer = 0;
-        this.recentlyHitBy = null;
+        this.unitBlockWaitTimer = 0;
+        this._lastBlockedByUnit = 0;
 
         this.deadSpritePathKey = null;
         this.deadSpriteFilesKey = null;
@@ -147,6 +152,8 @@ class Unit {
         this.idleChatterTimer = SPEECH_CONFIG.GLOBAL.IDLE_CHATTER_INTERVAL_MIN +
             Math.random() * (SPEECH_CONFIG.GLOBAL.IDLE_CHATTER_INTERVAL_MAX - SPEECH_CONFIG.GLOBAL.IDLE_CHATTER_INTERVAL_MIN);
         this.furbyTimer = Math.random() * SPEECH_CONFIG.GLOBAL.FURBY_COOLDOWN;
+
+        this.formationGroup = null; // Units in the same formation move group - don't avoid each other during pathfinding
     }
 
     getNightVisionRadius(unit) {
@@ -232,7 +239,7 @@ class Unit {
             if (this.phasingTimer <= 0) {
                 this.isPhasing = false;
                 this.phasingTimer = 0;
-                if (this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 0.5) {
+                if (this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * CONFIG.PATHFINDING.SKIP_FIRST_NODE_DIST_FACTOR) {
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id}] Player-forced Phasing ended. Repathing to target: (${this.worldTargetX.toFixed(0)}, ${this.worldTargetY.toFixed(0)})`);
                     this.setMoveTarget(this.worldTargetX, this.worldTargetY);
                 } else {
@@ -254,14 +261,6 @@ class Unit {
         if (this.attackCooldown > 0) {
             this.attackCooldown -= deltaTime;
             if (this.attackCooldown < 0) this.attackCooldown = 0;
-        }
-
-        if (this.hitStunTimer > 0) {
-            this.hitStunTimer -= deltaTime;
-            if (this.hitStunTimer <= 0) {
-                this.hitStunTimer = 0;
-                this.recentlyHitBy = null;
-            }
         }
 
         const prevX = this.x; const prevY = this.y;
@@ -361,7 +360,7 @@ class Unit {
         const navGrid = this.game.level.getNavigationGrid();
         if (!navGrid) return false;
         const cellSize = this.game.level.gridCellSize;
-        const radius = (this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL || 5) * cellSize;
+        const radius = (this.DESPERATE_STUCK_MOVE_RADIUS_CELLS_INTERNAL || CONFIG.PATHFINDING.DESPERATE_STUCK_MOVE_RADIUS_CELLS) * cellSize;
         const currentGrid = this.game.level.worldToGridCoords(this.x, this.y);
         for (let attempt = 0; attempt < 16; attempt++) {
             const angle = (attempt / 16) * Math.PI * 2;
@@ -391,10 +390,10 @@ class Unit {
         return { type: 'circle', x: this.x, y: this.y, radius: this.size / 2 };
     }
 
-    calculatePath(explicitStartGrid = null, isPhasingOverride = false) {
-        if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; return false; }
-        const navGrid = isPhasingOverride ? this.game.level.getNavigationGrid() : this.game.level.getNavigationGridWithUnits(this, 1);
-        if (!navGrid) { this.isMoving = false; this.currentPath = []; return false; }
+    calculatePath(explicitStartGrid = null, isPhasingOverride = false, excludeUnits = null) {
+        if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; this.clearFormationState(); return false; }
+        const navGrid = this.game.level.getNavigationGrid();
+        if (!navGrid) { this.isMoving = false; this.currentPath = []; this.clearFormationState(); return false; }
 
         const startGrid = explicitStartGrid || this.game.level.worldToGridCoords(this.x, this.y);
         const endGrid = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
@@ -402,7 +401,7 @@ class Unit {
         if (startGrid.x < 0 || startGrid.x >= this.game.level.gridWidth || startGrid.y < 0 || startGrid.y >= this.game.level.gridHeight ||
             endGrid.x < 0 || endGrid.x >= this.game.level.gridWidth || endGrid.y < 0 || endGrid.y >= this.game.level.gridHeight) {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} calculatePath] Start/End grid out of bounds.`);
-            this.isMoving = false; this.currentPath = []; return false;
+            this.isMoving = false; this.currentPath = []; this.clearFormationState(); return false;
         }
 
         if (navGrid[startGrid.y][startGrid.x] === 1 && !isPhasingOverride && !explicitStartGrid) {
@@ -424,70 +423,452 @@ class Unit {
             }
             if (!foundValidStart) {
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.error(`[${this.id} calculatePath] CRITICAL: No walkable start cell. Pathing aborted.`);
-                this.isMoving = false; this.currentPath = []; return false;
+                this.isMoving = false; this.currentPath = []; this.clearFormationState(); return false;
             }
         } else         if (navGrid[startGrid.y][startGrid.x] === 1 && isPhasingOverride) {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Phasing: Allowing path start from 'blocked' navGrid cell.`);
         }
 
         if (navGrid[endGrid.y][endGrid.x] === 1 && !isPhasingOverride) {
-            let foundAltEnd = false;
-            for (let r = 1; r <= 3 && !foundAltEnd; r++) {
-                for (let dy = -r; dy <= r && !foundAltEnd; dy++) {
-                    for (let dx = -r; dx <= r && !foundAltEnd; dx++) {
+            let bestX = -1, bestY = -1, bestDistSq = Infinity;
+            for (let r = 1; r <= CONFIG.PATHFINDING.ENDPOINT_WALKABLE_SEARCH_RADIUS; r++) {
+                for (let dy = -r; dy <= r; dy++) {
+                    for (let dx = -r; dx <= r; dx++) {
                         if (dx === 0 && dy === 0) continue;
                         const ax = endGrid.x + dx;
                         const ay = endGrid.y + dy;
                         if (ax >= 0 && ax < this.game.level.gridWidth && ay >= 0 && ay < this.game.level.gridHeight && navGrid[ay][ax] === 0) {
-                            endGrid.x = ax;
-                            endGrid.y = ay;
-                            foundAltEnd = true;
+                            const dSq = (ax - startGrid.x) * (ax - startGrid.x) + (ay - startGrid.y) * (ay - startGrid.y);
+                            if (dSq < bestDistSq) {
+                                bestDistSq = dSq;
+                                bestX = ax;
+                                bestY = ay;
+                            }
                         }
                     }
                 }
             }
-            if (!foundAltEnd) {
+            if (bestX >= 0) {
+                endGrid.x = bestX;
+                endGrid.y = bestY;
+            } else {
                 endGrid.x = startGrid.x;
                 endGrid.y = startGrid.y;
             }
         }
 
-        const rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
+         const rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
 
-        if (rawPathGridCoords && rawPathGridCoords.length > 0) {
-            this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level);
+         if (rawPathGridCoords && rawPathGridCoords.length > 0) {
+             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+                 let blockedByUnitCount = 0;
+                 for (const unit of [
+                     ...(this.game.getLivingPlayerControlledUnits?.() || []),
+                     ...(this.game.enemyUnits || []),
+                     ...(this.game.hostageUnits || [])
+                 ]) {
+                     if (unit === this || !unit.isAlive() || unit.isPhasing) continue;
+                     for (const pt of rawPathGridCoords) {
+                         const wx = pt.x * this.game.level.gridCellSize + this.game.level.gridCellSize / 2;
+                         const wy = pt.y * this.game.level.gridCellSize + this.game.level.gridCellSize / 2;
+                         const dx = wx - unit.x;
+                         const dy = wy - unit.y;
+                         if (dx * dx + dy * dy < (unit.size * 0.5 + 10) * (unit.size * 0.5 + 10)) {
+                             blockedByUnitCount++;
+                             break;
+                         }
+                     }
+                 }
+                 console.log(`[${this.id} calculatePath] Raw A* path: ${rawPathGridCoords.length} nodes, ${blockedByUnitCount} nodes inside unit radii`);
+             }
+             this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level, { x: this.x, y: this.y });
             if (this.currentPath && this.currentPath.length > 0) {
                 this.currentPath = deflatePath(this.currentPath, this.size / 2, this.game.level);
                 this.currentPathNodeIndex = 0; this.isMoving = true;
-                // --- FIX: Skip the first path node if it's just the start grid center
-                // and we're already very close to it. This prevents a 1-frame snap
-                // that briefly faces the sprite in the wrong direction.
-                if (this.currentPath.length > 1) {
-                    const distToFirst = distance(this.x, this.y, this.currentPath[0].x, this.currentPath[0].y);
-                    if (distToFirst < this.size * 0.5) {
-                        this.currentPathNodeIndex = 1;
-                    }
-                }
                 if (!this.manualTarget && !this.autoTarget && !this.isPlayerDirectFiring) { this.gunAimAngle = this.facingAngle; }
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Path found (phasing: ${isPhasingOverride}). Smoothed len: ${this.currentPath.length}. isMoving=true.`);
                 return true;
             }
         }
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} calculatePath] No path found (phasing: ${isPhasingOverride}). isMoving=false.`);
-        this.isMoving = false; this.currentPath = [];
+        this.isMoving = false; this.currentPath = []; this.clearFormationState();
         return false;
+    }
+
+    repathSplicedPath(blockingUnit) {
+        if (!this.game || !this.game.level) return false;
+        if (!this.isMoving || !this.currentPath || this.currentPath.length === 0) return false;
+        if (this.currentPathNodeIndex >= this.currentPath.length) return false;
+
+        const level = this.game.level;
+        const navGrid = level.getNavigationGrid();
+        if (!navGrid) return false;
+
+        const cellSize = level.gridCellSize;
+        const avoidRadius = CONFIG.PATHFINDING.REPATH_SPLICE_AVOID_RADIUS || 2;
+        const numNodes = CONFIG.PATHFINDING.REPATH_SPLICE_AVOID_NODES || 3;
+        const maxWaypoints = CONFIG.PATHFINDING.REPATH_SPLICE_MAX_WAYPOINTS || 8;
+        const gridStep = CONFIG.PATHFINDING.REPATH_SPLICE_WAYPOINT_STEP || 2;
+
+        const blockerGrid = level.worldToGridCoords(blockingUnit.x, blockingUnit.y);
+        const myGrid = level.worldToGridCoords(this.x, this.y);
+        const targetGrid = level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
+
+        const dxTarget = targetGrid.x - myGrid.x;
+        const dyTarget = targetGrid.y - myGrid.y;
+        const distToTarget = Math.sqrt(dxTarget * dxTarget + dyTarget * dyTarget);
+        const normDx = distToTarget > 1e-6 ? dxTarget / distToTarget : 0;
+        const normDy = distToTarget > 1e-6 ? dyTarget / distToTarget : 0;
+
+        const perpDx = -normDy;
+        const perpDy = normDx;
+
+        const candidates = [];
+        const searchR = avoidRadius + numNodes * gridStep;
+        for (let r = avoidRadius; r <= searchR && candidates.length < maxWaypoints; r += gridStep) {
+            for (let side = -1; side <= 1; side += 2) {
+                const gx = blockerGrid.x + Math.round(perpDx * r * side);
+                const gy = blockerGrid.y + Math.round(perpDy * r * side);
+                if (gx >= 0 && gx < level.gridWidth && gy >= 0 && gy < level.gridHeight && navGrid[gy][gx] === 0) {
+                    const wx = gx * cellSize + cellSize / 2;
+                    const wy = gy * cellSize + cellSize / 2;
+                    const distToMe = Math.hypot(wx - this.x, wy - this.y);
+                    const distToTargetPt = Math.hypot(wx - this.worldTargetX, wy - this.worldTargetY);
+                    candidates.push({ x: wx, y: wy, gx, gy, score: distToMe + distToTargetPt * 0.5 });
+                }
+            }
+        }
+
+        for (let r = avoidRadius; r <= searchR && candidates.length < maxWaypoints; r += gridStep) {
+            const gx = blockerGrid.x + Math.round(normDx * r);
+            const gy = blockerGrid.y + Math.round(normDy * r);
+            if (gx >= 0 && gx < level.gridWidth && gy >= 0 && gy < level.gridHeight && navGrid[gy][gx] === 0) {
+                const wx = gx * cellSize + cellSize / 2;
+                const wy = gy * cellSize + cellSize / 2;
+                const distToMe = Math.hypot(wx - this.x, wy - this.y);
+                const distToTargetPt = Math.hypot(wx - this.worldTargetX, wy - this.worldTargetY);
+                candidates.push({ x: wx, y: wy, gx, gy, score: distToMe + distToTargetPt * 0.5 + cellSize });
+            }
+        }
+
+        if (candidates.length === 0) return false;
+
+        candidates.sort((a, b) => a.score - b.score);
+
+        const waypoints = [];
+        const usedGrids = new Set();
+        usedGrids.add(`${myGrid.x},${myGrid.y}`);
+        usedGrids.add(`${blockerGrid.x},${blockerGrid.y}`);
+        usedGrids.add(`${targetGrid.x},${targetGrid.y}`);
+
+        for (const c of candidates) {
+            if (waypoints.length >= numNodes) break;
+            const key = `${c.gx},${c.gy}`;
+            if (usedGrids.has(key)) continue;
+            let tooClose = false;
+            for (const wp of waypoints) {
+                if (Math.hypot(wp.x - c.x, wp.y - c.y) < cellSize * 1.5) {
+                    tooClose = true;
+                    break;
+                }
+            }
+            if (tooClose) continue;
+            waypoints.push({ x: c.x, y: c.y });
+            usedGrids.add(key);
+        }
+
+        if (waypoints.length === 0) return false;
+
+        waypoints.sort((a, b) => {
+            const distA = Math.hypot(a.x - this.x, a.y - this.y);
+            const distB = Math.hypot(b.x - this.x, b.y - this.y);
+            return distA - distB;
+        });
+
+        const remainingPath = this.currentPath.slice(this.currentPathNodeIndex);
+        const blockerClearRadius = (this.size + blockingUnit.size) * 0.5 + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 10) * 2;
+        const filteredRemaining = remainingPath.filter(node => {
+            const dx = node.x - blockingUnit.x;
+            const dy = node.y - blockingUnit.y;
+            return dx * dx + dy * dy >= blockerClearRadius * blockerClearRadius;
+        });
+        const splicedPath = [...waypoints, ...filteredRemaining];
+
+        this.currentPath = splicedPath;
+        this.currentPathNodeIndex = 0;
+        this.isMoving = true;
+
+        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
+            console.log(`[${this.id} repathSplicedPath] Spliced ${waypoints.length} avoidance nodes at index ${this.currentPathNodeIndex}. New path length: ${this.currentPath.length}`);
+        }
+        return true;
+    }
+
+    _resolveOverlaps(deltaTime) {
+        if (!CONFIG.PATHFINDING.OVERLAP_DETECTION_ENABLED || !this.game || !this.isAlive()) return null;
+        if (this.isPhasing) {
+            this.overlapStuckFrames = 0;
+            return null;
+        }
+
+        const scanRadius = this.size * CONFIG.PATHFINDING.OVERLAP_SCAN_RADIUS_FACTOR;
+        let nearbyUnits = null;
+        if (this.game.spatialGrid) {
+            const gridObjects = this.game.spatialGrid.queryRange(this.x, this.y, scanRadius);
+            nearbyUnits = gridObjects.filter(o => o instanceof Unit);
+        } else {
+            nearbyUnits = [
+                ...(this.game.getLivingPlayerControlledUnits?.() || []),
+                ...(this.game.enemyUnits || []),
+                ...(this.game.hostageUnits || [])
+            ];
+        }
+
+        const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+        let totalPushX = 0;
+        let totalPushY = 0;
+        let hasOverlap = false;
+        let deepestOverlap = 0;
+        let deepestOverlapUnit = null;
+
+        for (const other of nearbyUnits) {
+            if (other === this || !other.isAlive() || other.isPhasing) continue;
+            if (formationGroupSet && formationGroupSet.has(other)) continue;
+
+            const dx = this.x - other.x;
+            const dy = this.y - other.y;
+            const distSq = dx * dx + dy * dy;
+            const combinedRadii = (this.size + other.size) * 0.5;
+            const minDist = combinedRadii * 0.8;
+
+            if (distSq < minDist * minDist && distSq > 1e-6) {
+                const dist = Math.sqrt(distSq);
+                const overlap = minDist - dist;
+                const nx = dx / dist;
+                const ny = dy / dist;
+                const pushStrength = overlap + this.size * CONFIG.PATHFINDING.OVERLAP_MIN_PUSH_FACTOR * 0.1;
+                totalPushX += nx * pushStrength;
+                totalPushY += ny * pushStrength;
+                hasOverlap = true;
+                if (overlap > deepestOverlap) {
+                    deepestOverlap = overlap;
+                    deepestOverlapUnit = other;
+                }
+            } else if (distSq < 1e-6) {
+                const angle = Math.random() * Math.PI * 2;
+                const pushOut = this.size * CONFIG.PATHFINDING.OVERLAP_MIN_PUSH_FACTOR;
+                totalPushX += Math.cos(angle) * pushOut;
+                totalPushY += Math.sin(angle) * pushOut;
+                hasOverlap = true;
+                if (pushOut > deepestOverlap) {
+                    deepestOverlap = pushOut;
+                    deepestOverlapUnit = other;
+                }
+            }
+        }
+
+        if (!hasOverlap) {
+            this.overlapStuckFrames = 0;
+            return null;
+        }
+
+        this.overlapStuckFrames++;
+
+        const pushMag = Math.hypot(totalPushX, totalPushY);
+        if (pushMag > 1e-6) {
+            const normalizeFactor = 1 / pushMag;
+            let pushSpeed = this.speed * CONFIG.PATHFINDING.OVERLAP_RECOVERY_SPEED_FACTOR * deltaTime;
+            const minPush = this.size * CONFIG.PATHFINDING.OVERLAP_MIN_PUSH_FACTOR;
+            if (pushSpeed < minPush) pushSpeed = minPush;
+
+            if (this._overlapEscapeFramesLeft > 0) {
+                const consistency = (totalPushX * this._lastOverlapEscapeDir.x + totalPushY * this._lastOverlapEscapeDir.y) * normalizeFactor;
+                if (consistency > 0.7) {
+                    pushSpeed *= 1.5;
+                }
+            }
+
+            this._lastOverlapEscapeDir.x = totalPushX * normalizeFactor;
+            this._lastOverlapEscapeDir.y = totalPushY * normalizeFactor;
+            this._overlapEscapeFramesLeft = 6;
+
+            return {
+                x: totalPushX * normalizeFactor * pushSpeed,
+                y: totalPushY * normalizeFactor * pushSpeed,
+                deepestOverlapUnit: deepestOverlapUnit
+            };
+        }
+
+        return null;
+    }
+
+    _checkObstaclePenetration() {
+        if (!CONFIG.PATHFINDING.OBSTACLE_STUCK_DETECTION_ENABLED || !this.game || !this.game.level) return null;
+        if (this.isPhasing) return null;
+
+        const level = this.game.level;
+        let isInside = false;
+        let deepestPenetration = 0;
+        let escapeX = 0;
+        let escapeY = 0;
+
+        if (CONFIG.PATHFINDING.OBSTACLE_STUCK_NAV_CHECK && level.navGrid) {
+            const grid = level.worldToGridCoords(this.x, this.y);
+            if (grid.x >= 0 && grid.x < level.gridWidth && grid.y >= 0 && grid.y < level.gridHeight) {
+                if (level.navGrid[grid.y][grid.x] === 1) {
+                    isInside = true;
+                    deepestPenetration = this.size;
+                }
+            }
+        }
+
+        if (!isInside || deepestPenetration < this.size * 0.5) {
+            const scanRadius = this.size * CONFIG.PATHFINDING.OBSTACLE_STUCK_SCAN_RADIUS_FACTOR;
+            let nearbyObstacles;
+            if (this.game.spatialGrid && level.obstacleSet) {
+                const nearbyObjects = this.game.spatialGrid.queryRange(this.x, this.y, scanRadius);
+                nearbyObstacles = nearbyObjects.filter(obj => level.obstacleSet.has(obj) && obj.blocksMovement && !obj.isDestroyed);
+            } else {
+                nearbyObstacles = (level.activeObstacles || []).filter(o => o.blocksMovement && !o.isDestroyed);
+            }
+
+            const unitShape = { type: 'circle', x: this.x, y: this.y, radius: this.size * 0.5 };
+
+            for (const obs of nearbyObstacles) {
+                const obsShapes = level._getObstacleCollisionShape(obs);
+                const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
+
+                for (const obsCS of shapesArray) {
+                    let penetration = 0;
+                    let ex = 0;
+                    let ey = 0;
+
+                    if (obsCS.type === 'rectangle') {
+                        const closestX = Math.max(obsCS.x, Math.min(this.x, obsCS.x + obsCS.width));
+                        const closestY = Math.max(obsCS.y, Math.min(this.y, obsCS.y + obsCS.height));
+                        const dx = this.x - closestX;
+                        const dy = this.y - closestY;
+                        const dist = Math.hypot(dx, dy);
+                        const r = this.size * 0.5;
+
+                        if (dist < r) {
+                            penetration = r - dist;
+                            if (dist < 1e-6) {
+                                const cx = obsCS.x + obsCS.width / 2;
+                                const cy = obsCS.y + obsCS.height / 2;
+                                const toCenterX = this.x - cx;
+                                const toCenterY = this.y - cy;
+                                const edgeDists = [
+                                    { d: this.x - obsCS.x, nx: -1, ny: 0 },
+                                    { d: (obsCS.x + obsCS.width) - this.x, nx: 1, ny: 0 },
+                                    { d: this.y - obsCS.y, nx: 0, ny: -1 },
+                                    { d: (obsCS.y + obsCS.height) - this.y, nx: 0, ny: 1 }
+                                ];
+                                edgeDists.sort((a, b) => a.d - b.d);
+                                const nearest = edgeDists[0];
+                                penetration = nearest.d + r;
+                                ex = nearest.nx;
+                                ey = nearest.ny;
+                            } else {
+                                ex = dx / dist;
+                                ey = dy / dist;
+                            }
+                        }
+                    } else if (obsCS.type === 'circle') {
+                        const dx = this.x - obsCS.x;
+                        const dy = this.y - obsCS.y;
+                        const dist = Math.hypot(dx, dy);
+                        const r = this.size * 0.5;
+                        const combinedR = (obsCS.radius || 0) + r;
+
+                        if (dist < combinedR) {
+                            penetration = combinedR - dist;
+                            if (dist < 1e-6) {
+                                const angle = Math.random() * Math.PI * 2;
+                                ex = Math.cos(angle);
+                                ey = Math.sin(angle);
+                            } else {
+                                ex = dx / dist;
+                                ey = dy / dist;
+                            }
+                        }
+                    } else if (obsCS.type === 'ellipse') {
+                        const rx = obsCS.radiusX || 1;
+                        const ry = obsCS.radiusY || 1;
+                        const nx = (this.x - obsCS.x) / rx;
+                        const ny = (this.y - obsCS.y) / ry;
+                        const normalizedDist = nx * nx + ny * ny;
+
+                        if (normalizedDist < 1) {
+                            penetration = this.size * 0.5;
+                            const angle = Math.atan2(ny, nx);
+                            ex = Math.cos(angle);
+                            ey = Math.sin(angle);
+                        }
+                    }
+
+                    if (penetration > deepestPenetration) {
+                        deepestPenetration = penetration;
+                        escapeX = ex;
+                        escapeY = ey;
+                        isInside = true;
+                    }
+                }
+            }
+        } else {
+            const grid = level.worldToGridCoords(this.x, this.y);
+            const searchR = 3;
+            let bestDist = Infinity;
+            let bestDx = 0;
+            let bestDy = 0;
+            for (let dy = -searchR; dy <= searchR; dy++) {
+                for (let dx = -searchR; dx <= searchR; dx++) {
+                    if (dx === 0 && dy === 0) continue;
+                    const gx = grid.x + dx;
+                    const gy = grid.y + dy;
+                    if (gx >= 0 && gx < level.gridWidth && gy >= 0 && gy < level.gridHeight) {
+                        if (level.navGrid[gy][gx] === 0) {
+                            const d = Math.abs(dx) + Math.abs(dy);
+                            if (d < bestDist) {
+                                bestDist = d;
+                                bestDx = dx;
+                                bestDy = dy;
+                            }
+                        }
+                    }
+                }
+            }
+            if (bestDist < Infinity) {
+                const len = Math.hypot(bestDx, bestDy) || 1;
+                escapeX = bestDx / len;
+                escapeY = bestDy / len;
+            } else {
+                escapeX = (Math.random() - 0.5) * 2;
+                escapeY = (Math.random() - 0.5) * 2;
+                const len = Math.hypot(escapeX, escapeY) || 1;
+                escapeX /= len;
+                escapeY /= len;
+            }
+        }
+
+        if (!isInside) return null;
+
+        const pushDist = Math.max(deepestPenetration, this.size * CONFIG.PATHFINDING.OBSTACLE_ESCAPE_PUSH_FACTOR);
+        return { x: escapeX * pushDist, y: escapeY * pushDist };
     }
 
     _handleMovement(deltaTime) {
         const originalX = this.x;
         const originalY = this.y;
         if (this.bumpRepathCooldown > 0) this.bumpRepathCooldown -= deltaTime;
+        if (this.overlapEscapeCooldown > 0) this.overlapEscapeCooldown -= deltaTime;
+        if (this._overlapEscapeFramesLeft > 0) this._overlapEscapeFramesLeft--;
 
         if (this.team === 'player' && this.isHoldingPosition && !(this instanceof RaccoonHostage) && !this.isPhasing) {
-            this.isMoving = false; this.currentPath = []; this.lastDeltaX = 0; this.lastDeltaY = 0; return;
+            this.isMoving = false; this.currentPath = []; this.clearFormationState(); this.lastDeltaX = 0; this.lastDeltaY = 0; return;
         }
         if (this instanceof RaccoonHostage && this.isHoldingPosition && !this.isPhasing) {
-            this.isMoving = false; this.currentPath = []; this.lastDeltaX = 0; this.lastDeltaY = 0; return;
+            this.isMoving = false; this.currentPath = []; this.clearFormationState(); this.lastDeltaX = 0; this.lastDeltaY = 0; return;
         }
 
         if (this.isPhasing) {
@@ -502,17 +883,17 @@ class Unit {
                 }
                 const dxToTarget = targetXForPhasing - this.x; const dyToTarget = targetYForPhasing - this.y;
                 const distToTarget = Math.hypot(dxToTarget, dyToTarget);
-                if (distToTarget > this.size * 0.05) {
+                if (distToTarget > this.size * CONFIG.PATHFINDING.PHASING_ARRIVAL_THRESHOLD_FACTOR) {
                     const moveRatio = Math.min(1, moveSpeed / (distToTarget || 1e-5));
                     this.x += dxToTarget * moveRatio; this.y += dyToTarget * moveRatio;
                 } else {
                     if (this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
                         this.x = targetXForPhasing; this.y = targetYForPhasing; this.currentPathNodeIndex++;
                         if (this.currentPathNodeIndex >= this.currentPath.length) {
-                            this.isMoving = (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 0.1);
+                            this.isMoving = (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * CONFIG.PATHFINDING.PHASING_STILL_THRESHOLD_FACTOR);
                             this.currentPath = [];
                         }
-                    } else { this.x = this.worldTargetX; this.y = this.worldTargetY; this.isMoving = false; }
+                    } else { this.x = this.worldTargetX; this.y = this.worldTargetY; this.isMoving = false; this.clearFormationState(); }
                 }
                 this.x = Math.max(this.size / 2, Math.min(this.x, (CONFIG.WORLD_WIDTH || 0) - this.size / 2));
                 this.y = Math.max(this.size / 2, Math.min(this.y, (CONFIG.WORLD_HEIGHT || 0) - this.size / 2));
@@ -521,16 +902,75 @@ class Unit {
             return;
         }
 
+        const overlapResolution = this._resolveOverlaps(deltaTime);
+        if (overlapResolution && (!this.isMoving || this.overlapStuckFrames >= CONFIG.PATHFINDING.OVERLAP_PHASING_THRESHOLD)) {
+            this.x += overlapResolution.x;
+            this.y += overlapResolution.y;
+
+            if (this.overlapStuckFrames >= CONFIG.PATHFINDING.OVERLAP_PHASING_THRESHOLD && !this.isPhasing) {
+                this.isPhasing = true;
+                this.phasingTimer = CONFIG.PATHFINDING.PHASING_DURATION || 0.75;
+                this.isMoving = distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5;
+                this.overlapStuckFrames = 0;
+                if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
+                    if (this.isMoving) {
+                        const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
+                        this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
+                        this.currentPathNodeIndex = 0;
+                    }
+                }
+            }
+
+            if (this.isMoving && overlapResolution.deepestOverlapUnit && this.overlapEscapeCooldown <= 0) {
+                this.overlapEscapeCooldown = CONFIG.PATHFINDING.OVERLAP_REPATH_COOLDOWN;
+                if (this.repathSplicedPath(overlapResolution.deepestOverlapUnit)) {
+                    this.overlapStuckFrames = Math.max(0, this.overlapStuckFrames - 2);
+                }
+            }
+
+            this.x = Math.max(this.size / 2, Math.min(this.x, (CONFIG.WORLD_WIDTH || 0) - this.size / 2));
+            this.y = Math.max(this.size / 2, Math.min(this.y, (CONFIG.WORLD_HEIGHT || 0) - this.size / 2));
+            this.lastDeltaX = this.x - originalX;
+            this.lastDeltaY = this.y - originalY;
+            return;
+        }
+
+        const obstacleEscape = this._checkObstaclePenetration();
+        if (obstacleEscape) {
+            this.x += obstacleEscape.x;
+            this.y += obstacleEscape.y;
+
+            if (!this.isPhasing) {
+                this.isPhasing = true;
+                this.phasingTimer = CONFIG.PATHFINDING.PHASING_DURATION || 0.75;
+                this.isMoving = distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5;
+                if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
+                    if (this.isMoving) {
+                        const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
+                        this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
+                        this.currentPathNodeIndex = 0;
+                    }
+                }
+            }
+
+            this.x = Math.max(this.size / 2, Math.min(this.x, (CONFIG.WORLD_WIDTH || 0) - this.size / 2));
+            this.y = Math.max(this.size / 2, Math.min(this.y, (CONFIG.WORLD_HEIGHT || 0) - this.size / 2));
+            this.lastDeltaX = this.x - originalX;
+            this.lastDeltaY = this.y - originalY;
+            return;
+        }
+
         if (!this.isAlive() || !this.isMoving) {
-            if (!this.isAlive()) { this.isMoving = false; this.currentPath = []; }
+            if (!this.isAlive()) { this.isMoving = false; this.currentPath = []; this.clearFormationState(); }
             this.lastDeltaX = 0; this.lastDeltaY = 0; return;
         }
 
         if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
             this.currentPath = []; this.currentPathNodeIndex = 0;
-            if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < this.size) {
+            if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < this.size * CONFIG.PATHFINDING.UNIT_COLLISION_RADIUS_FACTOR) {
                 this.isMoving = false;
-                this.x = this.worldTargetX; this.y = this.worldTargetY;
+                this.clearFormationState();
+                //this.x = this.worldTargetX; this.y = this.worldTargetY;
             } else if (this.isMoving) {
                 this.setMoveTarget(this.worldTargetX, this.worldTargetY);
             }
@@ -565,10 +1005,10 @@ class Unit {
         }
         let finalDeltaX = desiredDeltaX; let finalDeltaY = desiredDeltaY;
 
-        if (this.isMoving && this.game) {
-            const SEPARATION_CHECK_RADIUS = this.size * 1.1;
-            const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.MIN_SEPARATION_DISTANCE_FACTOR || 1.2;
-            const UNIT_SEPARATION_FORCE_FACTOR = CONFIG.UNIT_SEPARATION_FORCE_FACTOR || 1.5;
+        if (this.isMoving && this.game && CONFIG.PATHFINDING.UNIT_COLLISION_CHECK_ENABLED !== false) {
+            const SEPARATION_CHECK_RADIUS = this.size * CONFIG.PATHFINDING.SEPARATION_CHECK_RADIUS_FACTOR;
+            const MIN_SEPARATION_DISTANCE_FACTOR = CONFIG.PATHFINDING.MIN_SEPARATION_DISTANCE_FACTOR || 1.2;
+            const UNIT_SEPARATION_FORCE_FACTOR = CONFIG.PATHFINDING.UNIT_SEPARATION_FORCE_FACTOR || 1.5;
             let separationDX = 0; let separationDY = 0;
             let nearbyUnits = null;
             if (this.game.spatialGrid) {
@@ -582,8 +1022,10 @@ class Unit {
                     ...(this.game.hostageUnits || [])
                 ];
             }
+            const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
             for (const otherUnit of nearbyUnits) {
                 if (otherUnit === this || !otherUnit.isAlive() || otherUnit.isPhasing) continue;
+                const isInSameFormation = formationGroupSet && formationGroupSet.has(otherUnit);
                 const dx = this.x - otherUnit.x;
                 const dy = this.y - otherUnit.y;
                 const distSq = dx * dx + dy * dy;
@@ -595,10 +1037,19 @@ class Unit {
                     const overlap = minDist - dist;
                     let pushStrength;
                     if (overlap > 0) {
-                        pushStrength = (overlap / minDist) * 1.5 + 0.5;
+                        if (isInSameFormation) {
+                            // Soft push for same-formation allies - just enough to prevent stacking
+                            pushStrength = (overlap / minDist) * 0.3;
+                        } else {
+                            pushStrength = (overlap / minDist) * CONFIG.PATHFINDING.SEPARATION_OVERLAP_PUSH_FACTOR + 0.5;
+                        }
                     } else {
                         const proximity = 1.0 - (dist / SEPARATION_CHECK_RADIUS);
-                        pushStrength = proximity * proximity * 0.4;
+                        pushStrength = proximity * proximity * CONFIG.PATHFINDING.SEPARATION_PROXIMITY_PUSH_FACTOR;
+                        if (isInSameFormation) {
+                            // Drastically reduce proximity push for formation allies
+                            pushStrength *= 0.1;
+                        }
                     }
                     separationDX += (dx / dist) * pushStrength;
                     separationDY += (dy / dist) * pushStrength;
@@ -613,8 +1064,8 @@ class Unit {
         }
 
         if (this.isMoving && !this.isPhasing) {
-            const OBSTACLE_REPULSION_RADIUS = this.size * (CONFIG.OBSTACLE_REPULSION_RADIUS_FACTOR || 3.0);
-            const OBSTACLE_REPULSION_FORCE = CONFIG.OBSTACLE_REPULSION_FORCE || 1.5;
+            const OBSTACLE_REPULSION_RADIUS = this.size * (CONFIG.PATHFINDING.OBSTACLE_REPULSION_RADIUS_FACTOR || 3.0);
+            const OBSTACLE_REPULSION_FORCE = CONFIG.PATHFINDING.OBSTACLE_REPULSION_FORCE || 1.5;
             let repelDX = 0; let repelDY = 0; let repelCount = 0;
             for (const obs of obstaclesForCollision) {
                 const obsShapes = this.game.level._getObstacleCollisionShape(obs);
@@ -662,18 +1113,21 @@ class Unit {
                 finalDeltaY += avgRepelDY * repelMove;
                 const totalMag = Math.hypot(finalDeltaX, finalDeltaY);
                 const desiredMag = Math.hypot(desiredDeltaX, desiredDeltaY);
-                if (totalMag > desiredMag * 2.0 && desiredMag > 0.1) {
-                    const scale = (desiredMag * 2.0) / totalMag;
+                const maxSpeedFactor = CONFIG.PATHFINDING.OBSTACLE_REPULSION_MAX_SPEED_FACTOR;
+                if (totalMag > desiredMag * maxSpeedFactor && desiredMag > 0.1) {
+                    const scale = (desiredMag * maxSpeedFactor) / totalMag;
                     finalDeltaX *= scale; finalDeltaY *= scale;
                 }
             }
         }
 
         let collisionOccurredThisFrame = false;
+        let blockedByUnit = false;
+        let blockingUnitThisFrame = null;
         if (distToNextNode > 1e-5) {
             const potentialNewX_combined = this.x + finalDeltaX;
             const potentialNewY_combined = this.y + finalDeltaY;
-            const collisionCheckRadius = this.size / 2 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 15);
+            const collisionCheckRadius = this.size * CONFIG.PATHFINDING.UNIT_COLLISION_RADIUS_FACTOR + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 10);
             const unitBodyShape_combined = { type: 'circle', x: potentialNewX_combined, y: potentialNewY_combined, radius: collisionCheckRadius };
             let isCollisionWithDesiredMove = false;
             for (const obs of obstaclesForCollision) {
@@ -689,17 +1143,25 @@ class Unit {
                 }
                 if (isCollisionWithDesiredMove) break;
             }
-            if (!isCollisionWithDesiredMove) {
-                const unitColR = this.size * 0.5;
+            if (!isCollisionWithDesiredMove && CONFIG.PATHFINDING.UNIT_COLLISION_CHECK_ENABLED !== false) {
+                const unitColR = this.size * CONFIG.PATHFINDING.UNIT_COLLISION_RADIUS_FACTOR;
                 const nearbyUnitsCol = this.game.spatialGrid ?
-                    this.game.spatialGrid.queryRange(this.x, this.y, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
+                    this.game.spatialGrid.queryRange(this.x, this.y, this.size * CONFIG.PATHFINDING.UNIT_COLLISION_CHECK_RADIUS_FACTOR).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
                     [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
+                const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
                 for (const otherUnit of nearbyUnitsCol) {
+                    const isInSameFormation = formationGroupSet && formationGroupSet.has(otherUnit);
                     const combinedR = unitColR + otherUnit.size * 0.5;
                     const dx = potentialNewX_combined - otherUnit.x;
                     const dy = potentialNewY_combined - otherUnit.y;
                     if ((dx * dx + dy * dy) < (combinedR * combinedR)) {
+                        if (isInSameFormation) {
+                            // Same formation: allow overlap, just apply soft separation (handled above)
+                            continue;
+                        }
                         isCollisionWithDesiredMove = true;
+                        blockedByUnit = true;
+                        blockingUnitThisFrame = otherUnit;
                         break;
                     }
                 }
@@ -728,15 +1190,17 @@ class Unit {
                 if (canMoveX) {
                     const testX = this.x + finalDeltaX;
                     const unitColR = this.size * 0.5;
+                    const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
                     const nearbyUnitsX = this.game.spatialGrid ?
                         this.game.spatialGrid.queryRange(testX, this.y, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
                         [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
                     for (const otherUnit of nearbyUnitsX) {
+                        if (formationGroupSet && formationGroupSet.has(otherUnit)) continue;
                         const combinedR = unitColR + otherUnit.size * 0.5;
                         const dx = testX - otherUnit.x;
                         const dy = this.y - otherUnit.y;
                         if ((dx * dx + dy * dy) < (combinedR * combinedR)) {
-                            canMoveX = false; break;
+                            canMoveX = false; blockedByUnit = true; break;
                         }
                     }
                 }
@@ -762,15 +1226,17 @@ class Unit {
                 if (canMoveY) {
                     const testY = this.y + finalDeltaY;
                     const unitColR = this.size * 0.5;
+                    const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
                     const nearbyUnitsY = this.game.spatialGrid ?
                         this.game.spatialGrid.queryRange(this.x, testY, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
                         [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
                     for (const otherUnit of nearbyUnitsY) {
+                        if (formationGroupSet && formationGroupSet.has(otherUnit)) continue;
                         const combinedR = unitColR + otherUnit.size * 0.5;
                         const dx = this.x - otherUnit.x;
                         const dy = testY - otherUnit.y;
                         if ((dx * dx + dy * dy) < (combinedR * combinedR)) {
-                            canMoveY = false; break;
+                            canMoveY = false; blockedByUnit = true; break;
                         }
                     }
                 }
@@ -810,6 +1276,20 @@ class Unit {
                             if (persistentSlideBlocked) break;
                         }
                         if (!persistentSlideBlocked) {
+                            const slideColR = this.size * CONFIG.PATHFINDING.UNIT_COLLISION_RADIUS_FACTOR;
+                            const slideUX = this.x + testSlideX;
+                            const slideUY = this.y + testSlideY;
+                            const nearbySlideUnits = this.game.spatialGrid ?
+                                this.game.spatialGrid.queryRange(slideUX, slideUY, this.size * CONFIG.PATHFINDING.UNIT_COLLISION_CHECK_RADIUS_FACTOR).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
+                                [];
+                            for (const su of nearbySlideUnits) {
+                                const cr = slideColR + su.size * 0.5;
+                                const sdx = slideUX - su.x;
+                                const sdy = slideUY - su.y;
+                                if (sdx * sdx + sdy * sdy < cr * cr) { persistentSlideBlocked = true; break; }
+                            }
+                        }
+                        if (!persistentSlideBlocked) {
                             finalDeltaX = testSlideX; finalDeltaY = testSlideY; collisionOccurredThisFrame = false; foundSlide = true;
                             this._slideFramesLeft--;
                         } else {
@@ -819,7 +1299,7 @@ class Unit {
                     }
 
                     if (!foundSlide) {
-                        const MAX_SLIDE_FRAMES = 8;
+                        const MAX_SLIDE_FRAMES = CONFIG.PATHFINDING.MAX_SLIDE_FRAMES;
                         for (const obs of obstaclesForCollision) {
                             const obsShapes = this.game.level._getObstacleCollisionShape(obs);
                             const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
@@ -887,6 +1367,20 @@ class Unit {
                                             if (tryBlocked) break;
                                         }
                                         if (!tryBlocked) {
+                                            const tryColR = this.size * CONFIG.PATHFINDING.UNIT_COLLISION_RADIUS_FACTOR;
+                                            const tryUX = this.x + tryDX;
+                                            const tryUY = this.y + tryDY;
+                                            const nearbyTryUnits = this.game.spatialGrid ?
+                                                this.game.spatialGrid.queryRange(tryUX, tryUY, this.size * CONFIG.PATHFINDING.UNIT_COLLISION_CHECK_RADIUS_FACTOR).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
+                                                [];
+                                            for (const tu of nearbyTryUnits) {
+                                                const tcr = tryColR + tu.size * 0.5;
+                                                const tdx = tryUX - tu.x;
+                                                const tdy = tryUY - tu.y;
+                                                if (tdx * tdx + tdy * tdy < tcr * tcr) { tryBlocked = true; break; }
+                                            }
+                                        }
+                                        if (!tryBlocked) {
                                             const alignment = (tryDX * desiredDeltaX + tryDY * desiredDeltaY) / (desiredMag * desiredMag);
                                             let score = alignment;
                                             if (this._slideDirX !== 0 || this._slideDirY !== 0) {
@@ -948,52 +1442,122 @@ class Unit {
         const fullBlockEncountered = attemptedToMoveFlag && !meaningfullyMoved && collisionOccurredThisFrame;
 
         if (this.repathFailCooldown > 0) this.repathFailCooldown -= deltaTime;
+        if (this.unitBlockWaitTimer > 0) this.unitBlockWaitTimer -= deltaTime;
+        if (this._lastBlockedByUnit > 0) {
+            this._lastBlockedByUnit -= deltaTime;
+            if (this._lastBlockedByUnit <= 0) {
+                this._lastBlockingUnit = null;
+            }
+        }
+
+        if (blockedByUnit) {
+            this._lastBlockedByUnit = CONFIG.PATHFINDING.BLOCKED_BY_UNIT_TIMER;
+            if (blockingUnitThisFrame) this._lastBlockingUnit = blockingUnitThisFrame;
+        }
+
+        if (this._lastBlockedByUnit > 0 && this.isMoving && !this.isPhasing) {
+            if (this.unitBlockWaitTimer <= 0 && this.repathCooldown <= 0) {
+                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Blocked by unit. Repathing now.`);
+                let pathSucceeded = false;
+                if (this._lastBlockingUnit && this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
+                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Attempting spliced repath around blocking unit ${this._lastBlockingUnit.id}.`);
+                    if (this.repathSplicedPath(this._lastBlockingUnit)) {
+                        pathSucceeded = true;
+                    }
+                }
+                if (!pathSucceeded) {
+                    const currentGrid = this.game.level.worldToGridCoords(this.x, this.y);
+                    if (this.calculatePath(currentGrid, false)) {
+                        pathSucceeded = true;
+                    }
+                }
+                if (!pathSucceeded) {
+                    this.repathFailCount++;
+                    this.repathFailCooldown = 1.0;
+                    this.currentPath = [];
+                    this.currentPathNodeIndex = 0;
+                    if (this.repathFailCount >= CONFIG.PATHFINDING.REPATH_FAILS_BEFORE_PHASING && !this.isPhasing) {
+                        this.isPhasing = true;
+                        this.phasingTimer = CONFIG.PATHFINDING.PHASING_DURATION || 0.75;
+                        this.repathFailCount = 0;
+                        if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
+                            this.isMoving = true;
+                            if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
+                                const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
+                                this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
+                                this.currentPathNodeIndex = 0;
+                            }
+                        } else {
+                            this.isMoving = false;
+                        }
+                    }
+                } else {
+                    this.repathFailCount = 0;
+                    this._lastBlockedByUnit = 0;
+                    this._lastBlockingUnit = null;
+                }
+            }
+            finalDeltaX = 0;
+            finalDeltaY = 0;
+            collisionOccurredThisFrame = false;
+        }
 
         if (this.isMoving && attemptedToMoveFlag && !meaningfullyMoved && collisionOccurredThisFrame) {
             this.stuckFrameCounter++;
             this.stuckSpeechTimer += deltaTime;
-            const stuckThreshold = CONFIG.STUCK_REPATH_FRAME_THRESHOLD || 30;
+            const stuckThreshold = CONFIG.PATHFINDING.STUCK_REPATH_FRAME_THRESHOLD || 30;
             if (this.stuckFrameCounter >= stuckThreshold && this.repathCooldown <= 0) {
                     this.stuckFrameCounter = 0;
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Stuck for ${stuckThreshold} frames. Forcing repath with offset.`);
-                    const currentGrid = this.game.level.worldToGridCoords(this.x, this.y);
-                    const navGrid = this.game.level.getNavigationGrid();
                     let pathSucceeded = false;
-                    for (let dist = 2; dist <= 6 && !pathSucceeded; dist += 2) {
-                        const tryOffsets = [
-                            { dx: 0, dy: -dist }, { dx: 0, dy: dist },
-                            { dx: -dist, dy: 0 }, { dx: dist, dy: 0 }
-                        ];
-                        for (const off of tryOffsets) {
-                            const tx = currentGrid.x + off.dx;
-                            const ty = currentGrid.y + off.dy;
-                            if (tx >= 0 && tx < this.game.level.gridWidth && ty >= 0 && ty < this.game.level.gridHeight && navGrid[ty][tx] === 0) {
-                                if (this.calculatePath({ x: tx, y: ty }, this.isPhasing)) {
-                                    pathSucceeded = true;
-                                }
-                                break;
-                            }
+                    if (this._lastBlockingUnit && this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
+                        if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Stuck: attempting spliced repath around blocking unit ${this._lastBlockingUnit.id}.`);
+                        if (this.repathSplicedPath(this._lastBlockingUnit)) {
+                            pathSucceeded = true;
                         }
                     }
                     if (!pathSucceeded) {
-                        if (!this.calculatePath(currentGrid, this.isPhasing)) {
-                            this.repathFailCount++;
-                            this.repathFailCooldown = 1.0;
-                            if (this.repathFailCount >= 3 && !this.isPhasing) {
-                                if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} _HM] ${this.repathFailCount} consecutive repath failures. Auto-phasing to unblock.`);
-                                this.isPhasing = true;
-                                this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75;
-                                this.repathFailCount = 0;
-                                if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
-                                    this.isMoving = true;
-                                    if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
-                                        const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
-                                        this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
-                                        this.currentPathNodeIndex = 0;
+                        const currentGrid = this.game.level.worldToGridCoords(this.x, this.y);
+                        const navGrid = this.game.level.getNavigationGrid();
+                        const searchDistances = CONFIG.PATHFINDING.DESPERATE_STUCK_SEARCH_RADIUS_CELLS;
+                        for (let dist = searchDistances[0]; dist <= searchDistances[1] && !pathSucceeded; dist += 2) {
+                            const tryOffsets = [
+                                { dx: 0, dy: -dist }, { dx: 0, dy: dist },
+                                { dx: -dist, dy: 0 }, { dx: dist, dy: 0 }
+                            ];
+                            for (const off of tryOffsets) {
+                                const tx = currentGrid.x + off.dx;
+                                const ty = currentGrid.y + off.dy;
+                                if (tx >= 0 && tx < this.game.level.gridWidth && ty >= 0 && ty < this.game.level.gridHeight && navGrid[ty][tx] === 0) {
+                                    if (this.calculatePath({ x: tx, y: ty }, this.isPhasing)) {
+                                        pathSucceeded = true;
                                     }
-                                } else {
-                                    this.isMoving = false;
+                                    break;
                                 }
+                            }
+                        }
+                        if (!pathSucceeded) {
+                            if (!this.calculatePath(currentGrid, this.isPhasing)) {
+                                this.repathFailCount++;
+                                this.repathFailCooldown = 1.0;
+                        if (this.repathFailCount >= CONFIG.PATHFINDING.REPATH_FAILS_BEFORE_PHASING && !this.isPhasing) {
+                                    if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} _HM] ${this.repathFailCount} consecutive repath failures. Auto-phasing to unblock.`);
+                                    this.isPhasing = true;
+                                    this.phasingTimer = CONFIG.PATHFINDING.PHASING_DURATION || 0.75;
+                                    this.repathFailCount = 0;
+                                    if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
+                                        this.isMoving = true;
+                                        if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
+                                            const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
+                                            this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
+                                            this.currentPathNodeIndex = 0;
+                                        }
+                                    } else {
+                                        this.isMoving = false;
+                                    }
+                                }
+                            } else {
+                                this.repathFailCount = 0;
                             }
                         } else {
                             this.repathFailCount = 0;
@@ -1001,7 +1565,7 @@ class Unit {
                     } else {
                         this.repathFailCount = 0;
                     }
-                    this.repathCooldown = 0.5 + Math.random();
+                    this.repathCooldown = CONFIG.PATHFINDING.REPATH_STUCK_COOLDOWN_AFTER + Math.random();
                     if (typeof this.onStuck === 'function') {
                         this.onStuck('stuck_repath');
                     }
@@ -1020,20 +1584,21 @@ class Unit {
             this._slideDirX = 0;
             this._slideDirY = 0;
             this.repathFailCount = 0;
+            this._lastBlockingUnit = null;
         }
         if (this.stuckSpeechCooldown > 0) {
             this.stuckSpeechCooldown -= deltaTime;
         }
 
         const distToNextNodeAfterMove = distance(this.x, this.y, nextNodeWorldCoords.x, nextNodeWorldCoords.y);
-        const arrivalTolerance = Math.max(moveSpeed * 0.5, this.size * 0.5);
+        const arrivalTolerance = Math.max(moveSpeed * 0.5, this.size * CONFIG.PATHFINDING.UNIT_COLLISION_RADIUS_FACTOR);
 
         if (distToNextNodeAfterMove <= arrivalTolerance || (moveSpeed >= distToNextNode && distToNextNode > 1e-5 && Math.abs(finalDeltaX - desiredDeltaX) < 1e-4 && Math.abs(finalDeltaY - desiredDeltaY) < 1e-4)) {
             this.currentPathNodeIndex++;
             while (this.currentPathNodeIndex < this.currentPath.length) {
                 const nextNode = this.currentPath[this.currentPathNodeIndex];
                 const distToNext = distance(this.x, this.y, nextNode.x, nextNode.y);
-                if (distToNext < arrivalTolerance * 0.5) {
+                if (distToNext < arrivalTolerance * CONFIG.PATHFINDING.SKIP_REDUNDANT_NODE_FACTOR) {
                     this.currentPathNodeIndex++;
                 } else {
                     break;
@@ -1041,8 +1606,9 @@ class Unit {
             }
             if (this.currentPathNodeIndex >= this.currentPath.length) {
                 this.currentPath = []; this.currentPathNodeIndex = 0;
-                if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < arrivalTolerance * 1.5) {
-                    this.isMoving = false; this.x = this.worldTargetX; this.y = this.worldTargetY;
+                if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) < arrivalTolerance * CONFIG.PATHFINDING.FINAL_ARRIVAL_TOLERANCE_FACTOR) {
+                    this.isMoving = false; 
+                    //this.x = this.worldTargetX; this.y = this.worldTargetY;
                     if (this.hovers) {
                         this.hoverVelocityX = 0;
                         this.hoverVelocityY = 0;
@@ -1052,7 +1618,7 @@ class Unit {
                 }
             }
         }
-        else if (fullBlockEncountered && this.isMoving) {
+        else if (fullBlockEncountered && this.isMoving && !blockedByUnit) {
             if (this.bumpRepathCooldown <= 0) {
                 this.bumpRepathCooldown = this.IMMEDIATE_BUMP_REPATH_COOLDOWN;
 
@@ -1072,7 +1638,7 @@ class Unit {
                 nudgedY += Math.sin(sideNudgeAngle) * this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE;
 
                 let canNudgeToSpot = true;
-                const nudgedShape = { type: 'circle', x: nudgedX, y: nudgedY, radius: this.size / 2 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 15) };
+                const nudgedShape = { type: 'circle', x: nudgedX, y: nudgedY, radius: this.size / 2 + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 15) };
                 for (const obs of obstaclesForCollision) {
                     const obsShapes = this.game.level._getObstacleCollisionShape(obs);
                     const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
@@ -1097,7 +1663,7 @@ class Unit {
                         const tryX = originalX + Math.cos(tryAngle) * nudgeDist;
                         const tryY = originalY + Math.sin(tryAngle) * nudgeDist;
                         let tryClear = true;
-                        const tryShape = { type: 'circle', x: tryX, y: tryY, radius: this.size / 2 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 15) };
+                        const tryShape = { type: 'circle', x: tryX, y: tryY, radius: this.size / 2 + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 15) };
                         for (const obs of obstaclesForCollision) {
                             const obsShapes = this.game.level._getObstacleCollisionShape(obs);
                             const shapesArray = Array.isArray(obsShapes) ? obsShapes : [obsShapes];
@@ -1131,7 +1697,7 @@ class Unit {
                         if (targetBlockedByObstacle && this.repathCooldown <= 0) {
                             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Bumped close to target but LOS blocked. Repathing around obstacle.`);
                             this.calculatePath(this.game.level.worldToGridCoords(this.x, this.y), this.isPhasing);
-                            this.repathCooldown = 0.5 + Math.random();
+                    this.repathCooldown = CONFIG.PATHFINDING.REPATH_STUCK_COOLDOWN_AFTER + Math.random();
                         } else if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
                             if (targetBlockedByObstacle) {
                                 console.log(`[${this.id} _HM] Bumped close to target, LOS blocked, but repath on cooldown. Waiting.`);
@@ -1145,7 +1711,7 @@ class Unit {
                         this.calculatePath(this.game.level.worldToGridCoords(this.x, this.y), this.isPhasing);
 
                         // Set a random cooldown to prevent swarm sync (0.5s - 1.5s)
-                        this.repathCooldown = 0.5 + Math.random();
+                        this.repathCooldown = CONFIG.PATHFINDING.REPATH_STUCK_COOLDOWN_AFTER + Math.random();
                     } else {
                         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} _HM] Bumped but repath on cooldown. Waiting.`);
                     }
@@ -1172,9 +1738,11 @@ class Unit {
         }
     }
 
-    setMoveTarget(worldX, worldY) {
+    setMoveTarget(worldX, worldY, excludeUnits = null) {
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
+
+        this.formationGroup = excludeUnits || null;
 
         if (this.team === 'player' && this.isHoldingPosition && !(this instanceof RaccoonHostage)) {
             this.isHoldingPosition = false;
@@ -1194,7 +1762,7 @@ class Unit {
             (conceptualStartGrid.x < 0 || conceptualStartGrid.x >= this.game.level.gridWidth ||
                 conceptualStartGrid.y < 0 || conceptualStartGrid.y >= this.game.level.gridHeight ||
                 navGrid[conceptualStartGrid.y][conceptualStartGrid.x] === 1)) {
-            let foundValidStart = false; const searchRadius = 2;
+            let foundValidStart = false; const searchRadius = CONFIG.PATHFINDING.SPAWN_WALKABLE_SEARCH_RADIUS;
             for (let r = 1; r <= searchRadius && !foundValidStart; r++) {
                 for (let dy = -r; dy <= r; dy++) {
                     for (let dx = -r; dx <= r; dx++) {
@@ -1221,7 +1789,7 @@ class Unit {
         let finalWorldTargetX = clampedWorldX; let finalWorldTargetY = clampedWorldY;
 
         if (targetGridX < 0 || targetGridX >= this.game.level.gridWidth || targetGridY < 0 || targetGridY >= this.game.level.gridHeight) {
-            this.isMoving = false; this.currentPath = []; this.worldTargetX = this.x; this.worldTargetY = this.y; return false;
+            this.isMoving = false; this.currentPath = []; this.clearFormationState(); this.worldTargetX = this.x; this.worldTargetY = this.y; return false;
         }
 
         if (navGrid[targetGridY][targetGridX] === 1 && !this.isPhasing) {
@@ -1253,24 +1821,29 @@ class Unit {
                 }
             }
 
-            if (!foundAlternative) { this.isMoving = false; this.currentPath = []; this.worldTargetX = this.x; this.worldTargetY = this.y; return false; }
+            if (!foundAlternative) { this.isMoving = false; this.currentPath = []; this.clearFormationState(); this.worldTargetX = this.x; this.worldTargetY = this.y; return false; }
         }
 
         this.worldTargetX = finalWorldTargetX; this.worldTargetY = finalWorldTargetY;
 
-        if (this.calculatePath(conceptualStartGrid, this.isPhasing)) {
+        if (this.calculatePath(conceptualStartGrid, this.isPhasing, excludeUnits)) {
             return true;
         } else {
-            if (this.isPhasing && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 0.1) {
+            if (this.isPhasing && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * CONFIG.PATHFINDING.PHASING_DIRECT_MOVE_THRESHOLD) {
                 this.isMoving = true;
                 this.currentPath = [];
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} setMoveTarget] Pathing failed during phase, will attempt direct move. isMoving: ${this.isMoving}`);
                 return true;
             }
             this.isMoving = false;
+            this.clearFormationState();
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} setMoveTarget] calculatePath returned false. Move command failed.`);
             return false;
         }
+    }
+
+    clearFormationState() {
+        this.formationGroup = null;
     }
 
     setManualTarget(target) {
@@ -1408,7 +1981,8 @@ class Unit {
             }
             const targetX = this.x + Math.cos(pelletAngle) * this.weapon.range;
             const targetY = this.y + Math.sin(pelletAngle) * this.weapon.range;
-            const projectile = this.game.getProjectileFromPool(this.x, this.y, targetX, targetY, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this, effectiveAccuracy);
+             const spawnOffsetY = CONFIG.PROJECTILE_SPRITE_OFFSET_Y || 0;
+             const projectile = this.game.getProjectileFromPool(this.x, this.y + spawnOffsetY, targetX, targetY, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this, effectiveAccuracy);
             this.game.addProjectile(projectile);
         }
 
@@ -1476,12 +2050,7 @@ class Unit {
                 this.propagateAlert(attackerUnit);
             }
 
-            // --- Hit reaction: stun and force immediate combat re-evaluation ---
-            const stunBase = CONFIG.ENEMY_HIT_STUN_DURATION_BASE || 0.35;
-            const stunBonus = CONFIG.ENEMY_HIT_STUN_DURATION_BONUS || 0.25;
-            this.hitStunTimer = stunBase + Math.random() * stunBonus;
-            this.recentlyHitBy = attackerUnit;
-            this.targetAcquisitionTimer = 0; // Force immediate target scan next frame
+            this.targetAcquisitionTimer = 0;
         }
 
         if (!died && this.game && this.game.ui && this.team === 'player') {
@@ -1521,7 +2090,6 @@ class Unit {
     die() {
         this.manualTarget = null; this.autoTarget = null; this.isMoving = false; this.currentPath = [];
         this.isPlayerDirectFiring = false; this.isHoldingPosition = false; this.isHoldingFire = false;
-        this.hitStunTimer = 0; this.recentlyHitBy = null;
         const wasSelected = this.game && this.game.selectedUnits.includes(this);
         if (this instanceof Raccoon && this.isAimingGrenade) this.cancelGrenadeAim();
         if (this.game && this.game.selectedUnits.includes(this)) {
@@ -1561,7 +2129,7 @@ class Unit {
         }
 
         if (this.isAlive() && this.game.isDebugVisualsActive && CONFIG.DEBUG_DRAW_UNIT_PATHING_BOUNDS) {
-            const pathingRadius = (this.size / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
+            const pathingRadius = (this.size / 2) + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 0);
             ctx.fillStyle = 'rgba(0, 255, 255, 0.2)';
             ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
             ctx.lineWidth = 1;
@@ -1734,5 +2302,85 @@ class Unit {
 
             this.game.ctx.restore();
         }
+    }
+
+    static resolveAllOverlaps(units, maxIterations = 5) {
+        if (!units || units.length < 2) return;
+
+        for (let iter = 0; iter < maxIterations; iter++) {
+            let anyResolved = false;
+
+            for (let i = 0; i < units.length; i++) {
+                const a = units[i];
+                if (!a.isAlive() || a.isPhasing) continue;
+
+                for (let j = i + 1; j < units.length; j++) {
+                    const b = units[j];
+                    if (!b.isAlive() || b.isPhasing) continue;
+
+                    const dx = b.x - a.x;
+                    const dy = b.y - a.y;
+                    const distSq = dx * dx + dy * dy;
+                    const combinedRadii = (a.size + b.size) * 0.5;
+                    const minDist = combinedRadii * 0.9;
+
+                    if (distSq < minDist * minDist) {
+                        const dist = Math.sqrt(distSq) || 1e-6;
+                        const overlap = minDist - dist;
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        const pushAmount = overlap * 0.5 + 0.5;
+
+                        a.x -= nx * pushAmount;
+                        a.y -= ny * pushAmount;
+                        b.x += nx * pushAmount;
+                        b.y += ny * pushAmount;
+
+                        a.x = Math.max(a.size / 2, Math.min(a.x, (CONFIG.WORLD_WIDTH || 0) - a.size / 2));
+                        a.y = Math.max(a.size / 2, Math.min(a.y, (CONFIG.WORLD_HEIGHT || 0) - a.size / 2));
+                        b.x = Math.max(b.size / 2, Math.min(b.x, (CONFIG.WORLD_WIDTH || 0) - b.size / 2));
+                        b.y = Math.max(b.size / 2, Math.min(b.y, (CONFIG.WORLD_HEIGHT || 0) - b.size / 2));
+
+                        anyResolved = true;
+                    }
+                }
+            }
+
+            if (!anyResolved) break;
+        }
+    }
+
+    isOverlapping() {
+        if (!this.game || !this.isAlive()) return false;
+
+        const scanRadius = this.size * 1.5;
+        let nearbyUnits = null;
+        if (this.game.spatialGrid) {
+            const gridObjects = this.game.spatialGrid.queryRange(this.x, this.y, scanRadius);
+            nearbyUnits = gridObjects.filter(o => o instanceof Unit);
+        } else {
+            nearbyUnits = [
+                ...(this.game.getLivingPlayerControlledUnits?.() || []),
+                ...(this.game.enemyUnits || []),
+                ...(this.game.hostageUnits || [])
+            ];
+        }
+
+        const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+
+        for (const other of nearbyUnits) {
+            if (other === this || !other.isAlive() || other.isPhasing) continue;
+            if (formationGroupSet && formationGroupSet.has(other)) continue;
+
+            const dx = this.x - other.x;
+            const dy = this.y - other.y;
+            const distSq = dx * dx + dy * dy;
+            const combinedRadii = (this.size + other.size) * 0.5;
+
+            if (distSq < combinedRadii * combinedRadii) {
+                return true;
+            }
+        }
+        return false;
     }
 }

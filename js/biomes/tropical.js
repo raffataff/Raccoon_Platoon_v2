@@ -180,6 +180,44 @@ const TROPICAL_BIOME = {
             files: ['ruins_arch.png', 'ruins_pillars.png', 'ruins_shrine.png', 'ruins_fallen_jag.png', 'ruins_shrine_small.png', 'ruins_monkey_tomb.png',]
         },
 
+        // Empty Possum huts
+        empty_hut_round: {
+            path: 'assets/images/objects/possums/huts/',
+            files: ['possum_hut_6.png' ],
+        },
+        empty_possum_hut_2: {
+            path: 'assets/images/objects/possums/huts/',
+            files: ['possum_hut_round_1_jungle.png', 'possum_hut_square_1_jungle.png', 'possum_building_small_1.png', 'possum_building_small_2.png'],
+        },
+
+        // Possum structures (spawning huts — biome-specific sprite pairs)
+        possum_barracks_1: {
+            path: 'assets/images/objects/possums/barracks/',
+            pairs: [
+                { normal: 'possum_barracks_1.png', destroyed: 'possum_barracks_1_destroyed.png' },
+                { normal: 'possum_barracks_2.png', destroyed: 'possum_barracks_2_destroyed.png' },
+            ],
+        },
+        possum_hut: {
+            path: 'assets/images/objects/possums/huts/',
+            pairs: [
+                { normal: 'possum_hut_1.png', destroyed: 'possum_hut_1_destroyed.png' },
+            ],
+        },
+        possum_hut_round: {
+            path: 'assets/images/objects/possums/huts/',
+            pairs: [
+                { normal: 'possum_hut_4.png', destroyed: 'possum_hut_4_destroyed.png' },
+                { normal: 'possum_hut_5.png', destroyed: 'possum_hut_5_destroyed.png' },
+            ],
+        },
+        general_possum_building_large: {
+            path: 'assets/images/objects/possums/general/',
+            pairs: [
+                { normal: 'possum_building_large_1.png', destroyed: 'possum_building_large_1.png' },
+                { normal: 'possum_warehouse.png', destroyed: 'possum_building_large_1.png' },
+            ],
+        },
     },
 
     // =========================================================================
@@ -201,6 +239,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.6,
             phaseUnlocked: 2,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: (h => h * 0.22) },
+            swirlRegion: { centerX: 0.5, centerY: 0.3, radius: 0.22 },
         },
         {
             type: 'tropical_wall_angled_long', name: 'Tropical Wall Angled Long',
@@ -453,7 +492,7 @@ const TROPICAL_BIOME = {
             blocksMovement: true,
             providesCover: true,
             spawnWeight: 10,
-            spriteScale: 0.60,
+            spriteScale: 0.5,
             spriteDestroyed: null,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.36), radiusY: (h => h * 0.17) },
             placementBuffer: 150,
@@ -488,6 +527,119 @@ const TROPICAL_BIOME = {
             placementBuffer: 80,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.4), radiusY: (h => h * 0.2) },
         },
+        {
+            type: 'possum_barracks_1', name: 'Possum Barracks', color: '#62a170',
+            destructible: true, hp: 120, maxHp: 120,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, phaseUnlocked: 2,
+            spriteScale: 0.7,
+            spriteDestroyedScale: 0.7,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.5), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+            canBeFlipped: true,
+            decorationBuffer: 200,
+            placementBuffer: 350,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 6],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 300,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
+                ]
+            }
+        },
+        {
+            type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, phaseUnlocked: 1,
+            spriteScale: 0.7,
+            spriteDestroyedScale: 0.7,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.58), radiusX: (w => w * 0.3), radiusY: (h => h * 0.18) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+            canBeFlipped: true,
+            placementBuffer: 480,
+            decorationBuffer: 200,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 4],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 280,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
+                ]
+            }
+        },
+        {
+            type: 'possum_hut_round', name: 'Round Possum Hut', color: '#8B4513',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, phaseUnlocked: 1,
+            spriteScale: 0.3,
+            spriteDestroyedScale: 0.3,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.42), radius: (w => w * 0.3) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+            canBeFlipped: true,
+            placementBuffer: 280,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 4],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 280,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
+                ]
+            }
+        },
+        {
+            type: 'general_possum_building_large', name: 'Large Possum Building', color: '#8B4513',
+            destructible: false,
+            blocksMovement: true, providesCover: true,
+            isDecoration: false,
+            canBeFlipped: true,
+            spawnWeight: 2, phaseUnlocked: 3,
+            spriteScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.53), radiusX: (w => w * 0.37), radiusY: (h => h * 0.26) },
+            placementBuffer: 350,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 6],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 350,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 5 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 1 },
+                    { type: 'possum_elite', weight: 0.5 },
+                    { type: 'possum_eliteGuard', weight: 0.2 }
+                ]
+            }
+        },
+        {
+            type: 'empty_possum_hut_2', name: 'Empty Possum Hut', color: '#8B4513',
+            destructible: false,
+            blocksMovement: true, providesCover: true,
+            isDecoration: false,
+            canBeFlipped: true,
+            spawnWeight: 3, phaseUnlocked: 2,
+            spriteScale: 0.6,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
+            placementBuffer: 150,
+            decorationBuffer: 200,
+        }
     ],
 
     // =========================================================================
@@ -497,7 +649,7 @@ const TROPICAL_BIOME = {
         WORLD_BASE_MUD_COLOR: '#324824',
         WORLD_BASE_DIRT_COLOR: '#505c33',
         WORLD_GRASS_TILE_SCALE: 0.8,
-        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.6,
+        WORLD_GRASS_TILE_OVERLAP_FACTOR: 0.45,
         WORLD_GRASS_SKIP_CHANCE: 0.5,
         WORLD_GRASS_SKIP_MIN: 3,
         WORLD_GRASS_SKIP_MAX: 12,
@@ -505,8 +657,8 @@ const TROPICAL_BIOME = {
         WORLD_GRASS_CLUMP_MIN: 2,
         WORLD_GRASS_CLUMP_MAX: 5,
         WORLD_GRASS_CLUMP_RADIUS: 32,
-        WORLD_MUD_TILE_SCALE: 0.6,
-        WORLD_MUD_TILE_OVERLAP_FACTOR: 0.6,
+        WORLD_MUD_TILE_SCALE: 0.9,
+        WORLD_MUD_TILE_OVERLAP_FACTOR: 0.65,
         WORLD_MUD_RANDOM_ROTATION: false,
         WORLD_MUD_NOISE_SCALE_X: 0.012,
         WORLD_MUD_NOISE_SCALE_Y: 0.012,
@@ -541,6 +693,12 @@ const TROPICAL_BIOME = {
         'rainforest_patch_small_1',
         'tropical_ruins',
         'tropical_pond',
+        'empty_hut_round',
+        'possum_barracks_1',
+        'possum_hut',
+        'possum_hut_round',
+        'general_possum_building_large',
+        'empty_possum_hut_2',
     ],
 
     // =========================================================================
@@ -611,6 +769,16 @@ const TROPICAL_BIOME = {
         { name: 'grass', files: ['tropical_grass_2.png', 'tropical_grass_3.png', 'tropical_grass_3_2.png', 'tropical_grass_3_3.png', 'tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_14.png', 'tropical_grass_15.png', 'tropical_grass_16.png', 'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png', 'tropical_grass_24.png', 'tropical_grass_25.png', 'tropical_grass_26.png', 'tropical_grass_27.png', 'tropical_grass_29.png', 'tropical_grass_30.png', 'tropical_grass_31.png',  'tropical_grass_32.png', 'tropical_grass_33.png', 'tropical_grass_34.png', 'tropical_grass_35.png', 'tropical_grass_36.png', 'tropical_grass_37.png', ], path: 'assets/images/objects/biomes/tropical/grass/', type: 'single' },
         
         { name: 'grass_decoration', files: ['tropical_grass_4.png', 'tropical_grass_5.png', 'tropical_grass_6.png', 'tropical_grass_7.png', 'tropical_grass_8.png', 'tropical_grass_9.png', 'tropical_grass_10.png', 'tropical_grass_11.png', 'tropical_grass_12.png', 'tropical_grass_13.png', 'tropical_grass_15.png',  'tropical_grass_17.png', 'tropical_grass_18.png', 'tropical_grass_19.png', 'tropical_grass_20.png', 'tropical_grass_21.png', 'tropical_grass_22.png', 'tropical_grass_23.png',  ], path: 'assets/images/objects/biomes/tropical/grass/', type: 'single' },
+
+        // Huts
+        { name: 'empty_hut_round', files: ['possum_hut_6.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
+
+        // Possum structures (all normal + destroyed variants — levelGenerator picks random pairs)
+        { name: 'possum_barracks_1', files: ['possum_barracks_1.png', 'possum_barracks_1_destroyed.png', 'possum_barracks_2.png', 'possum_barracks_2_destroyed.png'], path: 'assets/images/objects/possums/barracks/', type: 'single' },
+        { name: 'possum_hut', files: ['possum_hut_1.png', 'possum_hut_1_destroyed.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
+        { name: 'possum_hut_round', files: ['possum_hut_4.png', 'possum_hut_4_destroyed.png', 'possum_hut_5.png', 'possum_hut_5_destroyed.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
+        { name: 'general_possum_building_large', files: ['possum_building_large_1.png', 'possum_warehouse.png'], path: 'assets/images/objects/possums/general/', type: 'single' },
+        { name: 'empty_possum_hut_2', files: ['possum_hut_round_1_jungle.png', 'possum_hut_square_1_jungle.png', 'possum_building_small_1.png', 'possum_building_small_2.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
     ],
 
     // =========================================================================
@@ -691,6 +859,22 @@ const TROPICAL_BIOME = {
         RAINFOREST_BATTLE_1: {
             NAME: 'Rainforest Battle',
             IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_6.png',
+            TREE_SPAWN_POSITIONS: [
+                {"x":558,"y":852,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":746,"y":890,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":80,"scale":1.6,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":1504,"y":1075,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":2.1,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":170,"scale":2.1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":1120,"y":755,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":60,"scale":0.7,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":663,"y":436,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":80,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":365,"y":1106,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":195,"scale":1.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":1455,"y":715,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":false},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":1167,"y":888,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":120,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":807,"y":781,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":115,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":841,"y":1107,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":130,"scale":1.9,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":105,"scale":2.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
+            ]
+        },
+        TROPICAL_EXTRACTION_BATTLE_1: {
+            NAME: 'Battle on the Helipad',
+            IMAGE: 'assets/images/shootouts/tropical/Shootout_tropical_extraction_1.png',
             TREE_SPAWN_POSITIONS: [
                 {"x":558,"y":852,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
                 {"x":746,"y":890,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":80,"scale":1.6,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},

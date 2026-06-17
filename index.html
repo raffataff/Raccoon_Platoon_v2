@@ -634,6 +634,52 @@
         <video id="extractionVideoPlayer" playsinline></video>
     </div>
 
+    <!-- Debug Visuals Panel (shown when debug visuals are toggled on) -->
+    <div id="debugPanel" class="debug-panel" style="display: none;">
+        <div class="debug-panel-header">
+            <span class="debug-panel-title">DEBUG VISUALS</span>
+            <span id="debugPanelClose" class="debug-panel-close">✕</span>
+        </div>
+        <div class="debug-panel-toggles">
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgNavGridBlocked" checked>
+                <span class="debug-toggle-label">Nav Grid Blocked</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgNavGridTiles" checked>
+                <span class="debug-toggle-label">Nav Grid Tiles</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgSpatialGrid" checked>
+                <span class="debug-toggle-label">Spatial Grid</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgObstacleShapes" checked>
+                <span class="debug-toggle-label">Obstacle Shapes</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgObstacleNames" checked>
+                <span class="debug-toggle-label">Obstacle Names</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgPathingBounds" checked>
+                <span class="debug-toggle-label">Unit Pathing Bounds</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgBulletSizes" checked>
+                <span class="debug-toggle-label">Bullet Sizes</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgHutSpawnAreas" checked>
+                <span class="debug-toggle-label">Hut Spawn Areas</span>
+            </label>
+            <label class="debug-toggle">
+                <input type="checkbox" id="dbgHutStatus" checked>
+                <span class="debug-toggle-label">Hut Status Text</span>
+            </label>
+        </div>
+    </div>
+
     <div id="game-container">
         <div id="left-hud-panel" class="ui-panel" style="display: none;">
             <div id="hud-squad">
@@ -726,6 +772,7 @@
     <!-- scripts -->
     <script src="js/ObjectPool.js"></script>
     <script src="js/effects.js"></script>
+    <script src="js/waterSwirl.js"></script>
     <script src="js/spatialGrid.js"></script>
     <script src="js/raccoonNames.js"></script>
     <script src="js/rng.js"></script>

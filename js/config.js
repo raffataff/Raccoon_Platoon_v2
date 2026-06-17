@@ -10,7 +10,7 @@ const CONFIG = {
     MIN_CANVAS_HEIGHT: 1080,
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
-    CAMERA_ZOOM: 1.4,
+    CAMERA_ZOOM: 1.3,
 
     // =============================================================================
     // INPUT
@@ -24,38 +24,136 @@ const CONFIG = {
     MIN_LOADING_VIDEO_DURATION_MS: 5000,
 
     // =============================================================================
-    // PATHFINDING_AI
+    // PATHFINDING
     // =============================================================================
-    GRID_CELL_SIZE: 4,
-    DEBUG_PATHING_UNIT_ID: null,
-    DEBUG_DRAW_NAV_GRID_BLOCKED: false,
+    PATHFINDING: {
+        // --- Grid ---
+        GRID_CELL_SIZE: 8,                              // Size of each nav grid cell in pixels. All A* pathfinding operates on this grid. Smaller = finer paths but more cells to search.
+        UNIT_PATHING_RADIUS_BUFFER: 12,                   // Extra padding (pixels) added to unit radius when rasterizing obstacles onto the nav grid. Higher = paths stay further from walls.
+        PATHFINDING_MAX_EXPANSIONS: 20000,                // Max A* node expansions before giving up. Higher = longer search but better chance of finding a path.
+
+        // --- Obstacle repulsion (world-space push forces) ---
+        OBSTACLE_REPULSION_RADIUS_FACTOR: 1.10,           // Multiplied by unit size to get the repulsion radius. Units within this distance of obstacles get pushed away.
+        OBSTACLE_REPULSION_FORCE: 0.6,                    // Magnitude of the push force when a unit is inside the repulsion radius.
+        OBSTACLE_REPULSION_MAX_SPEED_FACTOR: 0.98,         // Caps repulsion speed at this × the unit's desired speed. Prevents repulsion from overwhelming movement.
+
+        // --- Stuck detection ---
+        STUCK_REPATH_FRAME_THRESHOLD: 30,                 // Frames a unit must be stuck (not meaningfully moving) before triggering a forced repath.
+        STUCK_FRAMES_THRESHOLD_PATHING: 10,               // Frames of stuckness before the pathing system flags the unit as fully stuck.
+        UNIT_STUCK_FRAMES_THRESHOLD: 20,                   // Frames before the unit's own stuck counter triggers visual/state changes.
+        STUCK_MOVEMENT_THRESHOLD_FACTOR: 0.015,            // Movement per frame below this × speed counts as "stuck". Lower = more sensitive stuck detection.
+        STUCK_VELOCITY_SAMPLE_TIME: 0.1,                  // How often (seconds) velocity is sampled for stuck detection averaging.
+        STUCK_RECOVERY_COOLDOWN: 1.5,                     // Cooldown (seconds) after a stuck recovery attempt before another can fire.
+        MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3,                // Max consecutive stuck recovery attempts before the unit gives up and phases.
+
+        // --- Repathing ---
+        REPATH_STUCK_COOLDOWN: 1.0,                       // Cooldown (seconds) after a stuck-triggered repath before another stuck repath can fire.
+        REPATH_FAILS_BEFORE_PHASING: 3,                   // Number of consecutive repath failures before the unit auto-phases (walks through obstacles).
+        REPATH_STUCK_COOLDOWN_AFTER: 0.5,                 // Base cooldown (seconds) added after a stuck repath, plus random jitter.
+        BUMP_REPATH_COOLDOWN: 0.35,                       // Cooldown (seconds) after a bump-nudge before the unit will repath.
+        SKIP_FIRST_NODE_DIST_FACTOR: 0.5,                 // If closer to the first path node than this × unit size, skip it.
+        SKIP_REDUNDANT_NODE_FACTOR: 0.5,                  // Skip path nodes closer than this × arrivalTolerance to the previous node.
+        FINAL_ARRIVAL_TOLERANCE_FACTOR: 1.5,              // At the end of a path, unit considers itself arrived when within this × arrivalTolerance of the final target.
+
+        // --- Mid-path repath splicing (obstacle avoidance waypoints) ---
+        REPATH_SPLICE_AVOID_RADIUS: 4,                    // Grid cells radius around a blocking unit to search for avoidance waypoints. Larger = wider detour.
+        REPATH_SPLICE_AVOID_NODES: 8,                     // Number of intermediate avoidance nodes to insert into the path when splicing around a blocker.
+        REPATH_SPLICE_MAX_WAYPOINTS: 6,                   // Max candidate waypoints to consider when building a spliced avoidance detour.
+        REPATH_SPLICE_WAYPOINT_GRID_STEP: 3,              // Grid cell step between candidate waypoints placed around the blocker.
+
+        // --- Collision & separation ---
+        UNIT_COLLISION_CHECK_ENABLED: false,               // Master toggle for unit-to-unit collision checks.
+        MIN_SEPARATION_DISTANCE_FACTOR: 0.85,             // Factor × combined unit radii = minimum distance before separation forces push units apart.
+        UNIT_SEPARATION_FORCE_FACTOR: 2.0,                // Global multiplier for separation push force magnitude between units.
+        SEPARATION_CHECK_RADIUS_FACTOR: 1.1,              // How far (× unit size) to look for nearby units to apply separation forces to.
+        SEPARATION_OVERLAP_PUSH_FACTOR: 2.5,              // Push strength multiplier when units are overlapping (penetrating each other).
+        SEPARATION_PROXIMITY_PUSH_FACTOR: 0.15,            // Push strength multiplier for units that are close but not overlapping.
+        UNIT_COLLISION_RADIUS_FACTOR: 0.5,                // Unit's collision radius as a factor of its size. Used for obstacle and unit collision checks.
+        UNIT_COLLISION_CHECK_RADIUS_FACTOR: 1.2,          // Spatial query radius (× unit size) for finding nearby units to collide with.
+
+        // --- Slide / resolve ---
+        MAX_SLIDE_FRAMES: 8,                              // How many frames a slide direction persists after hitting an obstacle before resetting.
+        BLOCKED_BY_UNIT_TIMER: 0.1,                         // Seconds to wait after being blocked by another unit before attempting to repath.
+
+        // --- Overlap detection & resolution ---
+        OVERLAP_DETECTION_ENABLED: true,                  // Master toggle for proactive overlap detection and resolution.
+        OVERLAP_SCAN_RADIUS_FACTOR: 0.05,                  // Spatial query radius (× unit size) for finding overlapping units to resolve.
+        OVERLAP_MIN_PUSH_FACTOR: 0.5,                     // Minimum push distance (× unit size) to separate overlapping units immediately.
+        OVERLAP_RECOVERY_SPEED_FACTOR: 1.10,               // Speed multiplier for burst-move out of overlaps. Higher = faster escape.
+        OVERLAP_PHASING_THRESHOLD: 120,                     // Frames of continuous overlapping before auto-phasing to escape.
+        OVERLAP_REPATH_COOLDOWN: 0.2,                     // Minimum seconds between overlap-triggered repaths (prevents spam).
+
+        // --- Obstacle penetration escape ---
+        OBSTACLE_STUCK_DETECTION_ENABLED: true,           // Master toggle for detecting when a unit is inside an obstacle.
+        OBSTACLE_STUCK_SCAN_RADIUS_FACTOR: 0.1,           // Spatial query radius (× unit size) for finding obstacles the unit is inside.
+        OBSTACLE_ESCAPE_PUSH_FACTOR: 0.3,                 // Push distance (× unit size) per frame to eject unit from obstacle.
+        OBSTACLE_STUCK_PHASING_THRESHOLD: 60,              // Frames of being inside obstacle before auto-phasing.
+        OBSTACLE_STUCK_NAV_CHECK: false,                   // Also check if the unit's nav grid cell is blocked (cheaper early-out).
+
+        // --- Desperate stuck ---
+        DESPERATE_STUCK_SEARCH_RADIUS_CELLS: [2, 6],      // [min, max] grid cell radius to search for an alternative walkable start when deeply stuck. Step size is 2.
+        DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,            // Grid cell radius for the random desperate move destination when all else fails.
+
+        // --- Path smoothing ---
+        SMOOTHING_COARSE_THRESHOLD_HIGH: 40,              // If remaining path nodes exceed this, use coarse stepping (nodes/10) for line-of-sight checks.
+        SMOOTHING_COARSE_THRESHOLD_LOW: 15,               // If remaining nodes exceed this (but below high), use medium stepping (nodes/5).
+        SMOOTHING_MAX_ITER_FACTOR: 4,                     // Max smoothing iterations = path length × this factor (minimum 100).
+
+        // --- Path deflation (clearance from obstacles) ---
+        DEFLATION_ITERATIONS: 4,                          // Number of deflation passes. Each pass pushes path nodes away from obstacles and other units.
+        DEFLATION_OFFSET_MARGIN: 32,                      // Extra margin (pixels) added to pathing radius when querying spatial grid during deflation.
+        DEFLATION_NODE_PUSH_FACTOR: 0.9,                  // How much (0-1) to push path nodes away from obstacles per iteration. Lower = gentler adjustment.
+        DEFLATION_UNIT_PUSH_FACTOR: 0.9,                  // How much (0-1) to push path nodes away from other units per iteration.
+
+        // --- Border waypoint fallback ---
+        BORDER_BFS_MAX_CELLS: 4000,                       // Max BFS cells to search when looking for border waypoints for fallback paths.
+        BORDER_MAX_CELLS_COLLECT: 20,                     // Max border cells to collect as candidate waypoints.
+        BORDER_MIN_DISTANCE: 5,                           // Minimum grid distance from start for a valid border waypoint.
+        BORDER_WAYPOINTS_MAX_TRY: 30,                     // Max border waypoints to attempt when building a two-leg fallback path.
+        BORDER_LEG_EXPANSION_FRACTION: 0.33,              // Each leg of a fallback path gets this fraction of the total A* expansion budget.
+
+        // --- Phasing ---
+        PHASING_DURATION: 0.3,                            // How long (seconds) a unit phases (walks through obstacles) after repeated repath failures.
+        PHASING_DIRECT_MOVE_THRESHOLD: 0.1,               // During phase, if closer than this × unit size to target, move directly instead of pathing.
+        PHASING_ARRIVAL_THRESHOLD_FACTOR: 0.05,           // During phase, consider arrived when within this × unit size of the next path node.
+        PHASING_STILL_THRESHOLD_FACTOR: 0.1,              // After phase ends, if still further than this × unit size from target, re-path to target.
+
+        // --- Spawn search ---
+        SPAWN_WALKABLE_SEARCH_RADIUS: 2,                  // Grid cell radius to search for a walkable cell near a blocked spawn point.
+        ENDPOINT_WALKABLE_SEARCH_RADIUS: 6,               // Grid cell radius to search for a walkable cell near a blocked path destination.
+
+        ENEMY_CHASE_THROTTLE_COUNT: 20,                   // When active enemies exceed this, begin throttling chase repaths.
+        ENEMY_CHASE_THROTTLE_MULTIPLIER: 2.0,             // Multiply base chase refresh interval when above throttle count.
+    },
+
+    // =============================================================================
+    // SPATIAL_GRID
+    // =============================================================================
+    SPATIAL_GRID: {
+        CELL_SIZE_FACTOR: 2,                              // Spatial grid cell size = GRID_CELL_SIZE × this. Used for broad-phase unit collision queries.
+    },
+
+    // =============================================================================
+    // DEBUG
+    // =============================================================================
+    DEBUG_PATHING_UNIT_ID: 0,
+    DEBUG_DRAW_NAV_GRID_BLOCKED: true,
+    DEBUG_DRAW_NAV_GRID_TILES: false,
+    DEBUG_DRAW_SPATIAL_GRID: false,
     DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES: true,
     DEBUG_DRAW_OBSTACLE_NAMES: true,
-    DEBUG_DRAW_UNIT_PATHING_BOUNDS: false,
-    DEBUG_DRAW_BULLET_SIZES: true,
-    UNIT_PATHING_RADIUS_BUFFER: 10,
-    OBSTACLE_REPULSION_RADIUS_FACTOR: 1.50,
-    OBSTACLE_REPULSION_FORCE: 1.0,
-    STUCK_REPATH_FRAME_THRESHOLD: 30,
-    PATHFINDING_MAX_EXPANSIONS: 20000,
-    MIN_SEPARATION_DISTANCE_FACTOR: 1.1,
-    UNIT_SEPARATION_FORCE_FACTOR: 1.3,
-    UNIT_COLLISION_CHECK_ENABLED: true,
-    UNIT_STUCK_FRAMES_THRESHOLD: 6,
-    STUCK_FRAMES_THRESHOLD_PATHING: 30,
-    REPATH_STUCK_COOLDOWN: 0.3,
+    DEBUG_DRAW_UNIT_PATHING_BOUNDS: true,
+    DEBUG_DRAW_BULLET_SIZES: false,
 
-    ENEMY_ALERT_PROPAGATION_RADIUS: 150,
+    // =============================================================================
+    // ENEMY_ALERT
+    // =============================================================================
+    ENEMY_ALERT_PROPAGATION_RADIUS: 180,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95,
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10,
 
-    // Hit reaction system: when enemies take damage, they flinch and immediately re-evaluate combat
-    ENEMY_HIT_STUN_DURATION_BASE: 0.35,
-    ENEMY_HIT_STUN_DURATION_BONUS: 0.25,
-
     UNIT_VISUALS: {
         STUCK_FRAMES_THRESHOLD: 6,
-        UNIT_PHASING_DURATION: 1.5,
         UNIT_PHASING_OPACITY: 0.5,
         DRAW_GUN_AIM_INDICATOR: false,
         FACING_INDICATOR: { COLOR: 'black', LINE_WIDTH: 1 },
@@ -77,13 +175,13 @@ const CONFIG = {
     // Base Stats
     RACCOON_HP: 20,
     RACCOON_SPEED: 200,
-    RACCOON_SIZE: 20,
+    RACCOON_SIZE: 18,
     RACCOON_COLOR: '#808080',
     RACCOON_DETECTION_RANGE: 100,
 
     // Engagement
     RACCOON_MIN_ENGAGEMENT_DISTANCE: 100,
-    RACCOON_PREFERRED_ENGAGEMENT_DISTANCE_MAX: 200,
+    RACCOON_PREFERRED_ENGAGEMENT_DISTANCE_MAX: 150,
     RACCOON_ENGAGE_RANGE_BUFFER: 60,
 
     // Grenades
@@ -142,13 +240,13 @@ const CONFIG = {
 
         { rankName: "Private", xpNeeded: 300, statBoosts: { maxHpBonus: 20, bulletLifetimeBonus: 0.2, turnRate: 12, grenadeRangeBonus: 20 }, nightVisionRadius: 200, defaultWeapon: 'RACCOON_PRIVATE_MG' },
         
-        { rankName: "Corporal", xpNeeded: 1000, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.05, bulletLifetimeBonus: 0.4, turnRate: 15, grenadeRangeBonus: 40 }, nightVisionRadius: 220, defaultWeapon: 'RACCOON_CORPORAL_MG' },
+        { rankName: "Corporal", xpNeeded: 1000, statBoosts: { maxHpBonus: 30, accuracyBonus: 0.05, bulletLifetimeBonus: 0.3, turnRate: 15, grenadeRangeBonus: 40 }, nightVisionRadius: 220, defaultWeapon: 'RACCOON_CORPORAL_MG' },
         
-        { rankName: "Sergeant", xpNeeded: 2000, statBoosts: { maxHpBonus: 40, accuracyBonus: 0.1, bulletLifetimeBonus: 0.6, turnRate: 20, grenadeRangeBonus: 70 }, nightVisionRadius: 250, defaultWeapon: 'RACCOON_SERGEANT_MG' },
+        { rankName: "Sergeant", xpNeeded: 2000, statBoosts: { maxHpBonus: 40, accuracyBonus: 0.1, bulletLifetimeBonus: 0.4, turnRate: 20, grenadeRangeBonus: 70 }, nightVisionRadius: 250, defaultWeapon: 'RACCOON_SERGEANT_MG' },
         
-        { rankName: "Elite", xpNeeded: 4000, statBoosts: { maxHpBonus: 60, accuracyBonus: 0.2, bulletLifetimeBonus: 1.0, turnRate: 30, grenadeRangeBonus: 110 }, nightVisionRadius: 290, defaultWeapon: 'RACCOON_ELITE_MG' },
+        { rankName: "Elite", xpNeeded: 4000, statBoosts: { maxHpBonus: 60, accuracyBonus: 0.2, bulletLifetimeBonus: 0.6, turnRate: 30, grenadeRangeBonus: 110 }, nightVisionRadius: 290, defaultWeapon: 'RACCOON_ELITE_MG' },
         
-        { rankName: "Ghost", xpNeeded: 10000, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.4, bulletLifetimeBonus: 1.2, turnRate: 45, grenadeRangeBonus: 160 }, nightVisionRadius: 350, defaultWeapon: 'RACCOON_GHOST_MG' }
+        { rankName: "Ghost", xpNeeded: 10000, statBoosts: { maxHpBonus: 100, accuracyBonus: 0.4, bulletLifetimeBonus: 0.8, turnRate: 45, grenadeRangeBonus: 160 }, nightVisionRadius: 350, defaultWeapon: 'RACCOON_GHOST_MG' }
     ],
     MAX_RANK_NAME: "Ghost",
 
@@ -188,7 +286,7 @@ const CONFIG = {
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'],
     POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.6,
     PROJECTILE_COLOR_POSSUM_HEAVY: '#ff47478e',
-    POSSUM_HEAVY_TURN_RATE: 4.0,
+    POSSUM_HEAVY_TURN_RATE: 5.0,
     
     // --- Possum Sniper ---
     POSSUM_SNIPER_HP: 25,
@@ -202,7 +300,7 @@ const CONFIG = {
     POSSUM_SNIPER_DEAD_SPRITE_FILES: ['possum_sniper_dead.png'],
     POSSUM_SNIPER_DEAD_SPRITE_SCALE: 0.5,
     PROJECTILE_COLOR_POSSUM_SNIPER: '#FF2400',
-    POSSUM_SNIPER_TURN_RATE: 3.0,
+    POSSUM_SNIPER_TURN_RATE: 7.0,
 
     // --- Possum Elite ---
     POSSUM_ELITE_HP: 80,
@@ -331,7 +429,7 @@ const CONFIG = {
             name: "MG-2",
             damage: 8,
             rof: 7,
-            range: 500,
+            range: 530,
             projectileSpeed: 650,
             projectileColor: '#cc9900',
             accuracyStationary: 0.90,
@@ -349,7 +447,7 @@ const CONFIG = {
             name: "MG-3",
             damage: 8,
             rof: 8,
-            range: 500,
+            range: 550,
             projectileSpeed: 650,
             projectileColor: '#bb8800',
             accuracyStationary: 0.90,
@@ -367,7 +465,7 @@ const CONFIG = {
             name: "MG-4",
             damage: 9,
             rof: 8,
-            range: 500,
+            range: 570,
             projectileSpeed: 700,
             projectileColor: '#aa7700',
             accuracyStationary: 0.90,
@@ -385,7 +483,7 @@ const CONFIG = {
             name: "ALG-1",
             damage: 10,
             rof: 10,
-            range: 600,
+            range: 590,
             projectileSpeed: 800,
             projectileColor: '#996600',
             accuracyStationary: 0.95,
@@ -403,7 +501,7 @@ const CONFIG = {
             name: "ALG-2",
             damage: 12,
             rof: 11,
-            range: 700,
+            range: 600,
             projectileSpeed: 850,
             projectileColor: '#66ffcc',
             accuracyStationary: 0.99,
@@ -421,7 +519,7 @@ const CONFIG = {
             name: "Raccoon Maverick MG",
             damage: 7,
             rof: 7,
-            range: 500,
+            range: 580,
             projectileSpeed: 750,
             projectileColor: '#ff6699',
             accuracyStationary: 0.90,
@@ -764,7 +862,7 @@ const CONFIG = {
             accuracyMoving: 0.3,
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.5,
-            bulletLifetime: 1.8,
+            bulletLifetime: 0.8,
             bulletSize: 5,
             bulletSpritePath: 'assets/images/projectiles/bullet_g14_1.png',
             bulletSpriteScale: 0.7,
@@ -774,22 +872,22 @@ const CONFIG = {
             pelletCount: 3,
             spreadAngle: 0.15,
             crateColor: '#ffaa00',
-            crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/g14.png',
-            crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/g14_empty.png',
+            crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/s400.png',
+            crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/s400_empty.png',
             phaseUnlocked: 4,
         },
         SG7: {
             name: "SG-7",
             damage: 42,
             rof: 6.5,
-            range: 400,
+            range: 450,
             projectileSpeed: 650,
             projectileColor: '#ffaa00',
             accuracyStationary: 0.5,
             accuracyMoving: 0.3,
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.5,
-            bulletLifetime: 1.8,
+            bulletLifetime: 1.0,
             bulletSize: 5,
             bulletSpritePath: 'assets/images/projectiles/bullet_g14_1.png',
             bulletSpriteScale: 0.7,
@@ -820,7 +918,7 @@ const CONFIG = {
     // =============================================================================
     AI: {
         POSSUM_GRUNT: {
-            DETECTION_RANGE: 150,
+            DETECTION_RANGE: 200,
             PATROL_MIN_RADIUS: 80,
             PATROL_MAX_RADIUS: 200,
             PATROL_POINT_WORLD_MARGIN_BUFFER: 20,
@@ -844,14 +942,14 @@ const CONFIG = {
             CHASE_DESTINATION_REFRESH_INTERVAL: 1.5,
             CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 3,
             MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY: 40,
-            ENGAGE_RANGE_BUFFER: 5,
+            ENGAGE_RANGE_BUFFER: 25,
             MAX_CONSECUTIVE_STUCK_ATTEMPTS: 3,
             STUCK_ENGAGE_NUDGE_FACTOR: 2.0,
             STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
             DESPERATE_STUCK_MOVE_RADIUS_CELLS: 4,
         },
         POSSUM_SNIPER: {
-            DETECTION_RANGE: 550,
+            DETECTION_RANGE: 450,
             SETUP_TIME_SECONDS: 2.5,
             FIRE_COOLDOWN_SECONDS: 5.0,
             REPOSITION_CHANCE_AFTER_SHOT: 0.6,
@@ -913,7 +1011,7 @@ const CONFIG = {
             }
         },
         POSSUM_REVOLVER: {
-            DETECTION_RANGE: 280,
+            DETECTION_RANGE: 380,
             RELOAD_TIME_SECONDS: 2.0,
             BURST_SIZE: 8,
             STRAFE_DISTANCE: 75,
@@ -1040,6 +1138,8 @@ const CONFIG = {
         ROF_JITTER_PERCENTAGE: 0.20
     },
 
+    PROJECTILE_SPRITE_OFFSET_Y: 5,
+
     PROJECTILES: {
         BULLET: {
             LIFETIME: 0.7,
@@ -1140,10 +1240,6 @@ const CONFIG = {
         { normal: 'possum_warehouse.png', destroyed: 'possum_building_large_1.png' },
     ],
 
-    EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH: 'assets/images/objects/possums/huts/',
-    EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES: [
-        { normal: 'possum_hut_6.png', destroyed: 'possum_hut_4_destroyed.png' }
-    ],
     EMPTY_POSSUM_HUT_2_SPRITE_PATH: 'assets/images/objects/possums/huts/',
     EMPTY_POSSUM_HUT_2_SPRITE_FILES: [
         { normal: 'possum_hut_round_1_jungle.png', destroyed: 'possum_hut_2_destroyed.png' },
@@ -1218,7 +1314,7 @@ const CONFIG = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
             spriteScale: 0.5,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.985), height: (h => h * 0.015) },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.96), height: (h => h * 0.015) },
             canBeFlipped: true,
             placementBuffer: 160,
         },
@@ -1274,140 +1370,6 @@ const CONFIG = {
             flameCount: 4,
             flameOffsetY: 0,
         },
-
-        {
-            type: 'possum_barracks_1', name: 'Possum Barracks', color: '#62a170',
-            destructible: true, hp: 120, maxHp: 120,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0, phaseUnlocked: 2,
-            spriteScale: 0.7,
-            spriteDestroyedScale: 0.7,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.5), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
-            isDecoration: false,
-            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
-            canBeFlipped: true,
-            decorationBuffer: 200,
-            placementBuffer: 350,
-            initialGuardPack: {
-                enabled: true,
-                countRange: [2, 6],
-                countPerPhaseBonus: 0.3,
-                spawnRadius: 300,
-                unitPool: [
-                    { type: 'possum_grunt', weight: 10 },
-                    { type: 'possum_heavy', weight: 5 },
-                    { type: 'possum_sniper', weight: 0.4 },
-                    { type: 'possum_elite', weight: 0.2 }
-                ]
-            }
-        },
-        {
-            type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
-            destructible: true, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0, phaseUnlocked: 1,
-            spriteScale: 0.7,
-            spriteDestroyedScale: 0.7,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.58), radiusX: (w => w * 0.3), radiusY: (h => h * 0.18) },
-            isDecoration: false,
-            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
-            canBeFlipped: true,
-            placementBuffer: 480,
-            decorationBuffer: 200,
-            initialGuardPack: {
-                enabled: true,
-                countRange: [2, 4],
-                countPerPhaseBonus: 0.3,
-                spawnRadius: 280,
-                unitPool: [
-                    { type: 'possum_grunt', weight: 10 },
-                    { type: 'possum_heavy', weight: 5 },
-                    { type: 'possum_sniper', weight: 0.4 },
-                    { type: 'possum_elite', weight: 0.2 }
-                ]
-            }
-        },
-        {
-            type: 'possum_hut_round', name: 'Round Possum Hut', color: '#8B4513',
-            destructible: true, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 0, phaseUnlocked: 1,
-            spriteScale: 0.3,
-            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_4_destroyed.png',
-            spriteDestroyedScale: 0.3,
-            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.42), radius: (w => w * 0.3) },
-            isDecoration: false,
-            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
-            canBeFlipped: true,
-            placementBuffer: 280,
-            initialGuardPack: {
-                enabled: true,
-                countRange: [2, 4],
-                countPerPhaseBonus: 0.3,
-                spawnRadius: 280,
-                unitPool: [
-                    { type: 'possum_grunt', weight: 10 },
-                    { type: 'possum_heavy', weight: 5 },
-                    { type: 'possum_sniper', weight: 0.4 },
-                    { type: 'possum_elite', weight: 0.2 }
-                ]
-            }
-        },
-        {
-            type: 'general_possum_building_large', name: 'Large Possum Building', color: '#8B4513',
-            destructible: false,
-            blocksMovement: true, providesCover: true,
-            isDecoration: false,
-            canBeFlipped: true,
-            spawnWeight: 2, phaseUnlocked: 3,
-            spriteScale: 0.5,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.53), radiusX: (w => w * 0.37), radiusY: (h => h * 0.26) },
-            placementBuffer: 350,
-            initialGuardPack: {
-                enabled: true,
-                countRange: [2, 6],
-                countPerPhaseBonus: 0.3,
-                spawnRadius: 350,
-                unitPool: [
-                    { type: 'possum_grunt', weight: 5 },
-                    { type: 'possum_heavy', weight: 5 },
-                    { type: 'possum_sniper', weight: 1 },
-                    { type: 'possum_elite', weight: 0.5 },
-                    { type: 'possum_eliteGuard', weight: 0.2 }
-                ]
-            }
-        },
-        {
-            type: 'empty_possum_hut_round', name: 'Empty Round Possum Hut', color: '#8B4513',
-            destructible: true, hp: 300, maxHp: 300,
-            blocksMovement: true, providesCover: true,
-            canBeFlipped: true,
-            isDecoration: false,
-            spawnWeight: 3, phaseUnlocked: 1,
-            spriteScale: 0.6,
-            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_4_destroyed.png',
-            spriteDestroyedScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.23) },
-            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
-            placementBuffer: 150,
-            decorationBuffer: 200,
-        },
-        {
-            type: 'empty_possum_hut_2', name: 'Empty Possum Hut', color: '#8B4513',
-            destructible: true, hp: 400, maxHp: 400,
-            blocksMovement: true, providesCover: true,
-            isDecoration: false,
-            canBeFlipped: true,
-            spawnWeight: 3, phaseUnlocked: 2,
-            spriteScale: 0.6,
-            spriteDestroyed: 'assets/images/objects/possums/huts/possum_hut_2_destroyed.png',
-            spriteDestroyedScale: 0.6,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
-            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
-            placementBuffer: 150,
-            decorationBuffer: 200,
-        },
-
 
         {
             type: 'possum_relay_tower', name: 'Possum Relay Tower', color: '#8B4513',
@@ -1585,20 +1547,15 @@ const CONFIG = {
             MIN_WIDTH: 680,
             MAX_WIDTH: 900,
             WIDTH_FACTOR: 0.80,
-            MIN_HEIGHT: 280,
-            MAX_HEIGHT: 500,
+            MIN_HEIGHT: 400,
+            MAX_HEIGHT: 700,
             HEIGHT_FACTOR: 0.2,
-            INTERNAL_PADDING_FACTOR: 80.0,
+            INTERNAL_PADDING_FACTOR: 20.0,
             PLAYER_SPAWN_ZONE_RESTRICTED_OBSTACLE_TYPES_GENERIC: [
-                'possum_hut',
-                'possum_hut_round',
-                'empty_possum_hut_round',
                 'possum_relay_tower',
                 'fence_barbed_straight_short',
                 'fence_barbed_straight_long',
                 'fence_barbed_straight_long_border',
-                'empty_possum_hut_2',
-                'general_possum_building_large',
                 'possum_turret',
                 'explosive_barrel',
                 'explosive_barrel_double',
@@ -1608,7 +1565,7 @@ const CONFIG = {
         },
         OBSTACLES: {
             BASE_COUNT: 50,
-            WORLD_SIZE_FALLBACK_FACTOR: 0.95,
+            WORLD_SIZE_FALLBACK_FACTOR: 0.9,
             RANDOM_ADDITION_MAX: 10,
             PLACEMENT_MAX_ATTEMPTS: 5
         },
@@ -1621,7 +1578,7 @@ const CONFIG = {
         PLAYER_SPAWN_PLACEMENT: {
             MAX_ATTEMPTS: 5,
             FALLBACK_SPACING_FACTOR: 10.0,
-            PLAYER_SPAWN_AREA: 0.2
+            PLAYER_SPAWN_AREA: 0.5
         },
         DECORATIONS: {
             GRASS_CLUTTER: {
@@ -1716,9 +1673,9 @@ const CONFIG = {
             INITIAL_SPAWN_DELAY_SECONDS_MAX: 1,
             PLAYER_PROXIMITY_TRIGGER_RADIUS: 400,
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -125,
-            SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -85,
+            SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -55,
             SPAWN_AREA_WIDTH: 80,
-            SPAWN_PHASING_DURATION: 1.85,
+            SPAWN_PHASING_DURATION: 0.05,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
@@ -1749,7 +1706,7 @@ const CONFIG = {
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -150,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -80,
             SPAWN_AREA_WIDTH: 150,
-            SPAWN_PHASING_DURATION: 1.85,
+            SPAWN_PHASING_DURATION: 0.5,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
@@ -1880,6 +1837,18 @@ const CONFIG = {
             VELOCITY_Y: -25,
             ICON_Y_OFFSET: -10,
             ICON_SIZE: 24
+        },
+
+        // =============================================================================
+        // WATER_SWIRL
+        // =============================================================================
+        WATER_SWIRL: {
+            ENABLED: false,
+            SWIRL_STRENGTH: 0.35,
+            DRIFT_AMPLITUDE: 0.5,
+            DRIFT_SPEED_X: 0.1,
+            DRIFT_SPEED_Y: 0.2,
+            DRIFT_FREQUENCY: 0.03,
         }
     },
 
@@ -1928,6 +1897,11 @@ const CONFIG = {
     // =============================================================================
     DEFAULT_WORLD_BACKGROUND_COLOR: '#417021',
     WORLD_MUD_RANDOM_ROTATION: false,
+    WORLD_MUD_CLUMP_CHANCE: 0.35,
+    WORLD_MUD_CLUMP_MIN: 2,
+    WORLD_MUD_CLUMP_MAX: 5,
+    WORLD_MUD_CLUMP_RADIUS: 32,
+    WORLD_MUD_NOISE_DENSITY_SCALE: 0.008,
     RACCOON_FACE_IMAGE_PATH: 'assets/images/raccoons/',
     RACCOON_FACE_IMAGES: [
         'face1.png', 'face2.png', 'face3.png', 'face4.png', 'face5.png', 'face6.png', 'face7.png', 'face8.png',
@@ -2325,166 +2299,49 @@ const CONFIG = {
         },
 
         BACKGROUNDS: {
+            // TROPICAL
             JUNGLE_ATTACK: {
                 NAME: 'Jungle Attack',
-                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_1.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":355,"y":1087,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":100,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":false}}},
-                    {"x":435,"y":908,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":100,"scale":1.5,"showInDevMode":false}}},
-                    {"x":867,"y":1095,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":110,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},
-                    {"x":1109,"y":880,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},
-                    {"x":1403,"y":803,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":65,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},
-                    {"x":1635,"y":932,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":200,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":40,"peekOffset":130,"scale":1.8,"showInDevMode":true}}},
-                    {"x":516,"y":896,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":175,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},
-                    {"x":212,"y":196,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":90,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},
-                    {"x":745,"y":337,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}},
-                    {"x":1064,"y":407,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":40,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":912,"y":891,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":1604,"y":853,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":100,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
-                ]
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_1.png'
             },
             
             JUNGLE_RUINS: {
                 NAME: 'Jungle Ruins',
-                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_2.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":1013,"y":762,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":95,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":130,"scale":1.6,"showInDevMode":false}}},
-                    {"x":476,"y":765,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":90,"scale":1.5,"showInDevMode":false}}},
-                    {"x":1184,"y":603,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":65,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":1.2,"showInDevMode":true}}},
-                    {"x":1264,"y":766,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":125,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":100,"scale":1.4,"showInDevMode":true}}},
-                    {"x":1053,"y":1070,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":80,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":100,"scale":1.8,"showInDevMode":true}}},
-                    {"x":674,"y":780,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":95,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":85,"scale":1.4,"showInDevMode":true}}},
-                    {"x":918,"y":543,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":50,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":0.7,"showInDevMode":true}}},
-                    {"x":1015,"y":542,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":45,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":55,"scale":0.8,"showInDevMode":true}}},
-                    {"x":701,"y":1056,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":1038,"y":711,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":50,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":1654,"y":761,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":100,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":110,"y":430,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
-                ]
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_2.png'
             },
 
             JUNGLE_AMBUSH: {
                 NAME: 'Jungle Ambush',
-                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_3.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":382,"y":1107,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},{"x":566,"y":860,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":70,"scale":1.5,"showInDevMode":true}}},{"x":760,"y":829,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":160,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},{"x":1295,"y":87,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":60,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},{"x":1276,"y":956,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":195,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},{"x":1744,"y":926,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":200,"scale":1.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":40,"peekOffset":115,"scale":1.9,"showInDevMode":true}}},{"x":759,"y":916,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":130,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},{"x":347,"y":245,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":100,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},{"x":1046,"y":771,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}},{"x":600,"y":523,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
-                ]
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_3.png'
             },
             
             JUNGLE_RUINS_2: {
                 NAME: 'Jungle Ruins 2',
-                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_4.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":202,"y":945,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":200,"scale":2,"showInDevMode":true},"heavy":{"enabled":true,"weight":0,"peekOffset":195,"scale":2.3,"showInDevMode":true}}},
-                    {"x":464,"y":710,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":1.3,"showInDevMode":true},"heavy":{"enabled":true,"weight":0,"peekOffset":95,"scale":1.4,"showInDevMode":true}}},
-                    {"x":903,"y":605,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":65,"scale":1,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":true,"weight":30,"peekOffset":90,"scale":1,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":1176,"y":610,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":80,"scale":1,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":1.2,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":1354,"y":964,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":110,"scale":2,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":true,"weight":30,"peekOffset":105,"scale":2,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":975,"y":1052,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":45,"scale":2.6,"bulletOffset":{"x":-3,"y":11},"showInDevMode":false},"heavy":{"enabled":true,"weight":30,"peekOffset":50,"scale":3,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":745,"y":882,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":60,"scale":1.3,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":false,"weight":30,"peekOffset":50,"scale":1.2,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}},
-                    {"x":1325,"y":699,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":70,"peekOffset":70,"scale":1.1,"bulletOffset":{"x":-3,"y":11},"showInDevMode":true},"heavy":{"enabled":true,"weight":30,"peekOffset":80,"scale":1.2,"bulletOffset":{"x":5,"y":2},"showInDevMode":true}}}
-                ]
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_4.png'
             },
             RAINFOREST_BATTLE_1: {
                 NAME: 'Rainforest Battle',
-                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_6.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":558,"y":852,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":746,"y":890,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":80,"scale":1.6,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":1504,"y":1075,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":2.1,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":170,"scale":2.1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":1120,"y":755,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":60,"scale":0.7,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":663,"y":436,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":80,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":365,"y":1106,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":195,"scale":1.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":1455,"y":715,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":150,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":false},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":1167,"y":888,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":120,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":807,"y":781,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":115,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                    {"x":841,"y":1107,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":130,"scale":1.9,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":105,"scale":2.2,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
-                ]
+                IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_6.png'
             },
+            // TEMPERATE
             TEMPERATE_FOREST_1: {
                 NAME: 'Pine Attack',
-                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_1.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":460,"y":1108,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":false},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
-                    {"x":1467,"y":914,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1673,"y":848,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":585,"y":832,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1418,"y":921,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":717,"y":826,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":303,"y":87,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1166,"y":762,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1538,"y":667,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":849,"y":702,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":600,"y":643,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1300,"y":653,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":90,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":916,"y":712,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}}
-
-                ]
+                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_1.png'
             },
             TEMPERATE_FOREST_2: {
                 NAME: 'Meadow Massacre',
-                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_2.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":461,"y":1108,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":false},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
-                    {"x":1581,"y":584,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1746,"y":914,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":442,"y":791,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":10,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1315,"y":877,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":350,"y":491,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":75,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":237,"y":627,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":894,"y":749,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":45,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1281,"y":806,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":794,"y":638,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":45,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":406,"y":292,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":70,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1432,"y":568,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1250,"y":566,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":90,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":705,"y":848,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":754,"y":921,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}}
-                ]
+                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_2.png'
             },
 
             TEMPERATE_FOREST_3: {
                 NAME: 'Pine Ambush',
-                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_3.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":460,"y":1108,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":false},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
-                    {"x":1410,"y":963,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1644,"y":899,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":455,"y":837,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1316,"y":911,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":619,"y":901,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.9,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":252,"y":112,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1163,"y":747,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1265,"y":788,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":838,"y":747,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":35,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":602,"y":688,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1372,"y":190,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1046,"y":716,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":706,"y":844,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":751,"y":912,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":185,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}}
-                ]
+                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_3.png'
             },
             TEMPERATE_FOREST_EXTRACTION_1: {
                 NAME: 'A Rush Of Blood',
-                IMAGE: 'assets/images/shootouts/temperate/shootout_temperate_extraction_1.png',
-                TREE_SPAWN_POSITIONS: [
-                    {"x":460,"y":1108,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":false},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
-                    {"x":1410,"y":963,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":0.7,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1644,"y":899,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":455,"y":837,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1316,"y":911,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":619,"y":901,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.9,"showInDevMode":false},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":252,"y":112,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1163,"y":747,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":110,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1265,"y":788,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":95,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":838,"y":747,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":35,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":602,"y":688,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":125,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1372,"y":190,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":1046,"y":716,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":65,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":706,"y":844,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},
-                    {"x":751,"y":912,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":185,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}}
-                ]
+                IMAGE: 'assets/images/shootouts/temperate/shootout_temperate_extraction_1.png'
             },
+            // JUNKYARD
 
         },
 
@@ -2499,8 +2356,14 @@ const CONFIG = {
         AMBUSH_ELIMINATION_COUNT: 15,
         AMBUSH_NIGHT_MODE_ENABLED: true,
         AMBUSH_BACKGROUNDS: {
-                TROPICAL: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK', 'JUNGLE_RUINS_2', 'JUNGLE_AMBUSH', 'JUNGLE_RUINS'],
-                TEMPERATE: ['TEMPERATE_FOREST_1', 'TEMPERATE_FOREST_2', 'TEMPERATE_FOREST_3', 'TEMPERATE_FOREST_EXTRACTION_1',]
+                TROPICAL: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK', 'JUNGLE_RUINS_2', 'JUNGLE_AMBUSH', 'JUNGLE_RUINS', 'TROPICAL_EXTRACTION_BATTLE_1',],
+                TEMPERATE: ['TEMPERATE_FOREST_1', 'TEMPERATE_FOREST_2', 'TEMPERATE_FOREST_3', 'TEMPERATE_FOREST_EXTRACTION_1'],
+                JUNKYARD: ['JUNKYARD_BATTLE_1', 'JUNKYARD_ATTACK',]
+            },
+        AMBUSH_EXTRACTION_BACKGROUNDS: {
+                TROPICAL: ['TROPICAL_EXTRACTION_BATTLE_1',],
+                TEMPERATE: ['TEMPERATE_FOREST_EXTRACTION_1',],
+                JUNKYARD: ['JUNKYARD_BATTLE_1',]
             },
         AMBUSH_UNLOCKS_PHASE: 2,
 

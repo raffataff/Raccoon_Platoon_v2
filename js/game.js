@@ -46,6 +46,7 @@ class Game {
         this.delayedSpeech = [];
         this.intelConsoles = [];
         this.possumTurrets = [];
+        this.waterEffects = [];
         this.preloadedImages = {};
         this.audioManager = new AudioManager();
         this.musicManager = new MusicManager(this.audioManager);
@@ -54,7 +55,7 @@ class Game {
         }
 
         this.spatialGrid = null;
-        this.SPATIAL_GRID_CELL_SIZE = CONFIG.GRID_CELL_SIZE * 4;
+        this.SPATIAL_GRID_CELL_SIZE = CONFIG.PATHFINDING.GRID_CELL_SIZE * CONFIG.SPATIAL_GRID.CELL_SIZE_FACTOR;
 
         this.projectilePool = new ObjectPool(Projectile, 50, this);
         this.grenadeProjectilePool = new ObjectPool(GrenadeProjectile, 10, this);
@@ -270,7 +271,58 @@ class Game {
 
     toggleDebugVisuals() {
         this.isDebugVisualsActive = !this.isDebugVisualsActive;
-//        console.log(`[Game] Debug Visuals Toggled: ${this.isDebugVisualsActive ? 'ON' : 'OFF'}`);
+        if (this.ui) {
+            this.ui.updateDebugPanelVisibility();
+        }
+    }
+
+    toggleDebugNavGridBlocked() {
+        CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED = !CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED;
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugNavGridTiles() {
+        CONFIG.DEBUG_DRAW_NAV_GRID_TILES = !CONFIG.DEBUG_DRAW_NAV_GRID_TILES;
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugSpatialGrid() {
+        CONFIG.DEBUG_DRAW_SPATIAL_GRID = !CONFIG.DEBUG_DRAW_SPATIAL_GRID;
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugObstacleShapes() {
+        CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES = !CONFIG.DEBUG_DRAW_OBSTACLE_COLLISION_SHAPES;
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugObstacleNames() {
+        CONFIG.DEBUG_DRAW_OBSTACLE_NAMES = !CONFIG.DEBUG_DRAW_OBSTACLE_NAMES;
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugPathingBounds() {
+        CONFIG.DEBUG_DRAW_UNIT_PATHING_BOUNDS = !CONFIG.DEBUG_DRAW_UNIT_PATHING_BOUNDS;
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugBulletSizes() {
+        CONFIG.DEBUG_DRAW_BULLET_SIZES = !CONFIG.DEBUG_DRAW_BULLET_SIZES;
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugHutSpawnAreas() {
+        if (CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING) {
+            CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING.DEBUG_DRAW_SPAWN_AREAS = !CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING.DEBUG_DRAW_SPAWN_AREAS;
+        }
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
+    }
+
+    toggleDebugHutStatus() {
+        if (CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING) {
+            CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING.DEBUG_DRAW_HUT_STATUS_TEXT = !CONFIG.ENEMY_SPAWNING.POSSUM_HUT_SPAWNING.DEBUG_DRAW_HUT_STATUS_TEXT;
+        }
+        if (this.ui) this.ui.syncDebugPanelFromConfig();
     }
 
     getProjectileFromPool(startX, startY, targetX, targetY, damage, speed, color, shooterUnit, effectiveAccuracy) {
@@ -913,42 +965,6 @@ class Game {
             // POSSUM STRUCTURES (normal/destroyed pairs)
             // ====================
             {
-                name: 'possum_hut',
-                files: CONFIG.POSSUM_HUT_SPRITE_FILES,
-                path: CONFIG.POSSUM_HUT_SPRITE_PATH,
-                type: 'paired' // Each entry: {normal: 'x.png', destroyed: 'x_d.png'}
-            },
-            {
-                name: 'possum_barracks_1',
-                files: CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES,
-                path: CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH,
-                type: 'paired'
-            },
-            {
-                name: 'possum_hut_round',
-                files: CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES,
-                path: CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH,
-                type: 'paired'
-            },
-            {
-                name: 'possum_building_large',
-                files: CONFIG.POSSUM_BUILDING_LARGE_SPRITE_FILES,
-                path: CONFIG.POSSUM_BUILDING_LARGE_SPRITE_PATH,
-                type: 'paired'
-            },
-            {
-                name: 'empty_possum_hut_round',
-                files: CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES,
-                path: CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH,
-                type: 'paired'
-            },
-            {
-                name: 'empty_possum_hut_2',
-                files: CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES,
-                path: CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH,
-                type: 'paired'
-            },
-            {
                 name: 'possum_relay_tower',
                 files: CONFIG.POSSUM_RELAY_TOWER_SPRITE_FILES,
                 path: CONFIG.POSSUM_RELAY_TOWER_SPRITE_PATH,
@@ -1038,6 +1054,14 @@ class Game {
             { name: 'rainforest_large', files: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.files, path: TROPICAL_BIOME.spritePaths.rainforest_patch_large_1?.path, type: 'single' },
             { name: 'helipad_square', files: CONFIG.HELIPAD_SQUARE_SPRITE_FILES, path: CONFIG.HELIPAD_SQUARE_SPRITE_PATH, type: 'single' },
             { name: 'tropical_ruins', files: TROPICAL_BIOME.spritePaths.tropical_ruins?.files, path: TROPICAL_BIOME.spritePaths.tropical_ruins?.path, type: 'single' },
+            { name: 'empty_hut_round', files: TROPICAL_BIOME.spritePaths.empty_hut_round?.files, path: TROPICAL_BIOME.spritePaths.empty_hut_round?.path, type: 'single' },
+
+            // Possum structures (preloaded from biome spritePaths pairs)
+            { name: 'possum_barracks_1', files: ['possum_barracks_1.png', 'possum_barracks_1_destroyed.png', 'possum_barracks_2.png', 'possum_barracks_2_destroyed.png'], path: 'assets/images/objects/possums/barracks/', type: 'single' },
+            { name: 'possum_hut', files: ['possum_hut_1.png', 'possum_hut_1_destroyed.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
+            { name: 'possum_hut_round', files: ['possum_hut_4.png', 'possum_hut_4_destroyed.png', 'possum_hut_5.png', 'possum_hut_5_destroyed.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
+            { name: 'general_possum_building_large', files: ['possum_building_large_1.png', 'possum_warehouse.png'], path: 'assets/images/objects/possums/general/', type: 'single' },
+            { name: 'empty_possum_hut_2', files: TROPICAL_BIOME.spritePaths.empty_possum_hut_2?.files, path: TROPICAL_BIOME.spritePaths.empty_possum_hut_2?.path, type: 'single' },
             // ====================
             //TEMPERATE
             { name: 'grass_decorations', files: TEMPERATE_BIOME.spritePaths.grass_decorations?.files, path: TEMPERATE_BIOME.spritePaths.grass_decorations?.path, type: 'single' },
@@ -1069,12 +1093,32 @@ class Game {
             { name: 'pond', files: TEMPERATE_BIOME.spritePaths.pond?.files, path: TEMPERATE_BIOME.spritePaths.pond?.path, type: 'single'},
             { name: 'lake', files: TEMPERATE_BIOME.spritePaths.lake?.files, path: TEMPERATE_BIOME.spritePaths.lake?.path, type: 'single' },
             { name: 'water_well', files: TEMPERATE_BIOME.spritePaths.water_well?.files, path: TEMPERATE_BIOME.spritePaths.water_well?.path, type: 'single' },
+
+            // Possum structures (preloaded from biome spritePaths pairs)
+        /*    { name: 'possum_barracks_1', files: ['possum_barracks_1.png', 'possum_barracks_1_destroyed.png', 'possum_barracks_2.png', 'possum_barracks_2_destroyed.png'], path: 'assets/images/objects/possums/barracks/', type: 'single' },
+            { name: 'possum_hut', files: ['possum_hut_1.png', 'possum_hut_1_destroyed.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
+            { name: 'possum_hut_round', files: ['possum_hut_4.png', 'possum_hut_4_destroyed.png', 'possum_hut_5.png', 'possum_hut_5_destroyed.png'], path: 'assets/images/objects/possums/huts/', type: 'single' },
+            { name: 'general_possum_building_large', files: ['possum_building_large_1.png', 'possum_warehouse.png'], path: 'assets/images/objects/possums/general/', type: 'single' },
+            { name: 'empty_possum_hut_2', files: TEMPERATE_BIOME.spritePaths.empty_possum_hut_2?.files, path: TEMPERATE_BIOME.spritePaths.empty_possum_hut_2?.path, type: 'single' },
+        */
             // ====================
             // JUNKYARD SPRITE SETS
+            { name: 'mud', files: JUNKYARD_BIOME.spritePaths.mud?.files, path: JUNKYARD_BIOME.spritePaths.mud?.path, type: 'single' },
             { name: 'junk_small_round', files: JUNKYARD_BIOME.spritePaths.junk_small_round?.files, path: JUNKYARD_BIOME.spritePaths.junk_small_round?.path, type: 'single' },
             { name: 'junk_small_tall', files: JUNKYARD_BIOME.spritePaths.junk_small_tall?.files, path: JUNKYARD_BIOME.spritePaths.junk_small_tall?.path, type: 'single' },
-            { name: 'junk_vehicle', files: JUNKYARD_BIOME.spritePaths.junk_vehicle?.files, path: JUNKYARD_BIOME.spritePaths.junk_vehicle?.path, type: 'single' },
-
+            { name: 'junk_vehicle_small', files: JUNKYARD_BIOME.spritePaths.junk_vehicle_small?.files, path: JUNKYARD_BIOME.spritePaths.junk_vehicle_small?.path, type: 'single' },
+            { name: 'junk_vehicle_large', files: JUNKYARD_BIOME.spritePaths.junk_vehicle_large?.files, path: JUNKYARD_BIOME.spritePaths.junk_vehicle_large?.path, type: 'single' },
+            { name: 'vehicle_heap_small', files: JUNKYARD_BIOME.spritePaths.vehicle_heap_small?.files, path: JUNKYARD_BIOME.spritePaths.vehicle_heap_small?.path, type: 'single' },
+            { name: 'vehicle_heap_large', files: JUNKYARD_BIOME.spritePaths.vehicle_heap_large?.files, path: JUNKYARD_BIOME.spritePaths.vehicle_heap_large?.path, type: 'single' },
+            { name: 'trash_heap_small', files: JUNKYARD_BIOME.spritePaths.trash_heap_small?.files, path: JUNKYARD_BIOME.spritePaths.trash_heap_small?.path, type: 'single' },
+            { name: 'trash_heap_large', files: JUNKYARD_BIOME.spritePaths.trash_heap_large?.files, path: JUNKYARD_BIOME.spritePaths.trash_heap_large?.path, type: 'single' },
+            { name: 'trashbag_heap_small', files: JUNKYARD_BIOME.spritePaths.trashbag_heap_small?.files, path: JUNKYARD_BIOME.spritePaths.trashbag_heap_small?.path, type: 'single' },
+            { name: 'trashbag_heap_medium1', files: JUNKYARD_BIOME.spritePaths.trashbag_heap_medium1?.files, path: JUNKYARD_BIOME.spritePaths.trashbag_heap_medium1?.path, type: 'single' },
+            { name: 'trashbag_heap_medium2', files: JUNKYARD_BIOME.spritePaths.trashbag_heap_medium2?.files, path: JUNKYARD_BIOME.spritePaths.trashbag_heap_medium2?.path, type: 'single' },
+            { name: 'trashbag_heap_large', files: JUNKYARD_BIOME.spritePaths.trashbag_heap_large?.files, path: JUNKYARD_BIOME.spritePaths.trashbag_heap_large?.path, type: 'single' },
+            { name: 'junkyard_building_medium', files: JUNKYARD_BIOME.spritePaths.junkyard_building_medium?.files, path: JUNKYARD_BIOME.spritePaths.junkyard_building_medium?.path, type: 'single' },
+            { name: 'junkyard_building_large', files: JUNKYARD_BIOME.spritePaths.junkyard_building_large?.files, path: JUNKYARD_BIOME.spritePaths.junkyard_building_large?.path, type: 'single' },
+            
             // ====================
             // INTEL CONSOLES (on/off pairs)
             // ====================
@@ -1274,6 +1318,11 @@ class Game {
         const clumpMin = biomeLevelGen.WORLD_GRASS_CLUMP_MIN ?? CONFIG.WORLD_GRASS_CLUMP_MIN ?? 2;
         const clumpMax = biomeLevelGen.WORLD_GRASS_CLUMP_MAX ?? CONFIG.WORLD_GRASS_CLUMP_MAX ?? 4;
         const clumpRadius = biomeLevelGen.WORLD_GRASS_CLUMP_RADIUS ?? CONFIG.WORLD_GRASS_CLUMP_RADIUS ?? 24;
+        const mudClumpChance = biomeLevelGen.WORLD_MUD_CLUMP_CHANCE ?? CONFIG.WORLD_MUD_CLUMP_CHANCE ?? 0.35;
+        const mudClumpMin = biomeLevelGen.WORLD_MUD_CLUMP_MIN ?? CONFIG.WORLD_MUD_CLUMP_MIN ?? 2;
+        const mudClumpMax = biomeLevelGen.WORLD_MUD_CLUMP_MAX ?? CONFIG.WORLD_MUD_CLUMP_MAX ?? 5;
+        const mudClumpRadius = biomeLevelGen.WORLD_MUD_CLUMP_RADIUS ?? CONFIG.WORLD_MUD_CLUMP_RADIUS ?? 32;
+        const mudNoiseDensityScale = biomeLevelGen.WORLD_MUD_NOISE_DENSITY_SCALE ?? CONFIG.WORLD_MUD_NOISE_DENSITY_SCALE ?? 0.008;
 
         const mudSpritePath = biome.spritePaths.mud?.path || CONFIG.MUD_SPRITE_PATH || '';
         const mudSpriteFiles = biome.spritePaths.mud?.files || CONFIG.MUD_SPRITE_FILES || [];
@@ -1290,30 +1339,54 @@ class Game {
         const doRandomRotation = biomeLevelGen.WORLD_MUD_RANDOM_ROTATION !== undefined ? biomeLevelGen.WORLD_MUD_RANDOM_ROTATION : (CONFIG.WORLD_MUD_RANDOM_ROTATION !== undefined ? CONFIG.WORLD_MUD_RANDOM_ROTATION : true);
 
         if (hasMudSprites) {
+            const drawMudSprite = (mudImg, effectiveX, drawY) => {
+                const offsetX = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 1.8;
+                const offsetY = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 1.8;
+                const rotation = doRandomRotation ? localRng.nextFloat(0, Math.PI * 2) : 0;
+                const flipH = localRng.chance(0.5) ? -1 : 1;
+                const drawX = effectiveX + offsetX;
+                const centerX = drawX + mudTileSize / 2;
+                const centerY = drawY + mudTileSize / 2;
+                ctx.save();
+                ctx.translate(centerX, centerY);
+                ctx.rotate(rotation);
+                ctx.scale(flipH, 1);
+                ctx.drawImage(mudImg, -mudTileSize / 2, -mudTileSize / 2, mudTileSize, mudTileSize);
+                ctx.restore();
+            };
+
             const mudStepX = mudTileSize * (1 - mudOverlapFactor + 0.1);
             const mudStepY = mudTileSize * (1 - mudOverlapFactor);
             for (let y = -mudTileSize * mudOverlapFactor; y < worldHeight; y += mudStepY) {
                 const rowOffset = (Math.floor((y + mudTileSize * mudOverlapFactor) / mudStepY) % 2 === 1) ? mudStepX / 2 : 0;
                 for (let x = -mudTileSize * mudOverlapFactor; x < worldWidth; x += mudStepX) {
                     const effectiveX = x + rowOffset;
+
+                    const densityNoise = localRng.fbm(effectiveX * mudNoiseDensityScale, y * mudNoiseDensityScale, 3, 2, 0.5);
+                    const localDensity = Math.max(0.3, Math.min(1.0, densityNoise * 0.5 + 0.5));
+
                     const randomMudSprite = localRng.pickFrom(mudSpriteFiles);
                     const mudSpriteFullPath = mudSpritePath + randomMudSprite;
                     const mudImg = this.preloadedImages[mudSpriteFullPath];
                     if (mudImg) {
-                        const mudOffsetX = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.8;
-                        const mudOffsetY = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 0.8;
-                        const rotation = doRandomRotation ? localRng.nextFloat(0, Math.PI * 2) : 0;
-                        const flipH = localRng.chance(0.5) ? -1 : 1;
-                        const drawX = effectiveX + mudOffsetX;
-                        const drawY = y + mudTileSize / 2;
-                        const centerX = drawX + mudTileSize / 2;
-                        const centerY = drawY + mudTileSize / 2;
-                        ctx.save();
-                        ctx.translate(centerX, centerY);
-                        ctx.rotate(rotation);
-                        ctx.scale(flipH, 1);
-                        ctx.drawImage(mudImg, -mudTileSize / 2, -mudTileSize / 2, mudTileSize, mudTileSize);
-                        ctx.restore();
+                        drawMudSprite(mudImg, effectiveX, y);
+
+                        const adjustedClumpChance = mudClumpChance * localDensity;
+                        if (adjustedClumpChance > 0 && localRng.chance(adjustedClumpChance)) {
+                            const mudClumpCount = localRng.nextInt(mudClumpMin, mudClumpMax);
+                            for (let i = 0; i < mudClumpCount; i++) {
+                                const angle = localRng.next() * Math.PI * 2;
+                                const dist = localRng.next() * mudClumpRadius;
+                                const clumpX = effectiveX + Math.cos(angle) * dist;
+                                const clumpY = y + Math.sin(angle) * dist;
+                                const clumpSprite = localRng.pickFrom(mudSpriteFiles);
+                                const clumpFullPath = mudSpritePath + clumpSprite;
+                                const clumpImg = this.preloadedImages[clumpFullPath];
+                                if (clumpImg) {
+                                    drawMudSprite(clumpImg, clumpX, clumpY);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1626,6 +1699,16 @@ class Game {
             this.enemyUnits.forEach(unit => this.spatialGrid.addObject(unit));
             this.hostageUnits.forEach(unit => this.spatialGrid.addObject(unit));
             // --- MODIFICATION END ---
+
+            this.waterEffects = [];
+            const WATER_TYPES = ['pond', 'lake', 'tropical_pond', 'water_well'];
+            if (this.level && this.level.obstacles) {
+                for (const obs of this.level.obstacles) {
+                    if (WATER_TYPES.includes(obs.type) && obs.imageNormal) {
+                        this.waterEffects.push(new WaterSwirlEffect(obs));
+                    }
+                }
+            }
 
             this.deployedSquadRoster.forEach((raccoon, index) => {
                 if (playerSpawnLocations[index]) { raccoon.x = playerSpawnLocations[index].x; raccoon.y = playerSpawnLocations[index].y; raccoon.worldTargetX = raccoon.x; raccoon.worldTargetY = raccoon.y; raccoon.game = this; }
@@ -2206,7 +2289,7 @@ class Game {
                 if (unit.isAlive() && unit.team === 'player') {
                     const rawPoint = formationPoints[index] || { x: worldX, y: worldY };
                     const targetPoint = this.snapToWalkableCell(rawPoint.x, rawPoint.y);
-                    unit.setMoveTarget(targetPoint.x, targetPoint.y);
+                    unit.setMoveTarget(targetPoint.x, targetPoint.y, this.selectedUnits);
                 }
             });
         }
@@ -2240,10 +2323,11 @@ class Game {
 
         const formationPoints = this.calculateFormationPoints(centerX, centerY, nonSelectedTeammates, this.currentFormationType);
 
+        const allMovingUnits = [...selectedTeammates, ...nonSelectedTeammates];
         nonSelectedTeammates.forEach((unit, index) => {
             const rawPoint = formationPoints[index] || { x: centerX, y: centerY };
             const targetPoint = this.snapToWalkableCell(rawPoint.x, rawPoint.y);
-            unit.setMoveTarget(targetPoint.x, targetPoint.y);
+            unit.setMoveTarget(targetPoint.x, targetPoint.y, allMovingUnits);
         });
 
         if (this.ui) this.ui.showToast("Backup requested!", "info");
@@ -4252,6 +4336,8 @@ class Game {
             allUnitsInGame.push(...this.hostageUnits);
         }
 
+        this._cachedAllUnits = allUnitsInGame;
+
         allUnitsInGame.forEach(unit => {
             if (unit && typeof unit.update === 'function') {
                 const oldGridCells = unit._spatialGridCells ? new Set(unit._spatialGridCells) : null;
@@ -4338,6 +4424,11 @@ class Game {
         this.visualEffects = this.visualEffects.filter(effect => {
             if (effect) effect.update(deltaTime);
             return effect && !effect.isMarkedForDeletion;
+        });
+
+        this.waterEffects = this.waterEffects.filter(effect => {
+            if (effect) effect.update(deltaTime);
+            return true;
         });
 
         if (CONFIG.SCENT_MARKERS && CONFIG.SCENT_MARKERS.ENABLED) {
@@ -4570,7 +4661,10 @@ class Game {
                         }
                         if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight);
                     } else if (!obj.isDestroyed && obj.imageNormal) {
-                        if (obj.isAnimated && obj.tilesheetPath && obj.frameWidth && obj.frameHeight) {
+                        const waterEffect = this.waterEffects ? this.waterEffects.find(we => we.obstacle === obj) : null;
+                        if (waterEffect) {
+                            waterEffect.render(this.ctx, obj.imageNormal);
+                        } else if (obj.isAnimated && obj.tilesheetPath && obj.frameWidth && obj.frameHeight) {
                             const tilesheetImg = this.preloadedImages[obj.tilesheetPath];
                             if (tilesheetImg) {
                                 const framesPerRow = obj.framesPerRow || 2;
@@ -4633,15 +4727,33 @@ class Game {
             this.ctx.save();
 
             // Draw Nav Grid
-            if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED && this.level && this.level.navGrid) {
+            if (this.level && this.level.navGrid) {
                 const navGrid = this.level.navGrid; const cellSize = this.level.gridCellSize;
-                this.ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; // Red for blocked
-                for (let y = 0; y < navGrid.length; y++) {
-                    for (let x = 0; x < navGrid[y].length; x++) {
-                        if (navGrid[y][x] === 1) { // 1 means blocked
-                            this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                if (CONFIG.DEBUG_DRAW_NAV_GRID_BLOCKED) {
+                    this.ctx.fillStyle = 'rgba(255, 0, 0, 0.15)'; // Red for blocked
+                    for (let y = 0; y < navGrid.length; y++) {
+                        for (let x = 0; x < navGrid[y].length; x++) {
+                            if (navGrid[y][x] === 1) { // 1 means blocked
+                                this.ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                            }
                         }
                     }
+                }
+                if (CONFIG.DEBUG_DRAW_NAV_GRID_TILES) {
+                    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+                    this.ctx.lineWidth = 1;
+                    const gridHeight = navGrid.length;
+                    const gridWidth = navGrid[0].length;
+                    this.ctx.beginPath();
+                    for (let y = 0; y <= gridHeight; y++) {
+                        this.ctx.moveTo(0, y * cellSize);
+                        this.ctx.lineTo(gridWidth * cellSize, y * cellSize);
+                    }
+                    for (let x = 0; x <= gridWidth; x++) {
+                        this.ctx.moveTo(x * cellSize, 0);
+                        this.ctx.lineTo(x * cellSize, gridHeight * cellSize);
+                    }
+                    this.ctx.stroke();
                 }
             }
 
@@ -4768,29 +4880,55 @@ class Game {
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_SPAWN_AREAS) { this.level.renderHutSpawnAreas(this.ctx); }
             if (this.level && CONFIG.ENEMY_SPAWNING?.POSSUM_HUT_SPAWNING?.DEBUG_DRAW_HUT_STATUS_TEXT) { this.ctx.fillStyle = "white"; this.ctx.font = "10px Arial"; this.ctx.textAlign = "center"; (this.level.potentialSpawnerHuts || []).forEach(hut => { if (!hut.isDestroyed) { let status = "POTENTIAL"; if (hut.isActivelySpawning) { status = hut.unitsToSpawnThisBurst > 0 ? `BURST (${hut.unitsToSpawnThisBurst} left, next in ${hut.timeUntilNextUnitInBurst.toFixed(1)}s)` : `ACTIVE (CD: ${hut.spawnCooldownTimer.toFixed(1)}s)`; } this.ctx.fillText(status, hut.x + hut.width / 2, hut.y - 5); } }); }
 
-            // Draw Pathing Lines
-            if (this.selectedUnits && this.selectedUnits.length > 0) {
-                this.ctx.strokeStyle = 'rgba(50, 150, 255, 0.7)';
-                this.ctx.fillStyle = 'rgba(50, 150, 255, 0.9)';
-                this.ctx.lineWidth = 3;
-                this.ctx.setLineDash([3, 3]);
-                this.selectedUnits.forEach(unit => {
-                    if (unit.isMoving && unit.currentPath && unit.currentPath.length > 0) {
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(unit.x, unit.y);
-                        this.ctx.lineTo(unit.currentPath[0].x, unit.currentPath[0].y);
-                        for (let i = 0; i < unit.currentPath.length - 1; i++) {
-                            this.ctx.lineTo(unit.currentPath[i + 1].x, unit.currentPath[i + 1].y);
-                        }
-                        this.ctx.stroke();
-                        unit.currentPath.forEach(node => {
-                            this.ctx.beginPath();
-                            this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2);
-                            this.ctx.fill();
-                        });
-                    }
-                });
-            }
+             // Draw Pathing Lines
+             if (this.selectedUnits && this.selectedUnits.length > 0) {
+                 this.ctx.strokeStyle = 'rgba(50, 150, 255, 0.7)';
+                 this.ctx.fillStyle = 'rgba(50, 150, 255, 0.9)';
+                 this.ctx.lineWidth = 3;
+                 this.ctx.setLineDash([3, 3]);
+                 this.selectedUnits.forEach(unit => {
+                     if (unit.isMoving && unit.currentPath && unit.currentPath.length > 0) {
+                         this.ctx.beginPath();
+                         this.ctx.moveTo(unit.x, unit.y);
+                         this.ctx.lineTo(unit.currentPath[0].x, unit.currentPath[0].y);
+                         for (let i = 0; i < unit.currentPath.length - 1; i++) {
+                             this.ctx.lineTo(unit.currentPath[i + 1].x, unit.currentPath[i + 1].y);
+                         }
+                         this.ctx.stroke();
+                         unit.currentPath.forEach(node => {
+                             this.ctx.beginPath();
+                             this.ctx.arc(node.x, node.y, 3, 0, Math.PI * 2);
+                             this.ctx.fill();
+                         });
+                     }
+                 });
+             }
+
+             // Draw Unit Collision Radii (debug)
+             if (CONFIG.DEBUG_PATHING_UNIT_ID) {
+                 const allDebugUnits = [
+                     ...(this.deployedSquadRoster || []),
+                     ...(this.enemyUnits || []),
+                     ...(this.hostageUnits || [])
+                 ];
+                 for (const unit of allDebugUnits) {
+                     if (!unit.isAlive()) continue;
+                     const isSelected = this.selectedUnits && this.selectedUnits.indexOf(unit) !== -1;
+                     const pathingRadius = (unit.size / 2) + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 10);
+                     this.ctx.beginPath();
+                     this.ctx.arc(unit.x, unit.y, unit.size / 2, 0, Math.PI * 2);
+                     this.ctx.strokeStyle = isSelected ? 'rgba(0, 255, 0, 0.6)' : 'rgba(255, 0, 0, 0.4)';
+                     this.ctx.lineWidth = 1;
+                     this.ctx.stroke();
+                     this.ctx.beginPath();
+                     this.ctx.arc(unit.x, unit.y, pathingRadius, 0, Math.PI * 2);
+                     this.ctx.strokeStyle = isSelected ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 0, 0, 0.2)';
+                     this.ctx.lineWidth = 1;
+                     this.ctx.setLineDash([2, 2]);
+                     this.ctx.stroke();
+                     this.ctx.setLineDash([]);
+                 }
+             }
 
             // Draw Unit Hitboxes for Projectile Collision
             const projectileSize = CONFIG.PROJECTILE_SIZE || 3;
@@ -5000,7 +5138,7 @@ class Game {
         }
 
         if (this.isDebugVisualsActive && CONFIG.DEBUG_DRAW_SPATIAL_GRID && this.spatialGrid) {
-            this.spatialGrid.renderDebug(this.ctx, this.cameraX, this.cameraY);
+            this.spatialGrid.renderDebug(this.ctx);
         }
 
         this.ctx.restore();
@@ -5313,10 +5451,10 @@ try {
         }
     }
 
-    trySpeech(unit, category, customChance) {
+    trySpeech(unit, category, customChance, force) {
         if (!SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED) return;
         if (!unit || !unit.isAlive()) return;
-        if (unit.speechCooldown > 0) return;
+        if (!force && unit.speechCooldown > 0) return;
         let typeKey;
         if (unit instanceof RaccoonHostage) typeKey = 'HOSTAGE';
         else if (unit instanceof Raccoon) typeKey = 'RACCOON';
@@ -5324,8 +5462,10 @@ try {
         else return;
         const options = SPEECH_CONFIG[typeKey][category];
         if (!options || options.length === 0) return;
-        const chance = (customChance !== undefined) ? customChance : SPEECH_CONFIG.GLOBAL.BASE_CHANCE;
-        if (Math.random() >= chance) return;
+        if (!force) {
+            const chance = (customChance !== undefined) ? customChance : SPEECH_CONFIG.GLOBAL.BASE_CHANCE;
+            if (Math.random() >= chance) return;
+        }
         const text = options[Math.floor(Math.random() * options.length)];
         const colorKey = 'BUBBLE_COLOR_' + typeKey;
         const color = SPEECH_CONFIG.GLOBAL[colorKey] || '#FFFFFF';
@@ -5559,13 +5699,17 @@ try {
     /**
      * Get a random background from ambush backgrounds for the given biome
      * @param {string} biomeName - Biome key (e.g. 'TROPICAL', 'TEMPERATE')
+     * @param {string} type - 'START' or 'EXTRACTION'
      * @returns {string}
      */
-    getRandomAmbushBackground(biomeName) {
+    getRandomAmbushBackground(biomeName, type = 'START') {
         const biomeKey = (biomeName && CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeName])
             ? biomeName
             : 'TROPICAL';
-        const backgrounds = CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeKey];
+        const backgrounds = type === 'EXTRACTION'
+            ? (CONFIG.SHOOTOUT_MODE.AMBUSH_EXTRACTION_BACKGROUNDS[biomeKey]
+                || CONFIG.SHOOTOUT_MODE.AMBUSH_EXTRACTION_BACKGROUNDS['TROPICAL'])
+            : CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeKey];
         return backgrounds[Math.floor(Math.random() * backgrounds.length)];
     }
 
@@ -5604,7 +5748,7 @@ try {
 
         // Get random background and night mode setting
         const biomeName = this.currentMissionParams?.baseParams?.biome;
-        const background = this.getRandomAmbushBackground(biomeName);
+        const background = this.getRandomAmbushBackground(biomeName, 'EXTRACTION');
         const isNight = this.isNightMission && CONFIG.SHOOTOUT_MODE.AMBUSH_NIGHT_MODE_ENABLED;
 
         // Store previous game state

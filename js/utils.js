@@ -329,23 +329,50 @@ function obbEllipseOverlap(obb, ellipse) {
 
 
 class PathNode {
-    /* ... (Unchanged from previous complete version) ... */
     constructor(x, y, g = 0, h = 0, parent = null) {
-        this.x = x; // grid x
-        this.y = y; // grid y
-        this.g = g; // cost from start to this node
-        this.h = h; // heuristic cost from this node to end
-        this.f = g + h; // total estimated cost
-        this.parent = parent; // parent node in the path
+        this.x = x;
+        this.y = y;
+        this.g = g;
+        this.h = h;
+        this.f = g + h;
+        this.parent = parent;
+    }
+
+    reset(x, y, g, h, parent) {
+        this.x = x;
+        this.y = y;
+        this.g = g;
+        this.h = h;
+        this.f = g + h;
+        this.parent = parent;
     }
 }
 
-function heuristic(nodeA, nodeB) { /* ... (Unchanged from previous complete version) ... */
-    const dX = Math.abs(nodeA.x - nodeB.x);
-    const dY = Math.abs(nodeA.y - nodeB.y);
-    // Diagonal distance (Octile distance)
-    const D = 1; // Cost of horizontal/vertical movement
-    const D2 = Math.SQRT2; // Cost of diagonal movement (approx 1.414)
+(function setupPathNodePool() {
+    const POOL_SIZE = 16384;
+    PathNode._pool = new Array(POOL_SIZE);
+    PathNode._poolIndex = 0;
+    for (let i = 0; i < POOL_SIZE; i++) {
+        PathNode._pool[i] = new PathNode(0, 0, 0, 0, null);
+    }
+    PathNode.acquire = function(x, y, g, h, parent) {
+        if (this._poolIndex < this._pool.length) {
+            const node = this._pool[this._poolIndex++];
+            node.reset(x, y, g, h, parent);
+            return node;
+        }
+        return new PathNode(x, y, g, h, parent);
+    };
+    PathNode.releaseAll = function() {
+        this._poolIndex = 0;
+    };
+})();
+
+function heuristic(ax, ay, bx, by) {
+    const dX = Math.abs(ax - bx);
+    const dY = Math.abs(ay - by);
+    const D = 1;
+    const D2 = Math.SQRT2;
     return D * (dX + dY) + (D2 - 2 * D) * Math.min(dX, dY);
 }
 
@@ -367,7 +394,10 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) {
         return [{ x: startPos.x, y: startPos.y }];
     }
 
-    const direct = _astar(startPos, endPos, grid, isUnitPhasing, CONFIG.PATHFINDING_MAX_EXPANSIONS);
+    const gridW = grid[0].length;
+    const gridH = grid.length;
+
+    const direct = _astar(startPos, endPos, grid, gridW, gridH, isUnitPhasing, CONFIG.PATHFINDING.PATHFINDING_MAX_EXPANSIONS);
     if (direct && direct.length > 0) {
         const last = direct[direct.length - 1];
         if (last.x === endPos.x && last.y === endPos.y) {
@@ -375,21 +405,21 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) {
         }
     }
 
-    const borderWaypoints = _findBorderWaypoints(startPos, endPos, grid, isUnitPhasing);
+    const borderWaypoints = _findBorderWaypoints(startPos, endPos, grid, gridW, gridH, isUnitPhasing);
     if (borderWaypoints.length > 0) {
-        const perLeg = Math.floor(CONFIG.PATHFINDING_MAX_EXPANSIONS * 0.33);
+        const perLeg = Math.floor(CONFIG.PATHFINDING.PATHFINDING_MAX_EXPANSIONS * CONFIG.PATHFINDING.BORDER_LEG_EXPANSION_FRACTION);
         for (const wp of borderWaypoints) {
-            const first = _astar(startPos, wp, grid, isUnitPhasing, perLeg);
+            const first = _astar(startPos, wp, grid, gridW, gridH, isUnitPhasing, perLeg);
             if (!first || first.length === 0) continue;
-            const second = _astar(wp, endPos, grid, isUnitPhasing, perLeg);
+            const second = _astar(wp, endPos, grid, gridW, gridH, isUnitPhasing, perLeg);
             if (!second || second.length === 0) continue;
             first.pop();
             return first.concat(second);
         }
         for (const wp of borderWaypoints) {
-            const first = _astar(startPos, wp, grid, isUnitPhasing, perLeg);
+            const first = _astar(startPos, wp, grid, gridW, gridH, isUnitPhasing, perLeg);
             if (!first || first.length === 0) continue;
-            const second = _astar(wp, endPos, grid, isUnitPhasing, perLeg * 2);
+            const second = _astar(wp, endPos, grid, gridW, gridH, isUnitPhasing, perLeg * 2);
             if (!second || second.length === 0) {
                 if (first.length > 1) return first;
                 continue;
@@ -406,9 +436,7 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) {
     return null;
 }
 
-function _findBorderWaypoints(startPos, endPos, grid, isUnitPhasing) {
-    const gridW = grid[0].length;
-    const gridH = grid.length;
+function _findBorderWaypoints(startPos, endPos, grid, gridW, gridH, isUnitPhasing) {
     const visited = new Uint8Array(gridW * gridH);
     const queue = new Array(gridW * gridH);
     let head = 0, tail = 0;
@@ -423,10 +451,10 @@ function _findBorderWaypoints(startPos, endPos, grid, isUnitPhasing) {
     ];
 
     const borderCells = [];
-    const maxSearch = 4000;
+    const maxSearch = CONFIG.PATHFINDING.BORDER_BFS_MAX_CELLS;
     let searched = 0;
 
-    while (head < tail && searched < maxSearch && borderCells.length < 20) {
+    while (head < tail && searched < maxSearch && borderCells.length < CONFIG.PATHFINDING.BORDER_MAX_CELLS_COLLECT) {
         const cx = queue[head++];
         const cy = queue[head++];
         searched++;
@@ -449,7 +477,7 @@ function _findBorderWaypoints(startPos, endPos, grid, isUnitPhasing) {
             const sdx = cx - startPos.x;
             const sdy = cy - startPos.y;
             const distFromStart = Math.sqrt(sdx * sdx + sdy * sdy);
-            if (distFromStart > 5) {
+            if (distFromStart > CONFIG.PATHFINDING.BORDER_MIN_DISTANCE) {
                 borderCells.push({ x: cx, y: cy, score: distToGoal + distFromStart * 0.3 });
             }
         }
@@ -471,17 +499,25 @@ function _findBorderWaypoints(startPos, endPos, grid, isUnitPhasing) {
     }
 
     borderCells.sort((a, b) => a.score - b.score);
-    return borderCells.slice(0, 10);
+    return borderCells.slice(0, CONFIG.PATHFINDING.BORDER_WAYPOINTS_MAX_TRY);
 }
 
-function _astar(startPos, endPos, grid, isUnitPhasing, maxExpansions) {
-    const openList = new MinHeap();
-    const closedList = new Set();
-    const gCosts = new Map();
+function _astar(startPos, endPos, grid, gridW, gridH, isUnitPhasing, maxExpansions) {
+    const gridLen = gridW * gridH;
+    const visited = new Uint8Array(gridLen);
+    if (typeof _astar._gCosts === 'undefined' || _astar._gCosts.length < gridLen) {
+        _astar._gCosts = new Float64Array(gridLen);
+    }
+    const gCosts = _astar._gCosts;
+    gCosts.fill(Infinity, 0, gridLen);
 
-    const startNode = new PathNode(startPos.x, startPos.y, 0, heuristic(startPos, endPos));
+    const openList = new MinHeap();
+
+    const endH = heuristic(startPos.x, startPos.y, endPos.x, endPos.y);
+    const startNode = PathNode.acquire(startPos.x, startPos.y, 0, endH, null);
     openList.insert(startNode);
-    gCosts.set(`${startPos.x},${startPos.y}`, 0);
+    const startIdx = startPos.y * gridW + startPos.x;
+    gCosts[startIdx] = 0;
 
     const directions = [
         { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 },
@@ -507,12 +543,13 @@ function _astar(startPos, endPos, grid, isUnitPhasing, maxExpansions) {
                 path.push({ x: temp.x, y: temp.y });
                 temp = temp.parent;
             }
+            PathNode.releaseAll();
             return path.reverse();
         }
 
-        const curKey = `${cur.x},${cur.y}`;
-        if (closedList.has(curKey)) continue;
-        closedList.add(curKey);
+        const curIdx = cur.y * gridW + cur.x;
+        if (visited[curIdx]) continue;
+        visited[curIdx] = 1;
 
         expansions++;
         if (expansions > maxExpansions) {
@@ -522,26 +559,29 @@ function _astar(startPos, endPos, grid, isUnitPhasing, maxExpansions) {
                 path.push({ x: temp.x, y: temp.y });
                 temp = temp.parent;
             }
+            PathNode.releaseAll();
             return path.reverse();
         }
 
-        for (const dir of directions) {
+        for (let d = 0; d < 8; d++) {
+            const dir = directions[d];
             const nx = cur.x + dir.x;
             const ny = cur.y + dir.y;
-            const nKey = `${nx},${ny}`;
 
-            if (nx < 0 || nx >= grid[0].length || ny < 0 || ny >= grid.length) continue;
+            if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
             if (grid[ny][nx] === 1 && !isUnitPhasing) continue;
-            if (closedList.has(nKey)) continue;
+
+            const nIdx = ny * gridW + nx;
+            if (visited[nIdx]) continue;
 
             if (dir.x !== 0 && dir.y !== 0) {
                 if (!isUnitPhasing && grid[cur.y][cur.x + dir.x] === 1 && grid[cur.y + dir.y][cur.x] === 1) continue;
             }
 
             const newG = cur.g + dir.cost;
-            if (!gCosts.has(nKey) || newG < gCosts.get(nKey)) {
-                gCosts.set(nKey, newG);
-                openList.insert(new PathNode(nx, ny, newG, heuristic({ x: nx, y: ny }, endPos), cur));
+            if (newG < gCosts[nIdx]) {
+                gCosts[nIdx] = newG;
+                openList.insert(PathNode.acquire(nx, ny, newG, heuristic(nx, ny, endPos.x, endPos.y), cur));
             }
         }
     }
@@ -553,12 +593,14 @@ function _astar(startPos, endPos, grid, isUnitPhasing, maxExpansions) {
             path.push({ x: temp.x, y: temp.y });
             temp = temp.parent;
         }
+        PathNode.releaseAll();
         return path.reverse();
     }
+    PathNode.releaseAll();
     return null;
 }
 
-function _smoothPathCheckLOS(anchorWorld, candidateGrid, pathingRadius, levelInstance, obstaclesForLOS) {
+function _smoothPathCheckLOS(anchorWorld, candidateGrid, pathingRadius, levelInstance, obstaclesForLOS, nearbyUnits) {
     const candidateWorld = levelInstance.gridToWorldCoords(candidateGrid.x, candidateGrid.y);
     const dx = candidateWorld.x - anchorWorld.x;
     const dy = candidateWorld.y - anchorWorld.y;
@@ -590,11 +632,35 @@ function _smoothPathCheckLOS(anchorWorld, candidateGrid, pathingRadius, levelIns
         obstaclesForLOS,
         levelInstance
     );
+    if (!rightShoulderLOS) return false;
 
-    return centerLOS && leftShoulderLOS && rightShoulderLOS;
+    if (nearbyUnits && nearbyUnits.length > 0) {
+        const checkPoints = [
+            { x: anchorWorld.x, y: anchorWorld.y },
+            { x: candidateWorld.x, y: candidateWorld.y },
+            { x: anchorWorld.x + p_dx * pathingRadius, y: anchorWorld.y + p_dy * pathingRadius },
+            { x: anchorWorld.x - p_dx * pathingRadius, y: anchorWorld.y - p_dy * pathingRadius },
+            { x: candidateWorld.x + p_dx * pathingRadius, y: candidateWorld.y + p_dy * pathingRadius },
+            { x: candidateWorld.x - p_dx * pathingRadius, y: candidateWorld.y - p_dy * pathingRadius }
+        ];
+        for (const unit of nearbyUnits) {
+            const combinedR = unit.size * 0.5 + pathingRadius;
+            const ux = unit.x;
+            const uy = unit.y;
+            for (const pt of checkPoints) {
+                const ddx = pt.x - ux;
+                const ddy = pt.y - uy;
+                if (ddx * ddx + ddy * ddy < combinedR * combinedR) return false;
+            }
+            const edgeDist = pointToSegmentDist(ux, uy, anchorWorld.x, anchorWorld.y, candidateWorld.x, candidateWorld.y);
+            if (edgeDist < combinedR) return false;
+        }
+    }
+
+    return true;
 }
 
-function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
+function smoothPath(rawPathGridCoords, unitSize, levelInstance, startWorldPos = null) {
     if (!rawPathGridCoords || rawPathGridCoords.length < 2 || !levelInstance) {
         return rawPathGridCoords ? rawPathGridCoords.map(p => levelInstance.gridToWorldCoords(p.x, p.y)) : [];
     }
@@ -603,14 +669,50 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
         return rawPathGridCoords.map(p => levelInstance.gridToWorldCoords(p.x, p.y));
     }
 
-    const pathingRadius = (unitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
+    const pathingRadius = (unitSize / 2) + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 0);
     const obstaclesForLOS = levelInstance.activeObstacles || [];
+    const allUnits = [];
+    if (levelInstance.game && levelInstance.game.selectedUnits) {
+        for (const su of levelInstance.game.selectedUnits) {
+            if (su.id === CONFIG.DEBUG_PATHING_UNIT_ID) {
+                console.log(`[${su.id} smoothPath] rawPath: ${rawPathGridCoords.length} nodes, units: ${allUnits.length}, obstacles: ${obstaclesForLOS.length}`);
+                for (let pi = 0; pi < rawPathGridCoords.length; pi++) {
+                    const pt = rawPathGridCoords[pi];
+                    const wx = pt.x * levelInstance.gridCellSize + levelInstance.gridCellSize / 2;
+                    const wy = pt.y * levelInstance.gridCellSize + levelInstance.gridCellSize / 2;
+                    for (const unit of allUnits) {
+                        const dx = wx - unit.x;
+                        const dy = wy - unit.y;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        if (dist < unit.size * 0.5 + 10) {
+                            console.log(`  rawPath node ${pi} (${wx.toFixed(0)},${wy.toFixed(0)}) is inside unit ${unit.id} at (${unit.x.toFixed(0)},${unit.y.toFixed(0)}) dist=${dist.toFixed(1)} unitRadius=${(unit.size * 0.5).toFixed(0)}`);
+                        }
+                    }
+                }
+                break;
+            }
+        }
+    }
     const smoothedPathWorldCoords = [];
-    let currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[0].x, rawPathGridCoords[0].y);
+    let currentAnchorWorld, startIndex;
+    if (startWorldPos) {
+        currentAnchorWorld = { x: startWorldPos.x, y: startWorldPos.y };
+        startIndex = 0;
+        while (startIndex < rawPathGridCoords.length - 1) {
+            const wp = levelInstance.gridToWorldCoords(rawPathGridCoords[startIndex].x, rawPathGridCoords[startIndex].y);
+            const dx = wp.x - startWorldPos.x;
+            const dy = wp.y - startWorldPos.y;
+            if (dx * dx + dy * dy > pathingRadius * pathingRadius) break;
+            startIndex++;
+        }
+    } else {
+        currentAnchorWorld = levelInstance.gridToWorldCoords(rawPathGridCoords[0].x, rawPathGridCoords[0].y);
+        startIndex = 0;
+    }
     smoothedPathWorldCoords.push(currentAnchorWorld);
 
-    let i = 0;
-    const maxIterations = Math.max(rawPathGridCoords.length * 3, 100);
+    let i = startIndex;
+    const maxIterations = Math.max(rawPathGridCoords.length * CONFIG.PATHFINDING.SMOOTHING_MAX_ITER_FACTOR, 100);
     let iterations = 0;
 
     while (i < rawPathGridCoords.length - 1) {
@@ -626,14 +728,14 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
         const remainingNodes = rawPathGridCoords.length - 1 - i;
 
         let coarseStep = 1;
-        if (remainingNodes > 40) coarseStep = Math.max(1, Math.floor(remainingNodes / 10));
-        else if (remainingNodes > 15) coarseStep = Math.max(1, Math.floor(remainingNodes / 5));
+        if (remainingNodes > CONFIG.PATHFINDING.SMOOTHING_COARSE_THRESHOLD_HIGH) coarseStep = Math.max(1, Math.floor(remainingNodes / 10));
+        else if (remainingNodes > CONFIG.PATHFINDING.SMOOTHING_COARSE_THRESHOLD_LOW) coarseStep = Math.max(1, Math.floor(remainingNodes / 5));
 
         let coarseFoundIndex = -1;
         for (let j = rawPathGridCoords.length - 1; j > i; j -= coarseStep) {
             iterations++;
             if (iterations > maxIterations) break;
-            if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS)) {
+            if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS, allUnits)) {
                 coarseFoundIndex = j;
                 break;
             }
@@ -644,7 +746,7 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
             for (let j = fineSearchEnd; j > i; j--) {
                 iterations++;
                 if (iterations > maxIterations) break;
-                if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS)) {
+                if (_smoothPathCheckLOS(currentAnchorWorld, rawPathGridCoords[j], pathingRadius, levelInstance, obstaclesForLOS, allUnits)) {
                     furthestVisibleIndex = j;
                     break;
                 }
@@ -662,6 +764,18 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance) {
         }
     }
     return smoothedPathWorldCoords;
+}
+
+function pointToSegmentDist(px, py, x1, y1, x2, y2) {
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq < 1e-12) return Math.hypot(px - x1, py - y1);
+    let t = ((px - x1) * dx + (py - y1) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    const cx = x1 + t * dx;
+    const cy = y1 + t * dy;
+    return Math.hypot(px - cx, py - cy);
 }
 
 function lerpAngle(a, b, t) {
@@ -695,14 +809,15 @@ function closestPointOnCollisionShape(px, py, shape) {
 function deflatePath(pathNodes, unitRadius, levelInstance) {
     if (!pathNodes || pathNodes.length < 2 || !levelInstance) return pathNodes;
 
-    const pathingRadius = unitRadius + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 8);
+    const pathingRadius = unitRadius + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 8);
     const obstacles = (levelInstance.activeObstacles || []).filter(o => o.blocksMovement && !o.isDestroyed);
     const useSpatialGrid = levelInstance.game && levelInstance.game.spatialGrid;
+    const allUnits = [];
 
-    const OFFSET_QUERY_MARGIN = 30; // extra margin beyond pathingRadius for spatial query
+    const OFFSET_QUERY_MARGIN = CONFIG.PATHFINDING.DEFLATION_OFFSET_MARGIN;
     const queryRadius = pathingRadius + OFFSET_QUERY_MARGIN;
 
-    for (let iteration = 0; iteration < 3; iteration++) {
+    for (let iteration = 0; iteration < CONFIG.PATHFINDING.DEFLATION_ITERATIONS; iteration++) {
         let anyMoved = false;
 
         for (let i = 1; i < pathNodes.length - 1; i++) {
@@ -793,8 +908,8 @@ function deflatePath(pathNodes, unitRadius, levelInstance) {
                             }
                         } else {
                             const penetration = pathingRadius - dist;
-                            totalOffsetX += (awayX / awayDist) * penetration * 0.5;
-                            totalOffsetY += (awayY / awayDist) * penetration * 0.5;
+                            totalOffsetX += (awayX / awayDist) * penetration * CONFIG.PATHFINDING.DEFLATION_NODE_PUSH_FACTOR;
+                            totalOffsetY += (awayY / awayDist) * penetration * CONFIG.PATHFINDING.DEFLATION_NODE_PUSH_FACTOR;
                             pushed = true;
                         }
                     }
@@ -805,6 +920,31 @@ function deflatePath(pathNodes, unitRadius, levelInstance) {
                 node.x += totalOffsetX;
                 node.y += totalOffsetY;
                 anyMoved = true;
+            }
+
+            let nearbyUnits = [];
+            if (useSpatialGrid) {
+                const nearbyObjects = useSpatialGrid.queryRange(node.x, node.y, queryRadius);
+                nearbyUnits = nearbyObjects.filter(o => allUnits.indexOf(o) !== -1);
+            } else {
+                nearbyUnits = allUnits;
+            }
+            for (const unit of nearbyUnits) {
+                const dx = node.x - unit.x;
+                const dy = node.y - unit.y;
+                const combinedR = pathingRadius + unit.size * 0.5;
+                const distSq = dx * dx + dy * dy;
+                if (distSq < combinedR * combinedR && distSq > 1e-12) {
+                    const dist = Math.sqrt(distSq);
+                    const penetration = combinedR - dist;
+                    node.x += (dx / dist) * penetration * CONFIG.PATHFINDING.DEFLATION_UNIT_PUSH_FACTOR;
+                    node.y += (dy / dist) * penetration * CONFIG.PATHFINDING.DEFLATION_UNIT_PUSH_FACTOR;
+                    anyMoved = true;
+                } else if (distSq < 1e-12) {
+                    node.x += (Math.random() - 0.5) * 2;
+                    node.y += (Math.random() - 0.5) * 2;
+                    anyMoved = true;
+                }
             }
         }
 

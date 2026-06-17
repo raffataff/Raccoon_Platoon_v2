@@ -228,8 +228,9 @@ class Projectile {
                 const w = sprite.naturalWidth * this.bulletSpriteScale;
                 const h = sprite.naturalHeight * this.bulletSpriteScale;
                 const angle = Math.atan2(this.velocityY, this.velocityX) + Math.PI / 2;
+                const renderOffsetY = -(CONFIG.PROJECTILE_SPRITE_OFFSET_Y || 0);
                 ctx.save();
-                ctx.translate(this.x, this.y);
+                ctx.translate(this.x, this.y + renderOffsetY);
                 ctx.rotate(angle);
                 ctx.drawImage(sprite, -w / 2, -h / 2, w, h);
                 ctx.restore();

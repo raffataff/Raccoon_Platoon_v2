@@ -96,5 +96,10 @@ function getBiomeShootoutBackgroundKeys(biomeName) {
     if (biomeKeys.length > 0) {
         return biomeKeys;
     }
-    return CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeName] || CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS['TROPICAL'];
+    // No biome-specific backgrounds defined; fall back to AMBUSH_BACKGROUNDS for that biome,
+    // or TROPICAL's ambush list as a last resort
+    return CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS[biomeName]
+        || CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS['TROPICAL']
+        || Object.keys(CONFIG.SHOOTOUT_MODE.AMBUSH_BACKGROUNDS)[0]
+        || ['JUNGLE_ATTACK'];
 }

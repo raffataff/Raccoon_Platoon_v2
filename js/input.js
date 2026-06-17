@@ -204,38 +204,48 @@ class InputHandler {
                             h.isMoving = false;
                             h.currentPath = [];
                         });
-                        this.game.trySpeech(rescuedHostages[0], 'ON_HOLD');
+                        this.game.trySpeech(rescuedHostages[0], 'ON_HOLD', undefined, true);
                         const raccoons = this.game.getLivingPlayerControlledUnits();
                         if (raccoons && raccoons.length > 0) {
                             const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
-                            this.game.trySpeech(speaker, 'ON_ORDER_HOLD');
+                            this.game.trySpeech(speaker, 'ON_ORDER_HOLD', undefined, true);
                         }
                     } else {
                         rescuedHostages.forEach(h => {
                             h.isHoldingPosition = false;
                         });
-                        this.game.trySpeech(rescuedHostages[0], 'ON_FOLLOW');
+                        this.game.trySpeech(rescuedHostages[0], 'ON_FOLLOW', undefined, true);
                         const raccoons = this.game.getLivingPlayerControlledUnits();
                         if (raccoons && raccoons.length > 0) {
                             const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
-                            this.game.trySpeech(speaker, 'ON_ORDER_FOLLOW');
+                            this.game.trySpeech(speaker, 'ON_ORDER_FOLLOW', undefined, true);
                         }
                     }
                 }
             }
 
             if ((event.key === 'u' || event.key === 'U') && !isInputFieldActive) {
-                const playerUnits = this.game.getLivingPlayerControlledUnits();
-                if (playerUnits && playerUnits.length > 0) {
-//                    console.log("'U' key pressed. Forcing phase out for all player-controlled units.");
-                    playerUnits.forEach(unit => {
-                        if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
-                            if (unit instanceof RaccoonHostage && !unit.isRescued) {
-                            } else {
+                if (this.isCtrlPressed) {
+                    const enemyUnits = this.game.enemyUnits;
+                    if (enemyUnits && enemyUnits.length > 0) {
+                        enemyUnits.forEach(unit => {
+                            if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
                                 unit.forcePhaseOut(1.0);
                             }
-                        }
-                    });
+                        });
+                    }
+                } else {
+                    const playerUnits = this.game.getLivingPlayerControlledUnits();
+                    if (playerUnits && playerUnits.length > 0) {
+                        playerUnits.forEach(unit => {
+                            if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
+                                if (unit instanceof RaccoonHostage && !unit.isRescued) {
+                                } else {
+                                    unit.forcePhaseOut(1.0);
+                                }
+                            }
+                        });
+                    }
                 }
             }
 

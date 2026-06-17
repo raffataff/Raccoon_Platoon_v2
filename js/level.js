@@ -5,7 +5,7 @@ class Level {
         this.game = game;
         this.obstacles = [];
         this.navGrid = null;
-        this.gridCellSize = CONFIG.GRID_CELL_SIZE || 8;
+        this.gridCellSize = CONFIG.PATHFINDING.GRID_CELL_SIZE || 8;
         this.gridWidth = 0;
         this.gridHeight = 0;
         this.rng = null;
@@ -184,7 +184,7 @@ class Level {
 
         obstacle.hp -= amount;
 
-        if (wasAlive && (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round' || obstacle.type === 'possum_barracks_1') && obstacle.hp > 0 && !obstacle.isDestroyed) {
+        if (wasAlive && (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'possum_barracks_1') && obstacle.hp > 0 && !obstacle.isDestroyed) {
             const isSpawner = this.potentialSpawnerHuts.includes(obstacle) || this.activeSpawningHuts.includes(obstacle);
             if (obstacle.isMissionTarget || isSpawner) {
                 if (!obstacle.damageSpawnCooldown || obstacle.damageSpawnCooldown <= 0) {
@@ -228,7 +228,7 @@ class Level {
                 this.game.audioManager.play('POSSUM_HUT_DESTROYED');
             }
             
-if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'empty_possum_hut_round' || obstacle.type === 'possum_barracks_1') { 
+if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || obstacle.type === 'possum_barracks_1') { 
                 this.activeSpawningHuts = this.activeSpawningHuts.filter(h => h !== obstacle);
                 const potIndex = this.potentialSpawnerHuts.indexOf(obstacle);
                 if (potIndex > -1) this.potentialSpawnerHuts.splice(potIndex, 1);
@@ -375,7 +375,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
     }
 
      generateNavigationGrid(worldWidth, worldHeight) {
-        this.gridCellSize = CONFIG.GRID_CELL_SIZE || 16;
+        this.gridCellSize = CONFIG.PATHFINDING.GRID_CELL_SIZE || 16;
         this.gridWidth = Math.floor(worldWidth / this.gridCellSize);
         this.gridHeight = Math.floor(worldHeight / this.gridCellSize);
         this.navGrid = [];
@@ -392,7 +392,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
             CONFIG.POSSUM_SNIPER_SIZE || 14,
             CONFIG.POSSUM_ELITE_SIZE || 15
         );
-        const unitClearanceRadius = (maxUnitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 0);
+        const unitClearanceRadius = (maxUnitSize / 2) + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 0);
 
         // OPTIMIZED: Rasterize each obstacle onto the grid instead of checking every cell
         for (const obs of this.obstacles) {
@@ -490,7 +490,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
             CONFIG.POSSUM_SNIPER_SIZE || 14,
             CONFIG.POSSUM_ELITE_SIZE || 15
         );
-        const unitClearanceRadius = (maxUnitSize / 2) + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 12);
+        const unitClearanceRadius = (maxUnitSize / 2) + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 12);
 
         const obsShapesForBounds = this._getObstacleCollisionShape(obstacle);
         let minObsX, maxObsX, minObsY, maxObsY;
@@ -612,7 +612,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
         return this.navGrid;
     }
 
-    getNavigationGridWithUnits(requesterUnit, unitRadiusCells) {
+    getNavigationGridWithUnits(requesterUnit, unitRadiusCells, excludeUnits = null) {
         const baseGrid = this.getNavigationGrid();
         if (!baseGrid) return null;
         const gridCopy = [];
@@ -620,16 +620,18 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
             gridCopy[y] = new Uint8Array(baseGrid[y]);
         }
         if (!this.game) return gridCopy;
+        const excludeSet = excludeUnits ? new Set(excludeUnits) : null;
         const allUnits = [
             ...(this.game.getLivingPlayerControlledUnits?.() || []),
             ...(this.game.enemyUnits || []),
             ...(this.game.hostageUnits || [])
         ];
-        const requesterGrid = this.worldToGridCoords(requesterUnit.x, requesterUnit.y);
+        const requesterGrid = requesterUnit ? this.worldToGridCoords(requesterUnit.x, requesterUnit.y) : null;
         for (const unit of allUnits) {
             if (unit === requesterUnit || !unit.isAlive() || unit.isPhasing) continue;
+            if (excludeSet && excludeSet.has(unit)) continue;
             const unitGrid = this.worldToGridCoords(unit.x, unit.y);
-            const r = Math.ceil((unit.size * 0.5 + (CONFIG.UNIT_PATHING_RADIUS_BUFFER || 10)) / this.gridCellSize) + unitRadiusCells;
+            const r = Math.ceil((unit.size * 0.5 + (CONFIG.PATHFINDING.UNIT_PATHING_RADIUS_BUFFER || 10)) / this.gridCellSize) + unitRadiusCells;
             for (let dy = -r; dy <= r; dy++) {
                 for (let dx = -r; dx <= r; dx++) {
                     const gx = unitGrid.x + dx;
@@ -642,7 +644,9 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
                 }
             }
         }
-        gridCopy[requesterGrid.y][requesterGrid.x] = 0;
+        if (requesterGrid && requesterGrid.x >= 0 && requesterGrid.x < this.gridWidth && requesterGrid.y >= 0 && requesterGrid.y < this.gridHeight) {
+            gridCopy[requesterGrid.y][requesterGrid.x] = 0;
+        }
         return gridCopy;
     }
 
@@ -680,7 +684,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
         if (this.navGrid[sy][sx] === 1) {
             let found = false;
-            for (let r = 1; r <= 10 && !found; r++) {
+            for (let r = 1; r <= CONFIG.PATHFINDING.SPAWN_WALKABLE_SEARCH_RADIUS && !found; r++) {
                 for (let dy = -r; dy <= r && !found; dy++) {
                     for (let dx = -r; dx <= r && !found; dx++) {
                         if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;

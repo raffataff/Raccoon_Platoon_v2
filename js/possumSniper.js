@@ -42,36 +42,7 @@ class PossumSniper extends Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
-        if (this.actionTimer > 0 && this.hitStunTimer <= 0) return;
-
-        // --- Hit reaction: interrupt current action and immediately engage attacker ---
-        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
-            const attacker = this.recentlyHitBy;
-            this.manualTarget = attacker;
-            this.lastKnownPlayerPosition = { x: attacker.x, y: attacker.y };
-            const dist = distance(this.x, this.y, attacker.x, attacker.y);
-            const hasLOS = hasLineOfSight(this.x, this.y, attacker.x, attacker.y, this.game.level.activeObstacles, this.game.level);
-            if (hasLOS && dist <= this.weapon.range) {
-                if (this.aiState === 'AIMING') {
-                    this.aimTimer = this.sniperAIConfig.SETUP_TIME_SECONDS;
-                } else {
-                    this.changeState('AIMING');
-                }
-            } else if (dist <= this.detectionRange) {
-                // In detection range but maybe no LOS — move toward attacker for a better angle
-                this.aiState = 'GUARDING';
-                this.setMoveTarget(attacker.x, attacker.y);
-            } else {
-                // Hit from beyond detection range — relocate guard post toward attacker and move there
-                this.guardPost = {
-                    x: this.x + Math.cos(Math.atan2(attacker.y - this.y, attacker.x - this.x)) * Math.min(dist * 0.5, 200),
-                    y: this.y + Math.sin(Math.atan2(attacker.y - this.y, attacker.x - this.x)) * Math.min(dist * 0.5, 200)
-                };
-                this.setMoveTarget(this.guardPost.x, this.guardPost.y);
-            }
-            this.propagateAlert(attacker);
-            return;
-        }
+        if (this.actionTimer > 0) return;
 
         let target = this.manualTarget || this.autoTarget;
 

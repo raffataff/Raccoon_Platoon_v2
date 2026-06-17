@@ -779,7 +779,7 @@ class LevelGenerator {
     _placeMissionObjectives(missionObjectives, objectivePlacementMaxY, playableMinX, playableMaxX, playableMinY, playableMaxY, playerSpawnZone, extraKeepOutZones, allSpawnedEnemiesDuringGen, preloadedAssetImages) {
         missionObjectives.forEach(objective => {
             if (objective.type === 'DESTROY_TARGET' && objective.targetTypeKeyPrefix && objective.totalToAchieve > 0) {
-                const matchingTemplates = (CONFIG.OBSTACLE_DEFINITIONS || []).filter(def => def.type.startsWith(objective.targetTypeKeyPrefix));
+                const matchingTemplates = this._getAllObstacleDefinitions().filter(def => def.type.startsWith(objective.targetTypeKeyPrefix));
 
                 if (matchingTemplates.length === 0) {
                     console.error(`[Level Gen] CRITICAL: No templates found for destroyTargetTypeKeyPrefix: ${objective.targetTypeKeyPrefix}!`);
@@ -802,24 +802,27 @@ class LevelGenerator {
                     let actualSpritePath = null;
                     let actualDestroyedSpritePath = null;
                     if (targetTemplateOriginal.type === 'possum_hut') {
-                        const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
-                        const pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
+                        const biomePairs = this.currentBiome?.spritePaths?.possum_hut?.pairs;
+                        const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_HUT_SPRITE_FILES || []);
+                        const pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_hut.path : CONFIG.POSSUM_HUT_SPRITE_PATH) || '';
                         if (hutSpritePairs.length > 0) {
                             const selectedPair = this.rng.pickFrom(hutSpritePairs);
                             actualSpritePath = pathBase + selectedPair.normal;
                             actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                         }
                     } else if (targetTemplateOriginal.type === 'possum_hut_round') {
-                        const hutSpritePairs = CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || [];
-                        const pathBase = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '';
+                        const biomePairs = this.currentBiome?.spritePaths?.possum_hut_round?.pairs;
+                        const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || []);
+                        const pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_hut_round.path : CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH) || '';
                         if (hutSpritePairs.length > 0) {
                             const selectedPair = this.rng.pickFrom(hutSpritePairs);
                             actualSpritePath = pathBase + selectedPair.normal;
                             actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                         }
                     } else if (targetTemplateOriginal.type === 'possum_barracks_1') {
-                        const barracksSpritePairs = CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || [];
-                        const pathBase = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH || '';
+                        const biomePairs = this.currentBiome?.spritePaths?.possum_barracks_1?.pairs;
+                        const barracksSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || []);
+                        const pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_barracks_1.path : CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH) || '';
                         if (barracksSpritePairs.length > 0) {
                             const selectedPair = this.rng.pickFrom(barracksSpritePairs);
                             actualSpritePath = pathBase + selectedPair.normal;
@@ -895,7 +898,7 @@ class LevelGenerator {
                     objective.totalToAchieve = successfulPlacements;
                 }
             } else if (objective.type === 'INTERACT_INTEL' && objective.totalToAchieve > 0) {
-                const consoleTemplate = (CONFIG.OBSTACLE_DEFINITIONS || []).find(def => def.type === 'intel_console');
+                const consoleTemplate = this._getAllObstacleDefinitions().find(def => def.type === 'intel_console');
                 if (!consoleTemplate) {
                     console.error('[Level Gen] CRITICAL: Intel console template not found in OBSTACLE_DEFINITIONS!');
                     return;
@@ -1009,6 +1012,152 @@ class LevelGenerator {
             ? this.level.effectivePlayerSpawnZone.y + this.level.effectivePlayerSpawnZone.height / 2
             : this.level.playerSpawnZone.y + this.level.playerSpawnZone.height / 2;
         this.level.computeReachableCells(playerSpawnCenterX, playerSpawnCenterY);
+    }
+
+    _finalizeMissionTargetPositions(worldWidth, worldHeight) {
+        if (!this.level.reachableGrid) return false;
+
+        const gridW = this.level.gridWidth;
+        const gridH = this.level.gridHeight;
+        const cellSize = this.level.gridCellSize;
+        const reachableGrid = this.level.reachableGrid;
+        const navGrid = this.level.navGrid;
+
+        let anyMoved = false;
+
+        for (const target of this.level.obstacles) {
+            if (!target.isMissionTarget) continue;
+
+            const centerX = target.x + target.width / 2;
+            const centerY = target.y + target.height / 2;
+            const gridPos = this.level.worldToGridCoords(centerX, centerY);
+
+            if (gridPos.x < 0 || gridPos.x >= gridW || gridPos.y < 0 || gridPos.y >= gridH) continue;
+
+            const objLeft = Math.floor(target.x / cellSize);
+            const objRight = Math.floor((target.x + target.width - 1) / cellSize);
+            const objTop = Math.floor(target.y / cellSize);
+            const objBottom = Math.floor((target.y + target.height - 1) / cellSize);
+
+            let isReachable = false;
+
+            for (let gx = objLeft - 1; gx <= objRight + 1 && !isReachable; gx++) {
+                if (gx < 0 || gx >= gridW) continue;
+                if (objTop - 1 >= 0) {
+                    const ny = objTop - 1;
+                    if (navGrid[ny][gx] === 0 && reachableGrid[ny][gx] === 1) isReachable = true;
+                }
+                if (objBottom + 1 < gridH) {
+                    const ny = objBottom + 1;
+                    if (navGrid[ny][gx] === 0 && reachableGrid[ny][gx] === 1) isReachable = true;
+                }
+            }
+
+            for (let gy = objTop; gy <= objBottom && !isReachable; gy++) {
+                if (gy < 0 || gy >= gridH) continue;
+                if (objLeft - 1 >= 0) {
+                    const nx = objLeft - 1;
+                    if (navGrid[gy][nx] === 0 && reachableGrid[gy][nx] === 1) isReachable = true;
+                }
+                if (objRight + 1 < gridW) {
+                    const nx = objRight + 1;
+                    if (navGrid[gy][nx] === 0 && reachableGrid[gy][nx] === 1) isReachable = true;
+                }
+            }
+
+            if (isReachable) continue;
+
+            let moved = false;
+
+            for (let r = 1; r <= 100 && !moved; r++) {
+                for (let dy = -r; dy <= r && !moved; dy++) {
+                    for (let dx = -r; dx <= r && !moved; dx++) {
+                        if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                        const nx = gridPos.x + dx;
+                        const ny = gridPos.y + dy;
+                        if (nx >= 0 && nx < gridW && ny >= 0 && ny < gridH
+                            && navGrid[ny][nx] === 0
+                            && reachableGrid[ny][nx] === 1) {
+                            const wp = this.level.gridToWorldCoords(nx, ny);
+                            const oldX = target.x;
+                            const oldY = target.y;
+                            target.x = wp.x - target.width / 2;
+                            target.y = wp.y - target.height / 2;
+                            moved = true;
+                            anyMoved = true;
+
+                            if (target.isIntelConsole && this.game && this.game.intelConsoles) {
+                                let bestMatch = null;
+                                let bestDist = Infinity;
+                                for (const ic of this.game.intelConsoles) {
+                                    if (ic.objectiveId === target.objectiveId) {
+                                        const dx2 = ic.x - oldX + target.width / 2;
+                                        const dy2 = ic.y - oldY + target.height / 2;
+                                        const dist = dx2 * dx2 + dy2 * dy2;
+                                        if (dist < bestDist) {
+                                            bestDist = dist;
+                                            bestMatch = ic;
+                                        }
+                                    }
+                                }
+                                if (bestMatch && bestDist < 10000) {
+                                    bestMatch.x = wp.x;
+                                    bestMatch.y = wp.y;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (!moved) {
+                for (let r = 1; r <= 100 && !moved; r++) {
+                    for (let dy = -r; dy <= r && !moved; dy++) {
+                        for (let dx = -r; dx <= r && !moved; dx++) {
+                            if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+                            const nx = gridPos.x + dx;
+                            const ny = gridPos.y + dy;
+                            if (nx >= 0 && nx < gridW && ny >= 0 && ny < gridH
+                                && reachableGrid[ny][nx] === 1) {
+                                const wp = this.level.gridToWorldCoords(nx, ny);
+                                const oldX = target.x;
+                                const oldY = target.y;
+                                target.x = wp.x - target.width / 2;
+                                target.y = wp.y - target.height / 2;
+                                moved = true;
+                                anyMoved = true;
+
+                                if (target.isIntelConsole && this.game && this.game.intelConsoles) {
+                                    let bestMatch = null;
+                                    let bestDist = Infinity;
+                                    for (const ic of this.game.intelConsoles) {
+                                        if (ic.objectiveId === target.objectiveId) {
+                                            const dx2 = ic.x - oldX + target.width / 2;
+                                            const dy2 = ic.y - oldY + target.height / 2;
+                                            const dist = dx2 * dx2 + dy2 * dy2;
+                                            if (dist < bestDist) {
+                                                bestDist = dist;
+                                                bestMatch = ic;
+                                            }
+                                        }
+                                    }
+                                    if (bestMatch && bestDist < 10000) {
+                                        bestMatch.x = wp.x;
+                                        bestMatch.y = wp.y;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (CONFIG.DEBUG_LOGGING && moved) {
+                console.log(`[Level Gen] Relocated unreachable mission target ${target.type || 'unknown'} from (${gridPos.x},${gridPos.y}) to reachable cell`);
+            }
+        }
+
+        return anyMoved;
     }
 
     _finalizeEnemyPositions(allEnemies) {
@@ -1210,9 +1359,9 @@ class LevelGenerator {
         const playerUnitSize = CONFIG.RACCOON_SIZE || 20;
         const spawnAreaWidth = playerSpawnZone.width * CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_PLACEMENT.PLAYER_SPAWN_AREA;
         const spawnAreaHeight = playerSpawnZone.height * CONFIG.LEVEL_GENERATION.PLAYER_SPAWN_PLACEMENT.PLAYER_SPAWN_AREA;
-        const fixedPadding = 30;
+        const fixedPadding = 20;
         const effectiveSpawnZoneX = playerSpawnZone.x + fixedPadding;
-        const effectiveSpawnZoneY = (playerSpawnZone.y + playerSpawnZone.height) - spawnAreaHeight - fixedPadding - 60;
+        const effectiveSpawnZoneY = (playerSpawnZone.y + playerSpawnZone.height) - spawnAreaHeight - fixedPadding - 30;
         const effectiveSpawnZoneWidth = spawnAreaWidth;
         const effectiveSpawnZoneHeight = spawnAreaHeight;
 
@@ -1645,57 +1794,91 @@ class LevelGenerator {
             let treeStumpType = template.treeStumpType || null;
 
             if (template.type === 'possum_hut') {
-                const hutSpritePairs = CONFIG.POSSUM_HUT_SPRITE_FILES || [];
+                const biomePairs = this.currentBiome?.spritePaths?.possum_hut?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_HUT_SPRITE_FILES || []);
                 if (hutSpritePairs.length > 0) {
                     const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                    pathBase = CONFIG.POSSUM_HUT_SPRITE_PATH || '';
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_hut.path : CONFIG.POSSUM_HUT_SPRITE_PATH) || '';
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
             else if (template.type === 'possum_hut_round') {
-                const hutSpritePairs = CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || [];
+                const biomePairs = this.currentBiome?.spritePaths?.possum_hut_round?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || []);
                 if (hutSpritePairs.length > 0) {
                     const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                    pathBase = CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH || '';
-                    actualSpritePath = pathBase + selectedPair.normal;
-                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
-                }
-            }
-            else if (template.type === 'empty_possum_hut_round') {
-                const hutSpritePairs = CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_FILES || [];
-                if (hutSpritePairs.length > 0) {
-                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                    pathBase = CONFIG.EMPTY_POSSUM_HUT_ROUND_SPRITE_PATH || '';
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_hut_round.path : CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH) || '';
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
             else if (template.type === 'empty_possum_hut_2') {
-                const hutSpritePairs = CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES || [];
+                const biomePairs = this.currentBiome?.spritePaths?.empty_possum_hut_2?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES || []);
                 if (hutSpritePairs.length > 0) {
                     const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                    pathBase = CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH || '';
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.empty_possum_hut_2.path : CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH) || '';
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
-            
             else if (template.type === 'general_possum_building_large') {
-                const hutSpritePairs = CONFIG.POSSUM_BUILDING_LARGE_SPRITE_FILES || [];
+                const biomePairs = this.currentBiome?.spritePaths?.general_possum_building_large?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_BUILDING_LARGE_SPRITE_FILES || []);
                 if (hutSpritePairs.length > 0) {
                     const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                    pathBase = CONFIG.POSSUM_BUILDING_LARGE_SPRITE_PATH || '';
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.general_possum_building_large.path : CONFIG.POSSUM_BUILDING_LARGE_SPRITE_PATH) || '';
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
             }
-            
             else if (template.type === 'possum_barracks_1') {
-                const hutSpritePairs = CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || [];
+                const biomePairs = this.currentBiome?.spritePaths?.possum_barracks_1?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || []);
                 if (hutSpritePairs.length > 0) {
                     const selectedPair = this.rng.pickFrom(hutSpritePairs);
-                    pathBase = CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH || '';
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_barracks_1.path : CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH) || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'possum_hut_round') {
+                const biomePairs = this.currentBiome?.spritePaths?.possum_hut_round?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_HUT_ROUND_SPRITE_FILES || []);
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_hut_round.path : CONFIG.POSSUM_HUT_ROUND_SPRITE_PATH) || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'empty_possum_hut_2') {
+                const biomePairs = this.currentBiome?.spritePaths?.empty_possum_hut_2?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_FILES || []);
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.empty_possum_hut_2.path : CONFIG.EMPTY_POSSUM_HUT_2_SPRITE_PATH) || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'general_possum_building_large') {
+                const biomePairs = this.currentBiome?.spritePaths?.general_possum_building_large?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_BUILDING_LARGE_SPRITE_FILES || []);
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.general_possum_building_large.path : CONFIG.POSSUM_BUILDING_LARGE_SPRITE_PATH) || '';
+                    actualSpritePath = pathBase + selectedPair.normal;
+                    actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
+                }
+            }
+            else if (template.type === 'possum_barracks_1') {
+                const biomePairs = this.currentBiome?.spritePaths?.possum_barracks_1?.pairs;
+                const hutSpritePairs = biomePairs && biomePairs.length > 0 ? biomePairs : (CONFIG.POSSUM_BARRACKS_1_SPRITE_FILES || []);
+                if (hutSpritePairs.length > 0) {
+                    const selectedPair = this.rng.pickFrom(hutSpritePairs);
+                    pathBase = (biomePairs ? this.currentBiome.spritePaths.possum_barracks_1.path : CONFIG.POSSUM_BARRACKS_1_SPRITE_PATH) || '';
                     actualSpritePath = pathBase + selectedPair.normal;
                     actualDestroyedSpritePath = pathBase + selectedPair.destroyed;
                 }
@@ -1933,6 +2116,7 @@ class LevelGenerator {
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         isFlippedHorizontally: template.canBeFlipped ? this.rng.chance(0.5) : false,
                         collisionShape: template.collisionShape || null, spawnArea: template.spawnArea || null, isSpawner: (template.type === 'possum_hut' || template.type === 'possum_hut_round' || template.type === 'possum_barracks_1') && !template.isDecoration,
+                        swirlRegion: template.swirlRegion || null,
                         spawnCooldownTimer: 0, isActivelySpawning: false, unitsToSpawnThisBurst: 0, timeUntilNextUnitInBurst: 0,
                         delayedDamageSpawnTimer: 0, damageSpawnCooldown: 0, unitsSpawnedFromHut: 0,
                         willSpawnLog: willSpawnLog,
@@ -2120,7 +2304,7 @@ class LevelGenerator {
                 const tempPickupForShape = { ...template, x: pickupX, y: pickupY, width: pickupWidth, height: pickupHeight, collisionShapes: template.collisionShapes };
                 const collisionCheckShape = this.level._getObstacleCollisionShape(tempPickupForShape);
 
-                if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, [])) {
+                if (!this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, extraKeepOutZones)) {
                     const newPickup = {
                         x: pickupX, y: pickupY, width: pickupWidth, height: pickupHeight,
                         type: template.type, name: template.name || template.type, color: template.color,
@@ -2147,6 +2331,11 @@ class LevelGenerator {
 
         this.level.generateNavigationGrid(worldWidth, worldHeight);
         this._computeReachability();
+
+        if (this._finalizeMissionTargetPositions(worldWidth, worldHeight)) {
+            this.level.generateNavigationGrid(worldWidth, worldHeight);
+            this._computeReachability();
+        }
 
         const enemySpawnCfg = CONFIG.ENEMY_SPAWNING || {};
         const enemySpawnMinY = playableMinY;
@@ -2463,7 +2652,8 @@ class LevelGenerator {
                     spawnY = this.rng.nextFloat(effectiveSpawnZoneY, effectiveSpawnZoneY + effectiveSpawnZoneHeight);
                     spawnX = Math.max(playableMinX + playerUnitSize / 2, Math.min(spawnX, playableMaxX - playerUnitSize / 2));
                     spawnY = Math.max(playableMinY + playerUnitSize / 2, Math.min(spawnY, playableMaxY - playerUnitSize / 2));
-                    isClear = this.level.isSpawnPointClear(spawnX, spawnY, playerUnitSize, this.level.obstacles, this.game.deployedSquadRoster || []);
+                    const alreadySpawnedUnits = (this.game.deployedSquadRoster || []).concat(playerSpawnLocations.map(loc => ({ x: loc.x, y: loc.y, size: playerUnitSize, isAlive: () => true })));
+                    isClear = this.level.isSpawnPointClear(spawnX, spawnY, playerUnitSize, this.level.obstacles, alreadySpawnedUnits);
                     if (isClear) { playerSpawnLocations.push({ x: spawnX, y: spawnY }); foundSpot = true; break; }
                     currentPlacementAttempts++;
                 } while (currentPlacementAttempts < maxPlayerSpawnAttempts);

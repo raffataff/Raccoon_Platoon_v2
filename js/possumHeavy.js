@@ -21,7 +21,7 @@ class PossumHeavy extends Unit {
         this.chaseDestination = null;
         this.timeSinceLastChaseDestUpdate = 0;
         this.CHASE_DESTINATION_REFRESH_INTERVAL = this.heavyAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.5;
-        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.heavyAIConfig.TARGET_DEVIATION_RECALC_THRESHOLD_CELLS * CONFIG.GRID_CELL_SIZE) ** 2 || (3 * CONFIG.GRID_CELL_SIZE) ** 2;
+        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.heavyAIConfig.TARGET_DEVIATION_RECALC_THRESHOLD_CELLS * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2 || (3 * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2;
         this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY = this.heavyAIConfig.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY || 40;
         this.ENGAGE_RANGE_BUFFER = this.heavyAIConfig.ENGAGE_RANGE_BUFFER || 5;
         this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.heavyAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
@@ -46,24 +46,7 @@ class PossumHeavy extends Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
-        if (this.actionTimer > 0 && this.hitStunTimer <= 0) return;
-
-        // --- Hit reaction: immediately engage attacker ---
-        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
-            this.manualTarget = this.recentlyHitBy;
-            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-            const distToAttacker = distance(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y);
-            const hasLOS = hasLineOfSight(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y, this.game.level.activeObstacles, this.game.level);
-            if (hasLOS && distToAttacker <= this.weapon.range) {
-                this.aiState = 'ENGAGING_SHOOTING_HEAVY';
-            } else {
-                this.aiState = 'ENGAGING_CHASING_HEAVY';
-                this.chaseDestination = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-                this.setMoveTarget(this.recentlyHitBy.x, this.recentlyHitBy.y);
-            }
-            this.propagateAlert(this.recentlyHitBy);
-            return;
-        }
+        if (this.actionTimer > 0) return;
 
         const playerUnitsOnMap = this.game.getLivingPlayerControlledUnits();
         let currentTarget = this.manualTarget || this.autoTarget;
@@ -99,18 +82,19 @@ class PossumHeavy extends Unit {
             case 'GUARDING':
                 const atPostTolerance = this.heavyAIConfig.GUARD_POST_POSITION_TOLERANCE || this.game.level.gridCellSize / 2;
                 const distToGuardPostCurrent = distance(this.x, this.y, this.guardPost.x, this.guardPost.y);
+                const targetIsGuardPost = this.worldTargetX !== undefined &&
+                    Math.abs(this.worldTargetX - this.guardPost.x) < this.game.level.gridCellSize &&
+                    Math.abs(this.worldTargetY - this.guardPost.y) < this.game.level.gridCellSize;
+                const atWorldTarget = targetIsGuardPost && !this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75;
 
-                if (distToGuardPostCurrent > atPostTolerance) {
-                    if (this.repathCooldown <= 0 && (!this.isMoving || (this.worldTargetX !== this.guardPost.x || this.worldTargetY !== this.guardPost.y))) {
-                        this.setMoveTarget(this.guardPost.x, this.guardPost.y);
-                    }
-                } else {
-                    if (this.isMoving) {
-                        this.isMoving = false;
-                        this.currentPath = [];
-                        this.x = this.guardPost.x;
-                        this.y = this.guardPost.y;
-                    }
+                if (distToGuardPostCurrent <= atPostTolerance) {
+                    if (this.isMoving) { this.isMoving = false; this.currentPath = []; }
+                    this.x = this.guardPost.x;
+                    this.y = this.guardPost.y;
+                } else if (atWorldTarget) {
+                    if (this.isMoving) { this.isMoving = false; this.currentPath = []; }
+                } else if (!this.isMoving && this.repathCooldown <= 0) {
+                    this.setMoveTarget(this.guardPost.x, this.guardPost.y);
                 }
                 break;
             case 'SUSPICIOUS':
@@ -171,9 +155,15 @@ class PossumHeavy extends Unit {
                     }
 
                     let shouldUpdateChaseDest = false;
+                    const throttleCount = CONFIG.PATHFINDING.ENEMY_CHASE_THROTTLE_COUNT || 20;
+                    const throttleMult = CONFIG.PATHFINDING.ENEMY_CHASE_THROTTLE_MULTIPLIER || 2.0;
+                    const enemyCount = this.game ? this.game.enemyUnits.length : 0;
+                    const effectiveRefreshInterval = enemyCount > throttleCount
+                        ? this.CHASE_DESTINATION_REFRESH_INTERVAL * throttleMult
+                        : this.CHASE_DESTINATION_REFRESH_INTERVAL;
                     if (!this.chaseDestination) {
                         shouldUpdateChaseDest = true;
-                    } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
+                    } else if (this.timeSinceLastChaseDestUpdate >= effectiveRefreshInterval) {
                         shouldUpdateChaseDest = true;
                     } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
                         distanceSq(currentTarget.x, currentTarget.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
@@ -190,19 +180,6 @@ class PossumHeavy extends Unit {
 
                         predictedX = Math.max(this.size, Math.min(predictedX, CONFIG.WORLD_WIDTH - this.size));
                         predictedY = Math.max(this.size, Math.min(predictedY, CONFIG.WORLD_HEIGHT - this.size));
-
-                        const distToThisPredicted = distance(this.x, this.y, predictedX, predictedY);
-                        if (distToThisPredicted < this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY) {
-                             if (distance(this.x, this.y, currentTarget.x, currentTarget.y) > this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY * 0.5) {
-                                const angleToActualTarget = Math.atan2(currentTarget.y - this.y, currentTarget.x - this.x);
-                                predictedX = this.x + Math.cos(angleToActualTarget) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
-                                predictedY = this.y + Math.sin(angleToActualTarget) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
-                            } else {
-                                const angleAway = Math.atan2(this.y - currentTarget.y, this.x - currentTarget.x);
-                                predictedX = currentTarget.x + Math.cos(angleAway) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
-                                predictedY = currentTarget.y + Math.sin(angleAway) * this.MIN_APPROACH_DISTANCE_TO_TARGET_HEAVY;
-                            }
-                        }
 
                         this.chaseDestination = { x: predictedX, y: predictedY };
                         if(this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y)){
@@ -246,7 +223,7 @@ class PossumHeavy extends Unit {
 //                console.warn(`[${this.id} onStuck HEAVY] Max consecutive stuck attempts (${this.consecutiveStuckAttempts}). Initiating Phasing.`);
             }
             this.isPhasing = true;
-            this.phasingTimer = CONFIG.UNIT_PHASING_DURATION || 0.75;
+            this.phasingTimer = CONFIG.PATHFINDING.PHASING_DURATION || 0.75;
             this.consecutiveStuckAttempts = 0;
             if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
                  this.isMoving = true;

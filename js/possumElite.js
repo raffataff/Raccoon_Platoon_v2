@@ -35,7 +35,7 @@ class PossumElite extends Unit {
         this.timeSinceLastChaseDestUpdate = 0;
         this.CHASE_DESTINATION_REFRESH_INTERVAL = this.eliteAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
         this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.eliteAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
-        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.eliteAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.GRID_CELL_SIZE) ** 2;
+        this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.eliteAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2;
         this.ENGAGE_RANGE_BUFFER = this.eliteAIConfig.ENGAGE_RANGE_BUFFER || 25;
 
         this.STUCK_RECOVERY_COOLDOWN_INTERNAL = this.eliteAIConfig.STUCK_RECOVERY_COOLDOWN_SHORT || 1.5;
@@ -194,23 +194,6 @@ class PossumElite extends Unit {
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
-        // --- Hit reaction: immediately engage attacker ---
-        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
-            this.manualTarget = this.recentlyHitBy;
-            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-            const distToAttacker = distance(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y);
-            const hasLOS = hasLineOfSight(this.x, this.y, this.recentlyHitBy.x, this.recentlyHitBy.y, this.game.level.activeObstacles, this.game.level);
-            if (hasLOS && distToAttacker <= this.weapon.range - this.ENGAGE_RANGE_BUFFER) {
-                this.changeState('ENGAGING_SHOOTING');
-            } else {
-                this.changeState('ENGAGING_CHASING');
-                this.chaseDestination = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-                this.setMoveTarget(this.recentlyHitBy.x, this.recentlyHitBy.y);
-            }
-            this.propagateAlert(this.recentlyHitBy);
-            return;
-        }
-
         let currentTarget = this.manualTarget || this.autoTarget;
         const playerUnitsOnMap = this.game.getLivingPlayerControlledUnits();
 
@@ -278,11 +261,19 @@ class PossumElite extends Unit {
     }
 
     _updatePatrolState(deltaTime, obstacles) {
-        if (this.repathCooldown <= 0 && !this.isMoving && distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y) > 5) {
-            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
-        }
+        const distToPatrolPoint = distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
+        const arrivalTolerance = this.game.level.gridCellSize * 0.75;
+        const targetIsPatrolPoint = this.worldTargetX !== undefined &&
+            Math.abs(this.worldTargetX - this.currentTargetPatrolPoint.x) < this.game.level.gridCellSize * 2 &&
+            Math.abs(this.worldTargetY - this.currentTargetPatrolPoint.y) < this.game.level.gridCellSize * 2;
+        const atWorldTarget = targetIsPatrolPoint && !this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75;
+        const atPatrolPoint = !this.isMoving && distToPatrolPoint <= arrivalTolerance;
 
-        if (!this.isMoving) {
+        if (atPatrolPoint || atWorldTarget) {
+            if (atPatrolPoint) {
+                this.x = this.currentTargetPatrolPoint.x;
+                this.y = this.currentTargetPatrolPoint.y;
+            }
             this.patrolWaitTimer += deltaTime;
             if (this.patrolWaitTimer >= this.PATROL_WAIT_TOTAL_DURATION) {
                 this.patrolWaitTimer = 0;
@@ -295,6 +286,8 @@ class PossumElite extends Unit {
                     this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
                 }
             }
+        } else if (this.repathCooldown <= 0 && !this.isMoving && distToPatrolPoint > arrivalTolerance) {
+            this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
         }
     }
 
@@ -372,10 +365,16 @@ class PossumElite extends Unit {
         }
 
         let shouldUpdateChaseDest = false;
+        const throttleCount = CONFIG.PATHFINDING.ENEMY_CHASE_THROTTLE_COUNT || 20;
+        const throttleMult = CONFIG.PATHFINDING.ENEMY_CHASE_THROTTLE_MULTIPLIER || 2.0;
+        const enemyCount = this.game ? this.game.enemyUnits.length : 0;
+        const effectiveRefreshInterval = enemyCount > throttleCount
+            ? this.CHASE_DESTINATION_REFRESH_INTERVAL * throttleMult
+            : this.CHASE_DESTINATION_REFRESH_INTERVAL;
 
         if (!this.chaseDestination) {
             shouldUpdateChaseDest = true;
-        } else if (this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL) {
+        } else if (this.timeSinceLastChaseDestUpdate >= effectiveRefreshInterval) {
             shouldUpdateChaseDest = true;
         } else if (this.timeSinceLastChaseDestUpdate > this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL &&
             distanceSq(target.x, target.y, this.chaseDestination.x, this.chaseDestination.y) > this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ) {
@@ -412,7 +411,9 @@ class PossumElite extends Unit {
         }
 
         if (shouldUpdateChaseDest && (!this.isMoving || distance(this.x, this.y, this.chaseDestination.x, this.chaseDestination.y) > 50)) {
-            this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y);
+            if (!this.setMoveTarget(this.chaseDestination.x, this.chaseDestination.y)) {
+                this.timeSinceLastChaseDestUpdate = this.CHASE_DESTINATION_REFRESH_INTERVAL * 0.5;
+            }
         }
     }
 
@@ -543,7 +544,8 @@ class PossumElite extends Unit {
         this.autoTarget = null;
         this.chaseDestination = null;
         this.shotsFired = 0;
-        if (distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y) > 5) {
+        const arrivalTolerance = this.game.level.gridCellSize * 0.75;
+        if (distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y) > arrivalTolerance) {
             this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);
         }
     }

@@ -221,20 +221,22 @@ class SpatialGrid {
         }
     }
 
-    renderDebug(ctx, cameraX, cameraY) {
+    renderDebug(ctx) {
         ctx.save();
         ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
         ctx.lineWidth = 0.5;
         for (let r = 0; r < this.gridRows; r++) {
             for (let c = 0; c < this.gridCols; c++) {
-                ctx.strokeRect(c * this.cellSize - cameraX, r * this.cellSize - cameraY, this.cellSize, this.cellSize);
+                const x = c * this.cellSize;
+                const y = r * this.cellSize;
+                ctx.strokeRect(x, y, this.cellSize, this.cellSize);
                 const cellIndex = r * this.gridCols + c;
                 if (this.grid[cellIndex] && this.grid[cellIndex].size > 0) {
                     ctx.fillStyle = 'rgba(0, 255, 0, 0.1)';
-                    ctx.fillRect(c * this.cellSize - cameraX, r * this.cellSize - cameraY, this.cellSize, this.cellSize);
+                    ctx.fillRect(x, y, this.cellSize, this.cellSize);
                     ctx.fillStyle = 'white';
                     ctx.font = '8px Arial';
-                    ctx.fillText(this.grid[cellIndex].size, c * this.cellSize - cameraX + 2, r * this.cellSize - cameraY + 8);
+                    ctx.fillText(this.grid[cellIndex].size, x + 2, y + 8);
                 }
             }
         }

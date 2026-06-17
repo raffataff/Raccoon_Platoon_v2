@@ -48,16 +48,6 @@ class PossumRevolver extends Unit {
     }
     
     _handleEnemyCombat(deltaTime, obstacles) {
-        // --- Hit reaction: immediately engage attacker ---
-        if (this.hitStunTimer > 0 && this.recentlyHitBy && this.recentlyHitBy.isAlive()) {
-            this.manualTarget = this.recentlyHitBy;
-            this.lastKnownPlayerPosition = { x: this.recentlyHitBy.x, y: this.recentlyHitBy.y };
-            this.aiState = 'ENGAGING';
-            this.gunAimAngle = Math.atan2(this.recentlyHitBy.y - this.y, this.recentlyHitBy.x - this.x);
-            this.propagateAlert(this.recentlyHitBy);
-            return;
-        }
-
         let target = this.manualTarget || this.autoTarget;
         if (!target || !target.isAlive()) {
             this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);

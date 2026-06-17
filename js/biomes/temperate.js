@@ -170,6 +170,46 @@ const TEMPERATE_BIOME = {
             path: 'assets/images/objects/biomes/temperate/ponds/',
             files: ['lake_temperate_1.png', 'lake_temperate_2.png',]
         },
+
+        // Huts
+        // Empty Possum huts
+        empty_hut_round: {
+            path: 'assets/images/objects/possums/huts/',
+            files: ['possum_hut_6.png' ],
+        },
+        empty_possum_hut_2: {
+            path: 'assets/images/objects/possums/huts/',
+            files: ['possum_hut_round_1_jungle.png', 'possum_hut_square_1_jungle.png', 'possum_building_small_1.png', 'possum_building_small_2.png'],
+        },
+
+        // Possum structures (spawning huts — biome-specific sprite pairs)
+        possum_barracks_1: {
+            path: 'assets/images/objects/possums/barracks/',
+            pairs: [
+                { normal: 'possum_barracks_1.png', destroyed: 'possum_barracks_1_destroyed.png' },
+                { normal: 'possum_barracks_2.png', destroyed: 'possum_barracks_2_destroyed.png' },
+            ],
+        },
+        possum_hut: {
+            path: 'assets/images/objects/possums/huts/',
+            pairs: [
+                { normal: 'possum_hut_1.png', destroyed: 'possum_hut_1_destroyed.png' },
+            ],
+        },
+        possum_hut_round: {
+            path: 'assets/images/objects/possums/huts/',
+            pairs: [
+                { normal: 'possum_hut_4.png', destroyed: 'possum_hut_4_destroyed.png' },
+                { normal: 'possum_hut_5.png', destroyed: 'possum_hut_5_destroyed.png' },
+            ],
+        },
+        general_possum_building_large: {
+            path: 'assets/images/objects/possums/general/',
+            pairs: [
+                { normal: 'possum_building_large_1.png', destroyed: 'possum_building_large_1.png' },
+                { normal: 'possum_warehouse.png', destroyed: 'possum_building_large_1.png' },
+            ],
+        },
     },
 
     // =========================================================================
@@ -189,10 +229,11 @@ const TEMPERATE_BIOME = {
             color: '#4A90D9',
             destructible: false, blocksMovement: true, providesCover: false, 
             isDecoration: false,
-            spawnWeight: 0.5,
+            spawnWeight: 1.5,
             spriteScale: 0.8,
             phaseUnlocked: 2,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
+            swirlRegion: { centerX: 0.5, centerY: 0.5, radius: 0.25 },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -209,6 +250,7 @@ const TEMPERATE_BIOME = {
             phaseUnlocked: 3,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.45) },
+            swirlRegion: { centerX: 0.5, centerY: 0.5, radius: 0.25 },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -220,6 +262,7 @@ const TEMPERATE_BIOME = {
             spriteScale: 0.4,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
+            swirlRegion: { centerX: 0.5, centerY: 0.5, radius: 0.2 },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -348,140 +391,118 @@ const TEMPERATE_BIOME = {
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radius: (w => w * 0.1) },
         },
         {
-            type: 'tree_maple_double', name: 'Maple Tree Double', color: '#8B4513',
-            destructible: false, blocksMovement: true, providesCover: true,
-            canBeFlipped: true, isDecoration: false,
-            spawnWeight: 2,
-            spriteScale: 0.65,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radiusX: (w => w * 0.12), radiusY: ((w, h) => h * 0.08) },
+            type: 'possum_barracks_1', name: 'Possum Barracks', color: '#62a170',
+            destructible: true, hp: 120, maxHp: 120,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, phaseUnlocked: 2,
+            spriteScale: 0.7,
+            spriteDestroyedScale: 0.7,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.5), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
+            canBeFlipped: true,
+            decorationBuffer: 200,
+            placementBuffer: 350,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 6],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 300,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
+                ]
+            }
         },
         {
-            type: 'tree_rubber_single', name: 'Rubber Tree Single', color: '#8B4513',
-            destructible: true, hp: 150, maxHp: 150,
-            blocksMovement: true, providesCover: true, isDecoration: false,
+            type: 'possum_hut', name: 'Possum Hut', color: '#8B4513',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, phaseUnlocked: 1,
+            spriteScale: 0.7,
+            spriteDestroyedScale: 0.7,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.48), offsetY: (h => h * 0.58), radiusX: (w => w * 0.3), radiusY: (h => h * 0.18) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
-            spawnWeight: 0.5,
+            placementBuffer: 480,
+            decorationBuffer: 200,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 4],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 280,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
+                ]
+            }
+        },
+        {
+            type: 'possum_hut_round', name: 'Round Possum Hut', color: '#8B4513',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0, phaseUnlocked: 1,
             spriteScale: 0.3,
-            treeStumpType: 'birch_stump',
-            collisionShape: { 
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.87), radius: (w => w * 0.06) },
-        },
-        {
-            type: 'tree_birch', name: 'Birch Tree', color: '#228B22',
-            destructible: true, hp: 75, maxHp: 75,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spriteDestroyedScale: 0.3,
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.42), radius: (w => w * 0.3) },
+            isDecoration: false,
+            sfxOnDestroy: 'POSSUM_HUT_DESTROYED',
             canBeFlipped: true,
-            spriteScale: 0.5,
-            treeStumpType: 'birch_stump',
-            fallenTreeType: 'birch_fallen',
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.55), offsetY: (h => h * 0.85), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.06) },
+            placementBuffer: 280,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 4],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 280,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 10 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 0.4 },
+                    { type: 'possum_elite', weight: 0.2 }
+                ]
+            }
         },
         {
-            type: 'birch_fallen', name: 'Fallen Birch Tree', color: '#228B22',
-            destructible: false, hp: 100, maxHp: 100,
-            blocksMovement: true, providesCover: true,
-            isDecoration: false, canBeFlipped: true,
-            spawnWeight: 0.5,
-            spriteScale: 0.2,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.33), radiusX: (w => w * 0.5), radiusY: (h => h * 0.07) },
-        },
-        {
-            type: 'birch_stump', name: 'Birch Tree Stump', color: '#228B22',
+            type: 'general_possum_building_large', name: 'Large Possum Building', color: '#8B4513',
             destructible: false,
             blocksMovement: true, providesCover: true,
-            isDecoration: false, canBeFlipped: true,
-            spawnWeight: 0.4,
-            spriteScale: 0.2,
-            collisionShape: { 
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.6), radius: (w => w * 0.2) },
+            isDecoration: false,
+            canBeFlipped: true,
+            spawnWeight: 2, phaseUnlocked: 3,
+            spriteScale: 0.5,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.53), radiusX: (w => w * 0.37), radiusY: (h => h * 0.26) },
+            placementBuffer: 350,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 6],
+                countPerPhaseBonus: 0.3,
+                spawnRadius: 350,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 5 },
+                    { type: 'possum_heavy', weight: 5 },
+                    { type: 'possum_sniper', weight: 1 },
+                    { type: 'possum_elite', weight: 0.5 },
+                    { type: 'possum_eliteGuard', weight: 0.2 }
+                ]
+            }
         },
         {
-            type: 'tree_pine', name: 'Pine Tree', color: '#228B22',
-            destructible: true, hp: 175, maxHp: 175,
+            type: 'empty_possum_hut_2', name: 'Empty Possum Hut', color: '#8B4513',
+            destructible: false,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 5, isDecoration: false,
-            spriteScale: 0.7,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radiusX: (w => w * 0.05), radiusY: ((w, h) => h * 0.07) },
-            treeStumpType: 'pine_stump',
-            treeFallenType: 'pine_fallen',
+            isDecoration: false,
             canBeFlipped: true,
-        },
-        {
-            type: 'pine_fallen', name: 'Fallen Pine Tree', color: '#228B22',
-            destructible: false, blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
-            spriteScale: 0.2,
-            collisionShape: { 
-                type: 'rectangle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.22), width: (w => w * 0.85), height: ((w, h) => h * 0.15) },
-            canBeFlipped: true,
-        },
-        {
-            type: 'pine_stump', name: 'Pine Tree Stump', color: '#228B22',
-            destructible: false, blocksMovement: true, providesCover: true,
-            isDecoration: false, canBeFlipped: true,
-            spawnWeight: 0.4,
-            spriteScale: 0.2,
-            collisionShape: { 
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.6), radius: (w => w * 0.2) },
-        },
-        {
-            type: 'forest_patch_small_1',
-            name: 'Small Forest Patch',
-            color: '#0E2908',
-            destructible: false, hp: Infinity, maxHp: Infinity,
-            blocksMovement: true, providesCover: true, isDecoration: true,
-            canBeFlipped: true,
-            spawnWeight: 10,
+            spawnWeight: 3, phaseUnlocked: 2,
             spriteScale: 0.6,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.32), radiusY: ((w, h) => h * 0.3) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
             placementBuffer: 150,
-            decorationBuffer: 50,
-        },
-        {
-            type: 'forest_patch_large_1',
-            name: 'Large Forest Patch',
-            color: '#0E2908',
-            destructible: false, hp: Infinity, maxHp: Infinity,
-            canBeFlipped: true, blocksMovement: true, providesCover: true,
-            isDecoration: true,
-            spawnWeight: 12,
-            spriteScale: 0.6,
-            placementBuffer: 150,
-            decorationBuffer: 80,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.37), radiusY: ((w, h) => h * 0.3) },
-        },
-        {
-            type: 'temperate_ruins_medium', name: 'Temperate Ruins', color: '#afafaf',
-            destructible: false, hp: Infinity, maxHp: Infinity,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: true,
-            spriteScale: 0.6,
-            placementBuffer: 80,
-            decorationBuffer: 80,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.25) },
-            canBeFlipped: true,
-        },
-        {
-            type: 'temperate_ruins_large', name: 'Large Temperate Ruins', color: '#afafaf',
-            destructible: false, hp: Infinity, maxHp: Infinity,
-            blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: true,
-            spriteScale: 0.4,
-            placementBuffer: 80,
-            decorationBuffer: 80,
-            collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.65), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
-            canBeFlipped: true,
+            decorationBuffer: 200,
         }
-        
     ],
 
     // =========================================================================
@@ -537,6 +558,11 @@ const TEMPERATE_BIOME = {
         'temperate_ruins_large',
         'pond',
         'lake',
+        'possum_barracks_1',
+        'possum_hut',
+        'possum_hut_round',
+        'general_possum_building_large',
+        'empty_possum_hut_2',
     ],
 
     // =========================================================================
