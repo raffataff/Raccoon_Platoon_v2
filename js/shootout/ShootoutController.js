@@ -136,6 +136,16 @@ class ShootoutController {
         if (this.currentBiomeName && typeof getBiomeShootoutBackground === 'function') {
             return getBiomeShootoutBackground(this.currentBiomeName, backgroundKey);
         }
+        // No biome set (standalone mode) — search biome-specific backgrounds first
+        if (typeof getBiomeShootoutBackground === 'function') {
+            const biomeNames = Object.keys(CONFIG.BIOMES || {});
+            for (const name of biomeNames) {
+                const biome = CONFIG.BIOMES[name];
+                if (biome.shootoutBackgrounds && biome.shootoutBackgrounds[backgroundKey]) {
+                    return biome.shootoutBackgrounds[backgroundKey];
+                }
+            }
+        }
         return CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey];
     }
 
@@ -147,7 +157,7 @@ class ShootoutController {
     setBackground(backgroundKey, biomeName = null) {
         const bgConfig = biomeName
             ? getBiomeShootoutBackground(biomeName, backgroundKey)
-            : CONFIG.SHOOTOUT_MODE.BACKGROUNDS[backgroundKey];
+            : this.getBackgroundConfig(backgroundKey);
 
         if (!bgConfig) {
 //            console.error(`[Shootout] Invalid background key: ${backgroundKey}`);
@@ -1774,6 +1784,7 @@ class ShootoutController {
         const bgConfig = this.getBackgroundConfig(bgKey);
         if (!bgConfig) return;
         const positions = bgConfig.TREE_SPAWN_POSITIONS;
+        if (!positions) return;
         // If we have a spawner, update its positions
         if (this.spawner && positions) {
             this.spawner.setTreePositions(positions);

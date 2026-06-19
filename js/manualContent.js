@@ -20,7 +20,8 @@ const MANUAL_CONTENT = [
                 items: [
                     { label: "ELIMINATE", color: "#ff9999", text: "Neutralize all possum scum in the sector." },
                     { label: "DESTROY", color: "#ffcc99", text: "Demolish enemy infrastructure (Huts, Radio Towers). Just be careful when 'disturbing the hornet's nest'." },
-                    { label: "RESCUE", color: "#99ccff", text: "Locate and secure hostage units. Bring them to safety. Rescued hostages join the available recruits." }
+                    { label: "RESCUE", color: "#99ccff", text: "Locate and secure hostage units. Bring them to safety. Rescued hostages join the available recruits." },
+                    { label: "INTEL", color: "#ffff99", text: "Locate and secure intel caches. These contain valuable information about the possum forces." }
                 ]
             },
             {
@@ -56,6 +57,7 @@ const MANUAL_CONTENT = [
                     { key: "5 - 0", desc: "Recall Saved Squad Group" },
                     { key: "CTRL + 5 - 0", desc: "Save Current Selection as Squad Group" },
                     { key: "SHIFT + LMB", desc: "Set Manual Target Lock (Focus Fire)" },
+                    { key: "Q", desc: "Place Scent Marker / Sniff for Markers" },
                     { key: "F", desc: "Toggle Formation" },
                     { key: "G", desc: "Throw Grenade (Aim & Click)" },
                     { key: "H", desc: "Toggle Hostage Hold/Follow" },
@@ -72,6 +74,14 @@ const MANUAL_CONTENT = [
             {
                 type: "header",
                 content: "COMBAT TACTICS"
+            },
+            {
+                type: "header-small",
+                content: "SCENT MARKERS (Key: Q)"
+            },
+            {
+                type: "paragraph",
+                content: "Place scent markers to track locations and help you remember important spots. Chose between Hostage, Intel or Helipad markers. Once placed, you can sniff to display them."
             },
             {
                 type: "header-small",

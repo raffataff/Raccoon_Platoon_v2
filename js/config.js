@@ -1650,14 +1650,14 @@ const CONFIG = {
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
         SMALL_GROUP_CHANCE: 0.6,
         SMALL_GROUP_SIZE_MIN: 2,
-        SMALL_GROUP_SIZE_MAX: 5,
-        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 450,
+        SMALL_GROUP_SIZE_MAX: 10,
+        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 650,
         LEADER_PLACEMENT_MAX_ATTEMPTS: 5,
         MEMBER_PLACEMENT_MAX_ATTEMPTS: 5,
-        GROUP_SPREAD_BASE: 30,
+        GROUP_SPREAD_BASE: 80,
         GROUP_SPREAD_SIZE_MULTIPLIER: 1.5,
         DEFAULT_HEAVY_CHANCE: 0.20,
-        HEAVY_CHANCE_GROUP_LEADER_BONUS: 0.1,
+        HEAVY_CHANCE_GROUP_LEADER_BONUS: 0.3,
 
         POSSUM_HUT_SPAWNING: {
             MAX_ACTIVE_SPAWNING_HUTS_BASE: 1,
@@ -1675,14 +1675,14 @@ const CONFIG = {
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -125,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -55,
             SPAWN_AREA_WIDTH: 80,
-            SPAWN_PHASING_DURATION: 0.05,
+            SPAWN_PHASING_DURATION: 0.1,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
             MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 2,
             INITIAL_MOVE_OUT_DISTANCE: 25,
             INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.8,
-            MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.0,
+            MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.1,
             UNITS_TO_SPAWN_ON_DAMAGE: 1,
             SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 0.80,
             SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 3,
@@ -1706,7 +1706,7 @@ const CONFIG = {
             SPAWN_POINT_OFFSET_FROM_HUT_CENTER_X: -150,
             SPAWN_POINT_OFFSET_FROM_HUT_BOTTOM_Y: -80,
             SPAWN_AREA_WIDTH: 150,
-            SPAWN_PHASING_DURATION: 0.5,
+            SPAWN_PHASING_DURATION: 0.2,
             DEBUG_DRAW_SPAWN_AREAS: true,
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
@@ -1744,7 +1744,7 @@ const CONFIG = {
         MIN_HOSTAGES_TO_RESCUE_FOR_WIN: 1,
         SPAWN_WITH_ENEMY_GROUPS: true,
         SPAWN_NEAR_CAPTORS_RADIUS: 60,
-        MIN_CAPTORS_GROUP_SIZE: 1,
+        MIN_CAPTORS_GROUP_SIZE: 2,
         HOSTAGE_PLACEMENT_ATTEMPTS_NEAR_GROUP: 2,
         SPAWN_AT_HUTS: true,
         MAX_HOSTAGES_PER_HUT: 2,
@@ -1754,12 +1754,12 @@ const CONFIG = {
         HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 1,
         HOSTAGE_SPAWN_BUFFER: 80,
         HOSTAGE_DECORATION_SPAWN_BUFFER: 225,
-        INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 1,
+        INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 2,
         INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 6,
         INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20,
         INITIAL_GUARD_SPAWN_RADIUS_AROUND_HUT: 180,
-        INITIAL_GUARD_PLACEMENT_ATTEMPTS: 1,
-        RESCUE_PHASING_DURATION: 1.5 // Seconds hostage phases after rescue to avoid getting stuck on obstacles
+        INITIAL_GUARD_PLACEMENT_ATTEMPTS: 2,
+        RESCUE_PHASING_DURATION: 1.0 // Seconds hostage phases after rescue to avoid getting stuck on obstacles
     },
 
     // =============================================================================
@@ -2342,7 +2342,14 @@ const CONFIG = {
                 IMAGE: 'assets/images/shootouts/temperate/shootout_temperate_extraction_1.png'
             },
             // JUNKYARD
-
+            JUNKYARD_SHOOTOUT_1: {
+                NAME: 'The Smell Of Blood',
+                IMAGE: 'assets/images/shootouts/junkyard/Shootout_junkyard_1.png',
+            },
+            JUNKYARD_SHOOTOUT_2: {
+                NAME: 'Oil For Blood',
+                IMAGE: 'assets/images/shootouts/junkyard/Shootout_junkyard_2.png',
+            }
         },
 
         DEFAULT_BACKGROUND: 'JUNGLE_ATTACK',
@@ -2358,12 +2365,12 @@ const CONFIG = {
         AMBUSH_BACKGROUNDS: {
                 TROPICAL: ['RAINFOREST_BATTLE_1', 'JUNGLE_ATTACK', 'JUNGLE_RUINS_2', 'JUNGLE_AMBUSH', 'JUNGLE_RUINS', 'TROPICAL_EXTRACTION_BATTLE_1',],
                 TEMPERATE: ['TEMPERATE_FOREST_1', 'TEMPERATE_FOREST_2', 'TEMPERATE_FOREST_3', 'TEMPERATE_FOREST_EXTRACTION_1'],
-                JUNKYARD: ['JUNKYARD_BATTLE_1', 'JUNKYARD_ATTACK',]
+                JUNKYARD: ['JUNKYARD_SHOOTOUT_1', 'JUNKYARD_SHOOTOUT_2']
             },
         AMBUSH_EXTRACTION_BACKGROUNDS: {
                 TROPICAL: ['TROPICAL_EXTRACTION_BATTLE_1',],
                 TEMPERATE: ['TEMPERATE_FOREST_EXTRACTION_1',],
-                JUNKYARD: ['JUNKYARD_BATTLE_1',]
+                JUNKYARD: ['JUNKYARD_SHOOTOUT_1',]
             },
         AMBUSH_UNLOCKS_PHASE: 2,
 

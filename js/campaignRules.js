@@ -8,7 +8,7 @@ const CAMPAIGN_RULES = {
         worldWidthFactor: { initial: 1.2, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness 
         worldHeightFactor: { initial: 1.1, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness
         obstacleCountPhaseIncrement: { initial: 1.0, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2  }, 
-        enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.2, max: 10.0, randomnessFactor: 0.2 }, // 20% growth per phase
+        enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.3, max: 10.0, randomnessFactor: 0.2 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.65, randomnessFactor: 0.05, unlocksPhase: 1 },
         sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
         eliteChance: { initial: 0.05, perPhaseGrowthFactor: 0.07, max: 0.65, randomnessFactor: 0.05, unlocksPhase: 4 },
