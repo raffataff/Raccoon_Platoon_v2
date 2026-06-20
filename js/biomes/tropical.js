@@ -313,6 +313,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.7,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 1.95), radius: (w => w * 0.1) },
             treeStumpType: 'tree_palm2_stump',
+            fallenTreeType: 'tree_palm_fallen',
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -345,6 +346,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.35,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radius: (w => w * 0.08) },
             treeStumpType: 'tree_palm2_stump',
+            fallenTreeType: 'tree_palm2_fallen',
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -356,6 +358,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.4,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.51), offsetY: (h => h * 0.75), radiusX: (w => w * 0.08), radiusY: (h => h * 0.065) },
             treeStumpType: 'tree_palm2_stump',
+            fallenTreeType: 'tree_palm2_fallen',
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -367,6 +370,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.5,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.1), radiusY: (h => h * 0.06) },
             treeStumpType: 'tree_palm2_stump',
+            fallenTreeType: 'tree_palm2_fallen',
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -399,6 +403,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.35,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.48), offsetY: (h => h * 0.75), radius: (w => w * 0.07) },
             treeStumpType: 'pheonix_stump',
+            fallenTreeType: 'pheonix_fallen',
             canBeFlipped: true,
         },
         {
@@ -409,6 +414,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.35,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.085) },
             treeStumpType: 'pheonix_stump',
+            fallenTreeType: 'pheonix_fallen',
             canBeFlipped: true,
         },
         {
@@ -419,6 +425,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.35,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.75), radiusX: (w => w * 0.13), radiusY: (h => h * 0.06) },
             treeStumpType: 'pheonix_stump',
+            fallenTreeType: 'pheonix_fallen',
             canBeFlipped: true,
         },
         
@@ -427,9 +434,10 @@ const TROPICAL_BIOME = {
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             isDecoration: false, canBeFlipped: true,
-            spawnWeight: 2, 
+            spawnWeight: 2,
             spriteScale: 0.5,
             treeStumpType: 'pheonix_stump',
+            fallenTreeType: 'pheonix_fallen',
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.53), offsetY: (h => h * 0.98), radiusX: (w => w * 0.08), radiusY: (h => h * 0.06) },
         },
         {
@@ -472,6 +480,7 @@ const TROPICAL_BIOME = {
             spriteScale: 0.5,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 1.105), radius: (w => w * 0.06) },
             treeStumpType: 'pheonix_stump',
+            fallenTreeType: 'pheonix_fallen',
             canBeFlipped: true,
         },
         {
@@ -790,17 +799,18 @@ const TROPICAL_BIOME = {
             IMAGE: 'assets/images/shootouts/tropical/Shootout_Jungle_1.png',
             TREE_SPAWN_POSITIONS: [
                 {"x":355,"y":1087,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":100,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":false}}},
-                {"x":435,"y":908,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":105,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":100,"scale":1.5,"showInDevMode":false}}},
+                {"x":476,"y":903,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":115,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":16,"peekOffset":100,"scale":1.5,"showInDevMode":false}}},
                 {"x":867,"y":1095,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":110,"scale":1,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":60,"scale":0.9,"showInDevMode":true}}},
-                {"x":1109,"y":880,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},
-                {"x":1403,"y":803,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":65,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},
-                {"x":1635,"y":932,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":200,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":40,"peekOffset":130,"scale":1.8,"showInDevMode":true}}},
-                {"x":516,"y":896,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":175,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},
-                {"x":212,"y":196,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":90,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},
+                {"x":1153,"y":876,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":85,"scale":0.4,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":70,"scale":1.3,"showInDevMode":true}}},
+                {"x":1414,"y":794,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":75,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":65,"scale":1,"showInDevMode":true}}},
+                {"x":1635,"y":916,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":200,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":40,"peekOffset":130,"scale":1.8,"showInDevMode":true}}},
+                {"x":518,"y":896,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":50,"peekOffset":175,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":50,"peekOffset":155,"scale":1.5,"showInDevMode":true}}},
+                {"x":211,"y":196,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":90,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":75,"scale":1.4,"showInDevMode":true}}},
                 {"x":745,"y":337,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":55,"scale":0.3,"showInDevMode":true},"heavy":{"enabled":false,"weight":0,"peekOffset":55,"scale":0.6,"showInDevMode":true}}},
                 {"x":1064,"y":407,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":40,"scale":0.2,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                {"x":912,"y":891,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":85,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
-                {"x":1604,"y":853,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":100,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}}
+                {"x":763,"y":887,"peekDirection":"right","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":200,"scale":0.5,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":1604,"y":853,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":0.8,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1.1,"showInDevMode":false}}},
+                {"x":1284,"y":875,"peekDirection":"left","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":155,"scale":0.6,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}}
             ]
         },
         JUNGLE_RUINS: {

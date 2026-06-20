@@ -13,6 +13,11 @@ const CONFIG = {
     CAMERA_ZOOM: 1.3,
 
     // =============================================================================
+    // LAYOUT
+    // =============================================================================
+    CANVAS_ASPECT_RATIO_SQUISH: 1.0,                      // Multiplier for the canvas aspect ratio calculation. >1 = wider canvas (less height squish), <1 = narrower canvas (more height squish). Tweak if the 16:9 canvas appears too tall/short relative to the HUD.
+
+    // =============================================================================
     // INPUT
     // =============================================================================
     INPUT_DRAG_THRESHOLD: 5,
@@ -1937,13 +1942,13 @@ const CONFIG = {
         },
         RECRUIT_CARD: { DEFAULT_FACE_BG_COLOR: '#555555' },
         MEMORIAL_CARD: { DEFAULT_FACE_BG_COLOR: '#333333' },
-        RANK_ICON_PATH: 'assets/images/ranks/',
+        RANK_ICON_PATH: 'assets/images/ranks/rifleman/',
         RANK_ICON_FILES: {
             'Recruit': 'recruit.png',
             'Private': 'private.png',
             'Corporal': 'corporal.png',
             'Sergeant': 'sergeant.png',
-            'Elite': 'Elite.png',
+            'Elite': 'elite.png',
             'Ghost': 'ghost.png'
         }
     },

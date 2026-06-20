@@ -378,10 +378,87 @@ const TEMPERATE_BIOME = {
             spawnWeight: 1, isDecoration: false,
             spriteScale: 1.0,
             collisionShape: { 
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.72), radius: (w => w * 0.1) },
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.72), radius: (w => w * 0.08) },
             canBeFlipped: true,
         },
-        
+        {
+            type: 'tree_birch', name: 'Birch Tree', color: '#C8B560',
+            destructible: true, hp: 80, maxHp: 80,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 2, isDecoration: false,
+            canBeFlipped: true,
+            placementBuffer: 80,
+            spriteScale: 0.7,
+            treeStumpType: 'birch_stump',
+            fallenTreeType: 'birch_fallen',
+            collisionShape: {
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.78), radius: (w => w * 0.1)
+            },
+        },
+        {
+            type: 'birch_fallen', name: 'Fallen Birch Tree', color: '#C8B560',
+            destructible: false, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.5,
+            isDecoration: false,
+            canBeFlipped: true,
+            placementBuffer: 80,
+            spriteScale: 0.3,
+            collisionShape: {
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.35)
+            },
+        },
+        {
+            type: 'birch_stump', name: 'Birch Tree Stump', color: '#C8B560',
+            destructible: false, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.5, isDecoration: false,
+            spriteScale: 0.35,
+            collisionShape: {
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radius: (w => w * 0.08)
+            },
+            canBeFlipped: true,
+            placementBuffer: 60,
+        },
+        {
+            type: 'tree_pine', name: 'Pine Tree', color: '#2E5A1E',
+            destructible: true, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 2, isDecoration: false,
+            canBeFlipped: true,
+            placementBuffer: 80,
+            spriteScale: 0.7,
+            treeStumpType: 'pine_stump',
+            fallenTreeType: 'pine_fallen',
+            collisionShape: {
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.78), radius: (w => w * 0.1)
+            },
+        },
+        {
+            type: 'pine_fallen', name: 'Fallen Pine Log', color: '#2E5A1E',
+            destructible: false, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.5,
+            isDecoration: false,
+            canBeFlipped: true,
+            placementBuffer: 80,
+            spriteScale: 0.3,
+            collisionShape: {
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.35)
+            },
+        },
+        {
+            type: 'pine_stump', name: 'Pine Tree Stump', color: '#2E5A1E',
+            destructible: false, hp: 100, maxHp: 100,
+            blocksMovement: true, providesCover: true,
+            spawnWeight: 0.5, isDecoration: false,
+            spriteScale: 0.35,
+            collisionShape: {
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radius: (w => w * 0.08)
+            },
+            canBeFlipped: true,
+            placementBuffer: 60,
+        },
         {
             type: 'tree_maple_single', name: 'Maple Tree Single', color: '#8B4513',
             destructible: false, blocksMovement: true, providesCover: true,

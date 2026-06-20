@@ -161,6 +161,11 @@ class Game {
 
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
+        document.addEventListener('fullscreenchange', () => {
+            this.resizeCanvas();
+            setTimeout(() => this.resizeCanvas(), 50);
+            setTimeout(() => this.resizeCanvas(), 200);
+        });
 
         this.lastTime = 0;
         this.gameLoop = this.gameLoop.bind(this);
@@ -2613,7 +2618,8 @@ class Game {
         if (!this.canvasContainer) return;
         const containerWidth = this.canvasContainer.clientWidth;
         const containerHeight = this.canvasContainer.clientHeight;
-        const aspectRatio = (CONFIG.BASE_WORLD_WIDTH || 1920) / (CONFIG.BASE_WORLD_HEIGHT || 1080);
+        const squish = (CONFIG.CANVAS_ASPECT_RATIO_SQUISH !== undefined) ? CONFIG.CANVAS_ASPECT_RATIO_SQUISH : 1.0;
+        const aspectRatio = ((CONFIG.BASE_WORLD_WIDTH || 1920) / (CONFIG.BASE_WORLD_HEIGHT || 1080)) * squish;
         // Fit canvas to container while maintaining the target aspect ratio
         // Use the dimension that is more constrained relative to the ratio
         let canvasWidth, canvasHeight;
@@ -2626,8 +2632,10 @@ class Game {
             canvasWidth = containerWidth;
             canvasHeight = Math.round(containerWidth / aspectRatio);
         }
-        this.canvas.width = Math.max(CONFIG.MIN_CANVAS_WIDTH || 800, canvasWidth);
-        this.canvas.height = Math.max(CONFIG.MIN_CANVAS_HEIGHT || 600, canvasHeight);
+        this.canvas.width = canvasWidth;
+        this.canvas.height = canvasHeight;
+        this.canvas.style.width = canvasWidth + 'px';
+        this.canvas.style.height = canvasHeight + 'px';
         if (this.gameState === 'RUNNING') this.clampCamera();
     }
 
@@ -5219,7 +5227,7 @@ class Game {
             this.ctx.font = "16px 'Consolas', 'Lucida Console', monospace";
             this.ctx.fillStyle = "rgba(255, 255, 0, 0.9)";
             this.ctx.textAlign = "left";
-            this.ctx.fillText(`FPS: ${this.fps}`, 10, 20);
+            this.ctx.fillText(`FPS: ${this.fps}`, 10, 80);
         }
 
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {

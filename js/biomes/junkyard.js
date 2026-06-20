@@ -88,7 +88,7 @@ const JUNKYARD_BIOME = {
         // Empty Possum huts
         empty_hut_round: {
             path: 'assets/images/objects/possums/huts/',
-            files: ['possum_hut_6.png' ],
+            files: [ ],
         },
         empty_possum_hut_2: {
             path: 'assets/images/objects/possums/huts/',

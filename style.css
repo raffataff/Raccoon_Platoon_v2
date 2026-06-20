@@ -136,10 +136,6 @@ canvas#gameCanvas {
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.6) inset, 0 0 5px rgba(0, 0, 0, 0.5);
     display: block;
     /* Good practice for canvas responsiveness */
-    width: 100%;
-    /* Fill container width */
-    height: 100%;
-    /* Fill container height */
 }
 
 /* --- Main Menu Screen --- */
@@ -1162,8 +1158,8 @@ canvas#gameCanvas {
     position: absolute;
     top: 5px;
     right: 5px;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
@@ -1172,8 +1168,8 @@ canvas#gameCanvas {
 }
 
 .deployed-squad-card .rank-icon {
-    width: 24px;
-    height: 24px;
+    width: 48px;
+    height: 48px;
     top: 3px;
     right: 3px;
 }
@@ -1724,7 +1720,7 @@ input[type="range"]::-moz-range-thumb {
     height: 100px;
     margin: 2px;
     border-radius: 3px;
-    border: 1px solid #222;
+    border: 2px solid #535353;
     background-size: cover;
     background-position: center;
     filter: none !important;
@@ -1759,10 +1755,10 @@ input[type="range"]::-moz-range-thumb {
 
 .deployed-squad-card .rank-icon {
     position: absolute;
-    top: 5px;
+    top: 40px;
     right: 5px;
-    width: 36px;
-    height: 36px;
+    width: 64px;
+    height: 64px;
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
@@ -2606,7 +2602,7 @@ input[type="range"]::-moz-range-thumb {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    width: 400px;
+    width: 580px;
     max-width: 580px;
     padding: 8px 2px;
     background-image: url('assets/images/ui/dogtag.png');
@@ -2626,7 +2622,7 @@ input[type="range"]::-moz-range-thumb {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 2px;
+    gap: 0px;
 }
 
 .unit-card .card-stats-row {
@@ -2638,8 +2634,10 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .unit-card .card-rank-icon {
-    width: 24px;
-    height: 24px;
+    position: relative;
+    left: 5px;
+    width: 48px;
+    height: 48px;
     flex-shrink: 0;
     background-size: contain;
     background-position: center;
@@ -2662,17 +2660,18 @@ input[type="range"]::-moz-range-thumb {
 
 .unit-card .card-rank {
     font-size: 0.8rem;
-    font-weight: 500;
+    font-weight: 600;
     color: #2b2b2b;
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
     text-align: center;
     line-height: 1.1;
+    margin-left: 20px;
 }
 
 .unit-card .card-xp {
     font-size: 0.7rem;
-    color: #ffffff;
+    color: #2b2b2b;
     text-align: center;
     line-height: 1.1;
 }
