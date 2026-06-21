@@ -183,7 +183,7 @@ class Raccoon extends Unit {
                 // --- NEW ---
                 this.promotedThisMission = true;
                 // --- END NEW ---
-                if (this.game && this.game.addVisualEffect) this.game.addVisualEffect('promotion', { unitId: this.id });
+                if (this.game && this.game.addVisualEffect) this.game.addVisualEffect('promotion', { unitId: this.id, rank: this.rank });
                 if (this.game && this.game.trySpeech) this.game.trySpeech(this, 'ON_PROMOTION');
                 this.applyRankBonuses(false, true);
                 this._applyGrenadeBonusesForRank();

@@ -229,11 +229,10 @@ const TEMPERATE_BIOME = {
             color: '#4A90D9',
             destructible: false, blocksMovement: true, providesCover: false, 
             isDecoration: false,
-            spawnWeight: 1.5,
+            spawnWeight: 0.5,
             spriteScale: 0.8,
             phaseUnlocked: 2,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
-            swirlRegion: { centerX: 0.5, centerY: 0.5, radius: 0.25 },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.42), radiusY: ((w, h) => h * 0.32) },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -244,13 +243,12 @@ const TEMPERATE_BIOME = {
             destructible: false,
             blocksMovement: true,
             providesCover: false,
-            spawnWeight: 0.5,
+            spawnWeight: 0.3,
             isDecoration: false,
             spriteScale: 0.8,
             phaseUnlocked: 3,
             collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.45) },
-            swirlRegion: { centerX: 0.5, centerY: 0.5, radius: 0.25 },
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.42), radiusY: ((w, h) => h * 0.42) },
             canBeFlipped: true,
             placementBuffer: 80,
         },
@@ -258,7 +256,7 @@ const TEMPERATE_BIOME = {
             type: 'water_well', name: 'Water Well', color: '#4A90D9',
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: false,
-            spawnWeight: 0.5, isDecoration: false,
+            spawnWeight: 0.3, isDecoration: false,
             spriteScale: 0.4,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.2) },
@@ -298,7 +296,7 @@ const TEMPERATE_BIOME = {
             spawnWeight: 2, isDecoration: true,
             spriteScale: 0.4,
             collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.27) },
+                type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.58), radiusX: (w => w * 0.41), radiusY: ((w, h) => h * 0.22) },
             canBeFlipped: true,
             placementBuffer: 60,
         },
@@ -325,7 +323,7 @@ const TEMPERATE_BIOME = {
             spawnWeight: 3, isDecoration: false, canBeFlipped: true,
             spriteScale: 0.5,
             collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.1) },
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.08) },
         },
         {
             type: 'tree_oak_single', name: 'Oak Tree Single', color: '#bb5912',
@@ -335,7 +333,7 @@ const TEMPERATE_BIOME = {
             placementBuffer: 80,
             spriteScale: 0.75,
             collisionShape: {
-            type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.78), radius: (w => w * 0.1) },
+            type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.78), radius: (w => w * 0.08) },
         },
         {
             type: 'tree_oak_double', name: 'Oak Tree Double', color: '#8B4513',
@@ -346,11 +344,11 @@ const TEMPERATE_BIOME = {
             placementBuffer: 100,
             spriteScale: 0.6,
             collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.47), offsetY: (h => h * 0.7), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.09) },
+                type: 'ellipse', offsetX: (w => w * 0.47), offsetY: (h => h * 0.7), radiusX: (w => w * 0.17), radiusY: ((w, h) => h * 0.08) },
         },
         
         {
-            type: 'tree_oak_fallen_small', name: 'SmallFallen Oak Tree', color: '#8B4513',
+            type: 'tree_oak_fallen_small', name: 'Small Fallen Oak Tree', color: '#8B4513',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             isDecoration: false, canBeFlipped: true,
@@ -358,17 +356,17 @@ const TEMPERATE_BIOME = {
             placementBuffer: 80,
             spriteScale: 0.3,
             collisionShape: { 
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.35) },
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.45), radiusY: (h => h * 0.15) },
         },
         {
-            type: 'tree_oak_fallen_large', name: 'LargeFallen Oak Tree', color: '#228B22',
+            type: 'tree_oak_fallen_large', name: 'Large Fallen Oak Tree', color: '#228B22',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1,
             isDecoration: false,
             spriteScale: 0.4,
             collisionShape: { 
-                type: 'rectangle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.05), width: (w => w * 0.85), height: (h => h * 0.25) },
+                type: 'rectangle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.05), width: (w => w * 0.8), height: (h => h * 0.2) },
             canBeFlipped: true,
         },
         {
@@ -378,7 +376,7 @@ const TEMPERATE_BIOME = {
             spawnWeight: 1, isDecoration: false,
             spriteScale: 1.0,
             collisionShape: { 
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.72), radius: (w => w * 0.08) },
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.72), radius: (w => w * 0.06) },
             canBeFlipped: true,
         },
         {
@@ -388,7 +386,7 @@ const TEMPERATE_BIOME = {
             spawnWeight: 2, isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 80,
-            spriteScale: 0.7,
+            spriteScale: 0.6,
             treeStumpType: 'birch_stump',
             fallenTreeType: 'birch_fallen',
             collisionShape: {
@@ -403,9 +401,9 @@ const TEMPERATE_BIOME = {
             isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 80,
-            spriteScale: 0.3,
+            spriteScale: 0.6,
             collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.35)
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.25)
             },
         },
         {
@@ -413,9 +411,9 @@ const TEMPERATE_BIOME = {
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.5, isDecoration: false,
-            spriteScale: 0.35,
+            spriteScale: 0.25,
             collisionShape: {
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radius: (w => w * 0.08)
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radius: (w => w * 0.1)
             },
             canBeFlipped: true,
             placementBuffer: 60,
@@ -424,14 +422,14 @@ const TEMPERATE_BIOME = {
             type: 'tree_pine', name: 'Pine Tree', color: '#2E5A1E',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false,
+            spawnWeight: 6, isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 80,
-            spriteScale: 0.7,
+            spriteScale: 0.6,
             treeStumpType: 'pine_stump',
             fallenTreeType: 'pine_fallen',
             collisionShape: {
-                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.78), radius: (w => w * 0.1)
+                type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.85), radius: (w => w * 0.04)
             },
         },
         {
@@ -444,7 +442,7 @@ const TEMPERATE_BIOME = {
             placementBuffer: 80,
             spriteScale: 0.3,
             collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.35)
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.2)
             },
         },
         {
@@ -452,7 +450,7 @@ const TEMPERATE_BIOME = {
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.5, isDecoration: false,
-            spriteScale: 0.35,
+            spriteScale: 0.3,
             collisionShape: {
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radius: (w => w * 0.08)
             },

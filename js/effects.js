@@ -13,6 +13,218 @@ class PromotionEffect {
     render(ctx) { ctx.font = this.font; ctx.fillStyle = `rgba(${this.colorRGB[0]}, ${this.colorRGB[1]}, ${this.colorRGB[2]}, ${Math.max(0, this.opacity)})`; ctx.textAlign = 'center'; ctx.fillText(this.text, this.x, this.y); ctx.textAlign = 'left'; }
 }
 
+// Expanding shockwave spawned when a unit is promoted. Renders a tactical
+// energy ring and damages enemies the front passes over (each hit once).
+// Radius and damage scale with the rank just earned. Fully config-driven via
+// CONFIG.VISUAL_EFFECTS.PROMOTION.PULSE_RING.
+class PulseRingEffect {
+    constructor(x, y, rank, gameInstance, sourceUnit = null) {
+        this.game = gameInstance;
+        this.x = x; this.y = y;
+        this.sourceUnit = sourceUnit;
+        this.type = 'pulse_ring';
+        this.isMarkedForDeletion = false;
+
+        const promoCfg = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.PROMOTION) || {};
+        const cfg = promoCfg.PULSE_RING || {};
+        this.cfg = cfg;
+
+        // rankStep: 0 for the first promotable rank, +1 per rank above it.
+        let rankStep = 0;
+        if (CONFIG.RANK_THRESHOLDS && rank) {
+            const idx = CONFIG.RANK_THRESHOLDS.findIndex(r => r.rankName === rank);
+            if (idx > 0) rankStep = idx - 1;
+        }
+        this.rankStep = Math.max(0, rankStep);
+
+        const num = (v, d) => (typeof v === 'number' ? v : d);
+        this.maxRadius = num(cfg.BASE_RADIUS, 70) + num(cfg.RADIUS_PER_RANK, 24) * this.rankStep;
+        this.damage = num(cfg.BASE_DAMAGE, 30) + num(cfg.DAMAGE_PER_RANK, 18) * this.rankStep;
+        this.dealsDamage = cfg.DEALS_DAMAGE !== false && this.damage > 0;
+
+        this.expandTime = num(cfg.EXPAND_TIME, 0.45);
+        this.lifetime = Math.max(num(cfg.LIFETIME, 0.75), this.expandTime + 0.05);
+        this.elapsed = 0;
+        this.currentRadius = 0;
+
+        const rankColors = cfg.RANK_COLORS || {};
+        this.color = rankColors[rank] || cfg.SHOCKWAVE_COLOR_RGB || [255, 223, 0];
+        this.coreColor = cfg.CORE_COLOR_RGB || [255, 255, 220];
+
+        this.ringThickness = num(cfg.RING_THICKNESS, 6);
+        this.numRings = num(cfg.SHOCKWAVE_RINGS, 2);
+        this.spokeCount = num(cfg.SPOKE_COUNT, 12);
+        this.glowIntensity = num(cfg.GLOW_INTENSITY, 0.45);
+        this.shadowBlur = num(cfg.SHADOW_BLUR, 14);
+        this.coreFlash = cfg.CORE_FLASH !== false;
+        this.rotation = Math.random() * Math.PI * 2;
+
+        // Each enemy is damaged at most once per pulse.
+        this.damagedIds = new Set();
+
+        // Outward sparks. Allocated once here, never re-allocated per frame.
+        this.particles = [];
+        const pCount = num(cfg.PARTICLE_COUNT, 16);
+        for (let i = 0; i < pCount; i++) {
+            const ang = (i / pCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+            const speed = this.maxRadius * (1.4 + Math.random());
+            this.particles.push({
+                x: this.x, y: this.y,
+                vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+                life: this.lifetime * (0.55 + Math.random() * 0.45),
+                size: 1 + Math.random() * 2
+            });
+        }
+
+        if (cfg.SCREEN_SHAKE && this.game && typeof this.game.addScreenShake === 'function') {
+            this.game.addScreenShake(cfg.SCREEN_SHAKE);
+        }
+    }
+
+    update(deltaTime) {
+        this.elapsed += deltaTime;
+
+        const expandProgress = Math.min(1, this.elapsed / this.expandTime);
+        // Ease-out cubic gives a fast snap then settle — reads as a shockwave.
+        const eased = 1 - Math.pow(1 - expandProgress, 3);
+        this.currentRadius = this.maxRadius * eased;
+
+        // Damage as the front expands, plus one final pass at full radius, then
+        // stop scanning so the trailing fade costs nothing.
+        if (this.dealsDamage && !this._damageDone) {
+            this._applyDamage();
+            if (expandProgress >= 1) this._damageDone = true;
+        }
+
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            if (p.life <= 0) continue;
+            p.x += p.vx * deltaTime;
+            p.y += p.vy * deltaTime;
+            p.vx *= 0.88; p.vy *= 0.88;
+            p.life -= deltaTime;
+        }
+
+        if (this.elapsed >= this.lifetime) this.isMarkedForDeletion = true;
+    }
+
+    _applyDamage() {
+        const game = this.game;
+        if (!game) return;
+        const r = this.currentRadius;
+        if (r <= 0) return;
+
+        let candidates;
+        if (game.spatialGrid) {
+            // Pad query so large collision shapes near the edge are caught.
+            candidates = game.spatialGrid.queryRange(this.x, this.y, r + 40);
+        } else {
+            candidates = game.enemyUnits || [];
+        }
+
+        const creditUnit = (this.cfg.CREDIT_KILLS_TO_UNIT !== false) ? this.sourceUnit : null;
+
+        for (let i = 0; i < candidates.length; i++) {
+            const obj = candidates[i];
+            if (!obj || obj.team !== 'enemy') continue;
+            if (typeof obj.isAlive !== 'function' || !obj.isAlive()) continue;
+            if (this.damagedIds.has(obj.id)) continue;
+            const d = distance(this.x, this.y, obj.x, obj.y);
+            if (d <= r + (obj.size || 0)) {
+                this.damagedIds.add(obj.id);
+                obj.takeDamage(this.damage, creditUnit);
+                if (this.cfg.DAMAGE_NUMBERS && game.addVisualEffect) {
+                    game.addVisualEffect('pickup_text', {
+                        x: obj.x, y: obj.y - (obj.size || 10),
+                        text: '-' + Math.round(this.damage), color: '#FFD700'
+                    });
+                }
+            }
+        }
+    }
+
+    render(ctx) {
+        const fade = this.elapsed / this.lifetime;
+        const alpha = Math.max(0, 1 - fade);
+        if (alpha <= 0 || this.currentRadius <= 0) return;
+
+        const cr = this.color[0], cg = this.color[1], cb = this.color[2];
+        const kr = this.coreColor[0], kg = this.coreColor[1], kb = this.coreColor[2];
+
+        ctx.save();
+        ctx.lineCap = 'round';
+
+        // Soft rim glow filling toward the leading edge.
+        if (this.currentRadius > 2 && this.glowIntensity > 0) {
+            const grad = ctx.createRadialGradient(this.x, this.y, this.currentRadius * 0.2, this.x, this.y, this.currentRadius);
+            grad.addColorStop(0, `rgba(${cr},${cg},${cb},0)`);
+            grad.addColorStop(0.75, `rgba(${cr},${cg},${cb},0)`);
+            grad.addColorStop(1, `rgba(${cr},${cg},${cb},${alpha * this.glowIntensity})`);
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.currentRadius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        if (this.shadowBlur > 0) {
+            ctx.shadowColor = `rgba(${cr},${cg},${cb},${alpha})`;
+            ctx.shadowBlur = this.shadowBlur;
+        }
+
+        // Leading ring + trailing concentric rings.
+        for (let i = 0; i < this.numRings; i++) {
+            const ringR = this.currentRadius - i * (this.currentRadius * 0.12);
+            if (ringR <= 0) continue;
+            const ringAlpha = alpha * (1 - i / (this.numRings + 1));
+            ctx.strokeStyle = `rgba(${cr},${cg},${cb},${ringAlpha})`;
+            ctx.lineWidth = Math.max(1, this.ringThickness * (1 - fade) * (1 - i * 0.3));
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, ringR, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.shadowBlur = 0;
+
+        // Radiating spokes for an energy-burst read.
+        if (this.spokeCount > 0) {
+            ctx.strokeStyle = `rgba(${kr},${kg},${kb},${alpha * 0.55})`;
+            ctx.lineWidth = 1.5 * (1 - fade);
+            const innerR = this.currentRadius * 0.55;
+            const outerR = this.currentRadius;
+            for (let i = 0; i < this.spokeCount; i++) {
+                const a = this.rotation + (i / this.spokeCount) * Math.PI * 2;
+                const ca = Math.cos(a), sa = Math.sin(a);
+                ctx.beginPath();
+                ctx.moveTo(this.x + ca * innerR, this.y + sa * innerR);
+                ctx.lineTo(this.x + ca * outerR, this.y + sa * outerR);
+                ctx.stroke();
+            }
+        }
+
+        // Outward sparks.
+        for (let i = 0; i < this.particles.length; i++) {
+            const p = this.particles[i];
+            if (p.life <= 0) continue;
+            const pa = Math.max(0, Math.min(1, p.life / this.lifetime)) * alpha;
+            ctx.fillStyle = `rgba(${kr},${kg},${kb},${pa})`;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Bright central flash on spawn.
+        if (this.coreFlash && fade < 0.35) {
+            const coreA = alpha * (1 - fade / 0.35);
+            ctx.fillStyle = `rgba(${kr},${kg},${kb},${coreA})`;
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, 6 + 12 * (1 - fade / 0.35), 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+}
+
 class FireEffect {
     constructor(anchorObstacle, gameInstance, offsetX = 0, offsetY = 0, flameOffsetY = 0) {
         this.game = gameInstance;

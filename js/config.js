@@ -13,6 +13,11 @@ const CONFIG = {
     CAMERA_ZOOM: 1.3,
 
     // =============================================================================
+    // PERFORMANCE
+    // =============================================================================
+    AUTO_PHASE_ENEMIES_FPS_THRESHOLD: 35,
+
+    // =============================================================================
     // LAYOUT
     // =============================================================================
     CANVAS_ASPECT_RATIO_SQUISH: 1.0,                      // Multiplier for the canvas aspect ratio calculation. >1 = wider canvas (less height squish), <1 = narrower canvas (more height squish). Tweak if the 16:9 canvas appears too tall/short relative to the HUD.
@@ -1773,7 +1778,56 @@ const CONFIG = {
     VISUAL_EFFECTS: {
         PROMOTION: {
             LIFETIME: 2.5, TEXT: "PROMOTED!", FONT: "bold 16px 'Consolas', 'Lucida Console', monospace",
-            COLOR_RGB_FADE_START: [255, 223, 0], VELOCITY_Y: -20
+            COLOR_RGB_FADE_START: [255, 223, 0], VELOCITY_Y: -20,
+
+            // ============================================================
+            // Promotion shockwave / damaging pulse ring.
+            // Spawned on the promoted unit. Radius & damage scale with the
+            // rank just earned (see RANK_THRESHOLDS order). Tune freely.
+            // ============================================================
+            PULSE_RING: {
+                ENABLED: true,            // master on/off switch for the whole effect
+                DEALS_DAMAGE: true,       // set false for a purely cosmetic burst
+
+                // --- Damage (scales with rank) ---
+                // Effective damage = BASE_DAMAGE + DAMAGE_PER_RANK * rankStep
+                // rankStep = 0 for the first promotable rank (Private), +1 each rank up.
+                BASE_DAMAGE: 30,
+                DAMAGE_PER_RANK: 18,
+                CREDIT_KILLS_TO_UNIT: true, // promoted unit earns XP/kill credit for ring kills
+
+                // --- Radius in world units (scales with rank) ---
+                // Effective radius = BASE_RADIUS + RADIUS_PER_RANK * rankStep
+                BASE_RADIUS: 70,
+                RADIUS_PER_RANK: 24,
+
+                // --- Timing (seconds) ---
+                EXPAND_TIME: 0.45,        // time for the shockwave front to reach max radius
+                LIFETIME: 0.75,           // total effect duration (fades out after expanding)
+
+                // --- Visuals ---
+                // Ring colour. If a matching entry exists in RANK_COLORS that
+                // overrides this per rank. Format: [r, g, b].
+                SHOCKWAVE_COLOR_RGB: [255, 223, 0],
+                CORE_COLOR_RGB: [255, 255, 220],
+                RANK_COLORS: {            // optional per-rank tints; remove to use SHOCKWAVE_COLOR_RGB
+                    "Private":  [120, 220, 255],
+                    "Corporal": [120, 255, 170],
+                    "Sergeant": [255, 205, 90],
+                    "Elite":    [255, 140, 60],
+                    "Ghost":    [205, 120, 255]
+                },
+                RING_THICKNESS: 6,        // leading ring stroke width (world units)
+                SHOCKWAVE_RINGS: 2,       // number of trailing concentric rings
+                SPOKE_COUNT: 12,          // radiating energy spokes (0 to disable)
+                PARTICLE_COUNT: 16,       // outward sparks (0 to disable)
+                GLOW_INTENSITY: 0.45,     // 0..1 strength of the rim glow fill
+                SHADOW_BLUR: 14,          // canvas shadow blur on the rings (0 to disable)
+                CORE_FLASH: true,         // bright flash at the centre on spawn
+
+                DAMAGE_NUMBERS: false,    // floating "-N" text over damaged enemies
+                SCREEN_SHAKE: 0           // screen shake amount if game.addScreenShake exists (0 = off)
+            }
         },
         EXPLOSION: {
             LIFETIME: 1.8,

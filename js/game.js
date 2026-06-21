@@ -3953,6 +3953,14 @@ class Game {
             this.lastObjectiveIndicatorTimer = -1;
             return;
         }
+
+        const isExterminateLastEnemy = obj.type === 'EXTERMINATE' && this.enemyUnits && this.enemyUnits.filter(e => e.isAlive()).length !== 1;
+        if (isExterminateLastEnemy) {
+            this.lastObjectiveIndicator.active = false;
+            this.lastObjectiveIndicatorTimer = -1;
+            return;
+        }
+
         if (lastObjMode === 'after1min') {
             if (this.lastObjectiveIndicatorTimer < 0) {
                 this.lastObjectiveIndicatorTimer = 0;
@@ -4017,29 +4025,9 @@ class Game {
         } else if (obj.type === 'EXTERMINATE') {
             const aliveEnemies = this.enemyUnits ? this.enemyUnits.filter(e => e.isAlive()) : [];
             if (aliveEnemies.length === 1) {
-                let closestDist = Infinity;
-                let closest = null;
-                const canvasW = this.canvas.width;
-                const canvasH = this.canvas.height;
-                const zoom = this.cameraZoom || 1.0;
-                const screenCX = canvasW / 2;
-                const screenCY = canvasH / 2;
-                for (const enemy of aliveEnemies) {
-                    const sx = (enemy.x - this.cameraX) * zoom;
-                    const sy = (enemy.y - this.cameraY) * zoom;
-                    const dx = sx - screenCX;
-                    const dy = sy - screenCY;
-                    const dist = dx * dx + dy * dy;
-                    if (dist < closestDist) {
-                        closestDist = dist;
-                        closest = enemy;
-                    }
-                }
-                if (closest) {
-                    worldX = closest.x;
-                    worldY = closest.y;
-                    found = true;
-                }
+                worldX = aliveEnemies[0].x;
+                worldY = aliveEnemies[0].y;
+                found = true;
             }
         } else if (obj.type === 'EXTRACTION') {
             const zones = this.level && this.level.obstacles ? this.level.obstacles.filter(o => o.type === 'extraction_zone') : [];
@@ -5262,6 +5250,16 @@ class Game {
             this.fps = Math.round(this.frameCount / (this.fpsUpdateInterval / 1000));
             this.frameCount = 0;
             this.lastFpsUpdateTime = now;
+
+            if (this.fps < CONFIG.AUTO_PHASE_ENEMIES_FPS_THRESHOLD) {
+                if (this.enemyUnits && this.enemyUnits.length > 0) {
+                    this.enemyUnits.forEach(unit => {
+                        if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
+                            unit.forcePhaseOut(1.0);
+                        }
+                    });
+                }
+            }
         }
 
         if (this.gameState === 'RUNNING' ||
@@ -5419,6 +5417,11 @@ try {
             const unit = this.deployedSquadRoster && this.deployedSquadRoster.find(r => r.id === data.unitId);
             if (unit) {
                 this.visualEffects.push(new PromotionEffect(unit.x, unit.y - unit.size - 10, this));
+                const pulseCfg = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.PROMOTION && CONFIG.VISUAL_EFFECTS.PROMOTION.PULSE_RING;
+                if (pulseCfg && pulseCfg.ENABLED !== false) {
+                    const rank = data.rank || unit.rank;
+                    this.visualEffects.push(new PulseRingEffect(unit.x, unit.y, rank, this, unit));
+                }
             }
             return;
         }
