@@ -531,6 +531,31 @@ canvas#gameCanvas {
     margin-top: 15px;
 }
 
+#hud-fps {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    color: rgba(255, 255, 0, 0.9);
+    font: 16px 'Consolas', 'Lucida Console', monospace;
+    z-index: 50;
+    pointer-events: none;
+    display: none;
+}
+
+#displaySizeSelect {
+    background-color: var(--brand-dark);
+    color: var(--text-main);
+    border: 2px solid var(--brand-secondary);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    outline: none;
+    width: 150px;
+}
+
 #lastObjectiveSelect {
     background-color: var(--brand-dark);
     color: var(--text-main);
@@ -694,6 +719,29 @@ canvas#gameCanvas {
 }
 
 #pauseLastObjectiveSelect option {
+    background-color: var(--brand-dark);
+    color: var(--text-main);
+}
+
+#pauseDisplaySizeSelect {
+    background-color: var(--brand-dark);
+    color: var(--text-main);
+    border: 2px solid var(--brand-primary);
+    border-radius: 3px;
+    padding: 8px 12px;
+    font-size: 1em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    cursor: pointer;
+    outline: none;
+    width: 200px;
+}
+
+#pauseDisplaySizeSelect:hover {
+    border-color: var(--text-main);
+}
+
+#pauseDisplaySizeSelect option {
     background-color: var(--brand-dark);
     color: var(--text-main);
 }

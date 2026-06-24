@@ -85,6 +85,8 @@ class UI {
         this.menuWallpaperShuffleEnabled = SaveManager.getPreference('menuWallpaperShuffle', true);
         this.lastObjectiveMode = SaveManager.getPreference('lastObjectiveMode', 'show');
         this.lastObjectiveSelect = document.getElementById('lastObjectiveSelect');
+        this.displaySizeSelect = document.getElementById('displaySizeSelect');
+        this.pauseDisplaySizeSelect = document.getElementById('pauseDisplaySizeSelect');
 
         this.masterVolumeSlider = document.getElementById('masterVolumeSlider');
         this.musicVolumeSlider = document.getElementById('musicVolumeSlider');
@@ -1605,6 +1607,24 @@ class UI {
                 SaveManager.savePreference('lastObjectiveMode', e.target.value);
             });
         }
+        const initDisplaySizeSelect = (select, isPause) => {
+            if (!select) return;
+            const saved = SaveManager.getPreference('displaySize', CONFIG.DISPLAY_SIZE || 'stretched');
+            select.value = saved;
+            if (this.game) this.game.displaySize = saved;
+            select.addEventListener('change', (e) => {
+                const val = e.target.value;
+                SaveManager.savePreference('displaySize', val);
+                if (this.game) {
+                    this.game.displaySize = val;
+                    this.game.resizeCanvas();
+                }
+                const other = isPause ? this.displaySizeSelect : this.pauseDisplaySizeSelect;
+                if (other) other.value = val;
+            });
+        };
+        initDisplaySizeSelect(this.displaySizeSelect, false);
+        initDisplaySizeSelect(this.pauseDisplaySizeSelect, true);
 
         const initVolumeSlider = (slider, label, prefKey, defaultVal, applyFn) => {
             if (!slider || !label) return;
@@ -1744,6 +1764,10 @@ class UI {
             syncSlider(this.pauseAmbienceVolumeSlider, this.pauseAmbienceVolValue, 'ambienceVolume', 70);
             if (this.pauseLastObjectiveSelect) {
                 this.pauseLastObjectiveSelect.value = this.lastObjectiveMode;
+            }
+            if (this.pauseDisplaySizeSelect) {
+                const savedDisplaySize = SaveManager.getPreference('displaySize', CONFIG.DISPLAY_SIZE || 'stretched');
+                this.pauseDisplaySizeSelect.value = savedDisplaySize;
             }
             this.pauseOptionsScreen.style.display = 'flex';
         }
@@ -2256,11 +2280,11 @@ class UI {
     // Helper to get sprite path based on rank
     _getSpritePathForRank(rank) {
         const rankPaths = {
-            'Private': CONFIG.RACCOON_PRIVATE_SPRITE_PATH || 'assets/images/units/raccoon/private/',
-            'Corporal': CONFIG.RACCOON_CORPORAL_SPRITE_PATH || 'assets/images/units/raccoon/corporal/',
-            'Sergeant': CONFIG.RACCOON_SERGEANT_SPRITE_PATH || 'assets/images/units/raccoon/redBeret/',
-            'Elite': CONFIG.RACCOON_ELITE_SPRITE_PATH || 'assets/images/units/raccoon/elite/',
-            'Ghost': CONFIG.RACCOON_GHOST_SPRITE_PATH || 'assets/images/units/raccoon/ghost/',
+            'Private': CONFIG.RACCOON_PRIVATE_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/private/type1',
+            'Corporal': CONFIG.RACCOON_CORPORAL_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/corporal/type1',
+            'Sergeant': CONFIG.RACCOON_SERGEANT_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/sergeant/type1',
+            'Elite': CONFIG.RACCOON_ELITE_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/elite/type2',
+            'Ghost': CONFIG.RACCOON_GHOST_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/ghost/type2',
             'Maverick': CONFIG.RACCOON_MAVERICK_SPRITE_PATH || 'assets/images/units/raccoon/maverick/'
         };
         return rankPaths[rank] || CONFIG.RACCOON_SPRITE_PATH || 'assets/images/units/raccoon/recruit/';
@@ -2690,6 +2714,7 @@ class UI {
     showHUD() {
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'flex';
         if (this.objectivesPanel) this.objectivesPanel.style.display = 'block';
+        if (this.game && this.game.fpsDisplayElement) this.game.fpsDisplayElement.style.display = 'block';
         this.hideMainMenuScreen(); this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen();
         if (this.formationSpacingSlider && this.spacingValueDisplay && this.game && this.game.formationSpacingMultiplier !== undefined) {
             this.formationSpacingSlider.value = this.game.formationSpacingMultiplier.toString();
@@ -2699,7 +2724,11 @@ class UI {
         this.updateSquadPanel();
         this.updateObjective();
     }
-    hideHUD() { if (this.leftHudPanel) this.leftHudPanel.style.display = 'none'; if (this.objectivesPanel) this.objectivesPanel.style.display = 'none'; }
+    hideHUD() {
+        if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
+        if (this.objectivesPanel) this.objectivesPanel.style.display = 'none';
+        if (this.game && this.game.fpsDisplayElement) this.game.fpsDisplayElement.style.display = 'none';
+    }
 
     updateObjective() {
         const objectiveDisplayElement = this.objectiveTextContainer || document.getElementById('objectiveText');

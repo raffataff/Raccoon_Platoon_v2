@@ -5,9 +5,7 @@ class Raccoon extends Unit {
         super(x, y, game, 'player', CONFIG.RACCOON_HP, CONFIG.RACCOON_SPEED, CONFIG.RACCOON_SIZE, CONFIG.RACCOON_COLOR, id);
 
         this.turnRate = CONFIG.RACCOON_TURN_RATE;
-        this.deadSpritePathKey = 'RACCOON_DEAD_SPRITE_PATH';
-        this.deadSpriteFilesKey = 'RACCOON_DEAD_SPRITE_FILES';
-        this.deadSpriteScaleKey = 'RACCOON_DEAD_SPRITE_SCALE';
+        this._setRankBasedDeadSpriteKeys();
 
         this.defaultWeaponName = 'RACCOON_MACHINE_GUN';
         this.currentWeaponName = 'RACCOON_MACHINE_GUN';
@@ -50,6 +48,51 @@ class Raccoon extends Unit {
         this.setRankBasedSprite();
     }
 
+    _setRankBasedDeadSpriteKeys() {
+        switch(this.rank) {
+            case 'Private':
+                this.deadSpritePathKey = 'RACCOON_PRIVATE_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_PRIVATE_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_PRIVATE_DEAD_SPRITE_SCALE';
+                break;
+            case 'Corporal':
+                this.deadSpritePathKey = 'RACCOON_CORPORAL_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_CORPORAL_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_CORPORAL_DEAD_SPRITE_SCALE';
+                break;
+            case 'Sergeant':
+                this.deadSpritePathKey = 'RACCOON_SERGEANT_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_SERGEANT_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_SERGEANT_DEAD_SPRITE_SCALE';
+                break;
+            case 'Elite':
+                this.deadSpritePathKey = 'RACCOON_ELITE_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_ELITE_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_ELITE_DEAD_SPRITE_SCALE';
+                break;
+            case 'Ghost':
+                this.deadSpritePathKey = 'RACCOON_GHOST_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_GHOST_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_GHOST_DEAD_SPRITE_SCALE';
+                break;
+            case 'Maverick':
+                this.deadSpritePathKey = 'RACCOON_MAVERICK_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_MAVERICK_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_MAVERICK_DEAD_SPRITE_SCALE';
+                break;
+            case 'Recruit':
+                this.deadSpritePathKey = 'RACCOON_RECRUIT_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_RECRUIT_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_RECRUIT_DEAD_SPRITE_SCALE';
+                break;
+            default:
+                this.deadSpritePathKey = 'RACCOON_DEAD_SPRITE_PATH';
+                this.deadSpriteFilesKey = 'RACCOON_DEAD_SPRITE_FILES';
+                this.deadSpriteScaleKey = 'RACCOON_DEAD_SPRITE_SCALE';
+                break;
+        }
+    }
+
     setRankBasedSprite() {
         const prevDefaultWeapon = this.defaultWeaponName;
         
@@ -58,23 +101,23 @@ class Raccoon extends Unit {
         
         switch(this.rank) {
             case 'Private':
-                this.spriteBaseName = 'raccoon_private';
-                this.spriteScaleFactor = CONFIG.RACCOON_PRIVATE_SPRITE_SCALE_FACTOR || 0.5;
+                this.spriteBaseName = 'raccoon_rifleman_private1';
+                this.spriteScaleFactor = CONFIG.RACCOON_PRIVATE_SPRITE_SCALE_FACTOR || 0.25;
                 break;
             case 'Corporal':
-                this.spriteBaseName = 'raccoon_corporal';
+                this.spriteBaseName = 'raccoon_rifleman_corporal1';
                 this.spriteScaleFactor = CONFIG.RACCOON_CORPORAL_SPRITE_SCALE_FACTOR || 0.5;
                 break;
             case 'Sergeant':
-                this.spriteBaseName = 'raccoon_redBeret';
+                this.spriteBaseName = 'raccoon_rifleman_sergeant1';
                 this.spriteScaleFactor = CONFIG.RACCOON_SERGEANT_SPRITE_SCALE_FACTOR || 0.5;
                 break;
             case 'Elite':
-                this.spriteBaseName = 'raccoon_elite';
+                this.spriteBaseName = 'raccoon_rifleman_elite2';
                 this.spriteScaleFactor = CONFIG.RACCOON_ELITE_SPRITE_SCALE_FACTOR || 0.5;
                 break;
             case 'Ghost':
-                this.spriteBaseName = 'raccoon_ghost';
+                this.spriteBaseName = 'raccoon_rifleman_ghost2';
                 this.spriteScaleFactor = CONFIG.RACCOON_GHOST_SPRITE_SCALE_FACTOR || 0.5;
                 break;
             case 'Maverick':
@@ -82,10 +125,12 @@ class Raccoon extends Unit {
                 this.spriteScaleFactor = CONFIG.RACCOON_MAVERICK_SPRITE_SCALE_FACTOR || 0.5;
                 break;
             default:
-                this.spriteBaseName = 'raccoon';
+                this.spriteBaseName = 'raccoon_rifleman_recruit1';
                 this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5;
                 break;
         }
+        
+        this._setRankBasedDeadSpriteKeys();
         
         const defaultDef = CONFIG.WEAPON_DEFINITIONS[this.defaultWeaponName];
         if (defaultDef) {

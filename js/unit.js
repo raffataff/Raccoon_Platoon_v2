@@ -1927,8 +1927,10 @@ class Unit {
 
         let minDistanceSq = engagementRange ** 2;
         if (!potentialTargets || !Array.isArray(potentialTargets)) { this.autoTarget = null; return; }
-        const activeObstacles = Array.isArray(obstacles) ? obstacles.filter(o => !o.isDestroyed && o.blocksMovement) : [];
-        potentialTargets.forEach(target => {
+        const isBoss = (this._bossTargetAcquisitionOptimization === true);
+        const activeObstacles = Array.isArray(obstacles) ? obstacles : [];
+        for (let ti = 0; ti < potentialTargets.length; ti++) {
+            const target = potentialTargets[ti];
             if (target && target.isAlive() && target.team !== this.team && target.team !== 'neutral') {
                 const dx = target.x - this.x; const dy = target.y - this.y;
                 const dSq = dx * dx + dy * dy;
@@ -1936,11 +1938,12 @@ class Unit {
                     if (hasLineOfSight(this.x, this.y, target.x, target.y, activeObstacles, this.game.level, false)) {
                         if (!closestTarget || dSq < minDistanceSq) {
                             closestTarget = target; minDistanceSq = dSq;
+                            if (isBoss && closestTarget) break;
                         }
                     }
                 }
             }
-        });
+        }
         this.autoTarget = closestTarget;
     }
 

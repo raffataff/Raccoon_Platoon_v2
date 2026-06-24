@@ -134,6 +134,8 @@ class Game {
         this.frameCount = 0;
         this.lastFpsUpdateTime = 0;
         this.fpsUpdateInterval = 1000;
+        this.fpsDisplayElement = document.getElementById('hud-fps');
+        this.displaySize = CONFIG.DISPLAY_SIZE || 'stretched';
 
         // --- NEW: Master Debug Flag ---
         this.isDebugVisualsActive = false;
@@ -739,57 +741,57 @@ class Game {
         const imagePromises = [];
         const unitTypesToPreload = [
             {
-                name: 'raccoon',
+                name: 'raccoon_rifleman_recruit1',
                 basePath: CONFIG.RACCOON_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+                deadPath: CONFIG.RACCOON_RECRUIT_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_RECRUIT_DEAD_SPRITE_FILES
             },
             {
-                name: 'raccoon_private',
+                name: 'raccoon_rifleman_private1',
                 basePath: CONFIG.RACCOON_PRIVATE_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+                deadPath: CONFIG.RACCOON_PRIVATE_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_PRIVATE_DEAD_SPRITE_FILES
             },
             {
-                name: 'raccoon_corporal',
+                name: 'raccoon_rifleman_corporal1',
                 basePath: CONFIG.RACCOON_CORPORAL_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+                deadPath: CONFIG.RACCOON_CORPORAL_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_CORPORAL_DEAD_SPRITE_FILES
             },
             {
-                name: 'raccoon_redBeret',
+                name: 'raccoon_rifleman_sergeant1',
                 basePath: CONFIG.RACCOON_SERGEANT_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+                deadPath: CONFIG.RACCOON_SERGEANT_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_SERGEANT_DEAD_SPRITE_FILES
             },
             {
-                name: 'raccoon_elite',
+                name: 'raccoon_rifleman_elite2',
                 basePath: CONFIG.RACCOON_ELITE_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+                deadPath: CONFIG.RACCOON_ELITE_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_ELITE_DEAD_SPRITE_FILES
             },
             {
-                name: 'raccoon_ghost',
+                name: 'raccoon_rifleman_ghost2',
                 basePath: CONFIG.RACCOON_GHOST_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+                deadPath: CONFIG.RACCOON_GHOST_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_GHOST_DEAD_SPRITE_FILES
             },
             {
                 name: 'raccoon_maverick',
                 basePath: CONFIG.RACCOON_MAVERICK_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_DEAD_SPRITE_FILES
+                deadPath: CONFIG.RACCOON_MAVERICK_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.RACCOON_MAVERICK_DEAD_SPRITE_FILES
             },
             {
                 name: 'raccoon_hostage',
-                basePath: 'assets/images/units/raccoon/hostage/', // Base path to the folder
+                basePath: 'assets/images/units/raccoon/hostage/rescued/type1/',
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }
             },
             {
@@ -942,13 +944,18 @@ class Game {
             });
         }
         const hostageBasePath = 'assets/images/units/raccoon/hostage/';
+        const hostageKneelingPath = 'assets/images/units/raccoon/hostage/kneeling/type1/';
+        const hostageStandingPath = 'assets/images/units/raccoon/hostage/standing/type1/';
         const unrescuedHostageSprites = [
-            'hostage_kneeling_s.png',
-            'hostage_kneeling_sw.png',
-            'hostage_kneeling_se.png'
+            { file: 'hostage_kneeling_s.png', path: hostageKneelingPath },
+            { file: 'hostage_kneeling_sw.png', path: hostageKneelingPath },
+            { file: 'hostage_kneeling_se.png', path: hostageKneelingPath },
+            { file: 'hostage_standing1_s.png', path: hostageStandingPath },
+            { file: 'hostage_standing1_sw.png', path: hostageStandingPath },
+            { file: 'hostage_standing1_se.png', path: hostageStandingPath }
         ];
-        unrescuedHostageSprites.forEach(fileName => {
-            const fullPath = hostageBasePath + fileName;
+        unrescuedHostageSprites.forEach(spriteInfo => {
+            const fullPath = spriteInfo.path + spriteInfo.file;
             if (!this.preloadedImages[fullPath]) {
                 imagePromises.push(new Promise((resolve) => {
                     const img = new Image();
@@ -2619,18 +2626,20 @@ class Game {
         const containerWidth = this.canvasContainer.clientWidth;
         const containerHeight = this.canvasContainer.clientHeight;
         const squish = (CONFIG.CANVAS_ASPECT_RATIO_SQUISH !== undefined) ? CONFIG.CANVAS_ASPECT_RATIO_SQUISH : 1.0;
+        const displaySize = this.displaySize || CONFIG.DISPLAY_SIZE || 'stretched';
         const aspectRatio = ((CONFIG.BASE_WORLD_WIDTH || 1920) / (CONFIG.BASE_WORLD_HEIGHT || 1080)) * squish;
-        // Fit canvas to container while maintaining the target aspect ratio
-        // Use the dimension that is more constrained relative to the ratio
         let canvasWidth, canvasHeight;
-        if (containerWidth / containerHeight > aspectRatio) {
-            // Container is wider than target ratio — height is the constraint
-            canvasHeight = containerHeight;
-            canvasWidth = Math.round(containerHeight * aspectRatio);
+        if (displaySize === 'widescreen') {
+            if (containerWidth / containerHeight > aspectRatio) {
+                canvasHeight = containerHeight;
+                canvasWidth = Math.round(containerHeight * aspectRatio);
+            } else {
+                canvasWidth = containerWidth;
+                canvasHeight = Math.round(containerWidth / aspectRatio);
+            }
         } else {
-            // Container is taller than target ratio (or equal) — width is the constraint
             canvasWidth = containerWidth;
-            canvasHeight = Math.round(containerWidth / aspectRatio);
+            canvasHeight = containerHeight;
         }
         this.canvas.width = canvasWidth;
         this.canvas.height = canvasHeight;
@@ -3769,24 +3778,26 @@ class Game {
                     }
 
                     // Reveal extraction zone when ALL non-EXTRACTION objectives are complete
+                    // Only runs for hostage-only extractions (no EXTRACTION objective) — otherwise the EXTRACTION block handles it
                     // Runs every frame (even after RESCUE_HOSTAGES is complete) so it fires when the last other objective finishes
-                    if (!obj.extractionZoneRevealed && obj.isComplete) {
+                    const hasExtractionObj = this.currentMissionParams.objectives.some(o => o.type === 'EXTRACTION');
+                    if (!hasExtractionObj && !obj.extractionZoneRevealed && obj.isComplete) {
                         const allOtherObjectivesComplete = this.currentMissionParams.objectives
                             .filter(o => o.type !== 'EXTRACTION')
                             .every(o => o.isComplete);
                         if (allOtherObjectivesComplete) {
                             obj.extractionZoneRevealed = true;
-                            const extractionObj = this.currentMissionParams.objectives.find(o => o.type === 'EXTRACTION');
-                            if (extractionObj) extractionObj.extractionZoneRevealed = true;
                             const extractionZoneObs = this.level.obstacles.filter(obs => obs.type === 'extraction_zone');
                             extractionZoneObs.forEach(ezObs => {
                                 ezObs.isHidden = false;
                                 this.addVisualEffect('extraction_zone', { obstacle: ezObs });
                             });
+                            if (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_HOSTAGES) {
+                                obj.displayText = CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_HOSTAGES;
+                            }
                             if (this.ui) {
                                 this.ui.updateObjective();
-                                const extractionMsg = CONFIG.UI_TEXT_STRINGS.EXTRACTION_ZONE_REVEALED || "Extraction Zone Revealed!";
-                                this.ui.showToast(extractionMsg, 'success');
+                                this.ui.showToast(CONFIG.UI_TEXT_STRINGS.EXTRACTION_ZONE_REVEALED || "Extraction Zone Revealed!", 'success');
                             }
                             if (CONFIG.DEBUG_LOGGING) console.log('[Game] All objectives complete! Extraction zone revealed.');
                         }
@@ -3828,11 +3839,12 @@ class Game {
                 // EXTRACTION objective - always re-evaluate (handles hut spawns after extraction, re-entry after raccoon death)
                 if (obj.type === 'EXTRACTION') {
                     const hasHostageRescue = this.currentMissionParams.objectives.some(o => o.type === 'RESCUE_HOSTAGES' || o.type === 'RESCUE_TAKEN_HOSTAGE');
+                    const zoneStatus = this.checkRaccoonsInExtractionZone();
+                    const hostagesInZone = this.checkAllRescuedHostagesInExtractionZone();
                     if (hasHostageRescue) {
-                        obj.currentProgress = this.checkAllRescuedHostagesInExtractionZone() ? 1 : 0;
+                        obj.currentProgress = (zoneStatus.allInZone && hostagesInZone) ? 1 : 0;
                         obj.isComplete = obj.currentProgress >= 1;
                     } else {
-                        const zoneStatus = this.checkRaccoonsInExtractionZone();
                         obj.currentProgress = zoneStatus.anyInZone ? 1 : 0;
                         obj.isComplete = zoneStatus.allInZone;
                     }
@@ -3851,9 +3863,11 @@ class Game {
                                 ezObs.isHidden = false;
                                 this.addVisualEffect('extraction_zone', { obstacle: ezObs });
                             });
-                            // Update objective text to guide player
+                            const hasHostageRescueForText = this.currentMissionParams.objectives.some(o => o.type === 'RESCUE_HOSTAGES' || o.type === 'RESCUE_TAKEN_HOSTAGE');
                             if (CONFIG.UI_TEXT_STRINGS && CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_PROCEED) {
-                                obj.displayText = CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_PROCEED;
+                                obj.displayText = hasHostageRescueForText
+                                    ? CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_TEXT
+                                    : CONFIG.UI_TEXT_STRINGS.OBJECTIVE_EXTRACTION_PROCEED;
                             }
                             if (this.ui) {
                                 this.ui.updateObjective();
@@ -5211,11 +5225,8 @@ class Game {
             this.ctx.drawImage(oc, 0, 0);
         }
 
-        if (this.gameState === 'RUNNING' || this.gameState === 'PAUSED' || this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') {
-            this.ctx.font = "16px 'Consolas', 'Lucida Console', monospace";
-            this.ctx.fillStyle = "rgba(255, 255, 0, 0.9)";
-            this.ctx.textAlign = "left";
-            this.ctx.fillText(`FPS: ${this.fps}`, 10, 80);
+        if (this.fpsDisplayElement) {
+            this.fpsDisplayElement.textContent = `FPS: ${this.fps}`;
         }
 
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
@@ -5809,16 +5820,18 @@ try {
         if (extractionZones.length === 0) return { allInZone: false, anyInZone: false };
 
         const livingRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [];
-        if (livingRaccoons.length === 0) return { allInZone: false, anyInZone: false };
+        const rescuedAndAliveHostages = (this.hostageUnits || []).filter(h => h.isRescued && h.isAlive());
+        const allUnits = [...livingRaccoons, ...rescuedAndAliveHostages];
+        if (allUnits.length === 0) return { allInZone: false, anyInZone: false };
 
         let allInZone = true;
         let anyInZone = false;
 
-        for (const raccoon of livingRaccoons) {
+        for (const unit of allUnits) {
             let inZone = false;
             for (const zone of extractionZones) {
-                if (raccoon.x >= zone.x && raccoon.x <= zone.x + zone.width &&
-                    raccoon.y >= zone.y && raccoon.y <= zone.y + zone.height) {
+                if (unit.x >= zone.x && unit.x <= zone.x + zone.width &&
+                    unit.y >= zone.y && unit.y <= zone.y + zone.height) {
                     inZone = true;
                     anyInZone = true;
                     break;

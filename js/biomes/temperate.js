@@ -320,7 +320,7 @@ const TEMPERATE_BIOME = {
             type: 'oak_bush_small', name: 'Small Oak Bush', color: '#228B22',
             destructible: true, hp: 30, maxHp: 30,
             blocksMovement: true, providesCover: false,
-            spawnWeight: 3, isDecoration: false, canBeFlipped: true,
+            spawnWeight: 1, isDecoration: false, canBeFlipped: true,
             spriteScale: 0.5,
             collisionShape: {
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.8), radiusX: (w => w * 0.1), radiusY: ((w, h) => h * 0.08) },
@@ -403,7 +403,7 @@ const TEMPERATE_BIOME = {
             placementBuffer: 80,
             spriteScale: 0.6,
             collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.25)
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.5), radiusY: (h => h * 0.1)
             },
         },
         {
@@ -422,7 +422,7 @@ const TEMPERATE_BIOME = {
             type: 'tree_pine', name: 'Pine Tree', color: '#2E5A1E',
             destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 6, isDecoration: false,
+            spawnWeight: 16, isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 80,
             spriteScale: 0.6,
@@ -436,20 +436,20 @@ const TEMPERATE_BIOME = {
             type: 'pine_fallen', name: 'Fallen Pine Log', color: '#2E5A1E',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5,
+            spawnWeight: 1.5,
             isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 80,
             spriteScale: 0.3,
             collisionShape: {
-                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.42), radiusX: (w => w * 0.75), radiusY: (h => h * 0.2)
+                type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.7), radiusY: (h => h * 0.1)
             },
         },
         {
             type: 'pine_stump', name: 'Pine Tree Stump', color: '#2E5A1E',
             destructible: false, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 0.5, isDecoration: false,
+            spawnWeight: 1.5, isDecoration: false,
             spriteScale: 0.3,
             collisionShape: {
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.7), radius: (w => w * 0.08)
@@ -460,8 +460,8 @@ const TEMPERATE_BIOME = {
         {
             type: 'tree_maple_single', name: 'Maple Tree Single', color: '#8B4513',
             destructible: false, blocksMovement: true, providesCover: true,
-            spawnWeight: 2, isDecoration: false, canBeFlipped: true,
-            spriteScale: 0.65,
+            spawnWeight: 1, isDecoration: false, canBeFlipped: true,
+            spriteScale: 0.75,
             collisionShape: { 
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radius: (w => w * 0.1) },
         },
@@ -577,7 +577,32 @@ const TEMPERATE_BIOME = {
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
             placementBuffer: 150,
             decorationBuffer: 200,
-        }
+        },
+        {
+            type: 'temperate_ruins_medium', name: 'Medium Temperate Ruins', color: '#8B4513',
+            destructible: false,
+            blocksMovement: true, providesCover: true,
+            isDecoration: false,
+            canBeFlipped: true,
+            spawnWeight: 3, phaseUnlocked: 2,
+            spriteScale: 0.6,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
+            placementBuffer: 150,
+            decorationBuffer: 200,
+        },
+        {
+            type: 'temperate_ruins_large', name: 'Large Temperate Ruins', color: '#8B4513',
+            destructible: false,
+            blocksMovement: true, providesCover: true,
+            isDecoration: false,
+            canBeFlipped: true,
+            spawnWeight: 3, phaseUnlocked: 2,
+            spriteScale: 0.6,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
+            placementBuffer: 150,
+            decorationBuffer: 200,
+        },
+
     ],
 
     // =========================================================================

@@ -12,6 +12,12 @@
     <link
         href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Rajdhani:wght@500;600;700&family=Special+Elite&display=swap"
         rel="stylesheet">
+    <style>/* Clemson Tigers - https://www.cursors-4u.com/cursor/clemson-tigers */
+        * {
+        cursor: url('https://cdn.cursors-4u.net/previews/clemson-tigers-ee52084e-32.webp') 32 32, auto !important;
+        }
+        /* End www.Cursors-4U.com Code */
+        </style>
 </head>
 
 <body>
@@ -72,6 +78,13 @@
                         <span id="ambienceVolValue">70%</span>
                     </div>
                 </div>
+            </div>
+            <div class="options-section">
+                <h3>Display Size</h3>
+                <select id="displaySizeSelect">
+                    <option value="stretched">Stretched</option>
+                    <option value="widescreen">Widescreen</option>
+                </select>
             </div>
             <div class="options-section">
                 <h3>Show last objective</h3>
@@ -281,6 +294,13 @@
                         <span id="pauseAmbienceVolValue">70%</span>
                     </div>
                 </div>
+            </div>
+            <div class="options-section">
+                <h3>Display Size</h3>
+                <select id="pauseDisplaySizeSelect">
+                    <option value="stretched">Stretched</option>
+                    <option value="widescreen">Widescreen</option>
+                </select>
             </div>
             <div class="options-section">
                 <h3>Show last objective</h3>
@@ -702,6 +722,7 @@
 
         <div id="canvas-container">
             <canvas id="gameCanvas"></canvas>
+            <div id="hud-fps">FPS: 0</div>
             <div id="night-mission-badge" class="night-badge hidden">🌙 NIGHT MISSION</div>
             <div id="hud-objective" class="ui-panel" hidden>
                 <div id="objectiveTextContainer">

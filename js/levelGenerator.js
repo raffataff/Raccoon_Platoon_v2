@@ -402,6 +402,8 @@ class LevelGenerator {
             maxY: this.level.playableMaxY
         };
 
+        const minSpawnRadius = pack.minSpawnRadius || Math.max(parentObject.size || 20, 30) * 1.5;
+
         let spawnedGuards = 0;
 
         for (let i = 0; i < guardCount; i++) {
@@ -427,9 +429,9 @@ class LevelGenerator {
             }
 
             let guardX, guardY, placed = false;
-            for (let attempt = 0; attempt < 15; attempt++) {
+            for (let attempt = 0; attempt < 30; attempt++) {
                 const angle = this.rng.nextFloat(0, Math.PI * 2);
-                const radius = this.rng.nextFloat(guardSize, spawnRadius);
+                const radius = this.rng.nextFloat(Math.max(guardSize, minSpawnRadius), spawnRadius);
                 guardX = parentCenterX + Math.cos(angle) * radius;
                 guardY = parentCenterY + Math.sin(angle) * radius;
 

@@ -22,6 +22,7 @@ class PossumBoss1 extends Unit {
         
         this.bossAIConfig = CONFIG.AI.POSSUM_BOSS_1 || {};
         this.detectionRange = this.bossAIConfig.DETECTION_RANGE || 500;
+        this._bossTargetAcquisitionOptimization = true;
 
         this.aiState = 'GUARDING';
         this.attackMode = 'GRENADE_VOLLEY'; 
@@ -53,11 +54,14 @@ class PossumBoss1 extends Unit {
     }
     
     _handleEnemyCombat(deltaTime, obstacles) {
-        // Find a target if we don't have one
+        // Find a target if we don't have one (throttled via targetAcquisitionTimer)
         let target = this.manualTarget || this.autoTarget;
         if (!target || !target.isAlive()) {
-            this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);
-            target = this.autoTarget;
+            if (this.targetAcquisitionTimer <= 0) {
+                this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);
+                this.targetAcquisitionTimer = 0.3 + Math.random() * 0.2;
+            }
+            target = this.manualTarget || this.autoTarget;
         }
 
         // If no target, return to guard post

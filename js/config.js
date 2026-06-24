@@ -10,7 +10,7 @@ const CONFIG = {
     MIN_CANVAS_HEIGHT: 1080,
     MAX_DELTA_TIME_STEP: 0.1,
     CAMERA_LERP_SPEED: 0.08,
-    CAMERA_ZOOM: 1.3,
+    CAMERA_ZOOM: 1.15,
 
     // =============================================================================
     // PERFORMANCE
@@ -21,6 +21,7 @@ const CONFIG = {
     // LAYOUT
     // =============================================================================
     CANVAS_ASPECT_RATIO_SQUISH: 1.0,                      // Multiplier for the canvas aspect ratio calculation. >1 = wider canvas (less height squish), <1 = narrower canvas (more height squish). Tweak if the 16:9 canvas appears too tall/short relative to the HUD.
+    DISPLAY_SIZE: 'stretched',                            // Display size mode: 'stretched' = fill entire canvas container (may squish), 'widescreen' = maintain aspect ratio with letterboxing.
 
     // =============================================================================
     // INPUT
@@ -216,24 +217,48 @@ const CONFIG = {
     RACCOON_AUTO_TARGET_RANGE_FACTOR: 0.6,
 
     // Sprites
-    RACCOON_SPRITE_PATH: 'assets/images/units/raccoon/recruit/',
-    RACCOON_SPRITE_SCALE_FACTOR: 0.45,
-    RACCOON_PRIVATE_SPRITE_PATH: 'assets/images/units/raccoon/private/',
-    RACCOON_PRIVATE_SPRITE_SCALE_FACTOR: 0.47,
-    RACCOON_CORPORAL_SPRITE_PATH: 'assets/images/units/raccoon/corporal/',
-    RACCOON_CORPORAL_SPRITE_SCALE_FACTOR: 0.5,
-    RACCOON_SERGEANT_SPRITE_PATH: 'assets/images/units/raccoon/redBeret/',
-    RACCOON_SERGEANT_SPRITE_SCALE_FACTOR: 0.57,
-    RACCOON_ELITE_SPRITE_PATH: 'assets/images/units/raccoon/elite/',
-    RACCOON_ELITE_SPRITE_SCALE_FACTOR: 0.56,
-    RACCOON_GHOST_SPRITE_PATH: 'assets/images/units/raccoon/ghost/',
-    RACCOON_GHOST_SPRITE_SCALE_FACTOR: 0.6,
+    RACCOON_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/recruit/type1/',
+    RACCOON_SPRITE_SCALE_FACTOR: 0.4,
+    RACCOON_PRIVATE_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/private/type1/',
+    RACCOON_PRIVATE_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_CORPORAL_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/corporal/type1/',
+    RACCOON_CORPORAL_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_SERGEANT_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/sergeant/type1/',
+    RACCOON_SERGEANT_SPRITE_SCALE_FACTOR: 0.35,
+    RACCOON_ELITE_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/elite/type2/',
+    RACCOON_ELITE_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_GHOST_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/ghost/type2/',
+    RACCOON_GHOST_SPRITE_SCALE_FACTOR: 0.38,
     RACCOON_MAVERICK_SPRITE_PATH: 'assets/images/units/raccoon/maverick/',
     RACCOON_MAVERICK_SPRITE_SCALE_FACTOR: 0.55,
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
     RACCOON_DEAD_SPRITE_SCALE: 0.06,
-    RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 1.4,
+    RACCOON_RECRUIT_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/recruit/dead/',
+    RACCOON_RECRUIT_DEAD_SPRITE_FILES: ['raccoon_recruit_dead_1.png'],
+    RACCOON_RECRUIT_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_PRIVATE_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/private/dead/',
+    RACCOON_PRIVATE_DEAD_SPRITE_FILES: ['raccoon_private_dead_1.png'],
+    RACCOON_PRIVATE_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_CORPORAL_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/corporal/dead/',
+    RACCOON_CORPORAL_DEAD_SPRITE_FILES: ['raccoon_corporal_dead_1.png'],
+    RACCOON_CORPORAL_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_SERGEANT_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/sergeant/dead/',
+    RACCOON_SERGEANT_DEAD_SPRITE_FILES: ['raccoon_sergeant_dead_1.png'],
+    RACCOON_SERGEANT_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/elite/dead/',
+    RACCOON_ELITE_DEAD_SPRITE_FILES: ['raccoon_elite_dead_1.png'],
+    RACCOON_ELITE_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_GHOST_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/ghost/dead/',
+    RACCOON_GHOST_DEAD_SPRITE_FILES: ['raccoon_ghost_dead_1.png'],
+    RACCOON_GHOST_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_MAVERICK_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
+    RACCOON_MAVERICK_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
+    RACCOON_MAVERICK_DEAD_SPRITE_SCALE: 0.06,
+    RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 0.38,
+    HOSTAGE_KNEELING_SPRITE_PATH: 'assets/images/units/raccoon/hostage/kneeling/type1/',
+    HOSTAGE_STANDING_SPRITE_PATH: 'assets/images/units/raccoon/hostage/standing/type1/',
+    HOSTAGE_RESCUED_SPRITE_PATH: 'assets/images/units/raccoon/hostage/rescued/type2/idle/',
     RACCOON_TURN_RATE: 10.0,
 
     
@@ -990,18 +1015,18 @@ const CONFIG = {
             GRENADE_IMMINENT_FUSE_THRESHOLD: 1.2,
         },
         POSSUM_BOSS_1: {
-            ARENA_RADIUS: 250,
+            ARENA_RADIUS: 650,
             DETECTION_RANGE: 550,
             PREFERRED_GRENADE_RANGE_MAX: 450,
-            MIN_ENGAGEMENT_DISTANCE: 220,
+            MIN_ENGAGEMENT_DISTANCE: 120,
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1500,
 
             GRENADE_COOLDOWN_BETWEEN_SHOTS: 0.6,
-            GRENADES_PER_VOLLEY: 4,
-            GRENADE_TARGET_SPREAD_RADIUS: 180,
+            GRENADES_PER_VOLLEY: 8,
+            GRENADE_TARGET_SPREAD_RADIUS: 270,
 
             MG_BURST_SIZE: 10,
-            MG_COOLDOWN_AFTER_BURST: 2.5,
+            MG_COOLDOWN_AFTER_BURST: 1.5,
 
             DEATH_EXPLOSION_RADIUS: 200,
             DEATH_EXPLOSION_SFX: 'GRENADE_EXPLODE',
@@ -1009,29 +1034,31 @@ const CONFIG = {
             REPOSITION_DURATION_MAX_SECONDS: 2.0,
             initialGuardPack: {
                 enabled: true,
-                countRange: [1, 4],
-                countPerPhaseBonus: 0,
-                spawnRadius: 100,
+                countRange: [1, 8],
+                countPerPhaseBonus: 2,
+                spawnRadius: 200,
                 unitPool: [
                     { type: 'possum_grunt', weight: 2 },
-                    { type: 'possum_sniper', weight: 3 },
                     { type: 'possum_heavy', weight: 3 },
-                    { type: 'possum_elite', weight: 2 }
+                    { type: 'possum_sniper', weight: 3 },
+                    { type: 'possum_elite', weight: 2 },
+                    { type: 'possum_eliteGuard', weight: 0.5}
                 ]
             }
         },
         POSSUM_REVOLVER: {
+            ARENA_RADIUS: 450,
             DETECTION_RANGE: 380,
             RELOAD_TIME_SECONDS: 2.0,
             BURST_SIZE: 8,
-            STRAFE_DISTANCE: 75,
-            STRAFE_CHANCE: 0.5,
+            STRAFE_DISTANCE: 150,
+            STRAFE_CHANCE: 0.85,
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1600,
             initialGuardPack: {
                 enabled: true,
                 countRange: [1, 3],
                 countPerPhaseBonus: 0.4,
-                spawnRadius: 120,
+                spawnRadius: 220,
                 unitPool: [
                     { type: 'possum_grunt', weight: 3 },
                     { type: 'possum_heavy', weight: 3 },
@@ -1041,7 +1068,7 @@ const CONFIG = {
             }
         },
         POSSUM_BOSS_3: {
-            ARENA_RADIUS: 250,
+            ARENA_RADIUS: 650,
             DETECTION_RANGE: 550,
             MIN_ENGAGEMENT_DISTANCE: 120,
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1500,
@@ -1056,20 +1083,21 @@ const CONFIG = {
 
             initialGuardPack: {
                 enabled: true,
-                countRange: [2, 5],
-                countPerPhaseBonus: 0,
-                spawnRadius: 120,
+                countRange: [2, 8],
+                countPerPhaseBonus: 2,
+                spawnRadius: 220,
                 unitPool: [
                     { type: 'possum_grunt', weight: 2 },
                     { type: 'possum_sniper', weight: 2 },
                     { type: 'possum_heavy', weight: 3 },
-                    { type: 'possum_elite', weight: 2 }
+                    { type: 'possum_elite', weight: 2 },
+                    { type: 'possum_eliteGuard', weight: 1}
                 ]
             }
         },
 
         POSSUM_BOSS_4: {
-            ARENA_RADIUS: 280,
+            ARENA_RADIUS: 680,
             DETECTION_RANGE: 600,
             MIN_ENGAGEMENT_DISTANCE: 350,
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1500,
@@ -1088,7 +1116,7 @@ const CONFIG = {
                 enabled: true,
                 countRange: [3, 5],
                 countPerPhaseBonus: 0,
-                spawnRadius: 140,
+                spawnRadius: 240,
                 unitPool: [
                     { type: 'possum_grunt', weight: 2 },
                     { type: 'possum_sniper', weight: 2 },
@@ -1099,7 +1127,7 @@ const CONFIG = {
         },
 
         POSSUM_ELITE_GUARD: {
-            ARENA_RADIUS: 220,
+            ARENA_RADIUS: 620,
             DETECTION_RANGE: 550,
             MIN_ENGAGEMENT_DISTANCE: 140,
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1400,
@@ -1114,9 +1142,9 @@ const CONFIG = {
 
             initialGuardPack: {
                 enabled: false,
-                countRange: [2, 4],
+                countRange: [2, 6],
                 countPerPhaseBonus: 0,
-                spawnRadius: 120,
+                spawnRadius: 220,
                 unitPool: [
                     { type: 'possum_elite', weight: 3 },
                     { type: 'possum_heavy', weight: 2 },
@@ -2080,6 +2108,7 @@ const CONFIG = {
         OBJECTIVE_RESCUE_TAKEN_HOSTAGE_TEXT: "Rescue Captured comrade from captivity",
         OBJECTIVE_EXTRACTION_TEXT: "Extract All Units: Get to Extraction Zone",
         OBJECTIVE_EXTRACTION_PROCEED: "All objectives complete! Proceed to Extraction Zone!",
+        OBJECTIVE_EXTRACTION_HOSTAGES: "Extract remaining hostages: Get to Extraction Zone",
         OBJECTIVE_INTERACT_INTEL_TEXT: "Hack Intel Console: {CURRENT}/{TOTAL}",
         EXTRACTION_ZONE_REVEALED: "Extraction Zone Revealed!"
     },

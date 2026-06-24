@@ -80,7 +80,7 @@ const CAMPAIGN_RULES = {
         },
         {
             type: "RESCUE_HOSTAGES",
-            weight: 3,
+            weight: 4,
             unlocksPhase: 2,
             descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
             completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
@@ -90,7 +90,7 @@ const CAMPAIGN_RULES = {
         },
         {
             type: "ASSASSINATION",
-            weight: 0.1, // Keep this relatively low if it's mainly for phase finales
+            weight: 0.3, // Keep this relatively low if it's mainly for phase finales
             unlocksPhase: 3, // Or 0 if you want non-boss assassinations earlier
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
@@ -175,7 +175,7 @@ const CAMPAIGN_RULES = {
             assassinationTypeKey: "possum_eliteGuard",
             name: "Grand Sentry Talon", callsign: "Arsenal",
             description: "A highly-ranked possum commander clad in elite copper plating, wielding an advanced energy weapon of unknown origin. Extremely intelligent and deadly.",
-            weight: 3, unlocksPhase: 4, isBoss: false // Elite Guard is a mini-boss, not a main boss. Can appear as an assassination target in regular missions, but more likely in later phases.
+            weight: 3, unlocksPhase: 4, isBoss: true // Elite Guard is a mini-boss, not a main boss. Can appear as an assassination target in regular missions, but more likely in later phases.
         },
         {
             assassinationTypeKey: "possum_boss_1",

@@ -48,66 +48,95 @@ class PossumRevolver extends Unit {
     }
     
     _handleEnemyCombat(deltaTime, obstacles) {
-        let target = this.manualTarget || this.autoTarget;
-        if (!target || !target.isAlive()) {
-            this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);
-            target = this.autoTarget;
-        }
+         let target = this.manualTarget || this.autoTarget;
+         if (!target || !target.isAlive()) {
+             this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);
+             target = this.autoTarget;
+         }
 
-        if (!target) {
-            this.aiState = 'GUARDING';
-            if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > 10) {
-                if (!this.isMoving && this.repathCooldown <= 0) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
-            } else {
-                this.isMoving = false;
-            }
-            return;
-        }
+         if (!target) {
+             this.aiState = 'GUARDING';
+             if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > 10) {
+                 if (!this.isMoving && this.repathCooldown <= 0) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
+             } else {
+                 this.isMoving = false;
+             }
+             return;
+         }
 
-        this.manualTarget = target;
-        const dist = distance(this.x, this.y, target.x, target.y);
-        const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level);
+         this.manualTarget = target;
+         const dist = distance(this.x, this.y, target.x, target.y);
+         const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level);
 
-        this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
-        this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
+         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
+         this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
-        if (this.reloadTimer > 0) {
-            this.aiState = 'RELOADING';
-            this._strafe(target, deltaTime); 
-            return; 
-        }
+         if (this.reloadTimer > 0) {
+             this.aiState = 'RELOADING';
+             this._strafe(target, deltaTime, dist, true);
+             return;
+         }
 
-        if (hasLOS && dist <= this.weapon.range && this.attackCooldown <= 0) {
-            this.aiState = 'ENGAGING';
-            this._executeFire(target.x, target.y);
-        }
-        
-        this._strafe(target, deltaTime);
-    }
+         if (hasLOS && dist <= this.weapon.range && this.attackCooldown <= 0) {
+             this.aiState = 'ENGAGING';
+             this._executeFire(target.x, target.y);
+         }
 
-    _strafe(target, deltaTime) {
-        this.timeSinceLastStrafe += deltaTime;
-        
-        if (this.timeSinceLastStrafe < this.STRAFE_COOLDOWN) {
-            return;
-        }
-        
-        if (!this.isMoving) {
-            const shouldMove = this.game.level.rng.chance(this.revolverAIConfig.STRAFE_CHANCE || 0.85);
-            
-            if (shouldMove) {
-                const strafeDist = this.revolverAIConfig.STRAFE_DISTANCE || 150;
-                const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
-                const strafeAngle = angleToTarget + (this.game.level.rng.chance(0.5) ? Math.PI / 2 : -Math.PI / 2);
+         this._strafe(target, deltaTime, dist, false);
+     }
 
-                const newX = this.x + Math.cos(strafeAngle) * strafeDist;
-                const newY = this.y + Math.sin(strafeAngle) * strafeDist;
-                
-                this.setMoveTarget(newX, newY);
-                this.timeSinceLastStrafe = 0;
-            }
-        }
-    }
+     _strafe(target, deltaTime, dist, isReloading) {
+         this.timeSinceLastStrafe += deltaTime;
+
+         if (this.timeSinceLastStrafe < this.STRAFE_COOLDOWN) {
+             return;
+         }
+
+         if (!this.isMoving) {
+             const shouldMove = this.game.level.rng.chance(this.revolverAIConfig.STRAFE_CHANCE || 0.85);
+
+             if (shouldMove) {
+                 const moveDist = this.revolverAIConfig.STRAFE_DISTANCE || 150;
+                 const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
+                 const rng = this.game.level.rng;
+
+                 const optimalRange = (this.weapon.range || 520) * 0.6;
+                 const needsToClose = dist > optimalRange;
+                 const tooClose = dist < optimalRange * 0.4;
+
+                 let moveAngle;
+                 const roll = rng.chance(100) / 100;
+
+                 if (needsToClose) {
+                     if (roll < 0.7) {
+                         moveAngle = angleToTarget + (rng.chance(0.5) ? 0.6 : -0.6);
+                     } else {
+                         moveAngle = angleToTarget + (rng.chance(0.5) ? Math.PI / 2 : -Math.PI / 2);
+                     }
+                 } else if (tooClose) {
+                     if (roll < 0.5) {
+                         moveAngle = angleToTarget + Math.PI;
+                     } else {
+                         moveAngle = angleToTarget + (rng.chance(0.5) ? Math.PI * 0.75 : -Math.PI * 0.75);
+                     }
+                 } else {
+                     if (roll < 0.35) {
+                         moveAngle = angleToTarget + (rng.chance(0.5) ? 0.5 : -0.5);
+                     } else if (roll < 0.65) {
+                         moveAngle = angleToTarget + (rng.chance(0.5) ? Math.PI / 2 : -Math.PI / 2);
+                     } else {
+                         moveAngle = angleToTarget + (rng.chance(0.5) ? 0.9 : -0.9);
+                     }
+                 }
+
+                 const newX = this.x + Math.cos(moveAngle) * moveDist;
+                 const newY = this.y + Math.sin(moveAngle) * moveDist;
+
+                 this.setMoveTarget(newX, newY);
+                 this.timeSinceLastStrafe = 0;
+             }
+         }
+     }
     
     _executeFire(targetX, targetY) {
         if (!this.weapon || this.reloadTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) return;

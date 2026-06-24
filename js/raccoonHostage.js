@@ -50,32 +50,39 @@ class RaccoonHostage extends Raccoon {
         this.assignedRankOnRescue = randomRankEntry.rankName;
         this.assignedXpOnRescue = randomRankEntry.xpNeeded !== undefined ? randomRankEntry.xpNeeded : 0;
 
-        this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5;
+        this.spriteScaleFactor = CONFIG.RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR || 2;
         this.canShootWhileMoving = false; 
         this.aiState = 'IDLE_HOSTAGE';
         this.isPlayerDirectFiring = false; 
         this.isHoldingPosition = false; 
 
-        this.hostageSpritePath = 'assets/images/units/raccoon/hostage/';
+        this.hostageKneelingSpritePath = CONFIG.HOSTAGE_KNEELING_SPRITE_PATH || 'assets/images/units/raccoon/hostage/kneeling/type1/';
+        this.hostageStandingSpritePath = CONFIG.HOSTAGE_STANDING_SPRITE_PATH || 'assets/images/units/raccoon/hostage/standing/type1/';
         this.unrescuedKneelingSprite = null;
-        this.unrescuedKneelingSpriteDirection = 's';
+        this.unrescuedStandingSprite = null;
+        this.unrescuedSpriteDirection = 's';
+        this.unrescuedSpriteSet = 'kneeling';
 
         this.helpTextConfig = CONFIG.VISUAL_EFFECTS.HOSTAGE_HELP_TEXT || {};
         this.helpTextTimer = (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0) + Math.random() * ((this.helpTextConfig.INTERVAL_MAX_SECONDS || 9.0) - (this.helpTextConfig.INTERVAL_MIN_SECONDS || 4.0));
 
         if (!this.isRescued) {
-            const kneelingSprites = ['hostage_kneeling_s.png', 'hostage_kneeling_sw.png', 'hostage_kneeling_se.png'];
-            const randomSpriteFile = kneelingSprites[Math.floor(Math.random() * kneelingSprites.length)];
-            this.unrescuedKneelingSprite = this.game.preloadedImages[this.hostageSpritePath + randomSpriteFile];
-            
-            if (randomSpriteFile.includes('_sw')) {
-                this.unrescuedKneelingSpriteDirection = 'sw';
-            } else if (randomSpriteFile.includes('_se')) {
-                this.unrescuedKneelingSpriteDirection = 'se';
+            const directions = ['s', 'sw', 'se'];
+            const randomDir = directions[Math.floor(Math.random() * directions.length)];
+            const useStanding = Math.random() < 0.5;
+
+            if (useStanding) {
+                const standingFile = `hostage_standing1_${randomDir}.png`;
+                this.unrescuedStandingSprite = this.game.preloadedImages[this.hostageStandingSpritePath + standingFile];
+                this.unrescuedSpriteSet = 'standing';
             } else {
-                this.unrescuedKneelingSpriteDirection = 's';
+                const kneelingFile = `hostage_kneeling_${randomDir}.png`;
+                this.unrescuedKneelingSprite = this.game.preloadedImages[this.hostageKneelingSpritePath + kneelingFile];
+                this.unrescuedSpriteSet = 'kneeling';
             }
-            this.facingAngle = this.getAngleFromDirection(this.unrescuedKneelingSpriteDirection);
+
+            this.unrescuedSpriteDirection = randomDir;
+            this.facingAngle = this.getAngleFromDirection(this.unrescuedSpriteDirection);
             this.currentVisualState = 'idle_hostage_kneeling';
         }
     }
@@ -308,31 +315,33 @@ class RaccoonHostage extends Raccoon {
     }
 
 
-    render(ctx) {
-        if (!this.isRescued && this.isAlive() && this.unrescuedKneelingSprite) {
-            ctx.save();
-            ctx.translate(this.x, this.y);
-            const sprite = this.unrescuedKneelingSprite;
-            const scale = this.spriteScaleFactor;
-            const sWidth = sprite.naturalWidth * scale;
-            const sHeight = sprite.naturalHeight * scale;
-            ctx.drawImage(sprite, -sWidth / 2, -sHeight / 2, sWidth, sHeight);
-            
-            let playerNear = false;
-            if (this.game.deployedSquadRoster) { 
-                for (const playerUnit of this.game.deployedSquadRoster) {
-                    if (playerUnit.isAlive() && distance(this.x, this.y, playerUnit.x, playerUnit.y) < this.RESCUE_RADIUS * 1.5) {
-                        playerNear = true; break;
+     render(ctx) {
+        if (!this.isRescued && this.isAlive()) {
+            const sprite = this.unrescuedSpriteSet === 'standing' ? this.unrescuedStandingSprite : this.unrescuedKneelingSprite;
+            if (sprite) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                const scale = this.spriteScaleFactor;
+                const sWidth = sprite.naturalWidth * scale;
+                const sHeight = sprite.naturalHeight * scale;
+                ctx.drawImage(sprite, -sWidth / 2, -sHeight / 2, sWidth, sHeight);
+                
+                let playerNear = false;
+                if (this.game.deployedSquadRoster) { 
+                    for (const playerUnit of this.game.deployedSquadRoster) {
+                        if (playerUnit.isAlive() && distance(this.x, this.y, playerUnit.x, playerUnit.y) < this.RESCUE_RADIUS * 1.5) {
+                            playerNear = true; break;
+                        }
                     }
                 }
+                if (playerNear) {
+                    ctx.fillStyle = "yellow"; ctx.font = "bold 20px Arial";
+                    ctx.textAlign = "center";
+                    ctx.fillText("!", 0, -this.size - 10 - sHeight/2 + this.size/2);
+                    ctx.textAlign = "left"; 
+                }
+                ctx.restore();
             }
-            if (playerNear) {
-                ctx.fillStyle = "yellow"; ctx.font = "bold 20px Arial";
-                ctx.textAlign = "center";
-                ctx.fillText("!", 0, -this.size - 10 - sHeight/2 + this.size/2);
-                ctx.textAlign = "left"; 
-            }
-            ctx.restore();
         } else {
             super.render(ctx); 
         }
