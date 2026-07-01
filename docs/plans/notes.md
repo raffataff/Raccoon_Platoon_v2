@@ -1,10 +1,8 @@
 # Notes
 
-* add more possums
 
-* scent markers need sniffing to detect and show arrows/markers, and not always show arrow
 
-* add debug visuals for bullet sizes
+* game doesnt use widescreen/stretched setting on next load, it starts stretched
 
 * implement classes
 

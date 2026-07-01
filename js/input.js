@@ -174,16 +174,20 @@ class InputHandler {
                     });
                 }
             }
-            if ((event.key === 'e' || event.key === 'E') && !isInputFieldActive) {
-                // Intel console interaction
-                if (this.game.handleIntelConsoleInteraction) {
-                    this.game.handleIntelConsoleInteraction();
-                }
-                // Possum turret shutdown
-                if (this.game.handlePossumTurretShutdown) {
-                    this.game.handlePossumTurretShutdown();
-                }
+        if ((event.key === 'e' || event.key === 'E') && !isInputFieldActive) {
+            // Intel console interaction
+            if (this.game.handleIntelConsoleInteraction) {
+                this.game.handleIntelConsoleInteraction();
             }
+            // Possum turret shutdown
+            if (this.game.handlePossumTurretShutdown) {
+                this.game.handlePossumTurretShutdown();
+            }
+            // Possum anti-air turret shutdown
+            if (this.game.handlePossumAntiAirTurretShutdown) {
+                this.game.handlePossumAntiAirTurretShutdown();
+            }
+        }
             if ((event.key === 'q' || event.key === 'Q') && !isInputFieldActive) {
                 if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
                 if (!this.game.isScentMenuKeyHeld) {

@@ -224,7 +224,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             canBeFlipped: true,
             spawnWeight: 4, isDecoration: true,
-            spriteScale: 0.5,
+            spriteScale: 0.6,
             decorationBuffer: 75,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.35) },
@@ -235,7 +235,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             canBeFlipped: true,
             spawnWeight: 6, isDecoration: true,
-            spriteScale: 0.5,
+            spriteScale: 0.65,
             decorationBuffer: 75,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.35) },
@@ -246,7 +246,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             canBeFlipped: true,
             spawnWeight: 6, isDecoration: true,
-            spriteScale: 0.6,
+            spriteScale: 0.65,
             decorationBuffer: 75,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.35) },
@@ -257,7 +257,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             canBeFlipped: true,
             spawnWeight: 6, isDecoration: true,
-            spriteScale: 0.6,
+            spriteScale: 0.65,
             decorationBuffer: 75,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.35) },
@@ -399,7 +399,7 @@ const JUNKYARD_BIOME = {
             canBeFlipped: false,
             spawnWeight: 2, phaseUnlocked: 1,
             spriteScale: 0.7,
-            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.55), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
             placementBuffer: 150,
             decorationBuffer: 200,
         },

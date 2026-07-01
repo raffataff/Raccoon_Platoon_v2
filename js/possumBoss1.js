@@ -156,7 +156,11 @@ class PossumBoss1 extends Unit {
         const finalTargetX = predictedX + Math.cos(randomAngle) * randomRadius;
         const finalTargetY = predictedY + Math.sin(randomAngle) * randomRadius;
 
-        const grenade = this.game.getGrenadeProjectileFromPool(this.x, this.y, finalTargetX, finalTargetY, this);
+        const muzzleOffset = this.size / 2 + 17;
+        const muzzleX = this.x + Math.cos(this.facingAngle) * muzzleOffset;
+        const muzzleY = this.y + Math.sin(this.facingAngle) * muzzleOffset;
+
+        const grenade = this.game.getGrenadeProjectileFromPool(muzzleX, muzzleY, finalTargetX, finalTargetY, this);
         this.game.addProjectile(grenade);
 
         if (primaryWeapon.sfxFireKey && this.game.audioManager) {
@@ -184,8 +188,12 @@ class PossumBoss1 extends Unit {
         const fireAngle = this.gunAimAngle;
         const accuracy = secondaryWeapon.accuracyStationary;
 
+        const muzzleOffset = this.size / 2 + 17;
+        const muzzleX = this.x + Math.cos(fireAngle) * muzzleOffset;
+        const muzzleY = this.y + Math.sin(fireAngle) * muzzleOffset;
+
         const projectile = this.game.getProjectileFromPool(
-            this.x, this.y, 
+            muzzleX, muzzleY, 
             this.x + Math.cos(fireAngle) * secondaryWeapon.range,  
             this.y + Math.sin(fireAngle) * secondaryWeapon.range,
             secondaryWeapon.damage,

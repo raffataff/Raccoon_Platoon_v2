@@ -112,8 +112,12 @@ class PossumEliteGuard extends Unit {
         const fireAngle = this.gunAimAngle;
         const accuracy = this.isMoving ? weapon.accuracyMoving : weapon.accuracyStationary;
 
+        const muzzleOffset = this.size / 2 + 17;
+        const muzzleX = this.x + Math.cos(fireAngle) * muzzleOffset;
+        const muzzleY = this.y + Math.sin(fireAngle) * muzzleOffset;
+
         const projectile = this.game.getProjectileFromPool(
-            this.x, this.y,
+            muzzleX, muzzleY,
             this.x + Math.cos(fireAngle) * weapon.range,
             this.y + Math.sin(fireAngle) * weapon.range,
             weapon.damage,

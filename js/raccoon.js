@@ -520,8 +520,12 @@ class Raccoon extends Unit {
         this.gunAimAngle = this.facingAngle;
 
         // --- MODIFIED: Use game's pool to get grenade projectile ---
+        const muzzleOffset = this.size / 2 + 8;
+        const muzzleX = this.x + Math.cos(this.facingAngle) * muzzleOffset;
+        const muzzleY = this.y + Math.sin(this.facingAngle) * muzzleOffset;
+
         const grenade = this.game.getGrenadeProjectileFromPool(
-            this.x, this.y,
+            muzzleX, muzzleY,
             targetX, targetY,
             this // shooterUnit
         );

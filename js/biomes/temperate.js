@@ -366,7 +366,7 @@ const TEMPERATE_BIOME = {
             isDecoration: false,
             spriteScale: 0.4,
             collisionShape: { 
-                type: 'rectangle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.05), width: (w => w * 0.8), height: (h => h * 0.2) },
+                type: 'rectangle', offsetX: (w => w * 0.05), offsetY: (h => h * 0.05), width: (w => w * 0.65), height: (h => h * 0.13) },
             canBeFlipped: true,
         },
         {
@@ -386,7 +386,7 @@ const TEMPERATE_BIOME = {
             spawnWeight: 2, isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 80,
-            spriteScale: 0.6,
+            spriteScale: 0.65,
             treeStumpType: 'birch_stump',
             fallenTreeType: 'birch_fallen',
             collisionShape: {
@@ -395,7 +395,7 @@ const TEMPERATE_BIOME = {
         },
         {
             type: 'birch_fallen', name: 'Fallen Birch Tree', color: '#C8B560',
-            destructible: false, hp: 100, maxHp: 100,
+            destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0.5,
             isDecoration: false,
@@ -420,12 +420,12 @@ const TEMPERATE_BIOME = {
         },
         {
             type: 'tree_pine', name: 'Pine Tree', color: '#2E5A1E',
-            destructible: true, hp: 100, maxHp: 100,
+            destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
             spawnWeight: 16, isDecoration: false,
             canBeFlipped: true,
             placementBuffer: 80,
-            spriteScale: 0.6,
+            spriteScale: 0.7,
             treeStumpType: 'pine_stump',
             fallenTreeType: 'pine_fallen',
             collisionShape: {
@@ -434,7 +434,7 @@ const TEMPERATE_BIOME = {
         },
         {
             type: 'pine_fallen', name: 'Fallen Pine Log', color: '#2E5A1E',
-            destructible: false, hp: 100, maxHp: 100,
+            destructible: true, hp: 100, maxHp: 100,
             blocksMovement: true, providesCover: true,
             spawnWeight: 1.5,
             isDecoration: false,

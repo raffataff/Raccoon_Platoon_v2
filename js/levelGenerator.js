@@ -995,6 +995,76 @@ class LevelGenerator {
                 if (successfulPlacements < objective.totalToAchieve) {
                     objective.totalToAchieve = successfulPlacements;
                 }
+            } else if (objective.type === 'DEACTIVATE_ANTI_AIR_TURRETS' && objective.totalToAchieve > 0) {
+                const antiAirTemplate = this._getAllObstacleDefinitions().find(def => def.type === 'possum_anti_air_turret');
+                if (!antiAirTemplate) {
+                    console.error('[Level Gen] CRITICAL: possum_anti_air_turret template not found in OBSTACLE_DEFINITIONS!');
+                    return;
+                }
+
+                const spriteScale = antiAirTemplate.spriteScale || 0.3;
+                const antiAirSpritePath = 'assets/images/objects/possums/turrets/anti-air/possum_anti_air_1.png';
+                const antiAirSprite = preloadedAssetImages[antiAirSpritePath];
+                const turretRenderWidth = antiAirSprite ? antiAirSprite.naturalWidth * spriteScale : 238;
+                const turretRenderHeight = antiAirSprite ? antiAirSprite.naturalHeight * spriteScale : 265;
+
+                let successfulPlacements = 0;
+                const placementMinY = playableMinY;
+                const placementMaxY_aa = objectivePlacementMaxY > placementMinY ? objectivePlacementMaxY : playableMinY + (playableMaxY - playableMinY) * 0.6;
+
+                for (let i = 0; i < objective.totalToAchieve; i++) {
+                    let placedTurret = false;
+                    const variant = this.rng.chance(0.5) ? 1 : 2;
+
+                    for (let attempt = 0; attempt < 100; attempt++) {
+                        const obsX = this.rng.nextFloat(playableMinX, playableMaxX - turretRenderWidth);
+                        const obsY = this.rng.nextFloat(placementMinY, placementMaxY_aa - turretRenderHeight);
+
+                        const tempShape = {
+                            x: obsX, y: obsY,
+                            width: turretRenderWidth, height: turretRenderHeight,
+                            collisionShape: antiAirTemplate.collisionShape,
+                            collisionShapes: antiAirTemplate.collisionShapes
+                        };
+                        const collisionShapeForCheck = this.level._getObstacleCollisionShape(tempShape);
+
+                        if (!this._isPlacementInvalid(collisionShapeForCheck, antiAirTemplate, this.level.obstacles, extraKeepOutZones)) {
+                            const turretObs = {
+                                x: obsX, y: obsY, width: turretRenderWidth, height: turretRenderHeight,
+                                type: 'possum_anti_air_turret',
+                                name: 'Possum Anti-Air Turret (Objective)',
+                                color: antiAirTemplate.color,
+                                destructible: antiAirTemplate.destructible,
+                                hp: antiAirTemplate.hp, maxHp: antiAirTemplate.maxHp, isDestroyed: false,
+                                blocksMovement: antiAirTemplate.blocksMovement, providesCover: antiAirTemplate.providesCover,
+                                isDecoration: true,
+                                spriteScale: spriteScale,
+                                collisionShape: antiAirTemplate.collisionShape,
+                                isMissionTarget: true, objectiveId: objective.id,
+                                isPossumAntiAirTurret: true,
+                                turretVariant: variant
+                            };
+                            this.level.obstacles.push(turretObs);
+
+                            const turret = new PossumAntiAirTurret(obsX, obsY, this.game, turretObs, variant);
+                            turret.collisionShape = turretObs.collisionShape;
+                            turret.objectiveId = objective.id;
+                            this.game.possumAntiAirTurrets.push(turret);
+                            turretObs.render = function() {};
+
+                            placedTurret = true;
+                            successfulPlacements++;
+                            break;
+                        }
+                    }
+                    if (!placedTurret) {
+                        console.warn(`[Level Gen] Could not place anti-air turret ${i + 1}`);
+                    }
+                }
+
+                if (successfulPlacements < objective.totalToAchieve) {
+                    objective.totalToAchieve = successfulPlacements;
+                }
             }
         });
     }
@@ -1279,6 +1349,7 @@ class LevelGenerator {
 
         const allSpawnedEnemiesDuringGen = [];
         const pendingTurretObstacles = [];
+        const pendingAntiAirTurretObstacles = [];
 
         const missionObjectives = missionParamsContainer.objectives || [];
         const baseParams = missionParamsContainer.baseParams || {};
@@ -2064,7 +2135,7 @@ class LevelGenerator {
                 }
 
                 let placementValid = !this._isPlacementInvalid(collisionCheckShape, template, this.level.obstacles, extraKeepOutZones) && !(isRestrictedType && overlapsOuterSpawnZone);
-                if (placementValid && template.type === 'possum_turret') {
+                if (placementValid && (template.type === 'possum_turret' || template.type === 'possum_anti_air_turret')) {
                     const turretVisualRadius = Math.max(obsRenderWidth, obsRenderHeight) * 0.5;
                     const turretCenterX = obsX + obsRenderWidth / 2;
                     const turretCenterY = obsY + obsRenderHeight / 2;
@@ -2110,7 +2181,7 @@ class LevelGenerator {
                         x: obsX, y: obsY, width: obsRenderWidth, height: obsRenderHeight, type: template.type, name: template.name || template.type, color: template.color,
                         destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
                         blocksMovement: template.blocksMovement, providesCover: template.providesCover, pickupType: template.pickupType || null, pickupQuantity: template.pickupQuantity || 0,
-                        isPickup: !!template.pickupType, isDecoration: !!template.isDecoration || template.type === 'possum_turret',
+                        isPickup: !!template.pickupType, isDecoration: !!template.isDecoration || template.type === 'possum_turret' || template.type === 'possum_anti_air_turret',
                         spriteNormalPath: actualSpritePath,
                         spriteDestroyedPath: actualDestroyedSpritePath,
                         imageNormal: actualImageObject,
@@ -2147,6 +2218,13 @@ class LevelGenerator {
                             obsY: obsY,
                             logMsg: `[LevelGen] Created possum_turret obstacle at (${obsX}, ${obsY}) with dimensions ${obsRenderWidth}x${obsRenderHeight}, spriteScale=${normalSpriteScale}, actualImageObject=${!!actualImageObject}`
                         });
+                    } else if (template.type === 'possum_anti_air_turret') {
+                        pendingAntiAirTurretObstacles.push({
+                            obstacle: newObstacle,
+                            obsX: obsX,
+                            obsY: obsY,
+                            variant: this.rng.chance(0.5) ? 1 : 2
+                        });
                     } else {
                         this.level.obstacles.push(newObstacle);
                         if (newObstacle.isSpawner && !newObstacle.isMissionTarget) this.level.potentialSpawnerHuts.push(newObstacle);
@@ -2158,7 +2236,7 @@ class LevelGenerator {
                     placed = true;
                 }
                 attempts++;
-            } while (!placed && attempts < (template.type === 'possum_turret' ? turretPlacementMaxAttempts : placementMaxAttempts));
+            } while (!placed && attempts < (template.type === 'possum_turret' || template.type === 'possum_anti_air_turret' ? turretPlacementMaxAttempts : placementMaxAttempts));
         }
 
         for (const pendingTurret of pendingTurretObstacles) {
@@ -2168,6 +2246,14 @@ class LevelGenerator {
             this.game.possumTurrets.push(turret);
             pendingTurret.obstacle.render = function() {};
             //console.log(pendingTurret.logMsg);
+        }
+
+        for (const pendingAntiAir of pendingAntiAirTurretObstacles) {
+            this.level.obstacles.push(pendingAntiAir.obstacle);
+            const turret = new PossumAntiAirTurret(pendingAntiAir.obsX, pendingAntiAir.obsY, this.game, pendingAntiAir.obstacle, pendingAntiAir.variant);
+            turret.collisionShape = pendingAntiAir.obstacle.collisionShape;
+            this.game.possumAntiAirTurrets.push(turret);
+            pendingAntiAir.obstacle.render = function() {};
         }
 
         if (needsExtractionZone) {

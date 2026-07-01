@@ -46,6 +46,7 @@ class Game {
         this.delayedSpeech = [];
         this.intelConsoles = [];
         this.possumTurrets = [];
+        this.possumAntiAirTurrets = [];
         this.waterEffects = [];
         this.preloadedImages = {};
         this.audioManager = new AudioManager();
@@ -1149,6 +1150,20 @@ class Game {
                 path: 'assets/images/objects/possums/turrets/',
                 directions: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'],
                 type: 'turret'
+            },
+            // ====================
+            // POSSUM ANTI-AIR TURRETS (variant-based, with deactivated)
+            // ====================
+            {
+                name: 'possum_anti_air_turrets',
+                path: 'assets/images/objects/possums/turrets/anti-air/',
+                files: [
+                    'possum_anti_air_1.png',
+                    'possum_anti_air_1_deactivated.png',
+                    'possum_anti_air_2.png',
+                    'possum_anti_air_2_deactivated.png'
+                ],
+                type: 'single'
             }
         ];
 
@@ -1629,6 +1644,7 @@ class Game {
             this.hostageUnits = [];
             this.intelConsoles = [];
             this.possumTurrets = [];
+            this.possumAntiAirTurrets = [];
 
             let worldWidth = (CONFIG.BASE_WORLD_WIDTH || 1280) * (this.currentMissionParams.baseParams.worldWidthFactor || 1);
             let worldHeight = (CONFIG.BASE_WORLD_HEIGHT || 720) * (this.currentMissionParams.baseParams.worldHeightFactor || 1);
@@ -2227,6 +2243,20 @@ class Game {
         }
     }
 
+    handlePossumAntiAirTurretShutdown() {
+        if (this.gameState !== 'RUNNING') return;
+        if (!this.possumAntiAirTurrets || this.possumAntiAirTurrets.length === 0) return;
+
+        for (const turret of this.possumAntiAirTurrets) {
+            if (turret.isShutdown) continue;
+            const nearby = turret.getNearestRaccoonInRange();
+            if (nearby) {
+                turret.shutdown();
+                break;
+            }
+        }
+    }
+
     spawnEnemyAtLocation(x, y, unitType, targetX, targetY) {
         let newEnemy;
         switch (unitType) {
@@ -2746,7 +2776,13 @@ class Game {
             const numInc = params.numIntelConsoles?.perPhaseIncrement || 0.3;
             const numMax = params.numIntelConsoles?.max || 3;
             newObj.totalToAchieve = Math.min(Math.floor(numBase + phaseIdx * numInc), numMax);
-}
+        } else if (objDef.type === "DEACTIVATE_ANTI_AIR_TURRETS") {
+            const params = CAMPAIGN_RULES.BASE_PARAMETERS;
+            const numBase = params.numAntiAirTurrets?.initial || 2;
+            const numInc = params.numAntiAirTurrets?.perPhaseIncrement || 0.3;
+            const numMax = params.numAntiAirTurrets?.max || 4;
+            newObj.totalToAchieve = Math.min(Math.floor(numBase + phaseIdx * numInc), numMax);
+        }
         return newObj;
     }
 
@@ -3823,6 +3859,12 @@ class Game {
                         if (hackedCount >= obj.totalToAchieve) {
                             obj.isComplete = true;
                         }
+                    } else if (obj.type === 'DEACTIVATE_ANTI_AIR_TURRETS') {
+                        const deactivatedCount = this.possumAntiAirTurrets ? this.possumAntiAirTurrets.filter(t => t.isShutdown && t.objectiveId === obj.id).length : 0;
+                        obj.currentProgress = deactivatedCount;
+                        if (deactivatedCount >= obj.totalToAchieve) {
+                            obj.isComplete = true;
+                        }
                     } else if (obj.type === 'RESCUE_TAKEN_HOSTAGE') {
                         const targetHostage = this.hostageUnits?.find(h => h.originalRaccoonId === obj.targetRaccoonId || h.id === obj.targetRaccoonId);
                         if (targetHostage && targetHostage.isRescued && targetHostage.isAlive()) {
@@ -3999,6 +4041,14 @@ class Game {
             const unhacked = this.intelConsoles ? this.intelConsoles.filter(c => !c.isHacked && c.objectiveId === obj.id) : [];
             if (unhacked.length > 0) {
                 const target = unhacked[0];
+                worldX = target.x;
+                worldY = target.y;
+                found = true;
+            }
+        } else if (obj.type === 'DEACTIVATE_ANTI_AIR_TURRETS') {
+            const activeTurrets = this.possumAntiAirTurrets ? this.possumAntiAirTurrets.filter(t => !t.isShutdown && t.objectiveId === obj.id) : [];
+            if (activeTurrets.length > 0) {
+                const target = activeTurrets[0];
                 worldX = target.x;
                 worldY = target.y;
                 found = true;
@@ -4473,13 +4523,21 @@ class Game {
                     }
                 });
             }
-            if (this.possumTurrets && this.possumTurrets.length > 0) {
-                this.possumTurrets.forEach(turret => {
-                    if (turret && typeof turret.update === 'function') {
-                        turret.update(deltaTime);
-                    }
-                });
-            }
+        if (this.possumTurrets && this.possumTurrets.length > 0) {
+            this.possumTurrets.forEach(turret => {
+                if (turret && typeof turret.update === 'function') {
+                    turret.update(deltaTime);
+                }
+            });
+        }
+
+        if (this.possumAntiAirTurrets && this.possumAntiAirTurrets.length > 0) {
+            this.possumAntiAirTurrets.forEach(turret => {
+                if (turret && typeof turret.update === 'function') {
+                    turret.update(deltaTime);
+                }
+            });
+        }
             if (this.level && this.level.obstacles) {
                 for (const obstacle of this.level.obstacles) {
                     if (obstacle.isAnimated && obstacle.numFrames && !obstacle.isDestroyed) {
@@ -4638,6 +4696,30 @@ class Game {
                 }
             });
         }
+        if (this.possumAntiAirTurrets) {
+            this.possumAntiAirTurrets.forEach(turret => {
+                if (turret && typeof turret.y === 'number' && typeof turret.height === 'number') {
+                    let sortYValue = turret.y + turret.height;
+                    if (this.level && typeof this.level._getObstacleCollisionShape === 'function') {
+                        const shapes = this.level._getObstacleCollisionShape(turret);
+                        const shapesArray = Array.isArray(shapes) ? shapes : (shapes ? [shapes] : null);
+                        if (shapesArray && shapesArray.length > 0) {
+                            let maxBottom = -Infinity;
+                            shapesArray.forEach(shape => {
+                                let bottom;
+                                if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
+                                else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
+                                else if (shape.type === 'rectangle') { bottom = shape.y + shape.height; }
+                                else { bottom = shape.y + (shape.height || 0); }
+                                if (bottom > maxBottom) maxBottom = bottom;
+                            });
+                            if (maxBottom !== -Infinity) sortYValue = maxBottom;
+                        }
+                    }
+                    sortableObjects.push({ entity: turret, sortY: sortYValue, isUnit: false, isDestroyed: false });
+                }
+            });
+        }
         this.gameObjects.forEach(obj => {
             if (obj instanceof FlyingBird || obj instanceof UFO) {
                 return;
@@ -4650,7 +4732,7 @@ class Game {
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
         sortableObjects.forEach((item, index) => {
             const obj = item.entity; if (!obj) { return; } try {
-                if (item.isUnit || obj.type === 'intel_console' || obj.type === 'possum_turret') { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {
+                if (item.isUnit || obj.type === 'intel_console' || obj.type === 'possum_turret' || obj.type === 'possum_anti_air_turret') { if (typeof obj.render === 'function') { obj.render(this.ctx); } } else {
                     // --- MODIFICATION START ---
                     this.ctx.save();
                     if (obj.isFlippedHorizontally) {
@@ -4721,6 +4803,13 @@ class Game {
         }
         if (this.possumTurrets) {
             this.possumTurrets.forEach(turret => {
+                if (turret && typeof turret.renderOverlay === 'function') {
+                    turret.renderOverlay(this.ctx);
+                }
+            });
+        }
+        if (this.possumAntiAirTurrets) {
+            this.possumAntiAirTurrets.forEach(turret => {
                 if (turret && typeof turret.renderOverlay === 'function') {
                     turret.renderOverlay(this.ctx);
                 }

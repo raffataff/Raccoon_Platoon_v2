@@ -218,17 +218,17 @@ const CONFIG = {
 
     // Sprites
     RACCOON_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/recruit/type1/',
-    RACCOON_SPRITE_SCALE_FACTOR: 0.4,
+    RACCOON_SPRITE_SCALE_FACTOR: 0.34,
     RACCOON_PRIVATE_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/private/type1/',
-    RACCOON_PRIVATE_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_PRIVATE_SPRITE_SCALE_FACTOR: 0.34,
     RACCOON_CORPORAL_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/corporal/type1/',
-    RACCOON_CORPORAL_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_CORPORAL_SPRITE_SCALE_FACTOR: 0.34,
     RACCOON_SERGEANT_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/sergeant/type1/',
-    RACCOON_SERGEANT_SPRITE_SCALE_FACTOR: 0.35,
+    RACCOON_SERGEANT_SPRITE_SCALE_FACTOR: 0.28,
     RACCOON_ELITE_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/elite/type2/',
-    RACCOON_ELITE_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_ELITE_SPRITE_SCALE_FACTOR: 0.35,
     RACCOON_GHOST_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/ghost/type2/',
-    RACCOON_GHOST_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_GHOST_SPRITE_SCALE_FACTOR: 0.35,
     RACCOON_MAVERICK_SPRITE_PATH: 'assets/images/units/raccoon/maverick/',
     RACCOON_MAVERICK_SPRITE_SCALE_FACTOR: 0.55,
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
@@ -236,19 +236,19 @@ const CONFIG = {
     RACCOON_DEAD_SPRITE_SCALE: 0.06,
     RACCOON_RECRUIT_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/recruit/dead/',
     RACCOON_RECRUIT_DEAD_SPRITE_FILES: ['raccoon_recruit_dead_1.png'],
-    RACCOON_RECRUIT_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_RECRUIT_DEAD_SPRITE_SCALE: 0.38,
     RACCOON_PRIVATE_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/private/dead/',
     RACCOON_PRIVATE_DEAD_SPRITE_FILES: ['raccoon_private_dead_1.png'],
-    RACCOON_PRIVATE_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_PRIVATE_DEAD_SPRITE_SCALE: 0.38,
     RACCOON_CORPORAL_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/corporal/dead/',
     RACCOON_CORPORAL_DEAD_SPRITE_FILES: ['raccoon_corporal_dead_1.png'],
-    RACCOON_CORPORAL_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_CORPORAL_DEAD_SPRITE_SCALE: 0.38,
     RACCOON_SERGEANT_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/sergeant/dead/',
     RACCOON_SERGEANT_DEAD_SPRITE_FILES: ['raccoon_sergeant_dead_1.png'],
-    RACCOON_SERGEANT_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_SERGEANT_DEAD_SPRITE_SCALE: 0.38,
     RACCOON_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/elite/dead/',
     RACCOON_ELITE_DEAD_SPRITE_FILES: ['raccoon_elite_dead_1.png'],
-    RACCOON_ELITE_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_ELITE_DEAD_SPRITE_SCALE: 0.38,
     RACCOON_GHOST_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/ghost/dead/',
     RACCOON_GHOST_DEAD_SPRITE_FILES: ['raccoon_ghost_dead_1.png'],
     RACCOON_GHOST_DEAD_SPRITE_SCALE: 0.35,
@@ -947,6 +947,11 @@ const CONFIG = {
         muzzleOffset: 20,
         sfxShutdownKey: 'COMPUTER_HACK_GLITCH'
     },
+    POSSUM_ANTI_AIR_TURRET: {
+        spriteScale: 0.3,
+        muzzleOffset: 20,
+        sfxShutdownKey: 'COMPUTER_HACK_GLITCH'
+    },
 
     // =============================================================================
     // AI_BEHAVIOR
@@ -1360,7 +1365,7 @@ const CONFIG = {
             type: 'fence_barbed_straight_long_border', name: 'Barbed Wire Fence Straight Long Border',
             color: '#8B4513', destructible: false,
             blocksMovement: true, providesCover: true,
-            spawnWeight: 1, isDecoration: false,
+            spawnWeight: 0, isDecoration: false,
             spriteScale: 0.5,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.014), offsetY: (h => h * 0.08), width: (w => w * 0.98), height: (h => h * 0.03) },
             canBeFlipped: true,
@@ -1387,9 +1392,9 @@ const CONFIG = {
             canBeFlipped: false,
             spawnWeight: 2,
             explosionDamage: 75, explosionAoeRadius: 120,
-            spriteScale: 0.1,
+            spriteScale: 0.09,
             spriteDestroyedScale: 0.1,
-            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.2), offsetY: (h => h * 0.066), width: (w => w * 0.66), height: (h => h * 0.65) },
+            collisionShape: { type: 'rectangle', offsetX: (w => w * 0.2), offsetY: (h => h * 0.066), width: (w => w * 0.68), height: (h => h * 0.65) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_DESTROYED',
             flameCount: 2,
             flameOffsetY: 0,
@@ -1401,7 +1406,7 @@ const CONFIG = {
             canBeFlipped: false,
             spawnWeight: 2,
             explosionDamage: 100, explosionAoeRadius: 160,
-            spriteScale: 0.1,
+            spriteScale: 0.09,
             spriteDestroyedScale: 0.1,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.03), offsetY: (h => h * 0.05), width: (w => w * 0.7), height: (h => h * 0.7) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_CLUSTER_DESTROYED',
@@ -1458,6 +1463,32 @@ const CONFIG = {
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.48), radius: (w => w * 0.18) },
             placementBuffer: 250,
             decorationBuffer: 250,
+        },
+        {
+            type: 'possum_anti_air_turret', name: 'Possum Anti-Air Turret', color: '#8B4513',
+            destructible: true, hp: 200, maxHp: 200,
+            blocksMovement: true, providesCover: true, isDecoration: false,
+            canBeFlipped: false,
+            isPossumAntiAirTurret: true,
+            spawnWeight: 0, phaseUnlocked: 3, spawnLimit: 6,
+            spriteScale: 0.3,
+            sfxOnDestroy: 'STRUCTURE_METAL_DESTROYED',
+            collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.5), radius: (w => w * 0.30) },
+            placementBuffer: 250,
+            decorationBuffer: 250,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [1, 4],
+                countPerPhaseBonus: 0.1,
+                spawnRadius: 230,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 5 },
+                    { type: 'possum_heavy', weight: 3 },
+                    { type: 'possum_boss_1', weight: 0.1 },
+                    { type: 'possum_sniper', weight: 2 },
+                    { type: 'possum_elite', weight: 1 }
+                ]
+            }
         },
         {
             type: 'extraction_zone', name: 'Extraction Zone', color: '#3cc1ff',
@@ -1595,6 +1626,7 @@ const CONFIG = {
                 'fence_barbed_straight_long',
                 'fence_barbed_straight_long_border',
                 'possum_turret',
+                'possum_anti_air_turret',
                 'explosive_barrel',
                 'explosive_barrel_double',
                 'explosive_barrel_cluster',
@@ -1826,12 +1858,12 @@ const CONFIG = {
 
                 // --- Radius in world units (scales with rank) ---
                 // Effective radius = BASE_RADIUS + RADIUS_PER_RANK * rankStep
-                BASE_RADIUS: 70,
-                RADIUS_PER_RANK: 24,
+                BASE_RADIUS: 150,
+                RADIUS_PER_RANK: 75,
 
                 // --- Timing (seconds) ---
                 EXPAND_TIME: 0.45,        // time for the shockwave front to reach max radius
-                LIFETIME: 0.75,           // total effect duration (fades out after expanding)
+                LIFETIME: 1.5,           // total effect duration (fades out after expanding)
 
                 // --- Visuals ---
                 // Ring colour. If a matching entry exists in RANK_COLORS that
@@ -2110,6 +2142,7 @@ const CONFIG = {
         OBJECTIVE_EXTRACTION_PROCEED: "All objectives complete! Proceed to Extraction Zone!",
         OBJECTIVE_EXTRACTION_HOSTAGES: "Extract remaining hostages: Get to Extraction Zone",
         OBJECTIVE_INTERACT_INTEL_TEXT: "Hack Intel Console: {CURRENT}/{TOTAL}",
+        OBJECTIVE_DEACTIVATE_ANTI_AIR_TEXT: "Deactivate Anti-Air Turrets: {CURRENT}/{TOTAL}",
         EXTRACTION_ZONE_REVEALED: "Extraction Zone Revealed!"
     },
 

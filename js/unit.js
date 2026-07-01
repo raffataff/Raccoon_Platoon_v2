@@ -1966,10 +1966,12 @@ class Unit {
 
         const fireAngle = Math.atan2(pointY - this.y, pointX - this.x);
 
+        const muzzleOffset = this.size / 2 + 17;
+        const muzzleX = this.x + Math.cos(fireAngle) * muzzleOffset;
+        const muzzleY = this.y + Math.sin(fireAngle) * muzzleOffset;
+        const spawnOffsetY = CONFIG.PROJECTILE_SPRITE_OFFSET_Y || 0;
+
         if (this.game && this.game.addVisualEffect) {
-            const muzzleOffset = this.size / 2 + 17;
-            const muzzleX = this.x + Math.cos(fireAngle) * muzzleOffset;
-            const muzzleY = this.y + Math.sin(fireAngle) * muzzleOffset;
             this.game.addVisualEffect('muzzle_flash', { x: muzzleX, y: muzzleY, scale: this.weapon.muzzleFlashScale });
         }
 
@@ -1982,10 +1984,9 @@ class Unit {
                 const angleOffset = (Math.random() - 0.5) * spreadAngle;
                 pelletAngle = fireAngle + angleOffset;
             }
-            const targetX = this.x + Math.cos(pelletAngle) * this.weapon.range;
-            const targetY = this.y + Math.sin(pelletAngle) * this.weapon.range;
-             const spawnOffsetY = CONFIG.PROJECTILE_SPRITE_OFFSET_Y || 0;
-             const projectile = this.game.getProjectileFromPool(this.x, this.y + spawnOffsetY, targetX, targetY, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this, effectiveAccuracy);
+            const targetX = muzzleX + Math.cos(pelletAngle) * this.weapon.range;
+            const targetY = muzzleY + Math.sin(pelletAngle) * this.weapon.range;
+            const projectile = this.game.getProjectileFromPool(muzzleX, muzzleY + spawnOffsetY, targetX, targetY, this.weapon.damage, this.weapon.projectileSpeed, this.weapon.projectileColor, this, effectiveAccuracy);
             this.game.addProjectile(projectile);
         }
 

@@ -15,6 +15,7 @@ const CAMPAIGN_RULES = {
         numDestroyTargets: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0 }, // For a single "DESTROY_TARGET" objective instance
         numHostagesToSpawn: { initial: 1, perPhaseIncrement: 0.2, max: 4, roundToInt: true, randomnessFactor: 0.1 },
         minHostagesToRescue: { initial: 1, perPhaseIncrement: 0.3, max: 4, roundToInt: true, relativeToSpawnedMaxFactor: 0.75 },
+        numAntiAirTurrets: { initial: 1, perPhaseIncrement: 0.3, max: 4, roundToInt: true },
         numIntelConsoles: { initial: 1, perPhaseIncrement: 0.3, max: 3, roundToInt: true },
         intelHackTimeBase: { initial: [10, 20], perPhaseBonus: [2, 4] },
         intelSpawnChance: { initial: 0.3, perPhaseGrowthFactor: 0.1, max: 0.8 },
@@ -34,7 +35,7 @@ const CAMPAIGN_RULES = {
     BIOME_POOL: [
         { name: "TROPICAL", weight: 4, unlocksPhase: 0, description: "dense, overgrown jungle region", themeAdjectives: ["Verdant", "Whispering", "Wild", "Primal", "Canopy"] },
         { name: "TEMPERATE", weight: 4, unlocksPhase: 0, description: "temperate forest", themeAdjectives: ["Autumn", "Golden", "Crisp", "Wooded", "Serene"] },
-        { name: "JUNKYARD", weight: 3, unlocksPhase: 3, description: "a sprawling, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
+        { name: "JUNKYARD", weight: 3, unlocksPhase: 0, description: "a smelly, rusted-out scrap-city", themeAdjectives: ["Scrapheap", "Rusty", "Toxic", "Forgotten", "Makeshift"] },
     /*    { name: "SWAMP", weight: 3, unlocksPhase: 1, description: "a murky, treacherous wetland", themeAdjectives: ["Murky", "Fetid", "Gator's", "Sunken", "Misty"] },
         { name: "URBAN_DECAY", weight: 2, unlocksPhase: 2, description: "a ruined, concrete wasteland", themeAdjectives: ["Ruined", "Collapsed", "Concrete", "Ghost", "Shattered"] },
     */   ],
@@ -70,7 +71,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_DESTROY_TARGET_GENERIC_TEXT", // e.g., "Destroy {targetNamePlural}: {CURRENT}/{TOTAL}"
             completionCondition: "ALL_TARGET_TYPE_DESTROYED",
             isPrimary: true,
-            canCoexistWith: ["RESCUE_HOSTAGES", "ASSASSINATION", "EXTERMINATE", "INTERACT_INTEL"], // Can be secondary to these
+            canCoexistWith: ["RESCUE_HOSTAGES", "ASSASSINATION", "EXTERMINATE", "INTERACT_INTEL", "DEACTIVATE_ANTI_AIR_TURRETS"], // Can be secondary to these
             // targetTypeKey is not here, it's defined in DESTROY_TARGET_TYPE_POOL. This entry is generic.
             // maxInstancesPerMission for "DESTROY_TARGET" itself might be high (e.g., 3) to allow
             // "Destroy Huts" AND "Destroy Towers" in one mission. The specific target types below
@@ -85,7 +86,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_RESCUE_HOSTAGES_TEXT", // e.g., "Rescue Hostages: {CURRENT_RESCUED}/{TOTAL_TO_RESCUE} (Evacuated: {CURRENT_EVACUATED})"
             completionCondition: "MIN_HOSTAGES_RESCUED_AND_EVACUATED",
             isPrimary: true,
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "INTERACT_INTEL", "EXTRACTION"],
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "INTERACT_INTEL", "EXTRACTION", "DEACTIVATE_ANTI_AIR_TURRETS"],
             maxInstancesPerMission: 1
         },
         {
@@ -95,7 +96,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
             isPrimary: true,
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "INTERACT_INTEL"], // Can it co-exist with other objectives? Maybe just EXTERMINATE as a secondary.
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "INTERACT_INTEL", "DEACTIVATE_ANTI_AIR_TURRETS"], // Can it co-exist with other objectives? Maybe just EXTERMINATE as a secondary.
             maxInstancesPerMission: 1,
             isPhaseFinaleCandidate: true, // GOOD!
             // isBossObjective: true // This can be inferred if the chosen target from ASSASSINATION_TARGET_POOL has isBoss: true
@@ -107,10 +108,20 @@ const CAMPAIGN_RULES = {
             unlocksPhase: 4,
             descriptionTemplateKey: "OBJECTIVE_INTERACT_INTEL_TEXT",
             completionCondition: "ALL_INTEL_CONSOLES_CAPTURED",
-            isPrimary: false,
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION"],
+            isPrimary: true,
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION", "DEACTIVATE_ANTI_AIR_TURRETS"],
             maxInstancesPerMission: 1,
             targetTypeKeyPrefix: "intel_console"
+        },
+        {
+            type: "DEACTIVATE_ANTI_AIR_TURRETS",
+            weight: 4,
+            unlocksPhase: 1,
+            descriptionTemplateKey: "OBJECTIVE_DEACTIVATE_ANTI_AIR_TEXT",
+            completionCondition: "ALL_ANTI_AIR_TURRETS_DEACTIVATED",
+            isPrimary: true,
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "RESCUE_HOSTAGES", "ASSASSINATION", "INTERACT_INTEL"],
+            maxInstancesPerMission: 1
         },
         // NEW: Extraction objective for phase finales
         {
@@ -120,7 +131,7 @@ const CAMPAIGN_RULES = {
             descriptionTemplateKey: "OBJECTIVE_EXTRACTION_TEXT",
             completionCondition: "ALL_RACCOONS_EXTRACTED",
             isPrimary: false, // Added automatically, not counted as primary
-            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "RESCUE_HOSTAGES", "INTERACT_INTEL"],
+            canCoexistWith: ["EXTERMINATE", "DESTROY_TARGET", "ASSASSINATION", "RESCUE_HOSTAGES", "INTERACT_INTEL", "DEACTIVATE_ANTI_AIR_TURRETS"],
             maxInstancesPerMission: 1,
             isPhaseFinaleOnly: true // Custom flag - only added for phase finales
         }
@@ -151,7 +162,7 @@ const CAMPAIGN_RULES = {
         {
             targetTypeKeyPrefix: "possum_relay_tower",
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
-            weight: 1, unlocksPhase: 3,
+            weight: 1, unlocksPhase: 4,
             maxInstancesPerMission: 1
         },
     ],
@@ -196,7 +207,7 @@ const CAMPAIGN_RULES = {
             weight: 3, unlocksPhase: 7, isBoss: true
         },
         {
-            assassinationTypeKey: "possum_revolver_boss",
+            assassinationTypeKey: "possum_boss_3",
             name: "Captain Fuzzy", callsign: "Fuzzy",
             description: "An experienced fighter with a history of leading successful raids.",
             weight: 0, unlocksPhase: 7, isBoss: true
