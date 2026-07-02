@@ -2187,9 +2187,9 @@ class UI {
         const spriteDiv = document.createElement('div');
         spriteDiv.className = 'card-sprite';
 
-        // Build sprite URLs based on rank
+        // Build sprite URLs based on rank + sprite variant
         const spriteBaseName = recruit.spriteBaseName || 'raccoon';
-        const spritePath = this._getSpritePathForRank(recruit.rank);
+        const spritePath = this._getSpritePathForSprite(recruit.rank, spriteBaseName);
         const directions = ['se', 's', 'sw', 'w', 'nw', 'n', 'ne', 'e', ];
         
         // Store sprite URLs in CSS custom properties for animation
@@ -2277,17 +2277,20 @@ class UI {
         return card;
     }
 
-    // Helper to get sprite path based on rank
+    // Helper to get sprite path based on rank (legacy fallback — first variant of the rank)
     _getSpritePathForRank(rank) {
-        const rankPaths = {
-            'Private': CONFIG.RACCOON_PRIVATE_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/private/type1',
-            'Corporal': CONFIG.RACCOON_CORPORAL_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/corporal/type1',
-            'Sergeant': CONFIG.RACCOON_SERGEANT_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/sergeant/type1',
-            'Elite': CONFIG.RACCOON_ELITE_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/elite/type2',
-            'Ghost': CONFIG.RACCOON_GHOST_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/ghost/type2',
-            'Maverick': CONFIG.RACCOON_MAVERICK_SPRITE_PATH || 'assets/images/units/raccoon/maverick/'
-        };
-        return rankPaths[rank] || CONFIG.RACCOON_SPRITE_PATH || 'assets/images/units/raccoon/recruit/';
+        const variants = (CONFIG.RACCOON_SPRITE_VARIANTS && CONFIG.RACCOON_SPRITE_VARIANTS[rank]) || [];
+        if (variants.length > 0) return variants[0].basePath;
+        return CONFIG.RACCOON_SPRITE_PATH || 'assets/images/units/raccoon/rifleman/recruit/type1/';
+    }
+
+    // Resolve the sprite folder for a specific unit by matching its spriteBaseName against
+    // the rank's variants (multi-type system). Falls back to the rank's first variant.
+    _getSpritePathForSprite(rank, spriteBaseName) {
+        const variants = (CONFIG.RACCOON_SPRITE_VARIANTS && CONFIG.RACCOON_SPRITE_VARIANTS[rank]) || [];
+        const match = variants.find(v => v.baseName === spriteBaseName);
+        if (match) return match.basePath;
+        return this._getSpritePathForRank(rank);
     }
 
     showPostMissionScreen_Debrief(debriefData) {
@@ -3329,15 +3332,20 @@ class UI {
         this._renderPhaseRosterTab(phaseDebriefData);
         this._renderPhaseHonorRollTab(phaseDebriefData);
 
+        // Always land on the Overview tab when the screen is (re)shown
+        this.phaseDebriefTabs.forEach(t => t.classList.toggle('active', t.dataset.tab === 'overview'));
+        this.phaseDebriefTabContents.forEach(tc => tc.classList.toggle('active', tc.id === 'phaseTabOverview'));
+
         this.phaseDebriefTabs.forEach(tab => {
-            tab.addEventListener('click', () => {
+            // onclick (not addEventListener) so re-showing the screen each phase doesn't stack duplicate handlers
+            tab.onclick = () => {
                 this.phaseDebriefTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
                 const tabName = tab.dataset.tab;
                 this.phaseDebriefTabContents.forEach(tc => {
                     tc.classList.toggle('active', tc.id === 'phaseTab' + tabName.charAt(0).toUpperCase() + tabName.slice(1));
                 });
-            });
+            };
         });
 
         if (this.viewMemorialFromPhaseBtn) {
@@ -3376,10 +3384,18 @@ class UI {
         const statsGridEl = this.endOfPhaseScreen.querySelector('.phase-stats-grid');
         if (statsGridEl) {
             statsGridEl.innerHTML = '';
+            const missionResults = data.missionResults || [];
+            const missionsWon = missionResults.filter(m => m.isVictory).length;
+            const missionsTotal = missionResults.length;
+            const newRecruitCount = (data.newRecruitedRaccoons || []).length;
+            const promotedCount = (data.promotedRaccoons || []).length;
             const stats = [
+                { label: txt.PHASE_DEBRIEF_MISSIONS_WON || 'Missions Won', value: `${missionsWon}/${missionsTotal}`, cls: (missionsTotal > 0 && missionsWon === missionsTotal) ? 'stat-roster-gain' : '' },
                 { label: txt.PHASE_DEBRIEF_ENEMIES_ELIMINATED || 'Enemies Eliminated', value: data.totalEnemiesKilled, cls: '' },
                 { label: txt.PHASE_DEBRIEF_HOSTAGES_RESCUED || 'Hostages Rescued', value: data.totalHostagesRescued, cls: '' },
                 { label: txt.PHASE_DEBRIEF_CASUALTIES || 'Casualties', value: data.casualtyCount, cls: 'stat-casualties' },
+                { label: txt.PHASE_DEBRIEF_NEW_RECRUITS || 'New Recruits', value: newRecruitCount, cls: newRecruitCount > 0 ? 'stat-roster-gain' : '' },
+                { label: txt.PHASE_DEBRIEF_PROMOTIONS || 'Promotions', value: promotedCount, cls: promotedCount > 0 ? 'stat-roster-gain' : '' },
                 { label: txt.PHASE_DEBRIEF_PHASE_DURATION || 'Phase Duration', value: this._formatDuration(data.phaseDuration), cls: '' },
                 { label: txt.PHASE_DEBRIEF_ROSTER_START || 'Roster at Start', value: data.startingRosterCount, cls: '' },
                 { label: txt.PHASE_DEBRIEF_ROSTER_END || 'Roster at End', value: data.endingRosterCount, cls: data.endingRosterCount >= data.startingRosterCount ? 'stat-roster-gain' : 'stat-roster-loss' },
@@ -3395,10 +3411,14 @@ class UI {
         const nextPhaseEl = this.endOfPhaseScreen.querySelector('.next-phase-preview');
         if (nextPhaseEl) {
             if (data.nextPhaseName) {
+                const introHtml = data.nextPhaseIntro
+                    ? `<div class="next-phase-intro">${data.nextPhaseIntro}</div>`
+                    : '';
                 nextPhaseEl.innerHTML = `
                     <h4>${txt.PHASE_DEBRIEF_NEXT_PHASE_LABEL || 'Next Phase:'}</h4>
                     <div class="next-phase-name">${data.nextPhaseName}</div>
                     <div class="next-phase-biome">${data.nextPhaseBiome || ''}</div>
+                    ${introHtml}
                 `;
                 nextPhaseEl.style.display = 'flex';
                 nextPhaseEl.style.flexDirection = 'column';
@@ -3421,6 +3441,26 @@ class UI {
             } else {
                 topPerformerEl.innerHTML = '';
                 topPerformerEl.style.display = 'none';
+            }
+        }
+
+        const promotionsEl = this.endOfPhaseScreen.querySelector('.phase-promotions');
+        if (promotionsEl) {
+            const promoted = data.promotedRaccoons || [];
+            if (promoted.length > 0) {
+                const rows = promoted.map(p => `
+                    <div class="promotion-row">
+                        <span class="promotion-name">${p.name || 'Unknown'}</span>
+                        <span class="promotion-ranks">${p.previousRank ? p.previousRank + ' → ' : ''}${p.rank || ''}</span>
+                    </div>`).join('');
+                promotionsEl.innerHTML = `
+                    <h4>${txt.PHASE_DEBRIEF_PROMOTIONS || 'Promotions'}</h4>
+                    <div class="promotion-rows">${rows}</div>
+                `;
+                promotionsEl.style.display = 'flex';
+            } else {
+                promotionsEl.innerHTML = '';
+                promotionsEl.style.display = 'none';
             }
         }
     }
@@ -3452,9 +3492,13 @@ class UI {
                     '</div>';
             }
 
-            const fallenText = mission.fallenRaccoons && mission.fallenRaccoons.length > 0
-                ? ` | ${mission.fallenRaccoons.length} KIA`
+            const fallenCount = mission.fallenRaccoons ? mission.fallenRaccoons.length : 0;
+            const fallenNames = fallenCount > 0
+                ? mission.fallenRaccoons.map(f => f.name || 'Unknown').join(', ')
                 : '';
+            const fallenHtml = fallenCount > 0
+                ? `<span class="mission-result-kia">KIA: ${fallenCount} (${fallenNames})</span>`
+                : `<span>KIA: 0</span>`;
 
             card.innerHTML = `
                 <div class="mission-result-header">
@@ -3464,7 +3508,7 @@ class UI {
                 <div class="mission-result-stats">
                     <span>Enemies: ${mission.enemiesKilled}</span>
                     <span>Time: ${mission.timeTaken}s</span>
-                    <span>Fallen: ${mission.fallenRaccoons ? mission.fallenRaccoons.length : 0}${fallenText}</span>
+                    ${fallenHtml}
                 </div>
                 ${objectivesHtml}
             `;
@@ -3558,7 +3602,7 @@ class UI {
         const spriteDiv = document.createElement('div');
         spriteDiv.className = 'card-sprite';
         const spriteBaseName = r.spriteBaseName || 'raccoon';
-        const spritePath = this._getSpritePathForRank(r.rank);
+        const spritePath = this._getSpritePathForSprite(r.rank, spriteBaseName);
         const directions = ['se', 's', 'sw', 'w', 'nw', 'n', 'ne', 'e'];
         directions.forEach(dir => {
             const spriteKey = `${spriteBaseName}_idle_${dir}`;

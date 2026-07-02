@@ -15,7 +15,11 @@ const CONFIG = {
     // =============================================================================
     // PERFORMANCE
     // =============================================================================
-    AUTO_PHASE_ENEMIES_FPS_THRESHOLD: 35,
+    AUTO_PHASE_ENEMIES_FPS_THRESHOLD: 35,             // Below this FPS, far-off idle enemies are perf-phased (frozen in place, collision skipped).
+    AUTO_PHASE_ENEMIES_FPS_RECOVER_THRESHOLD: 45,     // Perf-phasing keeps re-applying until FPS climbs back above this. Hysteresis gap prevents the phase/unphase oscillation.
+    AUTO_PHASE_ENEMIES_DURATION_BASE: 1.0,            // Base perf-phase duration (seconds).
+    AUTO_PHASE_ENEMIES_DURATION_JITTER: 1.0,          // Random extra duration (0..this) per unit. Desynchronizes phase-end so units don't all repath in the same frame.
+    AUTO_PHASE_ENEMIES_CAMERA_BUFFER: 400,            // Enemies within (half view diagonal + this) px of the camera center are never perf-phased (avoids visible ghosting/freezing).
 
     // =============================================================================
     // LAYOUT
@@ -125,6 +129,9 @@ const CONFIG = {
 
         // --- Phasing ---
         PHASING_DURATION: 0.3,                            // How long (seconds) a unit phases (walks through obstacles) after repeated repath failures.
+        PHASING_ESCAPE_REACH_FACTOR: 0.9,                 // Phasing escape paths are clamped to speed × phasingTimer × this, so a phase always ends near where the unit can recover — never a map-crossing beeline through geometry.
+        PHASE_END_SNAP_RADIUS_CELLS: 10,                  // On phase end, if standing on a blocked nav cell, snap to the nearest walkable cell within this grid radius (prevents the escape→re-phase vibration loop).
+        PERF_PHASE_REPATH_STAGGER: 1.0,                   // Max random extra repath cooldown (seconds) added after a perf-phase, spreading post-recovery A* calls across frames.
         PHASING_DIRECT_MOVE_THRESHOLD: 0.1,               // During phase, if closer than this × unit size to target, move directly instead of pathing.
         PHASING_ARRIVAL_THRESHOLD_FACTOR: 0.05,           // During phase, consider arrived when within this × unit size of the next path node.
         PHASING_STILL_THRESHOLD_FACTOR: 0.1,              // After phase ends, if still further than this × unit size from target, re-path to target.
@@ -217,6 +224,8 @@ const CONFIG = {
     RACCOON_AUTO_TARGET_RANGE_FACTOR: 0.6,
 
     // Sprites
+    // LEGACY single-type sprite keys — superseded by RACCOON_SPRITE_VARIANTS below.
+    // RACCOON_SPRITE_PATH / RACCOON_SPRITE_SCALE_FACTOR are still used as last-resort fallbacks.
     RACCOON_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/recruit/type1/',
     RACCOON_SPRITE_SCALE_FACTOR: 0.34,
     RACCOON_PRIVATE_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/private/type1/',
@@ -231,6 +240,47 @@ const CONFIG = {
     RACCOON_GHOST_SPRITE_SCALE_FACTOR: 0.35,
     RACCOON_MAVERICK_SPRITE_PATH: 'assets/images/units/raccoon/maverick/',
     RACCOON_MAVERICK_SPRITE_SCALE_FACTOR: 0.55,
+
+    // --- Multi-type sprite variants ---
+    // Each rank maps to an array of visual variants ("types"). Each variant folder must contain
+    // an idle/ subfolder with 8 directional sprites named `${baseName}_idle_${dir}.png`
+    // (dirs: n, ne, e, se, s, sw, w, nw). Filenames are not uniform across folders, so each
+    // variant declares its own baseName explicitly.
+    // A raccoon rolls a random variant index (unit.spriteType) at creation and re-rolls on
+    // every promotion. The index is persisted in saves. Add a new type by dropping a folder
+    // on disk and adding one line here — the preloader picks it up automatically.
+    RACCOON_SPRITE_VARIANTS: {
+        Recruit: [
+            { basePath: 'assets/images/units/raccoon/rifleman/recruit/type1/', baseName: 'raccoon_rifleman_recruit1', scaleFactor: 0.34 },
+            { basePath: 'assets/images/units/raccoon/rifleman/recruit/type2/', baseName: 'raccoon_rifleman_recruit2', scaleFactor: 0.34 },
+            //{ basePath: 'assets/images/units/raccoon/rifleman/recruit/type3/', baseName: 'raccoon', scaleFactor: 0.34 },
+        ],
+        Private: [
+            { basePath: 'assets/images/units/raccoon/rifleman/private/type1/', baseName: 'raccoon_rifleman_private1', scaleFactor: 0.31 },
+            { basePath: 'assets/images/units/raccoon/rifleman/private/type2/', baseName: 'raccoon_rifleman_private2', scaleFactor: 0.31 },
+        ],
+        Corporal: [
+            { basePath: 'assets/images/units/raccoon/rifleman/corporal/type1/', baseName: 'raccoon_rifleman_corporal1', scaleFactor: 0.36 },
+            { basePath: 'assets/images/units/raccoon/rifleman/corporal/type2/', baseName: 'raccoon_rifleman_corporal2', scaleFactor: 0.36 },
+        ],
+        Sergeant: [
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type1/', baseName: 'raccoon_rifleman_sergeant1', scaleFactor: 0.28 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type2/', baseName: 'raccoon_skullz', scaleFactor: 0.28 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type3/', baseName: 'raccoon_rifleman_sergeant3', scaleFactor: 0.28 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type4/', baseName: 'raccoon_rifleman_sergeant4', scaleFactor: 0.28 },
+        ],
+        Elite: [
+            { basePath: 'assets/images/units/raccoon/rifleman/elite/type1/', baseName: 'raccoon_rifleman_elite1', scaleFactor: 0.35 },
+            { basePath: 'assets/images/units/raccoon/rifleman/elite/type2/', baseName: 'raccoon_rifleman_elite2', scaleFactor: 0.35 },
+        ],
+        Ghost: [
+            { basePath: 'assets/images/units/raccoon/rifleman/ghost/type1/', baseName: 'raccoon_rifleman_ghost1', scaleFactor: 0.35 },
+            { basePath: 'assets/images/units/raccoon/rifleman/ghost/type2/', baseName: 'raccoon_rifleman_ghost2', scaleFactor: 0.35 },
+        ],
+        Maverick: [
+            { basePath: 'assets/images/units/raccoon/maverick/', baseName: 'raccoon_maverick', scaleFactor: 0.55 },
+        ],
+    },
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
     RACCOON_DEAD_SPRITE_SCALE: 0.06,
@@ -2114,6 +2164,7 @@ const CONFIG = {
         PHASE_DEBRIEF_ROSTER_TAB: "Roster",
         PHASE_DEBRIEF_HONOR_ROLL_TAB: "Honor Roll",
         PHASE_DEBRIEF_NEXT_PHASE_LABEL: "Next Phase:",
+        PHASE_DEBRIEF_MISSIONS_WON: "Missions Won",
         PHASE_DEBRIEF_ENEMIES_ELIMINATED: "Enemies Eliminated",
         PHASE_DEBRIEF_HOSTAGES_RESCUED: "Hostages Rescued",
         PHASE_DEBRIEF_CASUALTIES: "Casualties",

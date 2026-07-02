@@ -135,6 +135,7 @@ class Game {
         this.frameCount = 0;
         this.lastFpsUpdateTime = 0;
         this.fpsUpdateInterval = 1000;
+        this._perfPhasingActive = false;
         this.fpsDisplayElement = document.getElementById('hud-fps');
         this.displaySize = CONFIG.DISPLAY_SIZE || 'stretched';
 
@@ -740,56 +741,37 @@ class Game {
 
     async preloadUnitAssets() {
         const imagePromises = [];
-        const unitTypesToPreload = [
-            {
-                name: 'raccoon_rifleman_recruit1',
-                basePath: CONFIG.RACCOON_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_RECRUIT_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_RECRUIT_DEAD_SPRITE_FILES
-            },
-            {
-                name: 'raccoon_rifleman_private1',
-                basePath: CONFIG.RACCOON_PRIVATE_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_PRIVATE_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_PRIVATE_DEAD_SPRITE_FILES
-            },
-            {
-                name: 'raccoon_rifleman_corporal1',
-                basePath: CONFIG.RACCOON_CORPORAL_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_CORPORAL_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_CORPORAL_DEAD_SPRITE_FILES
-            },
-            {
-                name: 'raccoon_rifleman_sergeant1',
-                basePath: CONFIG.RACCOON_SERGEANT_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_SERGEANT_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_SERGEANT_DEAD_SPRITE_FILES
-            },
-            {
-                name: 'raccoon_rifleman_elite2',
-                basePath: CONFIG.RACCOON_ELITE_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_ELITE_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_ELITE_DEAD_SPRITE_FILES
-            },
-            {
-                name: 'raccoon_rifleman_ghost2',
-                basePath: CONFIG.RACCOON_GHOST_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_GHOST_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_GHOST_DEAD_SPRITE_FILES
-            },
-            {
-                name: 'raccoon_maverick',
-                basePath: CONFIG.RACCOON_MAVERICK_SPRITE_PATH,
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
-                deadPath: CONFIG.RACCOON_MAVERICK_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.RACCOON_MAVERICK_DEAD_SPRITE_FILES
-            },
+        const ALL_DIRS = ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'];
+
+        // Raccoon rank/type sprite variants (multi-type system).
+        // One preload entry per variant; dead sprites are rank-level, so they're
+        // attached to the first variant of each rank only (avoids duplicate loads).
+        const raccoonRankDeadSprites = {
+            Recruit:  { deadPath: CONFIG.RACCOON_RECRUIT_DEAD_SPRITE_PATH,  deadFiles: CONFIG.RACCOON_RECRUIT_DEAD_SPRITE_FILES },
+            Private:  { deadPath: CONFIG.RACCOON_PRIVATE_DEAD_SPRITE_PATH,  deadFiles: CONFIG.RACCOON_PRIVATE_DEAD_SPRITE_FILES },
+            Corporal: { deadPath: CONFIG.RACCOON_CORPORAL_DEAD_SPRITE_PATH, deadFiles: CONFIG.RACCOON_CORPORAL_DEAD_SPRITE_FILES },
+            Sergeant: { deadPath: CONFIG.RACCOON_SERGEANT_DEAD_SPRITE_PATH, deadFiles: CONFIG.RACCOON_SERGEANT_DEAD_SPRITE_FILES },
+            Elite:    { deadPath: CONFIG.RACCOON_ELITE_DEAD_SPRITE_PATH,    deadFiles: CONFIG.RACCOON_ELITE_DEAD_SPRITE_FILES },
+            Ghost:    { deadPath: CONFIG.RACCOON_GHOST_DEAD_SPRITE_PATH,    deadFiles: CONFIG.RACCOON_GHOST_DEAD_SPRITE_FILES },
+            Maverick: { deadPath: CONFIG.RACCOON_MAVERICK_DEAD_SPRITE_PATH, deadFiles: CONFIG.RACCOON_MAVERICK_DEAD_SPRITE_FILES }
+        };
+
+        const unitTypesToPreload = [];
+        const spriteVariants = CONFIG.RACCOON_SPRITE_VARIANTS || {};
+        for (const rankName in spriteVariants) {
+            const deadInfo = raccoonRankDeadSprites[rankName] || {};
+            spriteVariants[rankName].forEach((variant, idx) => {
+                unitTypesToPreload.push({
+                    name: variant.baseName,
+                    basePath: variant.basePath,
+                    actions: { idle: ALL_DIRS },
+                    deadPath: idx === 0 ? deadInfo.deadPath : null,
+                    deadFiles: idx === 0 ? deadInfo.deadFiles : null
+                });
+            });
+        }
+
+        unitTypesToPreload.push(
             {
                 name: 'raccoon_hostage',
                 basePath: 'assets/images/units/raccoon/hostage/rescued/type1/',
@@ -870,7 +852,7 @@ class Game {
                 deadPath: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES
             }
-        ];
+        );
 
         unitTypesToPreload.forEach(unitTypeConfig => {
             if (unitTypeConfig.basePath && unitTypeConfig.actions) {
@@ -2536,7 +2518,7 @@ class Game {
              const faceImageUrl = (CONFIG.RACCOON_FACE_IMAGE_PATH || 'assets/images/raccoons/') + faceImageFile;
              const raccoonName = i < SPECIAL_GUEST_NAMES.length ? SPECIAL_GUEST_NAMES[i] : getRandomRaccoonName(currentLivingNames, initialRosterRng);
              currentLivingNames.push(raccoonName);
-            const newRecruit = new Raccoon(0, 0, this, `RCN-MR${nextRaccoonIdNum++}`, faceImageUrl, raccoonName);
+            const newRecruit = new Raccoon(0, 0, this, `RCN-MR${nextRaccoonIdNum++}`, faceImageUrl, raccoonName, 0, null, 0, null, initialRosterRng);
             this.masterRoster.push(newRecruit);
         }
         if (this.ui) {
@@ -3176,7 +3158,7 @@ class Game {
         const raccoonName = getRandomRaccoonName(currentLivingNames, rosterRng);
         currentLivingNames.push(raccoonName);
         const newRecruitId = `RCN-MR${this.masterRoster.length + this.fallenRaccoonsGlobal.length + 1}-${rosterRng.nextInt(1000, 9999)}`;
-        this.masterRoster.push(new Raccoon(0, 0, this, newRecruitId, faceImageUrl, raccoonName));
+        this.masterRoster.push(new Raccoon(0, 0, this, newRecruitId, faceImageUrl, raccoonName, 0, null, 0, null, rosterRng));
     }
 
     initiateMissionEnd(isVictory) {
@@ -3306,12 +3288,13 @@ class Game {
                         }
 
                         const newName = getRandomRaccoonName(currentRosterNames, rosterRng);
-                        const newRecruit = new Raccoon(0, 0, this, `RCN-RES-${rosterRng.nextInt(1000, 9999)}-${this.masterRoster.length}`, chosenFaceUrl, newName);
+                        const newRecruit = new Raccoon(0, 0, this, `RCN-RES-${rosterRng.nextInt(1000, 9999)}-${this.masterRoster.length}`, chosenFaceUrl, newName, 0, null, 0, null, rosterRng);
                         newRecruit.rank = hostage.assignedRankOnRescue;
                         const rankThresholdData = CONFIG.RANK_THRESHOLDS?.find(r => r.rankName === hostage.assignedRankOnRescue);
                         newRecruit.xp = rankThresholdData ? rankThresholdData.xpNeeded : (hostage.assignedXpOnRescue || 0);
                         newRecruit.isNewlyRescued = true;
                         newRecruit.applyRankBonuses(true);
+                        newRecruit.spriteType = null; // Rank was set directly above — re-roll a variant valid for it
                         newRecruit.setRankBasedSprite();
                         newRecruit.updateXpToNextRank();
 
@@ -3631,7 +3614,14 @@ class Game {
     }
 
     _buildPhaseDebriefData(phaseData, phaseIndex) {
-        const phaseDuration = (performance.now() - this.phaseStartTime) / 1000;
+        // performance.now() restarts at 0 on every page load, but phaseStartTime is persisted in
+        // saves — so a phase resumed from a save produces a nonsense wall-clock duration.
+        // Fall back to accumulated mission (combat) time whenever the wall-clock value is invalid.
+        const wallDuration = (performance.now() - this.phaseStartTime) / 1000;
+        const combatDuration = this.missionResultsThisPhase.reduce((sum, m) => sum + (parseFloat(m.timeTaken) || 0), 0);
+        const phaseDuration = (this.phaseStartTime > 0 && wallDuration > 0 && wallDuration < 86400)
+            ? wallDuration
+            : combatDuration;
         const endingRoster = this.masterRoster.filter(r => r.isAlive());
         const startingCount = this.phaseStartRosterSnapshot ? this.phaseStartRosterSnapshot.length : 0;
 
@@ -5351,14 +5341,40 @@ class Game {
             this.frameCount = 0;
             this.lastFpsUpdateTime = now;
 
-            if (this.fps < CONFIG.AUTO_PHASE_ENEMIES_FPS_THRESHOLD) {
-                if (this.enemyUnits && this.enemyUnits.length > 0) {
-                    this.enemyUnits.forEach(unit => {
-                        if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
-                            unit.forcePhaseOut(1.0);
-                        }
-                    });
-                }
+            // Auto-degradation with hysteresis: engage below the low threshold, but keep
+            // re-applying until FPS climbs back above the recover threshold. A single
+            // trigger==recover value oscillates: phase → FPS recovers → mass unphase →
+            // synchronized repath storm → FPS tanks → phase → repeat.
+            const phaseThreshold = CONFIG.AUTO_PHASE_ENEMIES_FPS_THRESHOLD;
+            const recoverThreshold = CONFIG.AUTO_PHASE_ENEMIES_FPS_RECOVER_THRESHOLD || (phaseThreshold + 10);
+            if (this.fps < phaseThreshold) {
+                this._perfPhasingActive = true;
+            } else if (this.fps >= recoverThreshold) {
+                this._perfPhasingActive = false;
+            }
+
+            if (this._perfPhasingActive && this.enemyUnits && this.enemyUnits.length > 0) {
+                const zoom = this.cameraZoom || 1.0;
+                const viewCX = this.cameraX + this.canvas.width / (2 * zoom);
+                const viewCY = this.cameraY + this.canvas.height / (2 * zoom);
+                const halfDiag = Math.hypot(this.canvas.width, this.canvas.height) / (2 * zoom);
+                const keepAwakeRadius = halfDiag + (CONFIG.AUTO_PHASE_ENEMIES_CAMERA_BUFFER || 400);
+                const keepAwakeRadiusSq = keepAwakeRadius * keepAwakeRadius;
+                const baseDuration = CONFIG.AUTO_PHASE_ENEMIES_DURATION_BASE || 1.0;
+                const jitter = CONFIG.AUTO_PHASE_ENEMIES_DURATION_JITTER || 1.0;
+                this.enemyUnits.forEach(unit => {
+                    if (!unit.isAlive() || typeof unit.forcePhaseOut !== 'function') return;
+                    // Never perf-phase enemies engaging the player or near the camera —
+                    // they'd visibly freeze and ghost through units mid-fight.
+                    if (unit.aiState === 'ENGAGING_SHOOTING' || unit.aiState === 'ENGAGING_CHASING') return;
+                    const dx = unit.x - viewCX;
+                    const dy = unit.y - viewCY;
+                    if (dx * dx + dy * dy < keepAwakeRadiusSq) return;
+                    // Jittered duration desynchronizes phase-end across units, and the
+                    // perf-phase flag makes them freeze in place instead of beelining
+                    // through obstacles toward their stale worldTarget.
+                    unit.forcePhaseOut(baseDuration + Math.random() * jitter, true);
+                });
             }
         }
 

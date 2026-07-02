@@ -228,9 +228,7 @@ class PossumHeavy extends Unit {
             if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
                  this.isMoving = true;
                  if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
-                    const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
-                    this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
-                    this.currentPathNodeIndex = 0;
+                    this._setPhasingEscapePath();
                  }
             } else {
                 this.isMoving = false;

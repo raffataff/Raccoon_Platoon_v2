@@ -65,6 +65,7 @@ class Unit {
 
         this.isPhasing = false;
         this.phasingTimer = 0;
+        this.isPerfPhased = false;
 
         this.lastNudgeWasLeft = false;
         this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5;
@@ -239,7 +240,20 @@ class Unit {
             if (this.phasingTimer <= 0) {
                 this.isPhasing = false;
                 this.phasingTimer = 0;
-                if (this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * CONFIG.PATHFINDING.SKIP_FIRST_NODE_DIST_FACTOR) {
+                // If the phase ended on a blocked nav cell, snap to walkable ground
+                // first — otherwise penetration-escape re-phases us instantly and the
+                // unit vibrates in place forever.
+                this._snapToNearestWalkable();
+                if (this.isPerfPhased) {
+                    this.isPerfPhased = false;
+                    // Perf phase: do NOT repath here. All perf-phased units end within
+                    // the same window; an immediate setMoveTarget would fire a
+                    // synchronized A* storm and tank FPS again. The AI re-issues the
+                    // move once its (staggered) repathCooldown expires.
+                    this.isMoving = false;
+                    this.currentPath = [];
+                    this.currentPathNodeIndex = 0;
+                } else if (this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * CONFIG.PATHFINDING.SKIP_FIRST_NODE_DIST_FACTOR) {
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id}] Player-forced Phasing ended. Repathing to target: (${this.worldTargetX.toFixed(0)}, ${this.worldTargetY.toFixed(0)})`);
                     this.setMoveTarget(this.worldTargetX, this.worldTargetY);
                 } else {
@@ -344,15 +358,84 @@ class Unit {
     }
 
 
-    forcePhaseOut(duration = 1.0) {
+    forcePhaseOut(duration = 1.0, isPerfPhase = false) {
         if (!this.isAlive()) return;
         this.isPhasing = true;
-        this.phasingTimer = duration;
+        this.phasingTimer = Math.max(this.phasingTimer, duration);
         this.currentPath = [];
         this.currentPathNodeIndex = 0;
+        if (isPerfPhase) {
+            // Performance phasing (low-FPS auto-degradation): freeze in place. Do NOT
+            // keep isMoving/beeline toward worldTarget — that walks units straight
+            // through obstacles and strands them inside geometry when the phase ends.
+            this.isPerfPhased = true;
+            this.isMoving = false;
+            // Hold off AI move re-issues until after the phase ends, staggered per unit
+            // so the whole map doesn't run A* in the same frame when FPS recovers.
+            const stagger = CONFIG.PATHFINDING.PERF_PHASE_REPATH_STAGGER || 1.0;
+            this.repathCooldown = Math.max(this.repathCooldown, duration + Math.random() * stagger);
+        }
         if (CONFIG.DEBUG_LOGGING || CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
 //            console.log(`[${this.id}] Manually Force Phasing for ${duration}s. isMoving: ${this.isMoving}`);
         }
+    }
+
+    // On phase end, if the unit is standing on a blocked nav cell (it walked through
+    // geometry while phasing), snap it to the nearest walkable cell. Without this, the
+    // obstacle-penetration escape immediately re-phases the unit and it vibrates in
+    // place forever, burning spatial queries every frame.
+    _snapToNearestWalkable(maxRadiusCells = null) {
+        if (!this.game || !this.game.level) return false;
+        const level = this.game.level;
+        const navGrid = level.getNavigationGrid();
+        if (!navGrid) return false;
+        const grid = level.worldToGridCoords(this.x, this.y);
+        if (grid.x < 0 || grid.x >= level.gridWidth || grid.y < 0 || grid.y >= level.gridHeight) return false;
+        if (navGrid[grid.y][grid.x] === 0) return false;
+        const maxR = maxRadiusCells || CONFIG.PATHFINDING.PHASE_END_SNAP_RADIUS_CELLS || 10;
+        // Expanding ring search — only the ring perimeter is scanned each pass, so the
+        // common case (walkable cell 1-2 cells away) costs a handful of checks.
+        for (let r = 1; r <= maxR; r++) {
+            let bestX = -1, bestY = -1, bestDistSq = Infinity;
+            for (let dy = -r; dy <= r; dy++) {
+                for (let dx = -r; dx <= r; dx++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+                    const cx = grid.x + dx;
+                    const cy = grid.y + dy;
+                    if (cx < 0 || cx >= level.gridWidth || cy < 0 || cy >= level.gridHeight) continue;
+                    if (navGrid[cy][cx] !== 0) continue;
+                    const dSq = dx * dx + dy * dy;
+                    if (dSq < bestDistSq) { bestDistSq = dSq; bestX = cx; bestY = cy; }
+                }
+            }
+            if (bestX >= 0) {
+                const world = level.gridToWorldCoords(bestX, bestY);
+                this.x = world.x;
+                this.y = world.y;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // While phasing, never beeline all the way to a distant worldTarget — clamp the
+    // escape path to roughly what the phase duration can cover, so the unit always
+    // ends its phase somewhere it can recover from (then repaths legally).
+    _setPhasingEscapePath() {
+        const dx = this.worldTargetX - this.x;
+        const dy = this.worldTargetY - this.y;
+        const dist = Math.hypot(dx, dy);
+        const reachFactor = CONFIG.PATHFINDING.PHASING_ESCAPE_REACH_FACTOR || 0.9;
+        const maxReach = this.speed * (this.phasingTimer || CONFIG.PATHFINDING.PHASING_DURATION || 0.75) * reachFactor;
+        let tx = this.worldTargetX;
+        let ty = this.worldTargetY;
+        if (dist > maxReach && dist > 1e-5) {
+            const t = maxReach / dist;
+            tx = this.x + dx * t;
+            ty = this.y + dy * t;
+        }
+        this.currentPath = [{ x: tx, y: ty }];
+        this.currentPathNodeIndex = 0;
     }
 
     _attemptDesperateMove() {
@@ -914,9 +997,7 @@ class Unit {
                 this.overlapStuckFrames = 0;
                 if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
                     if (this.isMoving) {
-                        const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
-                        this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
-                        this.currentPathNodeIndex = 0;
+                        this._setPhasingEscapePath();
                     }
                 }
             }
@@ -946,9 +1027,7 @@ class Unit {
                 this.isMoving = distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5;
                 if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
                     if (this.isMoving) {
-                        const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
-                        this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
-                        this.currentPathNodeIndex = 0;
+                        this._setPhasingEscapePath();
                     }
                 }
             }
@@ -1483,9 +1562,7 @@ class Unit {
                         if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
                             this.isMoving = true;
                             if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
-                                const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
-                                this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
-                                this.currentPathNodeIndex = 0;
+                                this._setPhasingEscapePath();
                             }
                         } else {
                             this.isMoving = false;
@@ -1548,9 +1625,7 @@ class Unit {
                                     if (distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * 1.5) {
                                         this.isMoving = true;
                                         if (!this.currentPath || this.currentPath.length === 0 || this.currentPathNodeIndex >= this.currentPath.length) {
-                                            const targetGridPos = this.game.level.worldToGridCoords(this.worldTargetX, this.worldTargetY);
-                                            this.currentPath = [this.game.level.gridToWorldCoords(targetGridPos.x, targetGridPos.y)];
-                                            this.currentPathNodeIndex = 0;
+                                            this._setPhasingEscapePath();
                                         }
                                     } else {
                                         this.isMoving = false;

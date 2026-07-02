@@ -5,7 +5,9 @@ class SaveManager {
     static STORAGE_KEY = 'raccoon_platoon_saves';
     static PREFERENCES_KEY = 'raccoon_platoon_preferences';
     static MAX_SLOTS = 5;
-    static SAVE_VERSION = 1;
+    // v2: added per-raccoon spriteType (multi-type sprite variants). Old saves load fine —
+    // missing spriteType means a random variant is rolled on deserialize.
+    static SAVE_VERSION = 2;
 
     static getPreferences() {
         try {
@@ -516,7 +518,8 @@ class SaveManager {
             rank: raccoon.rank,
             killCount: raccoon.killCount || 0,
             maxHp: raccoon.maxHp,
-            hp: raccoon.hp
+            hp: raccoon.hp,
+            spriteType: Number.isInteger(raccoon.spriteType) ? raccoon.spriteType : null
         }));
     }
 
@@ -534,7 +537,8 @@ class SaveManager {
                 data.name,
                 data.xp,
                 data.rank,
-                data.killCount
+                data.killCount,
+                Number.isInteger(data.spriteType) ? data.spriteType : null // pre-v2 saves: roll a random variant
             );
             // Restore HP if it was saved lower than max
             if (data.hp !== undefined && data.hp < raccoon.maxHp) {

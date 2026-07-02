@@ -1,6 +1,7 @@
 class Raccoon extends Unit {
     constructor(x, y, game, id, faceImageUrl, name,
-        existingXP = 0, existingRank = null, existingKills = 0) {
+        existingXP = 0, existingRank = null, existingKills = 0,
+        existingSpriteType = null, creationRng = null) {
 
         super(x, y, game, 'player', CONFIG.RACCOON_HP, CONFIG.RACCOON_SPEED, CONFIG.RACCOON_SIZE, CONFIG.RACCOON_COLOR, id);
 
@@ -43,9 +44,25 @@ class Raccoon extends Unit {
 
         this.updateXpToNextRank();
         this.applyRankBonuses(true);
-        
-        // Set sprite based on rank
+
+        // Sprite type (visual variant within the rank). Restored from save when provided,
+        // otherwise rolled — with the seeded roster RNG when available (reproducible rosters),
+        // falling back to Math.random (cosmetic only).
+        this.spriteType = (Number.isInteger(existingSpriteType) && existingSpriteType >= 0)
+            ? existingSpriteType
+            : this._rollSpriteType(creationRng);
+
+        // Set sprite based on rank + spriteType
         this.setRankBasedSprite();
+    }
+
+    // Roll a random sprite variant index for the current rank.
+    // Accepts an optional SeededRandom instance; uses Math.random otherwise.
+    _rollSpriteType(rng = null) {
+        const variants = (CONFIG.RACCOON_SPRITE_VARIANTS && CONFIG.RACCOON_SPRITE_VARIANTS[this.rank]) || [];
+        if (variants.length <= 1) return 0;
+        const roll = (rng && typeof rng.next === 'function') ? rng.next() : Math.random();
+        return Math.floor(roll * variants.length);
     }
 
     _setRankBasedDeadSpriteKeys() {
@@ -95,41 +112,29 @@ class Raccoon extends Unit {
 
     setRankBasedSprite() {
         const prevDefaultWeapon = this.defaultWeaponName;
-        
+
         const rankData = CONFIG.RANK_THRESHOLDS?.find(r => r.rankName === this.rank);
         this.defaultWeaponName = rankData?.defaultWeapon || 'RACCOON_MACHINE_GUN';
-        
-        switch(this.rank) {
-            case 'Private':
-                this.spriteBaseName = 'raccoon_rifleman_private1';
-                this.spriteScaleFactor = CONFIG.RACCOON_PRIVATE_SPRITE_SCALE_FACTOR || 0.25;
-                break;
-            case 'Corporal':
-                this.spriteBaseName = 'raccoon_rifleman_corporal1';
-                this.spriteScaleFactor = CONFIG.RACCOON_CORPORAL_SPRITE_SCALE_FACTOR || 0.5;
-                break;
-            case 'Sergeant':
-                this.spriteBaseName = 'raccoon_rifleman_sergeant1';
-                this.spriteScaleFactor = CONFIG.RACCOON_SERGEANT_SPRITE_SCALE_FACTOR || 0.5;
-                break;
-            case 'Elite':
-                this.spriteBaseName = 'raccoon_rifleman_elite2';
-                this.spriteScaleFactor = CONFIG.RACCOON_ELITE_SPRITE_SCALE_FACTOR || 0.5;
-                break;
-            case 'Ghost':
-                this.spriteBaseName = 'raccoon_rifleman_ghost2';
-                this.spriteScaleFactor = CONFIG.RACCOON_GHOST_SPRITE_SCALE_FACTOR || 0.5;
-                break;
-            case 'Maverick':
-                this.spriteBaseName = 'raccoon_maverick';
-                this.spriteScaleFactor = CONFIG.RACCOON_MAVERICK_SPRITE_SCALE_FACTOR || 0.5;
-                break;
-            default:
-                this.spriteBaseName = 'raccoon_rifleman_recruit1';
-                this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5;
-                break;
+
+        // Resolve the sprite from RACCOON_SPRITE_VARIANTS using this unit's spriteType index.
+        // If spriteType is missing or out of range for this rank (e.g. after promotion, or a
+        // rank with fewer types), re-roll a random variant.
+        const variants = (CONFIG.RACCOON_SPRITE_VARIANTS && CONFIG.RACCOON_SPRITE_VARIANTS[this.rank])
+            || (CONFIG.RACCOON_SPRITE_VARIANTS && CONFIG.RACCOON_SPRITE_VARIANTS['Recruit'])
+            || [];
+        if (variants.length > 0) {
+            if (!Number.isInteger(this.spriteType) || this.spriteType < 0 || this.spriteType >= variants.length) {
+                this.spriteType = this._rollSpriteType();
+            }
+            const variant = variants[this.spriteType];
+            this.spriteBaseName = variant.baseName;
+            this.spriteScaleFactor = variant.scaleFactor || CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5;
+        } else {
+            // Legacy fallback — no variants configured at all
+            this.spriteBaseName = 'raccoon_rifleman_recruit1';
+            this.spriteScaleFactor = CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5;
         }
-        
+
         this._setRankBasedDeadSpriteKeys();
         
         const defaultDef = CONFIG.WEAPON_DEFINITIONS[this.defaultWeaponName];
@@ -234,6 +239,7 @@ class Raccoon extends Unit {
                 this._applyGrenadeBonusesForRank();
                 currentRankData = nextRankData; currentRankIndex = CONFIG.RANK_THRESHOLDS.indexOf(currentRankData);
                 this.updateXpToNextRank();
+                this.spriteType = null; // Re-roll a visual variant for the new rank
                 this.setRankBasedSprite(); // Update sprite when promoted
             } else break;
         }
