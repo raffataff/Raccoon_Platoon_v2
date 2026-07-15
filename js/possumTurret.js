@@ -157,7 +157,16 @@ class PossumTurret {
     
     update(deltaTime) {
         if (this.isShutdown) return;
-        
+
+        // EMP disable (Tesla Egg grenade): temporarily offline.
+        if (this.empDisabledTimer > 0) {
+            this.empDisabledTimer -= deltaTime;
+            if (Math.random() < deltaTime * 4 && this.game && this.game.addVisualEffect) {
+                this.game.addVisualEffect('spark', { x: this.x + this.width / 2, y: this.y + this.height / 2 });
+            }
+            return;
+        }
+
         // Debug logging every few seconds to track update calls
         if (!this._updateLogCount) this._updateLogCount = 0;
         this._updateLogCount++;

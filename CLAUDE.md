@@ -29,9 +29,10 @@ Then open `http://localhost:8000`. There is no compile step — edit a file, ref
 ```
 index.html          All UI screens (DOM panels) + the ordered <script> list. ENTRY POINT.
 style.css           All styling for DOM UI panels.
-js/                 All game code (~46 files, detailed below).
+js/                 All game code (~52 files, detailed below).
 js/biomes/          Biome definitions (tropical, temperate, junkyard) + accessor index.
 js/shootout/        Standalone "Shootout" arcade mode (gallery shooter).
+js/minigames/       Reusable modal mini-game framework (gates interactions like hacking/deactivating).
 assets/             images/ audio/ video/ — large; organized by biome/unit/purpose.
 docs/               mission.md (original spec), plans/, ADDING_PICKUPS.md,
                     special_unit_classes_design.md, briefing.md.
@@ -43,7 +44,7 @@ README.md           Player-facing readme.
 
 `index.html` (bottom of `<body>`) loads every script in dependency order. **Global classes/objects must be defined before files that reference them.** If you add a new JS file, you MUST add a `<script>` tag in `index.html` at the right position (e.g. anything extending `Unit` goes after `js/unit.js`; anything reading `CONFIG` goes after `js/config.js`). `js/game.js` is always last.
 
-Load order summary: pools/utils/rng → `config.js` → biomes → `ui.js`/audio → `weapon.js` → `unit.js` → `raccoon.js` → possum variants → turrets/consoles → `levelGenerator.js` → `level.js` → shootout files → `game.js`.
+Load order summary: pools/utils/rng → `config.js` → biomes → `ui.js`/audio → `weapon.js` → `unit.js` → `raccoon.js` → possum variants → turrets/consoles → `levelGenerator.js` → `level.js` → shootout files → mini-games (`MiniGame` base → games → `MiniGameManager`) → `game.js`.
 
 ## 5. Entry Point & Game Loop
 
@@ -60,7 +61,9 @@ Everything branches on the string `game.gameState`. Known states:
 `MAIN_MENU`, `PRE_MISSION_SELECT`, `LOADING_MISSION`, `RUNNING`, `PAUSED`,
 `POST_MISSION_DEBRIEF`, `END_OF_PHASE_DEBRIEF`, `EXTRACTION_VIDEO`,
 `CAMPAIGN_COMPLETE`, `GAME_OVER_NO_RECRUITS`, `LOADED_READY` (post save-load),
-`ERROR_STATE`, and shootout states: `SHOOTOUT_PRE_GAME`, `SHOOTOUT_PLAYING`,
+`ERROR_STATE`, `MINIGAME_ACTIVE` (a modal mini-game is up — `update()` skips this state so the
+sim is paused, while `render()` keeps drawing the frozen battlefield behind the overlay, like `PAUSED`),
+and shootout states: `SHOOTOUT_PRE_GAME`, `SHOOTOUT_PLAYING`,
 `SHOOTOUT_PAUSED`, `SHOOTOUT_GAME_OVER`, `SHOOTOUT_AMBUSH`.
 
 UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only the battlefield renders to canvas.
@@ -71,7 +74,7 @@ UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only t
 | File | Role |
 |---|---|
 | `game.js` (~6k lines) | `Game` class: state machine, campaign flow, mission lifecycle, update/render loop, formations, ambushes, shootout hooks, speech triggers. |
-| `config.js` (~2.6k lines) | `CONFIG` — the single tuning surface. Sections: CORE, PERFORMANCE, PATHFINDING, SPATIAL_GRID, DEBUG, ENEMY_ALERT, PLAYER_RACCOON, XP_RANKS, ENEMY_UNITS, WEAPON_DEFINITIONS, TURRETS, AI_BEHAVIOR, PROJECTILES, ROSTER_CAMPAIGN, Z_INDEX, LEVEL_GENERATION, ENEMY_SPAWNING, HOSTAGES, VISUAL_EFFECTS, UI, NIGHT_MISSION, AUDIO, SHOOTOUT_MODE. **Balance/tuning changes belong here, not hardcoded.** |
+| `config.js` (~2.6k lines) | `CONFIG` — the single tuning surface. Sections: CORE, PERFORMANCE, PATHFINDING, SPATIAL_GRID, DEBUG, ENEMY_ALERT, PLAYER_RACCOON, XP_RANKS, ENEMY_UNITS, WEAPON_DEFINITIONS, TURRETS, AI_BEHAVIOR, PROJECTILES, ROSTER_CAMPAIGN, Z_INDEX, LEVEL_GENERATION, ENEMY_SPAWNING, HOSTAGES, VISUAL_EFFECTS, UI, NIGHT_MISSION, AUDIO, SHOOTOUT_MODE, MINIGAMES. **Balance/tuning changes belong here, not hardcoded.** |
 | `campaignRules.js` | `CAMPAIGN_RULES` — procedural campaign generation: per-phase scaling parameters, biome pool, objective pool, destroy-target pool. |
 | `level.js` | `Level` — holds current level data, obstacles, nav grid, walkability queries. |
 | `levelGenerator.js` (~2.7k lines) | `LevelGenerator` — seeded procedural placement of obstacles, crates/pickups, enemies, hostages, bosses + arenas, extraction zones. |
@@ -120,6 +123,16 @@ Separate arcade "shooting gallery" mode, also reused mid-campaign as **ambush** 
 - `ShootoutTarget.js` — pop-up possum targets (`extends Unit`; states HIDDEN/PEEKING/AIMING/SHOOTING/HIT/DEAD).
 - Has an in-game **dev mode** (spawn-point editor, "Copy Config" exports JSON) toggled from the shootout pre-game screen.
 
+### Mini-games (js/minigames/)
+A reusable **modal mini-game framework**. A mini-game can gate any interaction; it runs in a DOM overlay (`#minigame-overlay`, styled in `style.css`) with its own `<canvas>` and RAF loop while `game.gameState = 'MINIGAME_ACTIVE'` pauses the sim. Balance/tuning lives in `CONFIG.MINIGAMES`; **no save impact** (mini-games are transient — no `SAVE_VERSION` bump).
+
+- `MiniGame.js` — base class every game extends (lifecycle: `init`/`update`/`render` + pointer/key hooks; finish via `succeed()`/`fail()`/`abort()`). Reads its tuning from a passed-in config block; uses the passed-in `SeededRandom`.
+- `MiniGameManager.js` — instantiated once on `Game` (`this.miniGameManager`). Builds the overlay, owns the mini-game loop, resolves difficulty from `currentPhaseIndex`, seeds RNG, routes input. `launch(key, opts)` runs one game; `launchFromPool(poolKey, {selector, onComplete, …})` picks one **deterministically per objective** (`_poolSeed(selector)`) from `CONFIG.MINIGAMES.POOLS` — same challenge *type* per objective, fresh layout each attempt.
+- Games (each declares a static `CONFIG_KEY`): `MazeShutdown.js` ("Circuit Breach"), `NullWave.js` ("Dead Air"), `BreakerCascade.js` ("Breaker Cascade"), `TraceRace.js` ("Trace Race"). Pools: `SHUTDOWN` (maze/wave/breaker) and `HACK` (trace).
+- **Gate pattern**: the interaction completes ONLY in the `onComplete` success callback. Live gates in `game.js`: `handlePossumAntiAirTurretShutdown()` (SHUTDOWN pool → `turret.shutdown()`) and `handleIntelConsoleInteraction()` (HACK pool → `startHackOnConsole()`, i.e. the mini-game runs *before* the timed enemy-spawning hack). `CONFIG.MINIGAMES.ENABLED = false` reverts every gate to its old instant behavior.
+- **Adding a game**: new file `class X extends MiniGame` with a static `X.CONFIG_KEY`; add its `<script>` before `MiniGameManager.js`; register it in `MiniGameManager._autoRegister()`; add a tuning block under `CONFIG.MINIGAMES` (and optionally a `POOLS` entry). Preloading/wiring is otherwise automatic.
+- **Sandbox**: `minigame_test.html` at repo root plays any game or pool in isolation (no full game boot) — handy for tuning and testing.
+
 ## 7. Campaign / Mission Flow
 
 1. **New campaign**: `initializeNewCampaign()` seeds `campaignSeed`, rolls campaign length (`CAMPAIGN_RULES.CAMPAIGN_LENGTH_PHASES_RANGE` = 20–50 phases), builds `campaignStructure` per phase via `_generatePhaseStructure()` (biome, missions, finale).
@@ -128,7 +141,7 @@ Separate arcade "shooting gallery" mode, also reused mid-campaign as **ambush** 
 4. **Play** (`RUNNING`): `checkMissionStatus()` evaluates objective completion each frame; mission end goes through `initiateMissionEnd()` → 3s delay → `actuallyEndMission()`.
 5. **Debriefs**: `POST_MISSION_DEBRIEF` → (phase finale: `EXTRACTION_VIDEO` + `END_OF_PHASE_DEBRIEF`) → next mission. Campaign ends at `CAMPAIGN_COMPLETE` or `GAME_OVER_NO_RECRUITS` (roster empty = permadeath game over).
 
-**Objective types**: `EXTERMINATE`, `DESTROY_TARGET`, `RESCUE_HOSTAGES`, `ASSASSINATION`, `INTERACT_INTEL`, `DEACTIVATE_ANTI_AIR_TURRETS`, plus `EXTRACTION` (auto-added to phase finales). Biomes currently live: TROPICAL, TEMPERATE, JUNKYARD (SWAMP and URBAN_DECAY are commented out in `campaignRules.js`).
+**Objective types**: `EXTERMINATE`, `DESTROY_TARGET`, `RESCUE_HOSTAGES`, `ASSASSINATION`, `INTERACT_INTEL`, `DEACTIVATE_ANTI_AIR_TURRETS`, plus `EXTRACTION` (auto-added to phase finales). Deactivating anti-air turrets and hacking intel consoles are **gated behind a mini-game** — the interaction only completes on mini-game success (see §6 Mini-games / `CONFIG.MINIGAMES`). Biomes currently live: TROPICAL, TEMPERATE, JUNKYARD (SWAMP and URBAN_DECAY are commented out in `campaignRules.js`).
 
 **Progression**: XP per hit/kill/mission survived (`CONFIG.XP_*`), ranks via `CONFIG.RANK_THRESHOLDS`, rank grants grenade bonuses and faster reloads. Fallen raccoons go to the Memorial ("Wall of the Fallen").
 

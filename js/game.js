@@ -159,6 +159,14 @@ class Game {
         this.scentMarkers = [];
         this.scentRadialMenu = new ScentRadialMenu(this);
         this.isScentMenuKeyHeld = false;
+        this.grenadeRadialMenu = new GrenadeRadialMenu(this);
+        this.isGrenadeMenuKeyHeld = false;
+
+        // --- Mini-games (modal challenges that can gate interactions) ---
+        this.miniGameManager = (typeof MiniGameManager !== 'undefined') ? new MiniGameManager(this) : null;
+
+        this._grenadeMenuPendingSince = null;   // G held; menu opens after HOLD_ACTIVATION_MS
+        this._grenadeMenuSuppressed = false;    // G pressed while already aiming = cancel, eat the keyup
         this.scentSniffActive = false;
         this.scentSniffExpiry = 0;
         // --- END Scent Markers ---
@@ -349,9 +357,9 @@ class Game {
         return projectile;
     }
 
-    getGrenadeProjectileFromPool(startX, startY, targetX, targetY, shooterUnit) {
+    getGrenadeProjectileFromPool(startX, startY, targetX, targetY, shooterUnit, grenadeTypeKey = 'FRAG') {
         const grenade = this.grenadeProjectilePool.acquire();
-        grenade.reset(startX, startY, targetX, targetY, shooterUnit);
+        grenade.reset(startX, startY, targetX, targetY, shooterUnit, grenadeTypeKey);
         return grenade;
     }
 
@@ -620,6 +628,21 @@ class Game {
                     img.onerror = () => { console.warn(`[Preload FAILED - Misc] Grenade sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
                     img.src = path;
                 }));
+            }
+        }
+        // Per-type grenade sprites (CONFIG.GRENADE_TYPES): preloaded automatically, so
+        // dropping custom art in is just a spritePath change in config.
+        if (CONFIG.GRENADE_TYPES) {
+            for (const typeKey in CONFIG.GRENADE_TYPES) {
+                const path = CONFIG.GRENADE_TYPES[typeKey].spritePath;
+                if (path && !this.preloadedImages[path]) {
+                    imagePromises.push(new Promise((resolve) => {
+                        const img = new Image();
+                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
+                        img.onerror = () => { console.warn(`[Preload FAILED - Misc] Grenade type sprite (${typeKey}): '${path}'`); this.preloadedImages[path] = null; resolve(); };
+                        img.src = path;
+                    }));
+                }
             }
         }
         const bulletSpriteConfig = CONFIG.PROJECTILES && CONFIG.PROJECTILES.BULLET;
@@ -1601,13 +1624,9 @@ class Game {
             this.lastDeployedSquadIds = this.deployedSquadRoster.map(r => r.id);
 
             this.deployedSquadRoster.forEach(r => {
-                r.hp = r.maxHp; let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-                if (r.rank === "Private") startGrenades += (CONFIG.GRENADE_BONUS_PRIVATE || 0);
-                if (r.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0);
-                if (r.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
-                if (r.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0);
-                if (r.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 0);
-                r.grenadeAmmo = startGrenades; r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false;
+                r.hp = r.maxHp;
+                r.refillGrenades(); // per-type loadout from CONFIG.GRENADE_LOADOUT_BY_RANK
+                r.isMoving = false; r.manualTarget = null; r.autoTarget = null; r.actionTimer = 0; r.isAimingGrenade = false;
                 r.isPlayerDirectFiring = false;
                 r.isHoldingPosition = false;
                 r.isHoldingFire = false;
@@ -2067,6 +2086,75 @@ class Game {
         if (this.ui) this.ui.updateSquadPanel();
     }
 
+    // --- Grenade radial menu (hold G) ---
+
+    _firstSelectedGrenadier() {
+        if (!this.selectedUnits) return null;
+        return this.selectedUnits.find(u =>
+            u instanceof Raccoon && !(u instanceof RaccoonHostage) && u.isAlive()
+        ) || null;
+    }
+
+    handleGrenadeMenuKeyDown() {
+        if (this.gameState !== 'RUNNING') return;
+
+        // G while aiming = cancel aim (legacy behavior); suppress menu/quick-aim on keyup.
+        const anyAiming = this.selectedUnits && this.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade);
+        if (anyAiming) {
+            this.selectedUnits.forEach(u => { if (u instanceof Raccoon) u.cancelGrenadeAim(); });
+            if (this.ui) this.ui.updateSquadPanel();
+            if (this.inputHandler) this.inputHandler.updateMouseCursor();
+            this._grenadeMenuSuppressed = true;
+            return;
+        }
+
+        const grenadier = this._firstSelectedGrenadier();
+        if (!grenadier) return;
+        this._grenadeMenuSuppressed = false;
+        this._grenadeMenuPendingSince = performance.now();  // menu opens in update() after the hold delay
+    }
+
+    handleGrenadeMenuKeyUp() {
+        const wasPending = this._grenadeMenuPendingSince !== null;
+        this._grenadeMenuPendingSince = null;
+
+        if (this._grenadeMenuSuppressed) {
+            this._grenadeMenuSuppressed = false;
+            return;
+        }
+
+        const menu = this.grenadeRadialMenu;
+        if (menu && menu.isActive) {
+            // Held long enough for the menu: select hovered type (if any) and enter aim mode.
+            const typeKey = menu.handleRelease();
+            menu.deactivate();
+            if (typeKey) this._startGrenadeAimForSelection(typeKey);
+        } else if (wasPending) {
+            // Quick tap: aim with each raccoon's currently selected type (legacy flow).
+            this._startGrenadeAimForSelection(null);
+        }
+    }
+
+    _openGrenadeMenu() {
+        if (this.gameState !== 'RUNNING') return;
+        const grenadier = this._firstSelectedGrenadier();
+        if (!grenadier) { this._grenadeMenuPendingSince = null; return; }
+        const screen = this.worldToScreen(grenadier.x, grenadier.y);
+        this.grenadeRadialMenu.activate(screen.x, screen.y, grenadier);
+    }
+
+    _startGrenadeAimForSelection(typeKey) {
+        if (!this.selectedUnits) return;
+        this.selectedUnits.forEach(u => {
+            if (u instanceof Raccoon && !(u instanceof RaccoonHostage) && u.isAlive()) {
+                if (typeKey) u.selectGrenadeType(typeKey); // no-op for ranks that don't carry it
+                if (u.grenadeAmmo > 0) u.startGrenadeAim();
+            }
+        });
+        if (this.ui) this.ui.updateSquadPanel();
+        if (this.inputHandler) this.inputHandler.updateMouseCursor();
+    }
+
     handleScentMenuKeyDown() {
         if (!CONFIG.SCENT_MARKERS || !CONFIG.SCENT_MARKERS.ENABLED) return;
         if (this.gameState !== 'RUNNING') return;
@@ -2183,15 +2271,39 @@ class Game {
         if (this.gameState !== 'RUNNING') return;
         if (!this.intelConsoles || this.intelConsoles.length === 0) return;
 
+        // Find the first un-hacked console with a raccoon in range.
+        let target = null;
         for (const console of this.intelConsoles) {
-            if (!console.isHacked && !console.isBeingHacked) {
-                const nearbyRaccoon = console.getNearestRaccoonInRange();
-                if (nearbyRaccoon) {
-                    this.startHackOnConsole(console);
-                    break;
-                }
+            if (!console.isHacked && !console.isBeingHacked && console.getNearestRaccoonInRange()) {
+                target = console; break;
             }
         }
+        if (!target) return;
+
+        // Gate the hack behind a mini-game from the HACK pool when available.
+        const canMiniGame = this.miniGameManager
+            && typeof CONFIG !== 'undefined' && CONFIG.MINIGAMES && CONFIG.MINIGAMES.ENABLED !== false
+            && !this.miniGameManager.isActive();
+
+        if (canMiniGame) {
+            const selector = Math.round(target.getCenterX() * 13.0 + target.getCenterY() * 7.0);
+            const launched = this.miniGameManager.launchFromPool('HACK', {
+                selector: selector,
+                context: { console: target },
+                onComplete: (result) => {
+                    if (result !== 'success') return;
+                    if (!target || target.isHacked || target.isBeingHacked) return;
+                    if (this.intelConsoles && this.intelConsoles.indexOf(target) === -1) return;
+                    // Breach only opens the console — now kick off the normal timed
+                    // hack (with its enemy spawns). The mini-game is a gate in front.
+                    this.startHackOnConsole(target);
+                },
+            });
+            if (launched) return;
+        }
+
+        // Fallback: mini-games disabled/unavailable — run the normal timed hack.
+        this.startHackOnConsole(target);
     }
 
     startHackOnConsole(console) {
@@ -2229,14 +2341,42 @@ class Game {
         if (this.gameState !== 'RUNNING') return;
         if (!this.possumAntiAirTurrets || this.possumAntiAirTurrets.length === 0) return;
 
+        // Find the first online turret with a raccoon in interaction range.
+        let target = null;
         for (const turret of this.possumAntiAirTurrets) {
             if (turret.isShutdown) continue;
-            const nearby = turret.getNearestRaccoonInRange();
-            if (nearby) {
-                turret.shutdown();
-                break;
-            }
+            if (turret.getNearestRaccoonInRange()) { target = turret; break; }
         }
+        if (!target) return;
+
+        // Gate the shutdown behind a mini-game when available/enabled.
+        const canMiniGame = this.miniGameManager
+            && typeof CONFIG !== 'undefined' && CONFIG.MINIGAMES && CONFIG.MINIGAMES.ENABLED !== false
+            && !this.miniGameManager.isActive();
+
+        if (canMiniGame) {
+            // Deterministic per-turret selector (stable within a mission, varies
+            // between turrets) so each turret always presents the same challenge
+            // type, while the layout stays fresh on every attempt.
+            const selector = Math.round(target.x * 13.0 + target.y * 7.0);
+            const launched = this.miniGameManager.launchFromPool('SHUTDOWN', {
+                selector: selector,
+                context: { turret: target },
+                onComplete: (result) => {
+                    // Re-validate: the turret must still exist, be online, and
+                    // have a raccoon in range (the pause froze the sim, but be safe).
+                    if (result !== 'success') return;
+                    if (!target || target.isShutdown) return;
+                    if (this.possumAntiAirTurrets && this.possumAntiAirTurrets.indexOf(target) === -1) return;
+                    if (!target.getNearestRaccoonInRange()) return;
+                    target.shutdown();
+                },
+            });
+            if (launched) return;
+        }
+
+        // Fallback: mini-games disabled/unavailable — shut down immediately.
+        target.shutdown();
     }
 
     spawnEnemyAtLocation(x, y, unitType, targetX, targetY) {
@@ -4218,8 +4358,8 @@ class Game {
         for (const marker of this.scentMarkers) {
             marker.render(this.ctx, this);
         }
-
-        menu.render(this.ctx);
+        // NOTE: the radial menu itself renders later (with the grenade menu, above the
+        // night overlay) so the standard menu design isn't darkened by the night pass.
     }
 
     spawnFlyingBirdFlock() {
@@ -4490,6 +4630,17 @@ class Game {
             if (this.scentSniffActive && performance.now() / 1000 >= this.scentSniffExpiry) {
                 this.scentSniffActive = false;
             }
+        }
+
+        // Grenade radial menu: open once G has been held past the activation delay.
+        if (this.grenadeRadialMenu) {
+            if (this._grenadeMenuPendingSince !== null && !this.grenadeRadialMenu.isActive) {
+                const holdMs = (CONFIG.GRENADE_RADIAL_MENU && CONFIG.GRENADE_RADIAL_MENU.HOLD_ACTIVATION_MS) || 220;
+                if (performance.now() - this._grenadeMenuPendingSince >= holdMs) {
+                    this._openGrenadeMenu();
+                }
+            }
+            this.grenadeRadialMenu.update(deltaTime);
         }
 
         this.hostageUnits = this.hostageUnits.filter(h => !h.isMarkedForDeletion);
@@ -5304,6 +5455,14 @@ class Game {
             this.ctx.drawImage(oc, 0, 0);
         }
 
+        // --- Radial menus (screen-space UI, above night overlay) ---
+        if (this.scentRadialMenu) {
+            this.scentRadialMenu.render(this.ctx);
+        }
+        if (this.grenadeRadialMenu) {
+            this.grenadeRadialMenu.render(this.ctx);
+        }
+
         if (this.fpsDisplayElement) {
             this.fpsDisplayElement.textContent = `FPS: ${this.fps}`;
         }
@@ -5516,6 +5675,18 @@ try {
         }
         if (type === 'barrel_explosion' && data) {
             this.visualEffects.push(new SpriteExplosionEffect(data.x, data.y, data.radius, this, 'BARREL'));
+            return;
+        }
+        if (type === 'plasma_pool' && data) {
+            this.visualEffects.push(new PlasmaPoolEffect(data.x, data.y, data, this));
+            return;
+        }
+        if (type === 'arc_lightning' && data) {
+            this.visualEffects.push(new ArcLightningEffect(data.x1, data.y1, data.x2, data.y2, data.color));
+            return;
+        }
+        if (type === 'shockwave_ring' && data) {
+            this.visualEffects.push(new ShockwaveRingEffect(data.x, data.y, data.radius, data.color, !!data.inward));
             return;
         }
         if (type === 'fire' && data && data.anchorObstacle) {

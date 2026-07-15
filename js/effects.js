@@ -1267,3 +1267,184 @@ class SpeechBubbleEffect {
         ctx.restore();
     }
 }
+
+// Molten plasma pool left by the Slagger grenade. Visual + gameplay: ticks damage to
+// units hostile to the thrower while they stand in it. Damage is applied on a coarse
+// tick (not per-frame) and uses the spatial grid, so cost stays negligible.
+class PlasmaPoolEffect {
+    constructor(x, y, data, gameInstance) {
+        this.game = gameInstance;
+        this.x = x;
+        this.y = y;
+        this.radius = data.radius || 55;
+        this.duration = data.duration || 4.0;
+        this.dps = data.dps || 15;
+        this.tickInterval = data.tickInterval || 0.25;
+        this.shooterUnit = data.shooterUnit || null;
+        this.shooterTeam = this.shooterUnit ? this.shooterUnit.team : null;
+        this.color = data.color || '#FF6A00';
+        this.elapsedTime = 0;
+        this.tickTimer = 0;
+        this.isMarkedForDeletion = false;
+        this.type = 'plasma_pool';
+
+        // Pre-rolled blobs give the pool an irregular molten look without per-frame randomness.
+        this.blobs = [];
+        const blobCount = 6;
+        for (let i = 0; i < blobCount; i++) {
+            const a = Math.random() * Math.PI * 2;
+            const r = Math.random() * this.radius * 0.55;
+            this.blobs.push({
+                x: this.x + Math.cos(a) * r,
+                y: this.y + Math.sin(a) * r,
+                radius: this.radius * (0.25 + Math.random() * 0.3),
+                phase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    update(deltaTime) {
+        this.elapsedTime += deltaTime;
+        if (this.elapsedTime >= this.duration) {
+            this.isMarkedForDeletion = true;
+            return;
+        }
+
+        this.tickTimer -= deltaTime;
+        if (this.tickTimer <= 0) {
+            this.tickTimer = this.tickInterval;
+            const tickDamage = this.dps * this.tickInterval;
+            let candidates;
+            if (this.game.spatialGrid) {
+                candidates = this.game.spatialGrid.queryRange(this.x, this.y, this.radius + 20);
+            } else {
+                candidates = [...(this.game.enemyUnits || []), ...(this.game.deployedSquadRoster || [])];
+            }
+            for (const obj of candidates) {
+                if (!(obj instanceof Unit) || !obj.isAlive() || obj === this.shooterUnit) continue;
+                let damageMultiplier = 1.0;
+                if (this.shooterTeam === 'player' && obj.team === 'player') {
+                    damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5;
+                }
+                const dx = obj.x - this.x, dy = obj.y - this.y;
+                if (dx * dx + dy * dy <= this.radius * this.radius) {
+                    obj.takeDamage(tickDamage * damageMultiplier, this.shooterUnit);
+                }
+            }
+        }
+    }
+
+    render(ctx) {
+        const progress = this.elapsedTime / this.duration;
+        const fade = progress > 0.75 ? (1 - progress) / 0.25 : 1.0;
+        const pulse = 0.85 + 0.15 * Math.sin(this.elapsedTime * 6);
+
+        ctx.save();
+        ctx.globalAlpha = 0.45 * fade;
+        const grad = ctx.createRadialGradient(this.x, this.y, this.radius * 0.15, this.x, this.y, this.radius);
+        grad.addColorStop(0, '#FFE080');
+        grad.addColorStop(0.45, this.color);
+        grad.addColorStop(1, 'rgba(120, 20, 0, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.globalAlpha = 0.35 * fade;
+        for (const blob of this.blobs) {
+            const blobPulse = 0.8 + 0.2 * Math.sin(this.elapsedTime * 5 + blob.phase);
+            ctx.fillStyle = '#FFB040';
+            ctx.beginPath();
+            ctx.arc(blob.x, blob.y, blob.radius * blobPulse, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.restore();
+    }
+}
+
+// Jagged lightning bolt between two points (Tesla Egg chain segments). Purely visual.
+class ArcLightningEffect {
+    constructor(x1, y1, x2, y2, color) {
+        this.x1 = x1; this.y1 = y1;
+        this.x2 = x2; this.y2 = y2;
+        this.color = color || '#FFDC00';
+        this.lifetime = 0.22;
+        this.elapsedTime = 0;
+        this.isMarkedForDeletion = false;
+        this.type = 'arc_lightning';
+
+        // Fixed jitter points rolled once — no per-frame allocation.
+        this.points = [{ x: x1, y: y1 }];
+        const segments = 6;
+        const dx = x2 - x1, dy = y2 - y1;
+        const len = Math.hypot(dx, dy) || 1;
+        const nx = -dy / len, ny = dx / len; // perpendicular
+        for (let i = 1; i < segments; i++) {
+            const t = i / segments;
+            const jitter = (Math.random() - 0.5) * len * 0.18;
+            this.points.push({ x: x1 + dx * t + nx * jitter, y: y1 + dy * t + ny * jitter });
+        }
+        this.points.push({ x: x2, y: y2 });
+    }
+
+    update(deltaTime) {
+        this.elapsedTime += deltaTime;
+        if (this.elapsedTime >= this.lifetime) this.isMarkedForDeletion = true;
+    }
+
+    render(ctx) {
+        const alpha = 1 - (this.elapsedTime / this.lifetime);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = this.color;
+        ctx.shadowBlur = 8;
+        ctx.beginPath();
+        ctx.moveTo(this.points[0].x, this.points[0].y);
+        for (let i = 1; i < this.points.length; i++) ctx.lineTo(this.points[i].x, this.points[i].y);
+        ctx.stroke();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#FFFFFF';
+        ctx.globalAlpha = alpha * 0.8;
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+// Expanding (or imploding, for graviton) colored ring — generic exotic-grenade burst visual.
+class ShockwaveRingEffect {
+    constructor(x, y, maxRadius, color, inward = false) {
+        this.x = x; this.y = y;
+        this.maxRadius = maxRadius;
+        this.color = color || '#FFFFFF';
+        this.inward = inward;
+        this.lifetime = 0.45;
+        this.elapsedTime = 0;
+        this.isMarkedForDeletion = false;
+        this.type = 'shockwave_ring';
+    }
+
+    update(deltaTime) {
+        this.elapsedTime += deltaTime;
+        if (this.elapsedTime >= this.lifetime) this.isMarkedForDeletion = true;
+    }
+
+    render(ctx) {
+        const progress = Math.min(1, this.elapsedTime / this.lifetime);
+        const radius = this.inward ? this.maxRadius * (1 - progress) : this.maxRadius * progress;
+        const alpha = 1 - progress;
+        if (radius <= 1) return;
+        ctx.save();
+        ctx.globalAlpha = alpha * 0.8;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = alpha * 0.25;
+        ctx.lineWidth = 8;
+        ctx.stroke();
+        ctx.restore();
+    }
+}

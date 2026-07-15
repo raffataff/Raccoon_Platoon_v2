@@ -214,6 +214,89 @@ const CONFIG = {
     GRENADE_THROW_COOLDOWN_BASE: 3.0,
     GRENADE_THROW_COOLDOWN_RANDOM_ADD: 2.5,
 
+    // --- Grenade types (exotic-material arsenal) ---
+    // Each entry fully defines one grenade. FRAG mirrors the legacy grenade values.
+    // spritePath: all use the standard sprite until custom art lands (drop-in swap here).
+    GRENADE_TYPES: {
+        FRAG: {
+            label: 'Frag', iconChar: '✸', color: '#228B22',
+            damage: 50, aoeRadius: 85, fuseTime: 3.0,
+            spritePath: 'assets/images/projectiles/grenade_frag.png', spriteScale: 0.2,
+            explosionSfx: 'GRENADE_EXPLODE',
+        },
+        PLASMA_SLAG: {                                    // "Slagger" — ionized exotic-matter core
+            label: 'Slagger', iconChar: '☄', color: '#FF6A00',
+            damage: 45, aoeRadius: 100, fuseTime: 3.0,
+            spritePath: 'assets/images/projectiles/grenade_slagger.png', spriteScale: 0.2,
+            explosionSfx: 'GRENADE_EXPLODE_2',
+            pool: { duration: 4.0, dps: 15, tickInterval: 0.25, radius: 150 },  // molten pool left at blast site
+        },
+        CRYO_FOAM: {                                      // "Freezer" — supercooled aerogel
+            label: 'Cryo', iconChar: '❄', color: '#7FDBFF',
+            damage: 40, aoeRadius: 140, fuseTime: 3.0,
+            spritePath: 'assets/images/projectiles/grenade_freezer.png', spriteScale: 0.2,
+            explosionSfx: 'GRENADE_EXPLODE',
+            slow: { duration: 5.0, moveSpeedMult: 0.4, cooldownRateMult: 0.87 },  // cooldownRateMult <1 = weapons recover slower
+        },
+        GRAVITON: {                                       // "Pucker" — collapsed-matter pellet
+            label: 'Graviton', iconChar: '◉', color: '#B10DC9',
+            damage: 50, aoeRadius: 150, fuseTime: 3.0,
+            spritePath: 'assets/images/projectiles/grenade_graviton.png', spriteScale: 0.2,
+            explosionSfx: 'GRENADE_EXPLODE_2',
+            pull: { radius: 150, strengthFactor: 0.85 },  // enemies dragged toward center by up to strengthFactor × their distance
+        },
+        ARC_CASCADE: {                                    // "Tesla Egg" — superconductor coil
+            label: 'Tesla Egg', iconChar: '⚡', color: '#FFDC00',
+            damage: 50, aoeRadius: 200, fuseTime: 3.0,
+            spritePath: 'assets/images/projectiles/grenade_tesla.png', spriteScale: 0.2,
+            explosionSfx: 'GRENADE_EXPLODE',
+            chain: { jumps: 8, jumpRadius: 200, damage: 30, stunDuration: 1.5, turretDisableDuration: 4.0 },
+        },
+        NANITE_SWARM: {                                   // "Gray Rain" — self-replicating corroders
+            label: 'Gray Rain', iconChar: '☣', color: '#2ECC40',
+            damage: 35, aoeRadius: 250, fuseTime: 3.0,
+            spritePath: 'assets/images/projectiles/grenade_grayRain.png', spriteScale: 0.2,
+            explosionSfx: 'GRENADE_EXPLODE',
+            vulnerability: { duration: 6.0, damageTakenMult: 1.3 },  // corroded armor: +30% damage taken
+        },
+    },
+    // Per-rank grenade loadout granted at mission start (replaces GRENADE_BONUS_* usage;
+    // FRAG counts match the legacy per-rank bonuses).
+    GRENADE_LOADOUT_BY_RANK: {
+        Recruit: {},
+        Private: { FRAG: 1 },
+        Corporal: { FRAG: 2, PLASMA_SLAG: 1 },
+        Sergeant: { FRAG: 3, PLASMA_SLAG: 1, CRYO_FOAM: 1 },
+        Elite: { FRAG: 4, PLASMA_SLAG: 2, CRYO_FOAM: 2, GRAVITON: 1 },
+        Ghost: { FRAG: 5, PLASMA_SLAG: 3, CRYO_FOAM: 3, GRAVITON: 2, ARC_CASCADE: 2, NANITE_SWARM: 2 },
+    },
+    GRENADE_PICKUP_EXOTIC_BONUS: 1,                       // Grenade crates also grant this many of each exotic type the raccoon's rank carries.
+    // Standard visual style for ALL radial menus (grenade picker, scent menu, and any
+    // future radials). Individual menus may pass overrides, but shouldn't need to —
+    // one look, everywhere. Rendering lives in js/radialMenu.js (RadialMenu base class).
+    RADIAL_MENU_STYLE: {
+        CENTER_GAP: 28,                                   // Dead zone radius around the menu center (no selection).
+        SEGMENT_INNER_RADIUS: 40,
+        SEGMENT_OUTER_RADIUS: 108,
+        SEGMENT_GAP_RADIANS: 0.05,
+        CENTER_CIRCLE_RADIUS: 34,                         // Center readout disc (shows hovered item).
+        BG_COLOR: '#10121f',
+        BACKDROP_ALPHA: 0.85,                             // Dark disc painted under the whole menu.
+        SCREEN_DIM_ALPHA: 0.38,                           // Full-screen dim while a menu is open — separates UI from the battlefield.
+        SEGMENT_FILL_ALPHA: 0.95,                         // Segments are near-opaque; readability beats seeing terrain through them.
+        HOVER_BRIGHTNESS: 1.35,
+        ICON_SIZE: 24,
+        BADGE_FONT_SIZE: 13,                              // Small count/status text under the icon (e.g. grenade ammo).
+        LABEL_FONT_SIZE: 13,
+        LABEL_OFFSET: 16,
+        ANIMATION_SPEED: 12,
+        EDGE_MARGIN: 40,
+        DISABLED_SEGMENT_ALPHA: 0.4,                      // Disabled segments render desaturated/dimmed and can't be selected.
+    },
+    GRENADE_RADIAL_MENU: {
+        HOLD_ACTIVATION_MS: 220,                          // Hold G this long to open the menu; shorter press = quick-aim last selected type.
+    },
+
     // Ammo/Reload
     RACCOON_STARTING_AMMO: 400,
     RACCOON_MAGAZINE_SIZE: 30,
@@ -251,31 +334,31 @@ const CONFIG = {
     // on disk and adding one line here — the preloader picks it up automatically.
     RACCOON_SPRITE_VARIANTS: {
         Recruit: [
-            { basePath: 'assets/images/units/raccoon/rifleman/recruit/type1/', baseName: 'raccoon_rifleman_recruit1', scaleFactor: 0.34 },
-            { basePath: 'assets/images/units/raccoon/rifleman/recruit/type2/', baseName: 'raccoon_rifleman_recruit2', scaleFactor: 0.34 },
+            { basePath: 'assets/images/units/raccoon/rifleman/recruit/type1/', baseName: 'raccoon_rifleman_recruit1', scaleFactor: 0.39 },
+            { basePath: 'assets/images/units/raccoon/rifleman/recruit/type2/', baseName: 'raccoon_rifleman_recruit2', scaleFactor: 0.39 },
             //{ basePath: 'assets/images/units/raccoon/rifleman/recruit/type3/', baseName: 'raccoon', scaleFactor: 0.34 },
         ],
         Private: [
-            { basePath: 'assets/images/units/raccoon/rifleman/private/type1/', baseName: 'raccoon_rifleman_private1', scaleFactor: 0.31 },
-            { basePath: 'assets/images/units/raccoon/rifleman/private/type2/', baseName: 'raccoon_rifleman_private2', scaleFactor: 0.31 },
+            { basePath: 'assets/images/units/raccoon/rifleman/private/type1/', baseName: 'raccoon_rifleman_private1', scaleFactor: 0.39 },
+            { basePath: 'assets/images/units/raccoon/rifleman/private/type2/', baseName: 'raccoon_rifleman_private2', scaleFactor: 0.39 },
         ],
         Corporal: [
-            { basePath: 'assets/images/units/raccoon/rifleman/corporal/type1/', baseName: 'raccoon_rifleman_corporal1', scaleFactor: 0.36 },
-            { basePath: 'assets/images/units/raccoon/rifleman/corporal/type2/', baseName: 'raccoon_rifleman_corporal2', scaleFactor: 0.36 },
+            { basePath: 'assets/images/units/raccoon/rifleman/corporal/type1/', baseName: 'raccoon_rifleman_corporal1', scaleFactor: 0.39 },
+            { basePath: 'assets/images/units/raccoon/rifleman/corporal/type2/', baseName: 'raccoon_rifleman_corporal2', scaleFactor: 0.39 },
         ],
         Sergeant: [
-            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type1/', baseName: 'raccoon_rifleman_sergeant1', scaleFactor: 0.28 },
-            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type2/', baseName: 'raccoon_skullz', scaleFactor: 0.28 },
-            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type3/', baseName: 'raccoon_rifleman_sergeant3', scaleFactor: 0.28 },
-            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type4/', baseName: 'raccoon_rifleman_sergeant4', scaleFactor: 0.28 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type1/', baseName: 'raccoon_rifleman_sergeant1', scaleFactor: 0.35 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type2/', baseName: 'raccoon_skullz', scaleFactor: 0.65 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type3/', baseName: 'raccoon_rifleman_sergeant3', scaleFactor: 0.65 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type4/', baseName: 'raccoon_rifleman_sergeant4', scaleFactor: 0.35 },
         ],
         Elite: [
-            { basePath: 'assets/images/units/raccoon/rifleman/elite/type1/', baseName: 'raccoon_rifleman_elite1', scaleFactor: 0.35 },
-            { basePath: 'assets/images/units/raccoon/rifleman/elite/type2/', baseName: 'raccoon_rifleman_elite2', scaleFactor: 0.35 },
+            { basePath: 'assets/images/units/raccoon/rifleman/elite/type1/', baseName: 'raccoon_rifleman_elite1', scaleFactor: 0.65 },
+            { basePath: 'assets/images/units/raccoon/rifleman/elite/type2/', baseName: 'raccoon_rifleman_elite2', scaleFactor: 0.4 },
         ],
         Ghost: [
-            { basePath: 'assets/images/units/raccoon/rifleman/ghost/type1/', baseName: 'raccoon_rifleman_ghost1', scaleFactor: 0.35 },
-            { basePath: 'assets/images/units/raccoon/rifleman/ghost/type2/', baseName: 'raccoon_rifleman_ghost2', scaleFactor: 0.35 },
+            { basePath: 'assets/images/units/raccoon/rifleman/ghost/type1/', baseName: 'raccoon_rifleman_ghost1', scaleFactor: 0.65 },
+            { basePath: 'assets/images/units/raccoon/rifleman/ghost/type2/', baseName: 'raccoon_rifleman_ghost2', scaleFactor: 0.4 },
         ],
         Maverick: [
             { basePath: 'assets/images/units/raccoon/maverick/', baseName: 'raccoon_maverick', scaleFactor: 0.55 },
@@ -2707,6 +2790,183 @@ const CONFIG = {
             DRIFT_SPEED: 0.3,
             DRIFT_AMOUNT: 8,
             DRIFT_INTERVAL: 4,
+        },
+    },
+
+    // ------------------------------------------------------------------
+    // MINI-GAMES
+    // Reusable modal mini-game framework (see js/minigames/). A mini-game
+    // can gate any interaction (currently: deactivating anti-air turrets).
+    // Balance/tuning lives here — never hardcode in the mini-game classes.
+    // ------------------------------------------------------------------
+    MINIGAMES: {
+        ENABLED: true,              // master switch; false = fall back to instant interaction
+        OVERLAY_FADE_MS: 180,       // fade in/out of the modal overlay
+        OUTRO_DELAY_MS: 650,        // pause on the win/lose screen before closing
+
+        // Difficulty is a single scalar derived from campaign progress and
+        // handed to every mini-game. Each game maps it to its own params.
+        DIFFICULTY: {
+            BASE: 1.0,
+            PER_PHASE: 0.28,        // difficulty += currentPhaseIndex * PER_PHASE
+            MAX: 6.0,
+        },
+
+        // Themed pools: an objective launches from a pool, not a fixed game,
+        // so the challenge varies while staying thematically coherent. The
+        // pick is deterministic per objective instance (see MiniGameManager).
+        POOLS: {
+            SHUTDOWN: ['maze_shutdown', 'null_wave', 'breaker_cascade'], // turrets / anti-air / deactivation
+            HACK: ['trace_race'],   // intel consoles
+        },
+
+        // "Shutdown Pulse" — steer a shutdown pulse through the turret's
+        // circuitry to its core before it reboots, avoiding live current.
+        MAZE_SHUTDOWN: {
+            TITLE: 'CIRCUIT BREACH',
+            SUBTITLE: 'Route the shutdown pulse to the reactor core',
+            INSTRUCTIONS: 'WASD / Arrows to move · Space = repel pulse · reach the core before REBOOT · avoid live current',
+            CANVAS_SIZE: 520,           // logical px (square); scaled to fit the modal
+
+            BASE_COLS: 8,
+            BASE_ROWS: 8,
+            COLS_PER_DIFFICULTY: 1,     // grid grows with difficulty
+            ROWS_PER_DIFFICULTY: 1,
+            MAX_COLS: 15,
+            MAX_ROWS: 15,
+
+            TIME_LIMIT_BASE: 30,        // seconds on the reboot clock
+            TIME_LIMIT_PER_DIFFICULTY: -2.0,
+            TIME_LIMIT_MIN: 15,
+
+            SPARKS_BASE: 1,             // roaming live-current hazards
+            SPARKS_PER_DIFFICULTY: 0.6,
+            SPARKS_MAX: 6,
+            SPARK_STEP_INTERVAL: 0.30,  // seconds per hazard hop (lower = faster)
+            SPARK_MIN_START_DIST: 3,    // min manhattan cells from the start cell
+
+            SURGE_TIME_PENALTY: 3.0,    // seconds lost when hit by live current
+            MOVE_COOLDOWN: 0.085,       // seconds between player steps when a key is held
+
+            // Repel pulse: a limited Space-activated shockwave that knocks
+            // live-current sparks out of a radius and sends them fleeing.
+            PULSE_CHARGES_BASE: 2,          // charges at difficulty 1
+            PULSE_CHARGES_PER_DIFFICULTY: 0.4, // more charges as sparks multiply
+            PULSE_CHARGES_MAX: 5,
+            PULSE_RADIUS_CELLS: 2.6,        // repel radius (in cells)
+            PULSE_PUSH_CELLS: 3,            // how far a caught spark is driven back
+            PULSE_FLEE_TIME: 2.2,           // seconds a repelled spark flees the player
+            PULSE_FX_TIME: 0.38,            // expanding-ring visual duration
+            PULSE_TIME_COST: 1.5,           // reboot seconds spent per pulse (tradeoff)
+
+            ALLOW_ABORT: true,          // Esc aborts (turret stays online, player can retry)
+        },
+
+        // "Dead Air" — cancel the turret's targeting signal by tuning an
+        // inverse wave (frequency + phase) to flatten the output, then hold
+        // the null while the target signal drifts. Silence = deactivated.
+        NULL_WAVE: {
+            TITLE: 'DEAD AIR',
+            SUBTITLE: 'Cancel the targeting signal — flatten it and hold',
+            INSTRUCTIONS: 'Up/Down = frequency · Left/Right = phase · Space = stabilizer · flatten the output and hold the null',
+            CANVAS_SIZE: 520,
+
+            TIME_LIMIT_BASE: 52,            // seconds on the reboot clock
+            TIME_LIMIT_PER_DIFFICULTY: -2.0,
+            TIME_LIMIT_MIN: 32,
+
+            FREQ_MIN: 1.5,                  // cycles shown across the scope window
+            FREQ_MAX: 4.5,
+
+            NULL_THRESHOLD_BASE: 0.22,      // peak output (fraction of full-scale) counted as "flat"
+            NULL_THRESHOLD_PER_DIFFICULTY: -0.02,
+            NULL_THRESHOLD_MIN: 0.10,       // late-game null zone stays reachable (was 0.08)
+
+            LOCK_REQUIRED_BASE: 2.0,        // seconds of held null needed to win
+            LOCK_REQUIRED_PER_DIFFICULTY: 0.22, // was 0.35 — less brutal at high difficulty
+            LOCK_DRAIN_MULT: 1.2,           // lock decays gentler when signal slips (was 1.6)
+
+            // Drift scales more gently now, so the player's adjust rates can
+            // always outpace it; the stabilizer is the active counter-drift.
+            DRIFT_RATE_BASE: 0.35,          // target signal drift speed
+            DRIFT_RATE_PER_DIFFICULTY: 0.07, // was 0.12
+            FREQ_WANDER_BASE: 0.25,         // +/- frequency drift amount
+            FREQ_WANDER_PER_DIFFICULTY: 0.05, // was 0.08
+            PHASE_WANDER_BASE: 0.5,         // +/- phase drift (radians)
+            PHASE_WANDER_PER_DIFFICULTY: 0.09, // was 0.15
+
+            FREQ_ADJUST_RATE: 2.4,          // freq units/sec while a key is held (was 1.6)
+            PHASE_ADJUST_RATE: 4.5,         // radians/sec while a key is held (was 3.2)
+
+            // Stabilizer: a limited Space-activated dampener that freezes the
+            // target signal's drift for a few seconds so you can settle the null.
+            STABILIZER_CHARGES_BASE: 1,
+            STABILIZER_CHARGES_PER_DIFFICULTY: 0.3,
+            STABILIZER_CHARGES_MAX: 4,
+            STABILIZER_DURATION: 3.5,       // seconds of frozen/slowed drift
+            STABILIZER_DRIFT_MULT: 0.0,     // 0 = full freeze while active
+            STABILIZER_TIME_COST: 2.0,      // reboot seconds spent per activation (tradeoff)
+
+            ALLOW_ABORT: true,
+        },
+
+        // "Breaker Cascade" — a Lights-Out panel. Flipping a breaker toggles
+        // it and its orthogonal neighbours; kill every breaker to black out
+        // the panel. Unstable breakers re-surge on a timer once switched off.
+        BREAKER_CASCADE: {
+            TITLE: 'BREAKER CASCADE',
+            SUBTITLE: 'Black out the panel — kill every breaker',
+            INSTRUCTIONS: 'Click a breaker (or Arrows + Space) to flip it and its neighbours · turn them ALL off before REBOOT',
+            CANVAS_SIZE: 520,
+
+            BASE_SIZE: 3,                   // grid is SIZE x SIZE
+            SIZE_PER_DIFFICULTY: 0.5,
+            MAX_SIZE: 5,
+
+            SCRAMBLE_BASE: 3,              // random presses used to build a solvable board
+            SCRAMBLE_PER_DIFFICULTY: 1.2,
+
+            TIME_LIMIT_BASE: 35,
+            TIME_LIMIT_PER_DIFFICULTY: -2.0,
+            TIME_LIMIT_MIN: 18,
+
+            UNSTABLE_BASE: 0,             // breakers that re-surge while left off
+            UNSTABLE_PER_DIFFICULTY: 0.5,
+            UNSTABLE_MAX: 3,
+            RELIGHT_INTERVAL_BASE: 4.0,   // seconds an unstable breaker stays off before re-surging
+            RELIGHT_INTERVAL_PER_DIFFICULTY: -0.3,
+            RELIGHT_INTERVAL_MIN: 2.0,
+
+            ALLOW_ABORT: true,
+        },
+
+        // "Trace Race" — a network intrusion. Hop node-to-node from the entry
+        // to the data CORE while ICE (a countermeasure) pathfinds toward you
+        // through the same graph. Reach the core before it catches you.
+        TRACE_RACE: {
+            TITLE: 'TRACE RACE',
+            SUBTITLE: 'Breach the core before ICE traces you',
+            INSTRUCTIONS: 'Click a linked node (or Arrow toward it) to hop · reach CORE · stay ahead of the red ICE',
+            CANVAS_SIZE: 520,
+
+            BASE_NODES: 8,
+            NODES_PER_DIFFICULTY: 1.0,
+            MAX_NODES: 15,
+
+            TRACER_STEP_BASE: 0.95,        // seconds per ICE hop
+            TRACER_STEP_PER_DIFFICULTY: -0.08,
+            TRACER_STEP_MIN: 0.45,
+            TRACERS_BASE: 1,               // number of ICE pursuers
+            TRACERS_PER_DIFFICULTY: 0.25,
+            TRACERS_MAX: 2,
+            TRACER_HEADSTART: 2,           // min hops the ICE starts from the entry
+
+            MOVE_ANIM: 0.16,               // seconds to slide along an edge
+            LOCKOUT_BASE: 30,              // safety countdown (system lockout) in seconds
+            LOCKOUT_PER_DIFFICULTY: -1.5,
+            LOCKOUT_MIN: 16,
+
+            ALLOW_ABORT: true,
         },
     },
 };

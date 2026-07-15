@@ -142,7 +142,7 @@ const JUNKYARD_BIOME = {
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 0.55,
+            spriteScale: 0.6,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.64), radiusX: (w => w * 0.3), radiusY: ((w, h) => h * 0.15) },
             canBeFlipped: true,
@@ -152,7 +152,7 @@ const JUNKYARD_BIOME = {
             destructible: true, hp: 50, maxHp: 50,
             blocksMovement: true, providesCover: true,
             spawnWeight: 5, isDecoration: false,
-            spriteScale: 0.4,
+            spriteScale: 0.45,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.66), radiusX: (w => w * 0.18), radiusY: ((w, h) => h * 0.2) },
             canBeFlipped: true,
@@ -162,7 +162,7 @@ const JUNKYARD_BIOME = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.4,
+            spriteScale: 0.5,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: ((w, h) => h * 0.35) },
             canBeFlipped: true,
@@ -172,7 +172,7 @@ const JUNKYARD_BIOME = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.5,
+            spriteScale: 0.55,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: ((w, h) => h * 0.3) },
             canBeFlipped: true,
@@ -182,7 +182,7 @@ const JUNKYARD_BIOME = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: false,
-            spriteScale: 0.5,
+            spriteScale: 0.55,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: ((w, h) => h * 0.35) },
             canBeFlipped: true,
@@ -192,7 +192,7 @@ const JUNKYARD_BIOME = {
             destructible: false, hp: Infinity, maxHp: Infinity,
             blocksMovement: true, providesCover: true,
             spawnWeight: 8, isDecoration: false,
-            spriteScale: 0.5,
+            spriteScale: 0.55,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
             canBeFlipped: true,
@@ -203,7 +203,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             spawnWeight: 0, isDecoration: true,
             canBeFlipped: true,
-            spriteScale: 0.5,
+            spriteScale: 0.55,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: ((w, h) => h * 0.35) },
         },
@@ -213,7 +213,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             canBeFlipped: true,
             spawnWeight: 6, isDecoration: true,
-            spriteScale: 0.5,
+            spriteScale: 0.55,
             decorationBuffer: 75,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.45), radiusY: ((w, h) => h * 0.35) },
@@ -224,7 +224,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             canBeFlipped: true,
             spawnWeight: 4, isDecoration: true,
-            spriteScale: 0.6,
+            spriteScale: 0.65,
             decorationBuffer: 75,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.35) },
@@ -235,7 +235,7 @@ const JUNKYARD_BIOME = {
             blocksMovement: true, providesCover: true,
             canBeFlipped: true,
             spawnWeight: 6, isDecoration: true,
-            spriteScale: 0.65,
+            spriteScale: 0.5,
             decorationBuffer: 75,
             collisionShape: { 
                 type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.3), radiusX: (w => w * 0.4), radiusY: ((w, h) => h * 0.35) },
@@ -386,7 +386,7 @@ const JUNKYARD_BIOME = {
             isDecoration: false,
             canBeFlipped: false,
             spawnWeight: 2, phaseUnlocked: 1,
-            spriteScale: 0.7,
+            spriteScale: 0.75,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.45), radiusX: (w => w * 0.35), radiusY: (h => h * 0.18) },
             placementBuffer: 150,
             decorationBuffer: 200,
@@ -398,7 +398,7 @@ const JUNKYARD_BIOME = {
             isDecoration: false,
             canBeFlipped: false,
             spawnWeight: 2, phaseUnlocked: 1,
-            spriteScale: 0.7,
+            spriteScale: 0.75,
             collisionShape: { type: 'ellipse', offsetX: (w => w * 0.49), offsetY: (h => h * 0.35), radiusX: (w => w * 0.35), radiusY: (h => h * 0.26) },
             placementBuffer: 150,
             decorationBuffer: 200,

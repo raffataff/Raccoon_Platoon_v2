@@ -130,12 +130,33 @@ class LevelGenerator {
             this._genSpatialGridVersion = existingObstacles.length;
         }
 
-        const candidates = this._queryGenerationSpatialGrid(this._genSpatialGrid, newShapesArray, buffer);
+        // Decorations must also see obstacles with large keep-out radii (turrets), which
+        // can sit far outside the buffer-expanded query window.
+        const queryReach = newObstacleTemplate.isDecoration
+            ? Math.max(buffer, this._maxDecorationKeepOut || 0)
+            : buffer;
+        const candidates = this._queryGenerationSpatialGrid(this._genSpatialGrid, newShapesArray, queryReach);
 
         for (const candidate of candidates) {
             const existing = candidate.obstacle;
             const shapeToCheck = candidate.shape;
             const existingBB = candidate.boundingBox;
+
+            // Symmetric clearance: obstacles that declare decorationKeepOutRadius
+            // (turrets/anti-air) repel decorations placed AFTER them, regardless of the
+            // decoration's own (usually tiny) buffers. Without this, the turret's
+            // decorationBuffer only applied when the turret itself was being placed —
+            // trees placed later happily grew on top of it.
+            if (newObstacleTemplate.isDecoration && existing.decorationKeepOutRadius > 0) {
+                const newCenterX = newShapesArray[0].x || 0;
+                const newCenterY = newShapesArray[0].y || 0;
+                const existCenterX = shapeToCheck.x || existing.x || 0;
+                const existCenterY = shapeToCheck.y || existing.y || 0;
+                const kdx = newCenterX - existCenterX;
+                const kdy = newCenterY - existCenterY;
+                const minKeepOut = existing.decorationKeepOutRadius + this._getShapeMaxExtent(newShapesArray[0]);
+                if (kdx * kdx + kdy * kdy < minKeepOut * minKeepOut) return true;
+            }
 
             if (newObstacleTemplate.isDecoration && existing.isDecoration) {
                 const decoBuffer = newObstacleTemplate.decorationBuffer || 0;
@@ -689,7 +710,13 @@ class LevelGenerator {
             return;
         }
 
-        const selectedWeapon = availableWeapons[this.rng.nextInt(0, availableWeapons.length)];
+        // NOTE: rng.nextInt(min, max) is INCLUSIVE of max — indexing with
+        // nextInt(0, length) walked off the end of the array ~1/(n+1) of the time,
+        // spawning an empty yellow fallback crate. pickFrom() handles bounds correctly.
+        const selectedWeapon = this.rng.pickFrom(availableWeapons);
+        if (!selectedWeapon || !CONFIG.WEAPON_DEFINITIONS[selectedWeapon]) {
+            return;
+        }
 
         const centerX = targetX + targetWidth / 2;
         const centerY = targetY + targetHeight / 2;
@@ -1028,7 +1055,19 @@ class LevelGenerator {
                         };
                         const collisionShapeForCheck = this.level._getObstacleCollisionShape(tempShape);
 
-                        if (!this._isPlacementInvalid(collisionShapeForCheck, antiAirTemplate, this.level.obstacles, extraKeepOutZones)) {
+                        // Clearance check against the VISUAL footprint, not just the small
+                        // base collision circle — otherwise the big sprite ends up buried
+                        // in decorations that don't touch the base.
+                        const visualClearanceShape = {
+                            type: 'circle',
+                            x: obsX + turretRenderWidth / 2,
+                            y: obsY + turretRenderHeight / 2,
+                            radius: Math.max(turretRenderWidth, turretRenderHeight) * 0.5
+                        };
+                        const clearanceTemplate = { ...antiAirTemplate, isDecoration: false, placementBuffer: Math.max(antiAirTemplate.placementBuffer || 0, 100) };
+
+                        if (!this._isPlacementInvalid(collisionShapeForCheck, antiAirTemplate, this.level.obstacles, extraKeepOutZones) &&
+                            !this._isPlacementInvalid(visualClearanceShape, clearanceTemplate, this.level.obstacles, extraKeepOutZones)) {
                             const turretObs = {
                                 x: obsX, y: obsY, width: turretRenderWidth, height: turretRenderHeight,
                                 type: 'possum_anti_air_turret',
@@ -1038,12 +1077,15 @@ class LevelGenerator {
                                 hp: antiAirTemplate.hp, maxHp: antiAirTemplate.maxHp, isDestroyed: false,
                                 blocksMovement: antiAirTemplate.blocksMovement, providesCover: antiAirTemplate.providesCover,
                                 isDecoration: true,
+                                // Symmetric clearance: decorations placed later must keep out.
+                                decorationKeepOutRadius: antiAirTemplate.decorationBuffer || 250,
                                 spriteScale: spriteScale,
                                 collisionShape: antiAirTemplate.collisionShape,
                                 isMissionTarget: true, objectiveId: objective.id,
                                 isPossumAntiAirTurret: true,
                                 turretVariant: variant
                             };
+                            this._maxDecorationKeepOut = Math.max(this._maxDecorationKeepOut || 0, turretObs.decorationKeepOutRadius);
                             this.level.obstacles.push(turretObs);
 
                             const turret = new PossumAntiAirTurret(obsX, obsY, this.game, turretObs, variant);
@@ -1350,6 +1392,7 @@ class LevelGenerator {
         const allSpawnedEnemiesDuringGen = [];
         const pendingTurretObstacles = [];
         const pendingAntiAirTurretObstacles = [];
+        this._maxDecorationKeepOut = 0; // largest decorationKeepOutRadius placed this gen (widens decoration placement queries)
 
         const missionObjectives = missionParamsContainer.objectives || [];
         const baseParams = missionParamsContainer.baseParams || {};
@@ -2182,6 +2225,12 @@ class LevelGenerator {
                         destructible: template.destructible, hp: template.destructible ? template.hp : Infinity, maxHp: template.destructible ? template.maxHp : Infinity, isDestroyed: false,
                         blocksMovement: template.blocksMovement, providesCover: template.providesCover, pickupType: template.pickupType || null, pickupQuantity: template.pickupQuantity || 0,
                         isPickup: !!template.pickupType, isDecoration: !!template.isDecoration || template.type === 'possum_turret' || template.type === 'possum_anti_air_turret',
+                        // Symmetric clearance (turrets only): decorations placed later must
+                        // stay this far away. Deliberately NOT applied to ordinary decorations
+                        // — they already space themselves via the decoration fast-path, and
+                        // doubling it up would thin out forests.
+                        decorationKeepOutRadius: (template.type === 'possum_turret' || template.type === 'possum_anti_air_turret')
+                            ? (template.decorationBuffer || 250) : 0,
                         spriteNormalPath: actualSpritePath,
                         spriteDestroyedPath: actualDestroyedSpritePath,
                         imageNormal: actualImageObject,
@@ -2207,6 +2256,9 @@ class LevelGenerator {
                         flameCount: template.flameCount || 0,
                         flameOffsetY: template.flameOffsetY || 0,
                     };
+                    if (newObstacle.decorationKeepOutRadius > 0) {
+                        this._maxDecorationKeepOut = Math.max(this._maxDecorationKeepOut || 0, newObstacle.decorationKeepOutRadius);
+                    }
                     if (template.type === 'possum_turret') {
                         const turretArc = (obsY < (this.level.playableMinY + this.level.playableMaxY) / 2)
                             ? ['w', 'sw', 's', 'se', 'e']
@@ -2330,6 +2382,7 @@ class LevelGenerator {
             let actualDestroyedSpritePath = null, actualDestroyedImageObject = null;
             let normalSpriteScale = template.spriteScale || 1.0, destroyedSpriteScale = template.spriteDestroyedScale;
             let filesArray = [], pathBase = '', useRandomSpriteFromList = false, useSpritePair = false;
+            let crateWeaponName = null, crateWeaponDef = null;
 
             if (template.type === 'pickup_health') {
                 filesArray = CONFIG.HEALTH_PICKUP_SPRITE_FILES || [];
@@ -2350,20 +2403,21 @@ class LevelGenerator {
                 useSpritePair = true;
             }
             else if (template.type === 'pickup_weapon_crate') {
-                // Pick a random available weapon for this crate
+                // Pick a random available weapon for this crate. If no crate weapon is
+                // unlocked yet (early phases), SKIP the pickup entirely — spawning the
+                // bare template produces an empty yellow fallback square.
                 const availableWeapons = this._getAvailableWeaponCrateTypes(this.game.currentPhaseIndex || 0);
-                if (availableWeapons.length > 0) {
-                    const selectedWeapon = this.rng.pickFrom(availableWeapons);
-                    const weaponDef = CONFIG.WEAPON_DEFINITIONS[selectedWeapon];
-                    if (weaponDef) {
-                        actualSpritePath = weaponDef.crateSpriteWithWeapon || null;
-                        actualDestroyedSpritePath = weaponDef.crateSpriteWithoutWeapon || null;
-                        // Store weapon info on the template for reference
-                        template.weaponName = selectedWeapon;
-                        template.weaponDef = weaponDef;
-                        normalSpriteScale = template.spriteScale || 1.0;
-                    }
+                const selectedWeapon = availableWeapons.length > 0 ? this.rng.pickFrom(availableWeapons) : null;
+                const weaponDef = selectedWeapon ? CONFIG.WEAPON_DEFINITIONS[selectedWeapon] : null;
+                if (!weaponDef) {
+                    continue;
                 }
+                actualSpritePath = weaponDef.crateSpriteWithWeapon || null;
+                actualDestroyedSpritePath = weaponDef.crateSpriteWithoutWeapon || null;
+                // Locals only — never mutate the shared CONFIG template object.
+                crateWeaponName = selectedWeapon;
+                crateWeaponDef = weaponDef;
+                normalSpriteScale = template.spriteScale || 1.0;
             }
 
             if (useRandomSpriteFromList && filesArray.length > 0 && pathBase) {
@@ -2406,8 +2460,8 @@ class LevelGenerator {
                         imageDestroyed: actualDestroyedImageObject,
                         spriteScale: normalSpriteScale, spriteDestroyedScale: destroyedSpriteScale,
                         collisionShape: template.collisionShape || null,
-                        weaponName: template.weaponName || null,
-                        weaponDef: template.weaponDef || null
+                        weaponName: crateWeaponName,
+                        weaponDef: crateWeaponDef
                     };
                     this.level.obstacles.push(newPickup);
                     placed = true;

@@ -48,7 +48,7 @@
             <button id="mainMenuMemorialButton" hidden>Recruit Memorial</button>
             <button id="optionsButton">Options</button>
         </div>
-        <p class="game-version">v0.1.0 Alpha</p>
+        <p class="game-version">v0.1.2 Alpha</p>
     </div>
 
     <div id="optionsMenuScreen" class="ui-panel" style="display: none;">
@@ -830,7 +830,9 @@
     <script src="js/flyingBird.js"></script>
     <script src="js/ufo.js"></script>
     <script src="js/IntelConsole.js"></script>
+    <script src="js/radialMenu.js"></script>
     <script src="js/scentmarker.js"></script>
+    <script src="js/grenadeRadialMenu.js"></script>
     <script src="js/possumTurret.js"></script>
     <script src="js/PossumAntiAirTurret.js"></script>
     <script src="js/levelGenerator.js"></script>
@@ -838,6 +840,13 @@
     <script src="js/shootout/ShootoutTarget.js"></script>
     <script src="js/shootout/ShootoutSpawner.js"></script>
     <script src="js/shootout/ShootoutController.js"></script>
+    <!-- Mini-games: base class first, then concrete games, then manager. Must precede game.js. -->
+    <script src="js/minigames/MiniGame.js"></script>
+    <script src="js/minigames/MazeShutdown.js"></script>
+    <script src="js/minigames/NullWave.js"></script>
+    <script src="js/minigames/BreakerCascade.js"></script>
+    <script src="js/minigames/TraceRace.js"></script>
+    <script src="js/minigames/MiniGameManager.js"></script>
     <script src="js/game.js"></script>
 </body>
 

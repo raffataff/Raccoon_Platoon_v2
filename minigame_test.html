@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini-Game Sandbox — Raccoon Platoon</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at 50% 30%, #1c2a36 0%, #0b1219 70%);
+            color: #d0cdc5;
+            font-family: 'Consolas', 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+        h1 { color: #4fd8ff; letter-spacing: 2px; margin: 0; font-size: 20px; }
+        p.sub { color: #8fb4bd; margin: 0 0 8px; font-size: 12.5px; }
+        .panel {
+            background: rgba(20, 32, 43, 0.9);
+            border: 1px solid #2c6b73;
+            border-radius: 10px;
+            padding: 20px 26px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            min-width: 320px;
+        }
+        .row { display: flex; align-items: center; gap: 12px; justify-content: space-between; }
+        label { font-size: 12.5px; letter-spacing: 0.5px; color: #b7c6cc; }
+        input[type=range] { width: 160px; accent-color: #4fd8ff; }
+        .val { color: #e9d38a; font-weight: bold; min-width: 30px; text-align: right; }
+        button {
+            background: linear-gradient(180deg, #2c6b73, #1c4a50);
+            color: #dffbff;
+            border: 1px solid #4fd8ff;
+            border-radius: 6px;
+            padding: 11px 16px;
+            font-family: inherit;
+            font-size: 13px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: filter 0.12s;
+        }
+        button:hover { filter: brightness(1.2); }
+        #result { font-size: 13px; letter-spacing: 1px; min-height: 18px; text-align: center; }
+        .ok { color: #43e0b0; } .bad { color: #c94f4f; } .neutral { color: #8fb4bd; }
+        #status { font-size: 11px; color: #6f838b; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>CIRCUIT BREACH — SANDBOX</h1>
+    <p class="sub">Isolated test harness for the mini-game framework (no full game boot required).</p>
+    <div class="panel">
+        <div class="row">
+            <label for="which">Mini-game</label>
+            <select id="which" style="background:#0c1520;color:#dffbff;border:1px solid #4fd8ff;border-radius:5px;padding:6px 8px;font-family:inherit;">
+                <option value="maze_shutdown">Circuit Breach (maze)</option>
+                <option value="null_wave">Dead Air (null-wave)</option>
+                <option value="breaker_cascade">Breaker Cascade (lights-out)</option>
+                <option value="trace_race">Trace Race (node chase)</option>
+                <option value="pool:SHUTDOWN">SHUTDOWN pool (themed random)</option>
+                <option value="pool:HACK">HACK pool (themed random)</option>
+            </select>
+        </div>
+        <div class="row">
+            <label for="phase">Campaign phase (drives difficulty)</label>
+            <span class="val" id="phaseVal">0</span>
+        </div>
+        <input type="range" id="phase" min="0" max="18" value="0" step="1">
+        <div class="row">
+            <label for="seed">Seed / selector (0 = random)</label>
+            <span class="val" id="seedVal">0</span>
+        </div>
+        <input type="range" id="seed" min="0" max="9999" value="0" step="1">
+        <button id="launch">▶ LAUNCH</button>
+        <div id="result" class="neutral">Ready.</div>
+        <div id="status"></div>
+    </div>
+
+    <!-- Real project files, in dependency order. -->
+    <script src="js/rng.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/minigames/MiniGame.js"></script>
+    <script src="js/minigames/MazeShutdown.js"></script>
+    <script src="js/minigames/NullWave.js"></script>
+    <script src="js/minigames/BreakerCascade.js"></script>
+    <script src="js/minigames/TraceRace.js"></script>
+    <script src="js/minigames/MiniGameManager.js"></script>
+    <script>
+        // Minimal fake Game so the manager has something to pause/resume.
+        const fakeGame = { gameState: 'RUNNING', currentPhaseIndex: 0, campaignSeed: 12345, currentMissionSeed: 0 };
+
+        // Sanity checks that everything loaded and wired.
+        const statusEl = document.getElementById('status');
+        const checks = [];
+        checks.push(['SeededRandom', typeof SeededRandom === 'function']);
+        checks.push(['CONFIG.MINIGAMES', !!(window.CONFIG && CONFIG.MINIGAMES)]);
+        checks.push(['MiniGame', typeof MiniGame === 'function']);
+        checks.push(['MazeShutdown', typeof MazeShutdown === 'function']);
+        checks.push(['NullWave', typeof NullWave === 'function']);
+        checks.push(['BreakerCascade', typeof BreakerCascade === 'function']);
+        checks.push(['TraceRace', typeof TraceRace === 'function']);
+        checks.push(['MiniGameManager', typeof MiniGameManager === 'function']);
+        const failed = checks.filter(c => !c[1]).map(c => c[0]);
+        statusEl.textContent = failed.length
+            ? 'LOAD ERROR — missing: ' + failed.join(', ')
+            : 'All modules loaded ✓  (maze auto-registered: ' + ('maze_shutdown') + ')';
+
+        const mgr = new MiniGameManager(fakeGame);
+
+        const phaseEl = document.getElementById('phase');
+        const phaseVal = document.getElementById('phaseVal');
+        const seedEl = document.getElementById('seed');
+        const seedVal = document.getElementById('seedVal');
+        const resultEl = document.getElementById('result');
+        phaseEl.oninput = () => phaseVal.textContent = phaseEl.value;
+        seedEl.oninput = () => seedVal.textContent = seedEl.value;
+
+        const whichEl = document.getElementById('which');
+        document.getElementById('launch').onclick = () => {
+            fakeGame.currentPhaseIndex = parseInt(phaseEl.value, 10);
+            const seedOrSel = parseInt(seedEl.value, 10);
+            resultEl.className = 'neutral';
+            resultEl.textContent = 'Running…';
+            const opts = {
+                context: { turret: { name: 'TEST-AA' } },
+                onComplete: (r) => {
+                    if (r === 'success') { resultEl.className = 'ok'; resultEl.textContent = '✓ SUCCESS — turret would shut down'; }
+                    else if (r === 'fail') { resultEl.className = 'bad'; resultEl.textContent = '✗ FAIL — turret rebooted'; }
+                    else { resultEl.className = 'neutral'; resultEl.textContent = 'ABORTED — turret stays online'; }
+                }
+            };
+            const choice = whichEl.value;
+            let launched;
+            if (choice.startsWith('pool:')) {
+                // For pools, the slider acts as the per-objective selector.
+                opts.selector = seedOrSel;
+                launched = mgr.launchFromPool(choice.slice(5), opts);
+            } else {
+                opts.seed = seedOrSel || undefined;
+                launched = mgr.launch(choice, opts);
+            }
+            if (!launched) { resultEl.className = 'bad'; resultEl.textContent = 'launch returned false (disabled / busy / unknown key)'; }
+        };
+    </script>
+</body>
+</html>

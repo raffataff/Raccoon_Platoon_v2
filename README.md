@@ -10,6 +10,7 @@ Built in pure vanilla JavaScript + HTML5 Canvas — no frameworks, no build step
 - **Procedurally generated campaigns:** Seeded generation — every campaign rolls 20–50 phases of unique missions across Tropical, Temperate, and Junkyard biomes.
 - **Permadeath & progression:** Fallen raccoons are gone for good (visit them on the Wall of the Fallen). Survivors earn XP and climb ranks from Recruit to Ghost, unlocking better weapons and stats.
 - **Varied objectives:** Exterminate, destroy targets, rescue hostages, assassinate VIPs, hack intel consoles, deactivate anti-air turrets — plus extraction finales with boss fights.
+- **Sabotage mini-games:** Deactivating anti-air turrets and breaching intel consoles drop you into a quick modal mini-game — route a shutdown pulse through a live maze, cancel a targeting signal, black out a breaker panel, or outrun an intrusion tracer across a network.
 - **Shootout mode:** A standalone arcade shooting-gallery mode (Time Attack & Elimination), which also appears mid-campaign as ambush events.
 - **Night missions, destructible environments, ambient wildlife, and the occasional UFO.**
 - **Save system:** 5 save slots (browser localStorage) with JSON export/import.
@@ -76,6 +77,7 @@ js/
   manualContent.js    How To Play manual content
   biomes/             Biome definitions (tropical, temperate, junkyard)
   shootout/           Shootout arcade mode (controller, spawner, targets)
+  minigames/          Modal mini-games (turret & console gates) + framework
 assets/
   audio/              Music, SFX, ambience
   images/             Sprites, terrain, UI art (organized by biome/unit)

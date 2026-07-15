@@ -13,7 +13,8 @@ class Raccoon extends Unit {
         this.weaponName = 'RACCOON_MACHINE_GUN';
         
         this.name = name || "Recruit";
-        this.grenadeAmmo = CONFIG.RACCOON_STARTING_GRENADES || 0;
+        this.grenadeAmmoByType = {};              // per-type counts, keyed by CONFIG.GRENADE_TYPES key
+        this.selectedGrenadeType = 'FRAG';        // type thrown on quick-tap G / next throw
         this.isAimingGrenade = false;
         this.grenadeTargetUnit = null;
         this.grenadeMoveToTargetPos = null;
@@ -44,6 +45,7 @@ class Raccoon extends Unit {
 
         this.updateXpToNextRank();
         this.applyRankBonuses(true);
+        this.refillGrenades();
 
         // Sprite type (visual variant within the rank). Restored from save when provided,
         // otherwise rolled — with the seeded roster RNG when available (reproducible rosters),
@@ -191,13 +193,48 @@ class Raccoon extends Unit {
     }
 
     _applyGrenadeBonusesForRank() {
-        let startGrenades = CONFIG.RACCOON_STARTING_GRENADES || 0;
-        if (this.rank === "Private") startGrenades += (CONFIG.GRENADE_BONUS_PRIVATE || 0);
-        if (this.rank === "Corporal") startGrenades += (CONFIG.GRENADE_BONUS_CORPORAL || 0);
-        if (this.rank === "Sergeant") startGrenades += (CONFIG.GRENADE_BONUS_SERGEANT || 0);
-        if (this.rank === "Elite") startGrenades += (CONFIG.GRENADE_BONUS_ELITE || 0);
-        if (this.rank === "Ghost") startGrenades += (CONFIG.GRENADE_BONUS_GHOST || 0);
-        this.grenadeAmmo = startGrenades;
+        this.refillGrenades();
+    }
+
+    // Reset per-type grenade ammo to this rank's loadout (CONFIG.GRENADE_LOADOUT_BY_RANK).
+    // Called at creation, on promotion, and at mission start.
+    refillGrenades() {
+        const loadout = (CONFIG.GRENADE_LOADOUT_BY_RANK && CONFIG.GRENADE_LOADOUT_BY_RANK[this.rank]) || {};
+        this.grenadeAmmoByType = {};
+        for (const typeKey in loadout) {
+            if (loadout[typeKey] > 0 && CONFIG.GRENADE_TYPES && CONFIG.GRENADE_TYPES[typeKey]) {
+                this.grenadeAmmoByType[typeKey] = loadout[typeKey];
+            }
+        }
+        if (!CONFIG.GRENADE_TYPES || !CONFIG.GRENADE_TYPES[this.selectedGrenadeType]) {
+            this.selectedGrenadeType = 'FRAG';
+        }
+    }
+
+    // Total across all types. Getter keeps every existing `raccoon.grenadeAmmo` read
+    // (UI panels, input checks) working unchanged.
+    get grenadeAmmo() {
+        let total = 0;
+        for (const k in this.grenadeAmmoByType) total += this.grenadeAmmoByType[k];
+        return total;
+    }
+
+    getGrenadeAmmo(typeKey) {
+        return this.grenadeAmmoByType[typeKey] || 0;
+    }
+
+    // Grenade types this rank can carry (even if currently at 0 ammo), in loadout order.
+    getCarriedGrenadeTypes() {
+        const loadout = (CONFIG.GRENADE_LOADOUT_BY_RANK && CONFIG.GRENADE_LOADOUT_BY_RANK[this.rank]) || {};
+        return Object.keys(loadout).filter(k => CONFIG.GRENADE_TYPES && CONFIG.GRENADE_TYPES[k]);
+    }
+
+    // Only accepts types this raccoon's rank carries — a squad-wide menu selection
+    // shouldn't hand an Elite a Ghost-only grenade.
+    selectGrenadeType(typeKey) {
+        if (this.getCarriedGrenadeTypes().includes(typeKey)) {
+            this.selectedGrenadeType = typeKey;
+        }
     }
 
     addXp(amount) {
@@ -509,7 +546,14 @@ class Raccoon extends Unit {
 
     confirmThrowGrenade(targetX, targetY) {
         if (!this.isAimingGrenade || this.grenadeAmmo <= 0 || this.actionTimer > 0 || this.grenadeCooldownTimer > 0) return false;
-        this.grenadeAmmo--;
+        // Spend the selected type; if it's empty, fall back to any carried type with ammo.
+        let throwType = this.selectedGrenadeType;
+        if (!this.grenadeAmmoByType[throwType] || this.grenadeAmmoByType[throwType] <= 0) {
+            throwType = Object.keys(this.grenadeAmmoByType).find(k => this.grenadeAmmoByType[k] > 0);
+            if (!throwType) return false;
+        }
+        this.grenadeAmmoByType[throwType]--;
+        if (this.grenadeAmmoByType[throwType] <= 0) delete this.grenadeAmmoByType[throwType];
         if (this.game && this.game.trySpeech) {
             this.game.trySpeech(this, 'ON_GRENADE');
         }
@@ -533,7 +577,8 @@ class Raccoon extends Unit {
         const grenade = this.game.getGrenadeProjectileFromPool(
             muzzleX, muzzleY,
             targetX, targetY,
-            this // shooterUnit
+            this, // shooterUnit
+            throwType
         );
         this.game.addProjectile(grenade); // Add to gameObjects and spatialGrid
         // --- END MODIFIED ---
@@ -624,7 +669,14 @@ class Raccoon extends Unit {
         let pickupIcon = null;
 
         if (pickupObstacle.pickupType === 'grenade') {
-            this.grenadeAmmo += pickupObstacle.pickupQuantity;
+            // Crates grant frags, plus a small top-up of each exotic type this rank carries.
+            this.grenadeAmmoByType['FRAG'] = (this.grenadeAmmoByType['FRAG'] || 0) + pickupObstacle.pickupQuantity;
+            const exoticBonus = CONFIG.GRENADE_PICKUP_EXOTIC_BONUS || 0;
+            if (exoticBonus > 0) {
+                this.getCarriedGrenadeTypes().forEach(k => {
+                    if (k !== 'FRAG') this.grenadeAmmoByType[k] = (this.grenadeAmmoByType[k] || 0) + exoticBonus;
+                });
+            }
             pickupColor = '#F0E68C'; // Khaki
             pickupIcon = this.game.preloadedImages[CONFIG.UI_ASSETS.GRENADE_ICON];
         } else if (pickupObstacle.pickupType === 'ammo') {

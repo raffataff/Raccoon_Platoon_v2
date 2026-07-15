@@ -122,7 +122,11 @@ class InputHandler {
                     if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
                     if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false; }
 
-                    if (this.game.scentRadialMenu && this.game.scentRadialMenu.isActive) {
+                    if (this.game.grenadeRadialMenu && this.game.grenadeRadialMenu.isActive) {
+                        this.game.isGrenadeMenuKeyHeld = false;
+                        this.game._grenadeMenuPendingSince = null;
+                        this.game.grenadeRadialMenu.deactivate();
+                    } else if (this.game.scentRadialMenu && this.game.scentRadialMenu.isActive) {
                         this.game.isScentMenuKeyHeld = false;
                         this.game.scentRadialMenu.deactivate();
                     } else {
@@ -154,12 +158,14 @@ class InputHandler {
             }
             if ((event.key === 'g' || event.key === 'G') && !isInputFieldActive) {
                 if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
-                let anyAiming = this.game.selectedUnits && this.game.selectedUnits.some(u => u instanceof Raccoon && u.isAimingGrenade);
-                if (this.game.selectedUnits) this.game.selectedUnits.forEach(unit => {
-                    if (unit instanceof Raccoon && unit.isAlive()) { if (anyAiming) unit.cancelGrenadeAim(); else if (unit.grenadeAmmo > 0) unit.startGrenadeAim(); }
-                });
-                if (this.game.ui) this.game.ui.updateSquadPanel();
-                this.updateMouseCursor();
+                // Hold-to-open grenade radial menu; quick tap = aim last-selected type.
+                // Guard against keydown auto-repeat while held.
+                if (!this.game.isGrenadeMenuKeyHeld) {
+                    this.game.isGrenadeMenuKeyHeld = true;
+                    if (this.game.handleGrenadeMenuKeyDown) {
+                        this.game.handleGrenadeMenuKeyDown();
+                    }
+                }
             }
             if ((event.key === 'r' || event.key === 'R') && !isInputFieldActive) {
                 // Manual reload for selected raccoons
@@ -355,6 +361,11 @@ class InputHandler {
                 this.game.isScentMenuKeyHeld = false;
                 if (this.game.handleScentMenuKeyUp) {
                     this.game.handleScentMenuKeyUp();
+                }
+            } else if (event.key === 'g' || event.key === 'G') {
+                this.game.isGrenadeMenuKeyHeld = false;
+                if (this.game.handleGrenadeMenuKeyUp) {
+                    this.game.handleGrenadeMenuKeyUp();
                 }
             }
             this.updateMouseCursor();

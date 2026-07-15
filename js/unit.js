@@ -67,6 +67,9 @@ class Unit {
         this.phasingTimer = 0;
         this.isPerfPhased = false;
 
+        // Timed status effects from exotic grenades: slow (cryo), stun (arc), vulnerability (nanite).
+        this.statusEffects = {};
+
         this.lastNudgeWasLeft = false;
         this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5;
         this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5;
@@ -272,8 +275,12 @@ class Unit {
         // --- OPTIMIZATION Phase 2: Decrement repath cooldown ---
         if (this.repathCooldown > 0) this.repathCooldown -= deltaTime;
 
+        this._updateStatusEffects(deltaTime);
+
         if (this.attackCooldown > 0) {
-            this.attackCooldown -= deltaTime;
+            // Cryo slow recovers weapon cooldown at a reduced rate (cooldownRateMult < 1).
+            const cooldownRate = (this.statusEffects.slow && this.statusEffects.slow.cooldownRateMult) || 1;
+            this.attackCooldown -= deltaTime * cooldownRate;
             if (this.attackCooldown < 0) this.attackCooldown = 0;
         }
 
@@ -416,6 +423,41 @@ class Unit {
             }
         }
         return false;
+    }
+
+    // Apply a timed status effect (from exotic grenades). Re-application refreshes the timer.
+    applyStatusEffect(type, params) {
+        if (!this.isAlive() || !params) return;
+        if (type === 'slow') {
+            this.statusEffects.slow = {
+                timer: params.duration || 3.0,
+                moveSpeedMult: params.moveSpeedMult !== undefined ? params.moveSpeedMult : 0.6,
+                cooldownRateMult: params.cooldownRateMult !== undefined ? params.cooldownRateMult : 1.0
+            };
+        } else if (type === 'stun') {
+            const duration = params.duration || 0.5;
+            const existing = this.statusEffects.stun ? this.statusEffects.stun.timer : 0;
+            this.statusEffects.stun = { timer: Math.max(existing, duration) };
+            // actionTimer already gates firing and enemy AI — reuse it as the stun.
+            this.actionTimer = Math.max(this.actionTimer, duration);
+        } else if (type === 'vulnerability') {
+            this.statusEffects.vulnerability = {
+                timer: params.duration || 5.0,
+                damageTakenMult: params.damageTakenMult !== undefined ? params.damageTakenMult : 1.3
+            };
+        }
+    }
+
+    _updateStatusEffects(deltaTime) {
+        for (const key in this.statusEffects) {
+            const effect = this.statusEffects[key];
+            effect.timer -= deltaTime;
+            if (effect.timer <= 0) delete this.statusEffects[key];
+        }
+    }
+
+    getStatusSpeedMult() {
+        return this.statusEffects.slow ? this.statusEffects.slow.moveSpeedMult : 1;
     }
 
     // While phasing, never beeline all the way to a distant worldTarget — clamp the
@@ -956,7 +998,7 @@ class Unit {
 
         if (this.isPhasing) {
             if (this.isMoving && this.isAlive()) {
-                const moveSpeed = this.speed * deltaTime;
+                const moveSpeed = this.speed * this.getStatusSpeedMult() * deltaTime;
                 let targetXForPhasing, targetYForPhasing;
                 if (this.currentPath && this.currentPath.length > 0 && this.currentPathNodeIndex < this.currentPath.length) {
                     const nextNodeWorldCoords = this.currentPath[this.currentPathNodeIndex];
@@ -1062,7 +1104,7 @@ class Unit {
         }
 
         const nextNodeWorldCoords = this.currentPath[this.currentPathNodeIndex];
-        const moveSpeed = this.speed * deltaTime;
+        const moveSpeed = this.speed * this.getStatusSpeedMult() * deltaTime;
 
         let obstaclesForCollision = [];
         if (this.game && this.game.level) {
@@ -2083,6 +2125,11 @@ class Unit {
 
     takeDamage(amount, attackerUnit = null) {
         if (!this.isAlive()) return;
+
+        // Nanite corrosion: unit takes increased damage while the debuff is active.
+        if (this.statusEffects && this.statusEffects.vulnerability) {
+            amount *= this.statusEffects.vulnerability.damageTakenMult;
+        }
 
         if (this.game && this.game.addVisualEffect && attackerUnit) {
             const impactAngle = Math.atan2(this.y - attackerUnit.y, this.x - attackerUnit.x);

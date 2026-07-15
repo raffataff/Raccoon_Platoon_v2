@@ -254,7 +254,7 @@ class GrenadeProjectile {
         this.reset(startX, startY, targetX, targetY, shooterUnit);
     }
 
-    reset(startX, startY, targetX, targetY, shooterUnit) {
+    reset(startX, startY, targetX, targetY, shooterUnit, grenadeTypeKey = 'FRAG') {
         this.startX = startX;
         this.startY = startY;
         this.x = startX;
@@ -267,15 +267,20 @@ class GrenadeProjectile {
         const grenadeMainConfig = CONFIG;
         const grenadeVisualConfig = (CONFIG.PROJECTILES && CONFIG.PROJECTILES.GRENADE) ? CONFIG.PROJECTILES.GRENADE : {};
 
-        this.damage = grenadeMainConfig.RACCOON_GRENADE_DAMAGE || 50;
-        this.aoeRadius = grenadeMainConfig.RACCOON_GRENADE_AOE_RADIUS || grenadeMainConfig.POSSUM_BOSS_1_GRENADE_AOE_RADIUS || 45;
-        this.fuseTimer = grenadeMainConfig.RACCOON_GRENADE_FUSE_TIME || 2.5;
+        // Grenade type (exotic arsenal). Unknown/missing keys fall back to FRAG, whose
+        // values mirror the legacy tuning — boss grenades etc. are unaffected.
+        this.typeKey = (CONFIG.GRENADE_TYPES && CONFIG.GRENADE_TYPES[grenadeTypeKey]) ? grenadeTypeKey : 'FRAG';
+        this.typeConfig = (CONFIG.GRENADE_TYPES && CONFIG.GRENADE_TYPES[this.typeKey]) || null;
 
-        this.color = grenadeMainConfig.GRENADE_PROJECTILE_COLOR || '#228B22';
+        this.damage = (this.typeConfig && this.typeConfig.damage !== undefined) ? this.typeConfig.damage : (grenadeMainConfig.RACCOON_GRENADE_DAMAGE || 50);
+        this.aoeRadius = (this.typeConfig && this.typeConfig.aoeRadius !== undefined) ? this.typeConfig.aoeRadius : (grenadeMainConfig.RACCOON_GRENADE_AOE_RADIUS || grenadeMainConfig.POSSUM_BOSS_1_GRENADE_AOE_RADIUS || 45);
+        this.fuseTimer = (this.typeConfig && this.typeConfig.fuseTime !== undefined) ? this.typeConfig.fuseTime : (grenadeMainConfig.RACCOON_GRENADE_FUSE_TIME || 2.5);
+
+        this.color = (this.typeConfig && this.typeConfig.color) || grenadeMainConfig.GRENADE_PROJECTILE_COLOR || '#228B22';
         this.size = grenadeVisualConfig.SIZE || 8;
 
-        let grenadeSpritePath = grenadeVisualConfig.SPRITE_PATH;
-        let grenadeSpriteScale = grenadeVisualConfig.SPRITE_SCALE || 1.0;
+        let grenadeSpritePath = (this.typeConfig && this.typeConfig.spritePath) || grenadeVisualConfig.SPRITE_PATH;
+        let grenadeSpriteScale = (this.typeConfig && this.typeConfig.spriteScale) || grenadeVisualConfig.SPRITE_SCALE || 1.0;
         if (shooterUnit && shooterUnit.weapon && shooterUnit.weapon.grenadeSpritePath) {
             grenadeSpritePath = shooterUnit.weapon.grenadeSpritePath;
             grenadeSpriteScale = shooterUnit.weapon.grenadeSpriteScale || 1.0;
@@ -352,7 +357,7 @@ class GrenadeProjectile {
         this.isMarkedForDeletion = true;
 
         if (this.game && this.game.audioManager) {
-            this.game.audioManager.play('GRENADE_EXPLODE');
+            this.game.audioManager.play((this.typeConfig && this.typeConfig.explosionSfx) || 'GRENADE_EXPLODE');
         }
 
         if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('grenade_explosion', { x: this.x, y: this.y, radius: this.aoeRadius });
@@ -369,14 +374,16 @@ class GrenadeProjectile {
             if (this.game && this.game.level && this.game.level.obstacles) objectsInAOE.push(...this.game.level.obstacles);
         }
         
+        const unitsInBlast = [];
         objectsInAOE.forEach(obj => {
             if (obj instanceof Unit && obj.isAlive()) {
                 if (obj === this.shooterUnit) return;
                 const distToUnit = distance(this.x, this.y, obj.x, obj.y);
                 if (distToUnit <= this.aoeRadius + obj.size) { // Unit size as buffer for AOE
+                    unitsInBlast.push(obj);
                     let damageMultiplier = 1.0;
                     if (this.shooterTeam === 'player' && obj.team === 'player') {
-                        damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5; 
+                        damageMultiplier = CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER !== undefined ? CONFIG.PLAYER_BULLET_FRIENDLY_FIRE_DAMAGE_MULTIPLIER : 0.5;
                     }
                     obj.takeDamage(this.damage * damageMultiplier, this.shooterUnit);
                 }
@@ -417,6 +424,147 @@ class GrenadeProjectile {
                 }
             }
         });
+
+        this._applyTypeEffects(unitsInBlast);
+    }
+
+    // Exotic grenade payloads, applied after the base AoE damage. Debuffs only affect
+    // units hostile to the thrower; blast damage keeps the normal friendly-fire rules.
+    _applyTypeEffects(unitsInBlast) {
+        const cfg = this.typeConfig;
+        if (!cfg || !this.game) return;
+
+        if (cfg.pool) {  // Slagger: molten plasma pool (area denial DOT)
+            this.game.addVisualEffect('plasma_pool', {
+                x: this.x, y: this.y,
+                radius: cfg.pool.radius || this.aoeRadius,
+                duration: cfg.pool.duration,
+                dps: cfg.pool.dps,
+                tickInterval: cfg.pool.tickInterval,
+                shooterUnit: this.shooterUnit,
+                color: cfg.color
+            });
+        }
+
+        if (cfg.slow) {  // Freezer: cryo-foam slow
+            unitsInBlast.forEach(u => {
+                if (u.team !== this.shooterTeam) u.applyStatusEffect('slow', cfg.slow);
+            });
+            this.game.addVisualEffect('shockwave_ring', { x: this.x, y: this.y, radius: this.aoeRadius, color: cfg.color });
+        }
+
+        if (cfg.vulnerability) {  // Gray Rain: nanite corrosion (+damage taken)
+            unitsInBlast.forEach(u => {
+                if (u.team !== this.shooterTeam) u.applyStatusEffect('vulnerability', cfg.vulnerability);
+            });
+            this.game.addVisualEffect('shockwave_ring', { x: this.x, y: this.y, radius: this.aoeRadius, color: cfg.color });
+        }
+
+        if (cfg.pull) this._applyGravitonPull(cfg.pull);
+        if (cfg.chain) this._applyArcChain(cfg.chain);
+    }
+
+    // Pucker: drag hostile units toward the blast center, stopping at unwalkable terrain.
+    _applyGravitonPull(pullCfg) {
+        const radius = pullCfg.radius || 140;
+        const strength = pullCfg.strengthFactor !== undefined ? pullCfg.strengthFactor : 0.85;
+        const level = this.game.level;
+        if (!level) return;
+        const navGrid = level.getNavigationGrid();
+
+        let candidates;
+        if (this.game.spatialGrid) {
+            candidates = this.game.spatialGrid.queryRange(this.x, this.y, radius);
+        } else {
+            candidates = [...(this.game.enemyUnits || []), ...(this.game.deployedSquadRoster || [])];
+        }
+
+        candidates.forEach(u => {
+            if (!(u instanceof Unit) || !u.isAlive() || u === this.shooterUnit) return;
+            if (u.team === this.shooterTeam) return;
+            const d = distance(this.x, this.y, u.x, u.y);
+            if (d > radius || d < 1e-3) return;
+            const pullDist = d * strength;
+            const nx = (this.x - u.x) / d;
+            const ny = (this.y - u.y) / d;
+            // Step toward the center, keeping the last walkable position.
+            const steps = 4;
+            let bestX = u.x, bestY = u.y;
+            for (let s = 1; s <= steps; s++) {
+                const tx = u.x + nx * (pullDist * s / steps);
+                const ty = u.y + ny * (pullDist * s / steps);
+                const grid = level.worldToGridCoords(tx, ty);
+                if (grid.x < 0 || grid.x >= level.gridWidth || grid.y < 0 || grid.y >= level.gridHeight) break;
+                if (navGrid && navGrid[grid.y][grid.x] === 1) break;
+                bestX = tx; bestY = ty;
+            }
+            u.x = bestX;
+            u.y = bestY;
+            // Yanked off their path — clear it so movement/AI recomputes from here.
+            u.isMoving = false;
+            u.currentPath = [];
+            if (this.game.spatialGrid) this.game.spatialGrid.updateObject(u);
+        });
+
+        this.game.addVisualEffect('shockwave_ring', { x: this.x, y: this.y, radius: radius, color: this.typeConfig.color, inward: true });
+    }
+
+    // Tesla Egg: chain lightning. Jumps between hostile units (damage + brief stun) and,
+    // for player throws, EMP-disables possum turrets it reaches.
+    _applyArcChain(chainCfg) {
+        const jumps = chainCfg.jumps || 4;
+        const jumpRadius = chainCfg.jumpRadius || 120;
+        const chainDamage = chainCfg.damage || 20;
+        const stunDuration = chainCfg.stunDuration || 0.5;
+
+        const searchRadius = jumpRadius * (jumps + 1);
+        let unitCandidates;
+        if (this.game.spatialGrid) {
+            unitCandidates = this.game.spatialGrid.queryRange(this.x, this.y, searchRadius)
+                .filter(o => o instanceof Unit && o.isAlive() && o.team !== this.shooterTeam);
+        } else {
+            unitCandidates = (this.game.enemyUnits || []).filter(u => u.isAlive());
+        }
+        const turretCandidates = (this.shooterTeam === 'player')
+            ? (this.game.possumTurrets || []).filter(t => !t.isShutdown)
+            : [];
+
+        const hitSet = new Set();
+        let fromX = this.x, fromY = this.y;
+
+        for (let j = 0; j < jumps; j++) {
+            let best = null;
+            let bestDistSq = jumpRadius * jumpRadius;
+            for (const u of unitCandidates) {
+                if (hitSet.has(u)) continue;
+                const dx = u.x - fromX, dy = u.y - fromY;
+                const dSq = dx * dx + dy * dy;
+                if (dSq <= bestDistSq) { bestDistSq = dSq; best = u; }
+            }
+            for (const t of turretCandidates) {
+                if (hitSet.has(t)) continue;
+                const tx = t.x + (t.width || 0) / 2, ty = t.y + (t.height || 0) / 2;
+                const dx = tx - fromX, dy = ty - fromY;
+                const dSq = dx * dx + dy * dy;
+                if (dSq <= bestDistSq) { bestDistSq = dSq; best = t; }
+            }
+            if (!best) break;
+            hitSet.add(best);
+
+            const isUnit = best instanceof Unit;
+            const bx = isUnit ? best.x : best.x + (best.width || 0) / 2;
+            const by = isUnit ? best.y : best.y + (best.height || 0) / 2;
+            this.game.addVisualEffect('arc_lightning', { x1: fromX, y1: fromY, x2: bx, y2: by, color: this.typeConfig.color });
+
+            if (isUnit) {
+                best.takeDamage(chainDamage, this.shooterUnit);
+                best.applyStatusEffect('stun', { duration: stunDuration });
+            } else {
+                best.empDisabledTimer = Math.max(best.empDisabledTimer || 0, chainCfg.turretDisableDuration || 4.0);
+                this.game.addVisualEffect('spark', { x: bx, y: by });
+            }
+            fromX = bx; fromY = by;
+        }
     }
 
     render(ctx) {
