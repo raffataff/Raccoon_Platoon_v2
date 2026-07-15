@@ -348,7 +348,7 @@ const CONFIG = {
         ],
         Sergeant: [
             { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type1/', baseName: 'raccoon_rifleman_sergeant1', scaleFactor: 0.35 },
-            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type2/', baseName: 'raccoon_skullz', scaleFactor: 0.65 },
+            { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type2/', baseName: 'raccoon_skullz', scaleFactor: 0.35 },
             { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type3/', baseName: 'raccoon_rifleman_sergeant3', scaleFactor: 0.65 },
             { basePath: 'assets/images/units/raccoon/rifleman/sergeant/type4/', baseName: 'raccoon_rifleman_sergeant4', scaleFactor: 0.35 },
         ],
@@ -436,7 +436,7 @@ const CONFIG = {
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_GRUNT_DEFAULT_WEAPON: 'POSSUM_RIFLE',
         POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/',
-    POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.45,
+    POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.5,
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
     POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png', 'possum_grunt_dead_4.png'],
     POSSUM_GRUNT_DEAD_SPRITE_SCALE: 0.5,
@@ -445,14 +445,14 @@ const CONFIG = {
     // --- Possum Heavy ---
     POSSUM_HEAVY_HP: 60,
     POSSUM_HEAVY_SPEED: 120,
-    POSSUM_HEAVY_SIZE: 18,
+    POSSUM_HEAVY_SIZE: 22,
     POSSUM_HEAVY_COLOR: '#6A4A3A',
     POSSUM_HEAVY_DEFAULT_WEAPON: 'POSSUM_HEAVY_WEAPON',
     POSSUM_HEAVY_SPRITE_PATH: 'assets/images/units/possum_heavy/',
-    POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.55,
+    POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.4,
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'],
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.6,
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.15,
     PROJECTILE_COLOR_POSSUM_HEAVY: '#ff47478e',
     POSSUM_HEAVY_TURN_RATE: 5.0,
     
@@ -561,6 +561,36 @@ const CONFIG = {
     PROJECTILE_COLOR_POSSUM_REVOLVER: '#FFD700',
     XP_FOR_REVOLVER_KILL: 150,
     POSSUM_REVOLVER_TURN_RATE: 9.0,
+
+    // --- Possum Scientist 1 (evil researcher assassination target, non-boss) ---
+    POSSUM_SCIENTIST_1_HP: 70,
+    POSSUM_SCIENTIST_1_SPEED: 140,
+    POSSUM_SCIENTIST_1_SIZE: 16,
+    POSSUM_SCIENTIST_1_COLOR: '#556B2F',
+    POSSUM_SCIENTIST_1_DEFAULT_WEAPON: 'POSSUM_RIFLE',
+    POSSUM_SCIENTIST_1_TURN_RATE: 8.0,
+    POSSUM_SCIENTIST_1_SPRITE_PATH: 'assets/images/units/possum_scientist/type1/',
+    POSSUM_SCIENTIST_1_SPRITE_SCALE_FACTOR: 0.35,
+    // Dead body reuses the grunt corpse sprites (no dedicated dead set yet).
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_PATH_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_PATH',
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_FILES_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_FILES',
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_SCALE_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_SCALE',
+    XP_FOR_SCIENTIST_1_KILL: 120,
+
+    // --- Possum Scientist 2 (evil researcher assassination target, non-boss) ---
+    POSSUM_SCIENTIST_2_HP: 55,
+    POSSUM_SCIENTIST_2_SPEED: 165,
+    POSSUM_SCIENTIST_2_SIZE: 14,
+    POSSUM_SCIENTIST_2_COLOR: '#8B5A2B',
+    POSSUM_SCIENTIST_2_DEFAULT_WEAPON: 'POSSUM_ELITE_WEAPON',
+    POSSUM_SCIENTIST_2_TURN_RATE: 9.0,
+    POSSUM_SCIENTIST_2_SPRITE_PATH: 'assets/images/units/possum_scientist/type2/',
+    POSSUM_SCIENTIST_2_SPRITE_SCALE_FACTOR: 0.35,
+    // Dead body reuses the grunt corpse sprites (no dedicated dead set yet).
+    POSSUM_SCIENTIST_2_DEAD_SPRITE_PATH_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_PATH',
+    POSSUM_SCIENTIST_2_DEAD_SPRITE_FILES_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_FILES',
+    POSSUM_SCIENTIST_2_DEAD_SPRITE_SCALE_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_SCALE',
+    XP_FOR_SCIENTIST_2_KILL: 120,
 
     // --- Shootout Target ---
     SHOOTOUT_GRUNT_DEFAULT_WEAPON: 'POSSUM_RIFLE',
@@ -1234,6 +1264,63 @@ const CONFIG = {
             }
         },
 
+        POSSUM_SCIENTIST_1: {
+            DETECTION_RANGE: 280,
+            PATROL_MIN_RADIUS: 60,
+            PATROL_MAX_RADIUS: 160,
+            PATROL_POINT_WORLD_MARGIN_BUFFER: 20,
+            PATROL_WAIT_BASE: 1.5,
+            PATROL_WAIT_RANDOM_ADD: 2.0,
+            CHASE_PREDICTION_TIME_FACTOR: 0.25,
+            CHASE_DESTINATION_REFRESH_INTERVAL: 1.0,
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 6,
+            ENGAGE_RANGE_BUFFER: 25,
+            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 2,
+            STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
+            DESPERATE_STUCK_MOVE_RADIUS_CELLS: 8,
+            SPAWN_MIN_DISTANCE_FROM_PLAYER: 450,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [2, 5],
+                countPerPhaseBonus: 1,
+                spawnRadius: 130,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 3 },
+                    { type: 'possum_heavy', weight: 2 },
+                    { type: 'possum_sniper', weight: 2 },
+                    { type: 'possum_elite', weight: 1 }
+                ]
+            }
+        },
+        POSSUM_SCIENTIST_2: {
+            DETECTION_RANGE: 300,
+            PATROL_MIN_RADIUS: 70,
+            PATROL_MAX_RADIUS: 180,
+            PATROL_POINT_WORLD_MARGIN_BUFFER: 20,
+            PATROL_WAIT_BASE: 1.0,
+            PATROL_WAIT_RANDOM_ADD: 1.5,
+            CHASE_PREDICTION_TIME_FACTOR: 0.30,
+            CHASE_DESTINATION_REFRESH_INTERVAL: 0.9,
+            CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 6,
+            ENGAGE_RANGE_BUFFER: 25,
+            MAX_CONSECUTIVE_STUCK_ATTEMPTS: 2,
+            STUCK_RECOVERY_COOLDOWN_SHORT: 0.75,
+            DESPERATE_STUCK_MOVE_RADIUS_CELLS: 8,
+            SPAWN_MIN_DISTANCE_FROM_PLAYER: 450,
+            initialGuardPack: {
+                enabled: true,
+                countRange: [3, 6],
+                countPerPhaseBonus: 1,
+                spawnRadius: 140,
+                unitPool: [
+                    { type: 'possum_grunt', weight: 3 },
+                    { type: 'possum_heavy', weight: 2 },
+                    { type: 'possum_sniper', weight: 2 },
+                    { type: 'possum_elite', weight: 1 }
+                ]
+            }
+        },
+
         POSSUM_BOSS_4: {
             ARENA_RADIUS: 680,
             DETECTION_RANGE: 600,
@@ -1767,7 +1854,7 @@ const CONFIG = {
             ]
         },
         OBSTACLES: {
-            BASE_COUNT: 50,
+            BASE_COUNT: 40,
             WORLD_SIZE_FALLBACK_FACTOR: 0.9,
             RANDOM_ADDITION_MAX: 10,
             PLACEMENT_MAX_ATTEMPTS: 5
@@ -1853,11 +1940,11 @@ const CONFIG = {
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
         SMALL_GROUP_CHANCE: 0.6,
         SMALL_GROUP_SIZE_MIN: 2,
-        SMALL_GROUP_SIZE_MAX: 10,
-        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 650,
+        SMALL_GROUP_SIZE_MAX: 5,
+        MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 700,
         LEADER_PLACEMENT_MAX_ATTEMPTS: 5,
         MEMBER_PLACEMENT_MAX_ATTEMPTS: 5,
-        GROUP_SPREAD_BASE: 80,
+        GROUP_SPREAD_BASE: 100,
         GROUP_SPREAD_SIZE_MULTIPLIER: 1.5,
         DEFAULT_HEAVY_CHANCE: 0.20,
         HEAVY_CHANCE_GROUP_LEADER_BONUS: 0.3,
@@ -1865,8 +1952,8 @@ const CONFIG = {
         POSSUM_HUT_SPAWNING: {
             MAX_ACTIVE_SPAWNING_HUTS_BASE: 1,
             MAX_ACTIVE_SPAWNING_HUTS_INCREMENT_PER_PHASE: 1,
-            SPAWN_COOLDOWN_MIN_SECONDS: 10,
-            SPAWN_COOLDOWN_MAX_SECONDS: 60,
+            SPAWN_COOLDOWN_MIN_SECONDS: 3,
+            SPAWN_COOLDOWN_MAX_SECONDS: 30,
             UNITS_PER_SPAWN_MIN: 1,
             UNITS_PER_SPAWN_MAX: 3,
             TIME_BETWEEN_UNITS_IN_BURST_MIN: 0.3,
@@ -1883,12 +1970,12 @@ const CONFIG = {
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
             MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 2,
-            INITIAL_MOVE_OUT_DISTANCE: 25,
-            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.8,
+            INITIAL_MOVE_OUT_DISTANCE: 40,
+            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.4,
             MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.1,
             UNITS_TO_SPAWN_ON_DAMAGE: 1,
-            SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 0.80,
-            SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 3,
+            SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 0.50,
+            SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 1.5,
             MAX_UNITS_PER_HUT_BASE: 6,
             MAX_UNITS_PER_HUT_PHASE_INCREMENT: 2,
         },
@@ -1914,12 +2001,12 @@ const CONFIG = {
             DEBUG_DRAW_HUT_STATUS_TEXT: false,
             MIN_DISTANCE_FROM_EXISTING_UNIT_SPAWN: 15,
             MAX_SPAWN_ATTEMPTS_PER_SINGLE_UNIT: 2,
-            INITIAL_MOVE_OUT_DISTANCE: 25,
-            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.8,
-            MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.8,
+            INITIAL_MOVE_OUT_DISTANCE: 40,
+            INITIAL_SPAWN_DELAY_SECONDS_MAX_ON_DAMAGE: 0.2,
+            MIN_COOLDOWN_BETWEEN_DAMAGE_SPAWNS: 0.3,
             UNITS_TO_SPAWN_ON_DAMAGE: 2,
-            SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 0.8,
-            SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 2.5,
+            SPAWN_COOLDOWN_MIN_SECONDS_AFTER_DAMAGE: 0.50,
+            SPAWN_COOLDOWN_MAX_SECONDS_AFTER_DAMAGE: 1.5,
             MAX_UNITS_PER_BARRACKS_BASE: 10,
             MAX_UNITS_PER_BARRACKS_PHASE_INCREMENT: 3,
         }
@@ -1955,8 +2042,8 @@ const CONFIG = {
         SPAWN_OFFSET_FROM_HUT_Y: (h_height => h_height * 0.5 + 30),
         MIN_HUT_DISTANCE_FROM_PLAYER_SPAWN_FOR_HOSTAGE: 800,
         HOSTAGE_PLACEMENT_ATTEMPTS_AT_HUT: 1,
-        HOSTAGE_SPAWN_BUFFER: 80,
-        HOSTAGE_DECORATION_SPAWN_BUFFER: 225,
+        HOSTAGE_SPAWN_BUFFER: 40,
+        HOSTAGE_DECORATION_SPAWN_BUFFER: 40,
         INITIAL_GUARD_COUNT_MIN_PER_HOSTAGE_HUT: 2,
         INITIAL_GUARD_COUNT_MAX_PER_HOSTAGE_HUT: 6,
         INITIAL_GUARD_HEAVY_CHANCE_HOSTAGE_HUT: 0.20,

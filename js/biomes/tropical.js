@@ -477,7 +477,7 @@ const TROPICAL_BIOME = {
             destructible: true, hp: 150, maxHp: 150,
             blocksMovement: true, providesCover: true,
             spawnWeight: 2, isDecoration: false,
-            spriteScale: 0.5,
+            spriteScale: 0.7,
             collisionShape: { type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 1.105), radius: (w => w * 0.06) },
             treeStumpType: 'pheonix_stump',
             fallenTreeType: 'pheonix_fallen',

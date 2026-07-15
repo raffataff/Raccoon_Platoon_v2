@@ -1843,6 +1843,79 @@ class LevelGenerator {
                 if (!bossSpawned) {
 //                    console.warn(`[Level Gen] Could not find suitable spawn for Elite Guard Target: ${targetInfo.name}.`);
                 }
+            } else if (targetInfo.assassinationTypeKey.startsWith('possum_scientist_')) {
+                // Non-boss assassination targets: evil scientists. No arena, just a
+                // kept-out spawn point within the playable area, away from the player.
+                const isType2 = targetInfo.assassinationTypeKey === 'possum_scientist_2';
+                const sciAIConfig = CONFIG.AI[targetInfo.assassinationTypeKey.toUpperCase()] || {};
+                const sciKeepOutRadius = 80;
+                const sciMinDistFromPlayer = sciAIConfig.SPAWN_MIN_DISTANCE_FROM_PLAYER || 450;
+                const playerSpawnCenterX = playerSpawnZone.x + playerSpawnZone.width / 2;
+                const playerSpawnCenterY = playerSpawnZone.y + playerSpawnZone.height / 2;
+
+                const sciSpawnMinX = playableMinX + sciKeepOutRadius;
+                const sciSpawnMaxX = playableMaxX - sciKeepOutRadius;
+                const sciSpawnMinY = playableMinY + sciKeepOutRadius;
+                const sciSpawnMaxY = playableMinY + (playableHeight * 0.85) - sciKeepOutRadius;
+
+                const makeScientist = () => isType2
+                    ? new PossumScientist2(0, 0, this.game)
+                    : new PossumScientist1(0, 0, this.game);
+
+                let sciX, sciY, sciSpawned = false;
+                const sciMaxAttempts = 60;
+                for (let attempt = 0; attempt < sciMaxAttempts && !sciSpawned; attempt++) {
+                    sciX = this.rng.nextFloat(sciSpawnMinX, sciSpawnMaxX);
+                    sciY = this.rng.nextFloat(sciSpawnMinY, sciSpawnMaxY);
+
+                    const distToPlayer = distance(sciX, sciY, playerSpawnCenterX, playerSpawnCenterY);
+                    if (distToPlayer < sciMinDistFromPlayer) continue;
+
+                    const zoneShape = { type: 'circle', x: sciX, y: sciY, radius: sciKeepOutRadius };
+                    if (!this._isPlacementInvalid(zoneShape, { isDecoration: false }, this.level.obstacles, extraKeepOutZones)) {
+                        const scientist = makeScientist();
+                        scientist.x = sciX;
+                        scientist.y = sciY;
+                        this.game.enemyUnits.push(scientist);
+                        allSpawnedEnemiesDuringGen.push(scientist);
+                        if (this.game.spatialGrid) {
+                            this.game.spatialGrid.addObject(scientist);
+                        }
+                        assassinationObjectiveInstance.targetUnitId = scientist.id;
+                        sciSpawned = true;
+
+                        if (sciAIConfig.initialGuardPack) {
+                            this._spawnInitialGuardsForObject(scientist, { initialGuardPack: sciAIConfig.initialGuardPack }, allSpawnedEnemiesDuringGen);
+                        }
+
+                        extraKeepOutZones.push({
+                            x: sciX - sciKeepOutRadius,
+                            y: sciY - sciKeepOutRadius,
+                            width: sciKeepOutRadius * 2,
+                            height: sciKeepOutRadius * 2
+                        });
+                        break;
+                    }
+                }
+
+                if (!sciSpawned) {
+                    // Fallback: drop near the middle of the playable area.
+                    sciX = playableMinX + (playableMaxX - playableMinX) / 2;
+                    sciY = playableMinY + (playableHeight * 0.5);
+                    const scientist = makeScientist();
+                    scientist.x = sciX;
+                    scientist.y = sciY;
+                    this.game.enemyUnits.push(scientist);
+                    allSpawnedEnemiesDuringGen.push(scientist);
+                    if (this.game.spatialGrid) {
+                        this.game.spatialGrid.addObject(scientist);
+                    }
+                    if (sciAIConfig.initialGuardPack) {
+                        this._spawnInitialGuardsForObject(scientist, { initialGuardPack: sciAIConfig.initialGuardPack }, allSpawnedEnemiesDuringGen);
+                    }
+                    assassinationObjectiveInstance.targetUnitId = scientist.id;
+//                    console.warn(`[Level Gen] Used fallback spawn for Scientist Target: ${targetInfo.name}.`);
+                }
             }
         }
 
@@ -2771,6 +2844,27 @@ class LevelGenerator {
                             this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
                         } attempts++;
                     } while (!placed && attempts < maxPlacementAttempts);
+                }
+            }
+            // Guaranteed fallback: if decoration-buffer clearance blocked every placement above,
+            // drop that requirement (and use the full playable height) so a rescue mission can
+            // never end up with 0 hostages -> 0/0 -> instant fail.
+            if (spawnedHostageCount < numHostagesToSpawn) {
+                const fallbackBuffer = Math.min(hostageConf.HOSTAGE_SPAWN_BUFFER || 20, 40);
+                while (spawnedHostageCount < numHostagesToSpawn) {
+                    let hostageX, hostageY, placed = false;
+                    for (let attempt = 0; attempt < 60 && !placed; attempt++) {
+                        hostageX = this.rng.nextFloat(playableMinX + fallbackBuffer, playableMaxX - fallbackBuffer - hostageSize);
+                        hostageY = this.rng.nextFloat(playableMinY + fallbackBuffer, playableMaxY - fallbackBuffer - hostageSize);
+                        const tempShape = { x: hostageX, y: hostageY, width: hostageSize, height: hostageSize };
+                        if (!this._isPlacementInvalid(tempShape, { isDecoration: false }, [], extraKeepOutZones) &&
+                            distance(hostageX, hostageY, playerSpawnZone.x + playerSpawnZone.width / 2, playerSpawnZone.y + playerSpawnZone.height / 2) > 100 &&
+                            this.level.isSpawnPointClear(hostageX, hostageY, hostageSize, this.level.obstacles, this.game.enemyUnits.concat(this.game.hostageUnits || []))) {
+                            const newHostage = new RaccoonHostage(hostageX, hostageY, this.game, `HOST-${spawnedHostageCount}`);
+                            this.game.hostageUnits.push(newHostage); placed = true; spawnedHostageCount++;
+                        }
+                    }
+                    if (!placed) break; // Map is fully blocked; stop to avoid an infinite loop
                 }
             }
             if (rescueObjectiveInstance) {

@@ -7,7 +7,7 @@ const CAMPAIGN_RULES = {
     BASE_PARAMETERS: {
         worldWidthFactor: { initial: 1.2, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness 
         worldHeightFactor: { initial: 1.1, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2 }, // High randomness
-        obstacleCountPhaseIncrement: { initial: 1.0, perPhaseIncrement: 0.15, max: 8.0, randomnessFactor: 0.2  }, 
+        obstacleCountPhaseIncrement: { initial: 1.0, perPhaseIncrement: 0.25, max: 8.0, randomnessFactor: 0.2  }, 
         enemyDensityFactor: { initial: 1.0, perPhaseGrowthFactor: 0.3, max: 10.0, randomnessFactor: 0.2 }, // 20% growth per phase
         heavyChance: { initial: 0.1, perPhaseGrowthFactor: 0.1, max: 0.65, randomnessFactor: 0.05, unlocksPhase: 1 },
         sniperChance: { initial: 0.05, perPhaseGrowthFactor: 0.08, max: 0.45, randomnessFactor: 0.05, unlocksPhase: 3 },
@@ -91,7 +91,7 @@ const CAMPAIGN_RULES = {
         },
         {
             type: "ASSASSINATION",
-            weight: 0.3, // Keep this relatively low if it's mainly for phase finales
+            weight: 5, // Keep this relatively low if it's mainly for phase finales
             unlocksPhase: 3, // Or 0 if you want non-boss assassinations earlier
             descriptionTemplateKey: "OBJECTIVE_ASSASSINATE_TEXT", // e.g., "Eliminate VIP: {TARGET_CALLSIGN}"
             completionCondition: "VIP_ELIMINATED",
@@ -116,7 +116,7 @@ const CAMPAIGN_RULES = {
         {
             type: "DEACTIVATE_ANTI_AIR_TURRETS",
             weight: 4,
-            unlocksPhase: 1,
+            unlocksPhase: 5,
             descriptionTemplateKey: "OBJECTIVE_DEACTIVATE_ANTI_AIR_TEXT",
             completionCondition: "ALL_ANTI_AIR_TURRETS_DEACTIVATED",
             isPrimary: true,
@@ -156,13 +156,13 @@ const CAMPAIGN_RULES = {
         {
             targetTypeKeyPrefix: "possum_barracks",
             nameSingular: "Possum Barracks", namePlural: "Possum Barracks",
-            weight: 3, unlocksPhase: 2,
+            weight: 3, unlocksPhase: 3,
             maxInstancesPerMission: 1
         },
         {
             targetTypeKeyPrefix: "possum_relay_tower",
             nameSingular: "Possum Relay Tower", namePlural: "Possum Relay Towers",
-            weight: 1, unlocksPhase: 4,
+            weight: 1, unlocksPhase: 5,
             maxInstancesPerMission: 1
         },
     ],
@@ -206,13 +206,28 @@ const CAMPAIGN_RULES = {
             description: "A menacing possum mastermind who hovers above the battlefield in a levitating chair, wielding a devastating charged rail gun. Deadly accurate and cunning — he can fire piercing charged shots that cut through multiple targets.",
             weight: 3, unlocksPhase: 7, isBoss: true
         },
-        {
+        /*{
             assassinationTypeKey: "possum_boss_3",
-            name: "Captain Fuzzy", callsign: "Fuzzy",
+            name: "Captain Heart-Eater", callsign: "Hearty",
             description: "An experienced fighter with a history of leading successful raids.",
-            weight: 0, unlocksPhase: 7, isBoss: true
+            weight: 3, unlocksPhase: 7, isBoss: true
+        },*/
+
+        // --- Non-boss assassination targets: evil possum scientists ---
+        // Separate, distinct targets — the generator randomly picks one per mission.
+        // isBoss is false: they are field researchers, not boss encounters.
+        {
+            assassinationTypeKey: "possum_scientist_1",
+            name: "Dr. Mortimer Cinderpaw", callsign: "Hazmat",
+            description: "A brilliant but twisted weapons researcher. Stop him before he fields his latest prototype.",
+            weight: 3, unlocksPhase: 3, isBoss: false
         },
-        
+        {
+            assassinationTypeKey: "possum_scientist_2",
+            name: "Professor Sable", callsign: "Vex",
+            description: "A deranged possum biochemist brewing something toxic. Eliminate him before the experiment goes live.",
+            weight: 3, unlocksPhase: 5, isBoss: false
+        },
 
     ],
 

@@ -874,6 +874,20 @@ class Game {
                 },
                 deadPath: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH,
                 deadFiles: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_scientist_type1',
+                basePath: CONFIG.POSSUM_SCIENTIST_1_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
+            },
+            {
+                name: 'possum_scientist_type2',
+                basePath: CONFIG.POSSUM_SCIENTIST_2_SPRITE_PATH,
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
+                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
             }
         );
 

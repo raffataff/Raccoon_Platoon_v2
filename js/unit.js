@@ -115,6 +115,12 @@ class Unit {
         } else if (this instanceof PossumHeavy) {
             this.spriteBaseName = 'possum_heavy';
             this.spriteScaleFactor = CONFIG.POSSUM_HEAVY_SPRITE_SCALE_FACTOR || 1.0;
+        } else if (this instanceof PossumScientist1) {
+            this.spriteBaseName = 'possum_scientist_type1';
+            this.spriteScaleFactor = CONFIG.POSSUM_SCIENTIST_1_SPRITE_SCALE_FACTOR || 1.0;
+        } else if (this instanceof PossumScientist2) {
+            this.spriteBaseName = 'possum_scientist_type2';
+            this.spriteScaleFactor = CONFIG.POSSUM_SCIENTIST_2_SPRITE_SCALE_FACTOR || 1.0;
         } else if (this instanceof PossumGrunt || this instanceof ShootoutTarget) {
             this.spriteBaseName = 'possum_grunt';
             this.spriteScaleFactor = CONFIG.POSSUM_GRUNT_SPRITE_SCALE_FACTOR || 1.0;
