@@ -339,8 +339,8 @@ const CONFIG = {
             //{ basePath: 'assets/images/units/raccoon/rifleman/recruit/type3/', baseName: 'raccoon', scaleFactor: 0.34 },
         ],
         Private: [
-            { basePath: 'assets/images/units/raccoon/rifleman/private/type1/', baseName: 'raccoon_rifleman_private1', scaleFactor: 0.39 },
-            { basePath: 'assets/images/units/raccoon/rifleman/private/type2/', baseName: 'raccoon_rifleman_private2', scaleFactor: 0.39 },
+            { basePath: 'assets/images/units/raccoon/rifleman/private/type1/', baseName: 'raccoon_rifleman_private1', scaleFactor: 0.37 },
+            { basePath: 'assets/images/units/raccoon/rifleman/private/type2/', baseName: 'raccoon_rifleman_private2', scaleFactor: 0.37 },
         ],
         Corporal: [
             { basePath: 'assets/images/units/raccoon/rifleman/corporal/type1/', baseName: 'raccoon_rifleman_corporal1', scaleFactor: 0.39 },
@@ -2904,7 +2904,7 @@ const CONFIG = {
         // pick is deterministic per objective instance (see MiniGameManager).
         POOLS: {
             SHUTDOWN: ['maze_shutdown', 'null_wave', 'breaker_cascade'], // turrets / anti-air / deactivation
-            HACK: ['trace_race'],   // intel consoles
+            HACK: [],   // intel consoles
         },
 
         // "Shutdown Pulse" — steer a shutdown pulse through the turret's
@@ -3040,13 +3040,13 @@ const CONFIG = {
             NODES_PER_DIFFICULTY: 1.0,
             MAX_NODES: 15,
 
-            TRACER_STEP_BASE: 0.95,        // seconds per ICE hop
+            TRACER_STEP_BASE: 1.35,        // seconds per ICE hop
             TRACER_STEP_PER_DIFFICULTY: -0.08,
             TRACER_STEP_MIN: 0.45,
             TRACERS_BASE: 1,               // number of ICE pursuers
             TRACERS_PER_DIFFICULTY: 0.25,
             TRACERS_MAX: 2,
-            TRACER_HEADSTART: 2,           // min hops the ICE starts from the entry
+            TRACER_HEADSTART: 6,           // min hops the ICE starts from the entry
 
             MOVE_ANIM: 0.16,               // seconds to slide along an edge
             LOCKOUT_BASE: 30,              // safety countdown (system lockout) in seconds
