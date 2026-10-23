@@ -542,7 +542,8 @@ canvas#gameCanvas {
     display: none;
 }
 
-#displaySizeSelect {
+#displaySizeSelect,
+#renderScaleSelect {
     background-color: var(--brand-dark);
     color: var(--text-main);
     border: 2px solid var(--brand-secondary);
@@ -723,7 +724,8 @@ canvas#gameCanvas {
     color: var(--text-main);
 }
 
-#pauseDisplaySizeSelect {
+#pauseDisplaySizeSelect,
+#pauseRenderScaleSelect {
     background-color: var(--brand-dark);
     color: var(--text-main);
     border: 2px solid var(--brand-primary);
@@ -737,11 +739,13 @@ canvas#gameCanvas {
     width: 200px;
 }
 
-#pauseDisplaySizeSelect:hover {
+#pauseDisplaySizeSelect:hover,
+#pauseRenderScaleSelect:hover {
     border-color: var(--text-main);
 }
 
-#pauseDisplaySizeSelect option {
+#pauseDisplaySizeSelect option,
+#pauseRenderScaleSelect option {
     background-color: var(--brand-dark);
     color: var(--text-main);
 }

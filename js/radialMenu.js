@@ -80,12 +80,13 @@ class RadialMenu {
     // selection stays accurate near screen edges.
     _clampedCenter() {
         const style = this._style;
-        const canvas = this.game.canvas;
+        const viewW = this.game.viewWidth;   // logical CSS px (canvas.width is the HiDPI backing store)
+        const viewH = this.game.viewHeight;
         const reach = (style.SEGMENT_OUTER_RADIUS || 108) + (style.LABEL_OFFSET || 16) + 70;
         const margin = style.EDGE_MARGIN || 40;
         return {
-            x: Math.max(margin + reach, Math.min(canvas.width - margin - reach, this.unitScreenX)),
-            y: Math.max(margin + reach, Math.min(canvas.height - margin - reach, this.unitScreenY)),
+            x: Math.max(margin + reach, Math.min(viewW - margin - reach, this.unitScreenX)),
+            y: Math.max(margin + reach, Math.min(viewH - margin - reach, this.unitScreenY)),
             reach: reach
         };
     }
@@ -136,14 +137,13 @@ class RadialMenu {
         if (!this.isActive || this.animProgress <= 0 || this.items.length === 0 || !this._style) return;
 
         const style = this._style;
-        const canvas = this.game.canvas;
         const ease = this._easeOutBack(this.animProgress);
 
         ctx.save();
 
         // 1. Full-screen dim — pushes the battlefield back while choosing.
         ctx.fillStyle = `rgba(4, 6, 14, ${(style.SCREEN_DIM_ALPHA !== undefined ? style.SCREEN_DIM_ALPHA : 0.38) * this.animProgress})`;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, this.game.viewWidth, this.game.viewHeight);
 
         // Keep the whole menu (ring + labels) on screen — same clamp as hover detection.
         const center = this._clampedCenter();

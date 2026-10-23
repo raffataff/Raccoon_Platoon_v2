@@ -44,6 +44,8 @@ class MiniGameManager {
         this.subtitleEl = null;
         this.canvas = null;
         this.ctx = null;
+        this._logicalSize = 0;       // canvas size mini-games draw in (CONFIG CANVAS_SIZE)
+        this._backingScale = 1;      // backing-store px per logical px (HiDPI)
         this.instructionsEl = null;
         this.statusTextEl = null;
         this.progressFillEl = null;
@@ -96,9 +98,15 @@ class MiniGameManager {
         const rng = this._makeRng(opts.seed);
         const size = gameCfg.CANVAS_SIZE || 520;
 
-        // Size the canvas to a fixed logical resolution (crisp, DPR-independent).
-        this.canvas.width = size;
-        this.canvas.height = size;
+        // Mini-games draw at a fixed logical resolution (size × size). The backing store
+        // is that times devicePixelRatio, so the modal stays crisp on HiDPI screens
+        // instead of being upscaled by the browser; _loop() applies the matching transform.
+        const dpr = (typeof window !== 'undefined' && window.devicePixelRatio > 1) ? window.devicePixelRatio : 1;
+        const backingSize = Math.round(size * dpr);
+        this._logicalSize = size;
+        this._backingScale = backingSize / size;
+        this.canvas.width = backingSize;
+        this.canvas.height = backingSize;
 
         this.activeGame = new GameClass({
             manager: this,
@@ -190,10 +198,11 @@ class MiniGameManager {
         }
 
         // Render (reset context state each frame so a game can't leak alpha/shadow/transform).
-        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        // Base transform = HiDPI scale, so games keep drawing in logical coords.
+        this.ctx.setTransform(this._backingScale, 0, 0, this._backingScale, 0, 0);
         this.ctx.globalAlpha = 1;
         this.ctx.shadowBlur = 0;
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, this._logicalSize, this._logicalSize);
         try { g.render(this.ctx); } catch (e) { console.error('[MiniGameManager] render error', e); }
 
         // Footer status / progress.
@@ -340,6 +349,10 @@ class MiniGameManager {
         this.subtitleEl = subtitle;
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
+        // Keep shadowBlur/offsets in logical px under the HiDPI transform (see utils.js).
+        if (typeof installHiDpiShadowScaling === 'function') {
+            installHiDpiShadowScaling(this.ctx, () => this._backingScale);
+        }
         this.instructionsEl = instructions;
         this.statusTextEl = statusText;
         this.progressFillEl = progressFill;
@@ -378,9 +391,11 @@ class MiniGameManager {
     }
 
     _canvasCoords(evt) {
+        // Logical coords (what mini-games use), not backing-store pixels.
         const rect = this.canvas.getBoundingClientRect();
-        const sx = this.canvas.width / (rect.width || 1);
-        const sy = this.canvas.height / (rect.height || 1);
+        const logical = this._logicalSize || this.canvas.width;
+        const sx = logical / (rect.width || 1);
+        const sy = logical / (rect.height || 1);
         return { x: (evt.clientX - rect.left) * sx, y: (evt.clientY - rect.top) * sy };
     }
 

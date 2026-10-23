@@ -324,7 +324,8 @@ class RaccoonHostage extends Raccoon {
                 const scale = this.spriteScaleFactor;
                 const sWidth = sprite.naturalWidth * scale;
                 const sHeight = sprite.naturalHeight * scale;
-                ctx.drawImage(sprite, -sWidth / 2, -sHeight / 2, sWidth, sHeight);
+                this.renderGroundShadow(ctx, sprite, scale);
+                this.drawUnitSprite(ctx, sprite, -sWidth / 2, -sHeight / 2, sWidth, sHeight);
                 
                 let playerNear = false;
                 if (this.game.deployedSquadRoster) { 

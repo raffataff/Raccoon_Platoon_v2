@@ -990,3 +990,35 @@ function pointToCollisionShapeDist(px, py, shape) {
     }
     return Infinity;
 }
+
+/**
+ * HiDPI support: make shadowBlur / shadowOffsetX / shadowOffsetY on `ctx` measure
+ * logical (CSS) pixels, like every other canvas length.
+ *
+ * HiDPI canvases draw in logical pixels and rely on a base setTransform(pixelRatio)
+ * to fill a higher-resolution backing store. Paths, line widths, fonts and images all
+ * follow that transform, but the canvas spec defines shadow blur/offset in raw
+ * backing-store pixels and ignores the transform. Without this, every glow and drop
+ * shadow would shrink by the pixel ratio (half size on a 200%-scaled display).
+ *
+ * Installs instance-level accessors that scale on write and unscale on read, so
+ * existing code (`ctx.shadowBlur = 4`, save()/restore()) works unchanged.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {() => number} getScale  current backing-store pixels per logical pixel
+ */
+function installHiDpiShadowScaling(ctx, getScale) {
+    if (!ctx || ctx.__hiDpiShadowScaling) return;
+    const proto = Object.getPrototypeOf(ctx);
+    ['shadowBlur', 'shadowOffsetX', 'shadowOffsetY'].forEach(prop => {
+        const desc = Object.getOwnPropertyDescriptor(proto, prop);
+        if (!desc || typeof desc.get !== 'function' || typeof desc.set !== 'function') return;
+        Object.defineProperty(ctx, prop, {
+            configurable: true,
+            enumerable: true,
+            get() { return desc.get.call(this) / (getScale() || 1); },
+            set(value) { desc.set.call(this, value * (getScale() || 1)); }
+        });
+    });
+    ctx.__hiDpiShadowScaling = true;
+}

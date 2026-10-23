@@ -2237,6 +2237,133 @@ class Unit {
         return this.hp > 0;
     }
 
+    /**
+     * Soft contact shadow under a living unit. Call in the unit's local space (after
+     * ctx.translate(x, y + bobOffset)) BEFORE drawing the sprite. `bobOffset` is cancelled
+     * so the shadow stays planted on the ground while the sprite bobs. Foot position and
+     * width come from the sprite's alpha, measured at load (UnitSpriteFx), with a
+     * size-based fallback for sprites that weren't analysed.
+     */
+    renderGroundShadow(ctx, sprite, spriteScale, bobOffset = 0) {
+        const cfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.GROUND_SHADOW;
+        const fxCache = this.game && this.game.unitSpriteFx;
+        if (!cfg || !cfg.ENABLED || !fxCache) return;
+        const texture = fxCache.getShadowTexture();
+        if (!texture) return;
+
+        const metrics = sprite ? fxCache.get(sprite)?.shadow : null;
+        let cx = 0;
+        let footY;
+        let rx;
+        if (metrics) {
+            cx = metrics.cx * spriteScale;
+            footY = metrics.footY * spriteScale;
+            rx = metrics.width * 0.5 * spriteScale * (cfg.WIDTH_FACTOR ?? 2.2);
+        } else {
+            footY = sprite ? sprite.naturalHeight * spriteScale * 0.35 : this.size * 0.5;
+            rx = this.size * 1.1;
+        }
+        let ry = rx * (cfg.HEIGHT_RATIO ?? 0.35);
+        let cy = footY - ry * (cfg.RAISE ?? 0.3);
+        let opacity = cfg.OPACITY ?? 0.55;
+        if (this.hovers) {
+            const hoverScale = cfg.HOVER_SCALE ?? 0.85;
+            rx *= hoverScale;
+            ry *= hoverScale;
+            cy += cfg.HOVER_DROP ?? 6;
+            opacity *= cfg.HOVER_OPACITY_MULT ?? 0.6;
+        }
+        if (!(rx > 0) || !(opacity > 0)) return;
+
+        const prevAlpha = ctx.globalAlpha;
+        ctx.globalAlpha = prevAlpha * opacity;
+        ctx.drawImage(texture, cx - rx, cy - ry - bobOffset, rx * 2, ry * 2);
+        ctx.globalAlpha = prevAlpha;
+    }
+
+    /**
+     * True when this unit is part of the player's current selection.
+     */
+    isSelected() {
+        return !!(this.game && this.game.selectedUnits && this.game.selectedUnits.includes(this));
+    }
+
+    /**
+     * Draws a living unit's sprite at (drawX, drawY, drawW, drawH), using the outlined
+     * copy baked at load when outlines are enabled. Same single drawImage either way.
+     *
+     * Player sprites are baked with the selection outline (blue) and have no faction outline,
+     * so they only show a rim while they are selected: `selected` decides whether the baked
+     * outline is drawn at all. Enemies and hostages always draw their faction outline.
+     */
+    drawUnitSprite(ctx, sprite, drawX, drawY, drawW, drawH, selected = false) {
+        const outlineCfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.OUTLINE;
+        const selectionCfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.SELECTION_OUTLINE;
+        const isPlayer = this.team === 'player';
+        const entry = (this.game && this.game.unitSpriteFx) ? this.game.unitSpriteFx.get(sprite) : null;
+
+        // A player unit's baked rim IS the selection rim, so it is only drawn when selected.
+        // Other factions keep their faction outline regardless of selection.
+        const wantsOutline = isPlayer
+            ? (selected && selectionCfg && selectionCfg.ENABLED !== false)
+            : (outlineCfg && outlineCfg.ENABLED);
+        const outline = (wantsOutline && entry) ? entry.outline : null;
+
+        if (outline) {
+            // The baked copy is cropped/padded: map its source-pixel rect into the sprite's draw rect.
+            const sx = drawW / sprite.naturalWidth;
+            const sy = drawH / sprite.naturalHeight;
+            ctx.drawImage(outline.image, drawX + outline.x * sx, drawY + outline.y * sy, outline.w * sx, outline.h * sy);
+        } else {
+            ctx.drawImage(sprite, drawX, drawY, drawW, drawH);
+        }
+    }
+
+    /**
+     * Blue ring drawn on the ground under the feet of a selected player unit. Call in the
+     * unit's local space (after ctx.translate(x, y + bobOffset)) BEFORE drawing the sprite,
+     * so the sprite covers the middle and only the rim peeks out. `bobOffset` is cancelled
+     * so the ring stays planted on the ground while the sprite bobs.
+     */
+    renderSelectionRing(ctx, sprite, spriteScale, bobOffset = 0) {
+        const cfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.SELECTION_RING;
+        const fxCache = this.game && this.game.unitSpriteFx;
+        if (!cfg || !cfg.ENABLED || !fxCache) return;
+
+        const metrics = sprite ? fxCache.get(sprite)?.shadow : null;
+        let cx = 0;
+        let footY;
+        let rx;
+        if (metrics) {
+            cx = metrics.cx * spriteScale;
+            footY = metrics.footY * spriteScale;
+            rx = metrics.width * 0.5 * spriteScale * (cfg.RADIUS_FACTOR ?? 1.6);
+        } else {
+            footY = sprite ? sprite.naturalHeight * spriteScale * 0.35 : this.size * 0.5;
+            rx = this.size * 1.1;
+        }
+        let ry = rx * (cfg.HEIGHT_RATIO ?? 0.34);
+        let cy = footY - ry * (cfg.RAISE ?? 0.35);
+        if (!(rx > 0)) return;
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.ellipse(cx, cy - bobOffset, rx, ry, 0, 0, Math.PI * 2);
+
+        // A wider, fainter ring underneath stands in for a blurred halo: two cheap strokes
+        // instead of a per-frame ctx.shadowBlur.
+        if (cfg.GLOW_COLOR && (cfg.GLOW_WIDTH || 0) > 0) {
+            ctx.strokeStyle = cfg.GLOW_COLOR;
+            ctx.lineWidth = cfg.GLOW_WIDTH;
+            ctx.stroke();
+        }
+
+        ctx.strokeStyle = cfg.COLOR || 'rgba(90, 200, 255, 0.75)';
+        ctx.lineWidth = cfg.LINE_WIDTH ?? 2.5;
+        ctx.stroke();
+        ctx.restore();
+    }
+
     render(ctx) {
         const kiaStyle = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.KIA_STYLE;
         const facingIndicatorStyle = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.FACING_INDICATOR;
@@ -2329,12 +2456,24 @@ class Unit {
             }
         }
 
+        // Ground shadow first so the unit stands on it (living units only; corpses lie flat).
+        const isSelectedNow = this.isSelected() && this.team === 'player';
+        if (this.isAlive()) {
+            this.renderGroundShadow(ctx, spriteToDraw, spriteScale, yOffset);
+            // Blue selection ring on the ground, under the sprite so only its rim shows.
+            if (isSelectedNow) {
+                this.renderSelectionRing(ctx, spriteToDraw, spriteScale, yOffset);
+            }
+        }
+
         if (spriteToDraw) {
             if (!this.isAlive() && this.deadSpriteFlipped) {
                 ctx.save();
                 ctx.scale(-1, 1);
                 ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
                 ctx.restore();
+            } else if (this.isAlive()) {
+                this.drawUnitSprite(ctx, spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight, isSelectedNow);
             } else {
                 ctx.drawImage(spriteToDraw, drawOffsetX, drawOffsetY, spriteWidth, spriteHeight);
             }
@@ -2374,20 +2513,6 @@ class Unit {
 
         ctx.restore();
 
-        const isUnitSelected = this.game && this.game.selectedUnits && this.game.selectedUnits.includes(this);
-        if (isUnitSelected && this.isAlive() && this.team === 'player') {
-            ctx.save();
-            ctx.globalCompositeOperation = 'destination-over';
-            ctx.beginPath();
-            ctx.ellipse(this.x, this.y + this.size * 1.3, this.size * 0.6, this.size * 0.22, 0, 0, Math.PI * 2);
-            ctx.lineWidth = 2.5;
-            ctx.strokeStyle = 'rgba(100, 180, 255, 0.55)';
-            ctx.shadowColor = 'rgba(100, 180, 255, 0.35)';
-            ctx.shadowBlur = 10;
-            ctx.stroke();
-            ctx.restore();
-        }
-
         if (this.isAlive() && CONFIG.UI_SETTINGS && CONFIG.UI_SETTINGS.HEALTH_BAR) {
             const healthBarStyle = CONFIG.UI_SETTINGS.HEALTH_BAR;
             const barWidth = this.size * (healthBarStyle.WIDTH_MULTIPLIER || 1.5);
@@ -2414,8 +2539,9 @@ class Unit {
             this.game.ctx.save();
             this.game.ctx.globalAlpha = barOpacity;
 
-            if (this.game && this.game.selectedUnits && this.game.selectedUnits.includes(this)) {
-                this.game.ctx.strokeStyle = 'rgba(0, 150, 255, 0.9)';
+            if (this.isSelected()) {
+                const selectionCfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.SELECTION_OUTLINE;
+                this.game.ctx.strokeStyle = (selectionCfg && selectionCfg.COLOR) || 'rgba(90, 200, 255, 0.95)';
                 this.game.ctx.lineWidth = 2;
                 this.game.ctx.strokeRect(barX - 2, barY - 2, barWidth + 4, hpBarHeight + 4);
             }

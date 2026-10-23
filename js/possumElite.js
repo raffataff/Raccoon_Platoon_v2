@@ -73,8 +73,8 @@ class PossumElite extends Unit {
     generateSecondPatrolPoint(originX, originY, minRadius, maxRadius, attemptToAvoidCurrent = null) {
         const eliteAIConfig = (CONFIG.AI && CONFIG.AI.POSSUM_ELITE) ? CONFIG.AI.POSSUM_ELITE : {};
         let pX, pY, attempts = 0;
-        const worldWidth = CONFIG.WORLD_WIDTH || (this.game && this.game.canvas ? this.game.canvas.width : 1000);
-        const worldHeight = CONFIG.WORLD_HEIGHT || (this.game && this.game.canvas ? this.game.canvas.height : 800);
+        const worldWidth = CONFIG.WORLD_WIDTH || (this.game && this.game.viewWidth) || 1000;
+        const worldHeight = CONFIG.WORLD_HEIGHT || (this.game && this.game.viewHeight) || 800;
         const margin = this.size + (eliteAIConfig.PATROL_POINT_WORLD_MARGIN_BUFFER || 20);
         const navGrid = this.game.level.getNavigationGrid();
         const cellSize = this.game.level.gridCellSize;

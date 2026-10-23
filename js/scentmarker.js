@@ -45,7 +45,6 @@ class ScentMarker {
         if (opacity <= 0) return;
 
         const now = performance.now() / 1000;
-        const canvas = game.canvas;
         const zoom = game.cameraZoom || 1.0;
 
         const screen = game.worldToScreen(this.worldX, this.worldY);
@@ -55,16 +54,15 @@ class ScentMarker {
         const pulse = 1.0 + Math.sin(now * renderCfg.PULSE_SPEED) * renderCfg.PULSE_AMOUNT;
         const isOnScreen =
             sx >= -renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN &&
-            sx <= canvas.width + renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN &&
+            sx <= game.viewWidth + renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN &&
             sy >= -renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN &&
-            sy <= canvas.height + renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN;
+            sy <= game.viewHeight + renderCfg.WORLD_MARKER_ON_SCREEN_MARGIN;
 
         const sniffActive = game.scentSniffActive && now < game.scentSniffExpiry;
 
-        if (!isOnScreen && !sniffActive) {
-            ctx.restore();
-            return;
-        }
+        // (No restore() here: nothing has been saved yet, and an unmatched restore()
+        // would pop the caller's canvas state.)
+        if (!isOnScreen && !sniffActive) return;
 
         ctx.save();
 
@@ -142,14 +140,15 @@ class ScentMarker {
     }
 
     _renderEdgeArrow(ctx, sx, sy, typeCfg, renderCfg, pulse, zoom, opacity, now, game) {
-        const canvas = game.canvas;
-        const cx = canvas.width / 2;
-        const cy = canvas.height / 2;
+        const viewW = game.viewWidth;   // logical CSS px (canvas.width is the HiDPI backing store)
+        const viewH = game.viewHeight;
+        const cx = viewW / 2;
+        const cy = viewH / 2;
         const dx = sx - cx;
         const dy = sy - cy;
         const angle = Math.atan2(dy, dx);
 
-        const edgeDist = Math.min(canvas.width, canvas.height) / 2 - renderCfg.EDGE_MARGIN;
+        const edgeDist = Math.min(viewW, viewH) / 2 - renderCfg.EDGE_MARGIN;
         const arrowDist = edgeDist - renderCfg.ARROW_OFFSET;
         const ax = cx + Math.cos(angle) * arrowDist;
         const ay = cy + Math.sin(angle) * arrowDist;

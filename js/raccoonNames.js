@@ -42,7 +42,7 @@ const RACCOON_NAMES = [
     "Maeve", "Seraphina", "Athena", "Calliope", "Diana", "Guinevere", "Isolde",
 
     // Special Guests
-    "DerGeissler", "Raffataff", "Xianah", "Gunslinger",
+    "Raffataff", "DerGeissler", "Xianah", "Gunslinger",
 ];
 
 function getRandomRaccoonName(existingNames = [], rng = Math) { // Accept RNG, default to Math.random

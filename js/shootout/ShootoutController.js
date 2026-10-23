@@ -607,9 +607,11 @@ class ShootoutController {
     getScaleFactors() {
         const nativeWidth = CONFIG.SHOOTOUT_MODE.NATIVE_WIDTH || 1920;
         const nativeHeight = CONFIG.SHOOTOUT_MODE.NATIVE_HEIGHT || 1080;
+        // Logical (CSS px) view size; the game's base transform maps it onto the
+        // HiDPI backing store, and mouse coords arrive in the same logical space.
         return {
-            x: this.game.canvas.width / nativeWidth,
-            y: this.game.canvas.height / nativeHeight
+            x: this.game.viewWidth / nativeWidth,
+            y: this.game.viewHeight / nativeHeight
         };
     }
 

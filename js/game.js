@@ -49,6 +49,8 @@ class Game {
         this.possumAntiAirTurrets = [];
         this.waterEffects = [];
         this.preloadedImages = {};
+        // Outlined unit sprites + ground-shadow foot metrics, built once in preloadUnitAssets().
+        this.unitSpriteFx = (typeof UnitSpriteFx !== 'undefined') ? new UnitSpriteFx() : null;
         this.audioManager = new AudioManager();
         this.musicManager = new MusicManager(this.audioManager);
         if (CONFIG.AUDIO_MUSIC) {
@@ -138,6 +140,23 @@ class Game {
         this._perfPhasingActive = false;
         this.fpsDisplayElement = document.getElementById('hud-fps');
         this.displaySize = CONFIG.DISPLAY_SIZE || 'stretched';
+
+        // --- HiDPI rendering ---
+        // viewWidth/viewHeight: canvas size in logical CSS pixels. ALL gameplay, camera,
+        // input and screen-space UI math uses these — never canvas.width/height, which is
+        // the backing store in physical pixels (view size × pixelRatio). render() installs
+        // a base transform so drawing code keeps working in logical pixels while the
+        // browser no longer has to upscale (and blur) a CSS-resolution frame.
+        this.viewWidth = 0;
+        this.viewHeight = 0;
+        this.renderScale = this.sanitizeRenderScale(SaveManager.getPreference('renderScale', CONFIG.RENDER_SCALE));
+        this.pixelRatio = 1;      // nominal backing px per logical px (devicePixelRatio × renderScale)
+        this.backingScaleX = 1;   // exact per-axis ratio after rounding the backing size
+        this.backingScaleY = 1;
+        if (typeof installHiDpiShadowScaling === 'function') {
+            installHiDpiShadowScaling(this.ctx, () => this.pixelRatio);
+        }
+        this._watchDevicePixelRatio();
 
         // --- NEW: Master Debug Flag ---
         this.isDebugVisualsActive = false;
@@ -789,7 +808,10 @@ class Game {
                     basePath: variant.basePath,
                     actions: { idle: ALL_DIRS },
                     deadPath: idx === 0 ? deadInfo.deadPath : null,
-                    deadFiles: idx === 0 ? deadInfo.deadFiles : null
+                    deadFiles: idx === 0 ? deadInfo.deadFiles : null,
+                    // Same scale resolution as Raccoon's constructor; scale + faction feed UnitSpriteFx.
+                    scale: variant.scaleFactor || CONFIG.RACCOON_SPRITE_SCALE_FACTOR || 0.5,
+                    faction: 'player'
                 });
             });
         }
@@ -798,28 +820,36 @@ class Game {
             {
                 name: 'raccoon_hostage',
                 basePath: 'assets/images/units/raccoon/hostage/rescued/type1/',
-                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] }
+                actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
+                scale: CONFIG.RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR || 2,
+                faction: 'player'
             },
             {
                 name: 'possum_grunt',
                 basePath: CONFIG.POSSUM_GRUNT_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_GRUNT_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_heavy',
                 basePath: CONFIG.POSSUM_HEAVY_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_HEAVY_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_HEAVY_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_sniper',
                 basePath: CONFIG.POSSUM_SNIPER_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_SNIPER_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_SNIPER_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_SNIPER_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_SNIPER_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_boss_1',
@@ -828,7 +858,9 @@ class Game {
                     idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
                 },
                 deadPath: CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_BOSS_1_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_BOSS_1_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_revolver',
@@ -837,7 +869,9 @@ class Game {
                     idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
                 },
                 deadPath: CONFIG.POSSUM_REVOLVER_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_REVOLVER_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_REVOLVER_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_REVOLVER_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_elite',
@@ -846,7 +880,9 @@ class Game {
                     idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
                 },
                 deadPath: CONFIG.POSSUM_ELITE_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_ELITE_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_ELITE_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_ELITE_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_boss_3',
@@ -855,7 +891,9 @@ class Game {
                     idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
                 },
                 deadPath: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_BOSS_3_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_BOSS_3_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_boss_4',
@@ -864,7 +902,9 @@ class Game {
                     idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
                 },
                 deadPath: CONFIG.POSSUM_BOSS_4_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_BOSS_4_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_BOSS_4_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_BOSS_4_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_eliteGuard',
@@ -873,21 +913,27 @@ class Game {
                     idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']
                 },
                 deadPath: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR || 1.0,
+                faction: 'enemy'
             },
             {
                 name: 'possum_scientist_type1',
                 basePath: CONFIG.POSSUM_SCIENTIST_1_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_SCIENTIST_1_SPRITE_SCALE_FACTOR || 0.5,
+                faction: 'enemy'
             },
             {
                 name: 'possum_scientist_type2',
                 basePath: CONFIG.POSSUM_SCIENTIST_2_SPRITE_PATH,
                 actions: { idle: ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw'] },
                 deadPath: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_PATH,
-                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES
+                deadFiles: CONFIG.POSSUM_GRUNT_DEAD_SPRITE_FILES,
+                scale: CONFIG.POSSUM_SCIENTIST_2_SPRITE_SCALE_FACTOR || 0.5,
+                faction: 'enemy'
             }
         );
 
@@ -986,6 +1032,39 @@ class Game {
             }
         });
         await Promise.all(imagePromises);
+
+        // Bake faction outlines + measure ground-shadow foot positions for every living-unit
+        // sprite (corpses get neither). Runs once; later calls skip already-processed images.
+        if (this.unitSpriteFx) {
+            const fxSets = [];
+            unitTypesToPreload.forEach(unitTypeConfig => {
+                if (!unitTypeConfig.actions || !unitTypeConfig.faction) return;
+                for (const actionKey in unitTypeConfig.actions) {
+                    fxSets.push({
+                        images: unitTypeConfig.actions[actionKey].map(dir => this.preloadedImages[`${unitTypeConfig.name}_${actionKey}_${dir}`]),
+                        scale: unitTypeConfig.scale,
+                        faction: unitTypeConfig.faction
+                    });
+                }
+            });
+            // Unrescued hostages: one set per pose (they're drawn by RaccoonHostage.render()).
+            const hostageScale = CONFIG.RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR || 2;
+            [hostageKneelingPath, hostageStandingPath].forEach(posePath => {
+                fxSets.push({
+                    images: unrescuedHostageSprites
+                        .filter(spriteInfo => spriteInfo.path === posePath)
+                        .map(spriteInfo => this.preloadedImages[spriteInfo.path + spriteInfo.file]),
+                    scale: hostageScale,
+                    faction: 'hostage'
+                });
+            });
+            try {
+                await this.unitSpriteFx.build(fxSets);
+            } catch (e) {
+                // Never block loading over a cosmetic: units fall back to plain sprites.
+                console.warn('[UnitSpriteFx] Failed to prepare unit outlines/shadows:', e);
+            }
+        }
     }
 
     async preloadLevelAssets() {
@@ -1666,9 +1745,9 @@ class Game {
 
             const ASPECT_RATIO = (CONFIG.BASE_WORLD_WIDTH || 1920) / (CONFIG.BASE_WORLD_HEIGHT || 1080);
 
-            if (this.canvas && this.canvas.width && this.canvas.height) {
-                const availableWidth = this.canvas.width;
-                const availableHeight = this.canvas.height;
+            if (this.viewWidth && this.viewHeight) {
+                const availableWidth = this.viewWidth;
+                const availableHeight = this.viewHeight;
                 if (availableWidth / availableHeight > ASPECT_RATIO) {
                     worldHeight = Math.max(worldHeight, availableHeight);
                     worldWidth = Math.max(worldWidth, Math.round(worldHeight * ASPECT_RATIO));
@@ -1775,14 +1854,14 @@ class Game {
                 const avgY = sumY / this.deployedSquadRoster.length;
                 const zoom = this.cameraZoom || 1.0;
 
-                this.cameraX = avgX - (this.canvas.width / (2 * zoom));
-                this.cameraY = avgY - (this.canvas.height / (2 * zoom));
+                this.cameraX = avgX - (this.viewWidth / (2 * zoom));
+                this.cameraY = avgY - (this.viewHeight / (2 * zoom));
 
                 this.clampCamera();
             } else {
                 const zoom = this.cameraZoom || 1.0;
-                this.cameraX = (CONFIG.WORLD_WIDTH - this.canvas.width / zoom) / 2;
-                this.cameraY = (CONFIG.WORLD_HEIGHT - this.canvas.height / zoom) / 2;
+                this.cameraX = (CONFIG.WORLD_WIDTH - this.viewWidth / zoom) / 2;
+                this.cameraY = (CONFIG.WORLD_HEIGHT - this.viewHeight / zoom) / 2;
                 this.clampCamera();
             }
         })();
@@ -2807,18 +2886,84 @@ class Game {
             canvasWidth = containerWidth;
             canvasHeight = containerHeight;
         }
-        this.canvas.width = canvasWidth;
-        this.canvas.height = canvasHeight;
+        // Logical size (CSS px) — what every gameplay/camera/input/UI calculation uses.
+        this.viewWidth = canvasWidth;
+        this.viewHeight = canvasHeight;
+        // Backing store at the display's physical resolution (× Render Scale), so the
+        // browser doesn't stretch a CSS-resolution frame onto a high-DPI screen.
+        this.pixelRatio = this._computePixelRatio();
+        const backingWidth = Math.round(canvasWidth * this.pixelRatio);
+        const backingHeight = Math.round(canvasHeight * this.pixelRatio);
+        // Only assign when changed: assigning clears the canvas and resets context state.
+        if (this.canvas.width !== backingWidth) this.canvas.width = backingWidth;
+        if (this.canvas.height !== backingHeight) this.canvas.height = backingHeight;
+        this.backingScaleX = canvasWidth > 0 ? backingWidth / canvasWidth : this.pixelRatio;
+        this.backingScaleY = canvasHeight > 0 ? backingHeight / canvasHeight : this.pixelRatio;
         this.canvas.style.width = canvasWidth + 'px';
         this.canvas.style.height = canvasHeight + 'px';
+        this._applyBaseTransform();
         if (this.gameState === 'RUNNING') this.clampCamera();
+    }
+
+    // Backing-store pixels per logical (CSS) pixel: the screen's devicePixelRatio
+    // (2 on a 200%-scaled 4K display) times the player's Render Scale setting.
+    _computePixelRatio() {
+        const dpr = (typeof window !== 'undefined' && window.devicePixelRatio > 0) ? window.devicePixelRatio : 1;
+        return dpr * (this.renderScale || 1);
+    }
+
+    // Snaps any saved/config value to the nearest allowed Render Scale option.
+    sanitizeRenderScale(value) {
+        const options = (Array.isArray(CONFIG.RENDER_SCALE_OPTIONS) && CONFIG.RENDER_SCALE_OPTIONS.length)
+            ? CONFIG.RENDER_SCALE_OPTIONS : [1.0];
+        const v = parseFloat(value);
+        if (!isFinite(v) || v <= 0) return options[0];
+        return options.reduce((best, o) => (Math.abs(o - v) < Math.abs(best - v) ? o : best), options[0]);
+    }
+
+    setRenderScale(value) {
+        this.renderScale = this.sanitizeRenderScale(value);
+        this.resizeCanvas();
+    }
+
+    // Base transform mapping logical (CSS px) drawing coordinates onto the backing
+    // store. Re-applied at the start of every frame; nothing else may call
+    // setTransform()/resetTransform() on the main context.
+    _applyBaseTransform() {
+        if (!this.ctx) return;
+        this.ctx.setTransform(this.backingScaleX, 0, 0, this.backingScaleY, 0, 0);
+    }
+
+    // devicePixelRatio changes on browser zoom or when the window moves to a monitor
+    // with different scaling; a CSS-size 'resize' event isn't guaranteed for the latter.
+    _watchDevicePixelRatio() {
+        if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+        const mql = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+        if (!mql || typeof mql.addEventListener !== 'function') return;
+        mql.addEventListener('change', () => {
+            this.resizeCanvas();
+            this._watchDevicePixelRatio(); // re-arm for the new ratio
+        }, { once: true });
+    }
+
+    // Converts mouse clientX/clientY to logical canvas coordinates (CSS px, the
+    // same space as worldToScreen()). Excludes the canvas's CSS border, which
+    // getBoundingClientRect() includes.
+    clientToView(clientX, clientY) {
+        const rect = this.canvas.getBoundingClientRect();
+        const contentWidth = this.canvas.clientWidth || rect.width || 1;
+        const contentHeight = this.canvas.clientHeight || rect.height || 1;
+        return {
+            x: (clientX - rect.left - this.canvas.clientLeft) * (this.viewWidth / contentWidth),
+            y: (clientY - rect.top - this.canvas.clientTop) * (this.viewHeight / contentHeight)
+        };
     }
 
     clampCamera() {
         const worldWidth = CONFIG.WORLD_WIDTH || 0;
         const worldHeight = CONFIG.WORLD_HEIGHT || 0;
-        const canvasWidth = this.canvas.width || 0;
-        const canvasHeight = this.canvas.height || 0;
+        const canvasWidth = this.viewWidth || 0;
+        const canvasHeight = this.viewHeight || 0;
         const zoom = this.cameraZoom || 1.0;
 
         // When zoomed in, the visible viewport is smaller, so adjust max camera bounds
@@ -3836,8 +3981,8 @@ class Game {
     selectUnitsInCtrlDragRectangle() {
         if (!this.draggedFarEnough || this.gameState !== 'RUNNING') return;
         const zoom = this.cameraZoom || 1.0;
-        const canvasWidth = this.canvas.width;
-        const canvasHeight = this.canvas.height;
+        const canvasWidth = this.viewWidth;
+        const canvasHeight = this.viewHeight;
         const worldDragStartX = this.cameraX + (this.dragStartX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
         const worldDragStartY = this.cameraY + (this.dragStartY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
         const worldDragCurrentX = this.cameraX + (this.dragCurrentX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
@@ -4266,8 +4411,8 @@ class Game {
         if (!ind || !ind.active) return;
 
         const cfg = CONFIG.OBJECTIVE_INDICATOR;
-        const canvasW = this.canvas.width;
-        const canvasH = this.canvas.height;
+        const canvasW = this.viewWidth;
+        const canvasH = this.viewHeight;
         const zoom = this.cameraZoom || 1.0;
 
         const screen = this.worldToScreen(ind.worldX, ind.worldY);
@@ -4391,7 +4536,7 @@ class Game {
         const direction = rng.chance(0.5) ? 1 : -1;
         const flockSize = rng.nextInt(this.birdSpawnConfig.FLOCK_SIZE_MIN, this.birdSpawnConfig.FLOCK_SIZE_MAX);
 
-        const worldHeight = CONFIG.WORLD_HEIGHT || this.canvas.height;
+        const worldHeight = CONFIG.WORLD_HEIGHT || this.viewHeight;
         const minY = worldHeight * (this.birdSpawnConfig.MIN_Y_SPAWN_FACTOR || 0.1);
         const maxY = worldHeight * (this.birdSpawnConfig.MAX_Y_SPAWN_FACTOR || 0.6);
         const baseSpawnY = rng.nextFloat(minY, maxY);
@@ -4418,7 +4563,7 @@ class Game {
         const rng = this.level.rng;
         const direction = rng.chance(0.5) ? 1 : -1;
 
-        const worldHeight = CONFIG.WORLD_HEIGHT || this.canvas.height;
+        const worldHeight = CONFIG.WORLD_HEIGHT || this.viewHeight;
         const minY = worldHeight * (this.ufoSpawnConfig.MIN_Y_SPAWN_FACTOR || 0.05);
         const maxY = worldHeight * (this.ufoSpawnConfig.MAX_Y_SPAWN_FACTOR || 0.35);
         const spawnY = rng.nextFloat(minY, maxY);
@@ -4524,9 +4669,9 @@ class Game {
             if (count > 0) {
                 avgX /= count; avgY /= count;
                 const zoom = this.cameraZoom || 1.0;
-                let targetCameraX = avgX - this.canvas.width / (2 * zoom); let targetCameraY = avgY - this.canvas.height / (2 * zoom);
-                targetCameraX = Math.max(0, Math.min(targetCameraX, Math.max(0, (CONFIG.WORLD_WIDTH || 0) - this.canvas.width / zoom)));
-                targetCameraY = Math.max(0, Math.min(targetCameraY, Math.max(0, (CONFIG.WORLD_HEIGHT || 0) - this.canvas.height / zoom)));
+                let targetCameraX = avgX - this.viewWidth / (2 * zoom); let targetCameraY = avgY - this.viewHeight / (2 * zoom);
+                targetCameraX = Math.max(0, Math.min(targetCameraX, Math.max(0, (CONFIG.WORLD_WIDTH || 0) - this.viewWidth / zoom)));
+                targetCameraY = Math.max(0, Math.min(targetCameraY, Math.max(0, (CONFIG.WORLD_HEIGHT || 0) - this.viewHeight / zoom)));
                 this.cameraX += (targetCameraX - this.cameraX) * CONFIG.CAMERA_LERP_SPEED;
                 this.cameraY += (targetCameraY - this.cameraY) * CONFIG.CAMERA_LERP_SPEED;
                 if (Math.abs(this.cameraX - targetCameraX) < 0.5) this.cameraX = targetCameraX;
@@ -4716,9 +4861,16 @@ class Game {
             return;
         }
 
+        // All drawing below is in logical (CSS px) coordinates; this maps them onto the
+        // physical-resolution backing store. Set fresh each frame so a stray restore()
+        // or leaked transform can never persist.
+        this._applyBaseTransform();
+        const viewW = this.viewWidth;
+        const viewH = this.viewHeight;
+
         // Handle Shootout Mode rendering separately
         if (this.gameState === 'SHOOTOUT_PRE_GAME') {
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.clearRect(0, 0, viewW, viewH);
             // Render shootout controller for dev mode (shows spawn boxes)
             if (this.shootoutController && this.shootoutController.isDevMode) {
                 this.shootoutController.render(this.ctx);
@@ -4728,7 +4880,7 @@ class Game {
 
         if (this.gameState === 'SHOOTOUT_PLAYING' || this.gameState === 'SHOOTOUT_PAUSED' || this.gameState === 'SHOOTOUT_AMBUSH') {
             // Clear and render shootout mode
-            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.clearRect(0, 0, viewW, viewH);
             if (this.shootoutController) {
                 this.shootoutController.render(this.ctx);
             }
@@ -4737,18 +4889,18 @@ class Game {
 
         this.ctx.globalAlpha = 1.0;
         this.ctx.globalCompositeOperation = 'source-over';
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.ctx.clearRect(0, 0, viewW, viewH);
         this.ctx.save();
         // Apply camera zoom - translate to center, scale, then translate by camera position
-        this.ctx.translate(this.canvas.width / 2, this.canvas.height / 2);
+        this.ctx.translate(viewW / 2, viewH / 2);
         this.ctx.scale(this.cameraZoom, this.cameraZoom);
-        this.ctx.translate(-this.cameraX - this.canvas.width / (2 * this.cameraZoom), -this.cameraY - this.canvas.height / (2 * this.cameraZoom));
+        this.ctx.translate(-this.cameraX - viewW / (2 * this.cameraZoom), -this.cameraY - viewH / (2 * this.cameraZoom));
 
         if (this.prerenderedBackgroundCanvas && this.prerenderedBackgroundCanvas.width > 0 && this.prerenderedBackgroundCanvas.height > 0) {
             try { this.ctx.drawImage(this.prerenderedBackgroundCanvas, 0, 0); } catch (e) { }
         } else {
             this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
-            this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || this.canvas.width, CONFIG.WORLD_HEIGHT || this.canvas.height);
+            this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || viewW, CONFIG.WORLD_HEIGHT || viewH);
         }
 
         let sortableObjects = [];
@@ -5063,7 +5215,7 @@ class Game {
                 this.ctx.globalAlpha = 0.5;
                 this.ctx.lineWidth = 1;
                 this.level.obstacles.forEach(obstacle => {
-                    if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || this.canvas.height))) {
+                    if (obstacle.type === 'border_wall' && (obstacle.y === 0 || obstacle.y + obstacle.height === (CONFIG.WORLD_HEIGHT || viewH))) {
                         const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
                         if (borderObstacleType && obstacle.type === borderObstacleType) { return; }
                     }
@@ -5374,8 +5526,8 @@ class Game {
             this.inputHandler.isCtrlPressed
         ) {
             const zoom = this.cameraZoom || 1.0;
-            const canvasWidth = this.canvas.width;
-            const canvasHeight = this.canvas.height;
+            const canvasWidth = viewW;
+            const canvasHeight = viewH;
             const worldDragStartX = this.cameraX + (this.dragStartX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
             const worldDragStartY = this.cameraY + (this.dragStartY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
             const worldDragCurrentX = this.cameraX + (this.dragCurrentX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
@@ -5410,8 +5562,20 @@ class Game {
             const nightCfg = CONFIG.NIGHT_MISSION;
             const oc = this.nightOverlayCanvas;
             const octx = this.nightOverlayCtx;
-            oc.width = this.canvas.width;
-            oc.height = this.canvas.height;
+            // Match the main backing store so vision edges stay sharp. Reallocate only on
+            // resize (a full-resolution realloc every frame is costly); otherwise just clear.
+            const backingW = this.canvas.width;
+            const backingH = this.canvas.height;
+            if (oc.width !== backingW || oc.height !== backingH) {
+                oc.width = backingW;
+                oc.height = backingH;
+            } else {
+                octx.setTransform(1, 0, 0, 1, 0, 0);
+                octx.globalCompositeOperation = 'source-over';
+                octx.clearRect(0, 0, backingW, backingH);
+            }
+            // Draw in logical px, same as the main canvas.
+            octx.setTransform(this.backingScaleX, 0, 0, this.backingScaleY, 0, 0);
 
             const visionUnits = [
                 ...(this.deployedSquadRoster || []),
@@ -5422,7 +5586,7 @@ class Game {
             octx.globalCompositeOperation = 'source-over';
             const darknessAlpha = nightCfg.DARKNESS_ALPHA !== undefined ? nightCfg.DARKNESS_ALPHA : 0.92;
             octx.fillStyle = `rgba(0, 0, 20, ${darknessAlpha})`;
-            octx.fillRect(0, 0, oc.width, oc.height);
+            octx.fillRect(0, 0, viewW, viewH);
 
             // Pass 2: Cut vision holes (fully transparent inside each circle)
             octx.globalCompositeOperation = 'destination-out';
@@ -5462,11 +5626,12 @@ class Game {
             if (tintOpacity > 0) {
                 octx.globalCompositeOperation = 'destination-over';
                 octx.fillStyle = `rgba(0, 0, 20, ${tintOpacity})`;
-                octx.fillRect(0, 0, oc.width, oc.height);
+                octx.fillRect(0, 0, viewW, viewH);
             }
 
             octx.globalCompositeOperation = 'source-over';
-            this.ctx.drawImage(oc, 0, 0);
+            // Same pixel size as the backing store: draw it 1:1 over the logical viewport.
+            this.ctx.drawImage(oc, 0, 0, viewW, viewH);
         }
 
         // --- Radial menus (screen-space UI, above night overlay) ---
@@ -5482,9 +5647,9 @@ class Game {
         }
 
         if ((this.gameState === 'MISSION_ENDING_VICTORY' || this.gameState === 'MISSION_ENDING_DEFEAT') && this.missionEndMessage) {
-            this.ctx.save(); this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.save(); this.ctx.fillStyle = "rgba(0, 0, 0, 0.3)"; this.ctx.fillRect(0, 0, viewW, viewH);
             this.ctx.font = "bold 48px 'Impact', 'Arial Black', sans-serif"; this.ctx.textAlign = "center"; this.ctx.textBaseline = "middle";
-            const textX = this.canvas.width / 2; const textY = this.canvas.height / 2;
+            const textX = viewW / 2; const textY = viewH / 2;
             this.ctx.shadowColor = "rgba(0,0,0,0.7)"; this.ctx.shadowBlur = 5; this.ctx.shadowOffsetX = 2; this.ctx.shadowOffsetY = 2;
             if (this.missionPendingOutcomeIsVictory) { this.ctx.fillStyle = "#4CAF50"; } else { this.ctx.fillStyle = "#F44336"; }
             this.ctx.fillText(this.missionEndMessage, textX, textY);
@@ -5528,9 +5693,9 @@ class Game {
 
             if (this._perfPhasingActive && this.enemyUnits && this.enemyUnits.length > 0) {
                 const zoom = this.cameraZoom || 1.0;
-                const viewCX = this.cameraX + this.canvas.width / (2 * zoom);
-                const viewCY = this.cameraY + this.canvas.height / (2 * zoom);
-                const halfDiag = Math.hypot(this.canvas.width, this.canvas.height) / (2 * zoom);
+                const viewCX = this.cameraX + this.viewWidth / (2 * zoom);
+                const viewCY = this.cameraY + this.viewHeight / (2 * zoom);
+                const halfDiag = Math.hypot(this.viewWidth, this.viewHeight) / (2 * zoom);
                 const keepAwakeRadius = halfDiag + (CONFIG.AUTO_PHASE_ENEMIES_CAMERA_BUFFER || 400);
                 const keepAwakeRadiusSq = keepAwakeRadius * keepAwakeRadius;
                 const baseDuration = CONFIG.AUTO_PHASE_ENEMIES_DURATION_BASE || 1.0;
@@ -5557,25 +5722,20 @@ class Game {
             this.gameState === 'MISSION_ENDING_DEFEAT' ||
             this.gameState === 'SHOOTOUT_PLAYING' ||
             this.gameState === 'SHOOTOUT_AMBUSH') {
-try {
-    this.update(deltaTime);
-} catch (e) {
+            try {
+                this.update(deltaTime);
+            } catch (e) {
                 console.error("ERROR IN Game.update():", e);
-    this.gameState = 'ERROR_STATE';
-}
-
-try {
-    this.render();
-} catch (e) {
-                console.error("ERROR IN Game.render():", e);
-    this.gameState = 'ERROR_STATE';
-}
+                this.gameState = 'ERROR_STATE';
+            }
         }
 
+        // Render exactly once per frame. (Active states used to render twice back to
+        // back — the first frame was fully overdrawn, doubling fill cost for nothing.)
         try {
             this.render();
         } catch (e) {
-//            console.error("ERROR IN Game.render():", e);
+            console.error("ERROR IN Game.render():", e);
             this.gameState = 'ERROR_STATE';
         }
 

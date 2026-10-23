@@ -87,6 +87,8 @@ class UI {
         this.lastObjectiveSelect = document.getElementById('lastObjectiveSelect');
         this.displaySizeSelect = document.getElementById('displaySizeSelect');
         this.pauseDisplaySizeSelect = document.getElementById('pauseDisplaySizeSelect');
+        this.renderScaleSelect = document.getElementById('renderScaleSelect');
+        this.pauseRenderScaleSelect = document.getElementById('pauseRenderScaleSelect');
 
         this.masterVolumeSlider = document.getElementById('masterVolumeSlider');
         this.musicVolumeSlider = document.getElementById('musicVolumeSlider');
@@ -1626,6 +1628,21 @@ class UI {
         initDisplaySizeSelect(this.displaySizeSelect, false);
         initDisplaySizeSelect(this.pauseDisplaySizeSelect, true);
 
+        // Render Scale: game-canvas resolution as a fraction of the screen's native resolution.
+        // Runs during UI construction (before Game finishes init), so read the saved pref here.
+        const initRenderScaleSelect = (select, isPause) => {
+            if (!select || !this.game) return;
+            select.value = String(this.game.sanitizeRenderScale(SaveManager.getPreference('renderScale', CONFIG.RENDER_SCALE)));
+            select.addEventListener('change', (e) => {
+                this.game.setRenderScale(e.target.value);
+                SaveManager.savePreference('renderScale', this.game.renderScale);
+                const other = isPause ? this.renderScaleSelect : this.pauseRenderScaleSelect;
+                if (other) other.value = String(this.game.renderScale);
+            });
+        };
+        initRenderScaleSelect(this.renderScaleSelect, false);
+        initRenderScaleSelect(this.pauseRenderScaleSelect, true);
+
         const initVolumeSlider = (slider, label, prefKey, defaultVal, applyFn) => {
             if (!slider || !label) return;
             const saved = SaveManager.getPreference(prefKey, defaultVal);
@@ -1740,6 +1757,9 @@ class UI {
             if (this.lastObjectiveSelect) {
                 this.lastObjectiveSelect.value = this.lastObjectiveMode;
             }
+            if (this.renderScaleSelect && this.game) {
+                this.renderScaleSelect.value = String(this.game.renderScale);
+            }
             this.optionsMenuScreen.style.display = 'flex';
         }
     }
@@ -1768,6 +1788,9 @@ class UI {
             if (this.pauseDisplaySizeSelect) {
                 const savedDisplaySize = SaveManager.getPreference('displaySize', CONFIG.DISPLAY_SIZE || 'stretched');
                 this.pauseDisplaySizeSelect.value = savedDisplaySize;
+            }
+            if (this.pauseRenderScaleSelect && this.game) {
+                this.pauseRenderScaleSelect.value = String(this.game.renderScale);
             }
             this.pauseOptionsScreen.style.display = 'flex';
         }

@@ -56,15 +56,13 @@ class InputHandler {
                     if (this.isCtrlDragSelecting) { this.isCtrlDragSelecting = false; this.game.isDragging = false; this.game.draggedFarEnough = false; }
 
 
-                    const rect = this.canvas.getBoundingClientRect();
-                    const scaleX = this.canvas.width / rect.width;
-                    const scaleY = this.canvas.height / rect.height;
-
-                    const screenX = (event.clientX - rect.left) * scaleX;
-                    const screenY = (event.clientY - rect.top) * scaleY;
+                    // Logical (CSS px) canvas coords — canvas.width/height is the HiDPI backing store.
+                    const viewPos = this.game.clientToView(event.clientX, event.clientY);
+                    const screenX = viewPos.x;
+                    const screenY = viewPos.y;
                     const zoom = this.game.cameraZoom || 1.0;
-                    const canvasWidth = this.canvas.width;
-                    const canvasHeight = this.canvas.height;
+                    const canvasWidth = this.game.viewWidth;
+                    const canvasHeight = this.game.viewHeight;
                     const worldX = this.game.cameraX + (screenX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
                     const worldY = this.game.cameraY + (screenY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
 
@@ -373,20 +371,15 @@ class InputHandler {
     }
 
     _updateMousePositions(event) {
-        /* ... (Unchanged from previous complete version) ... */
-        const rect = this.canvas.getBoundingClientRect();
-        const mouseXRelative = event.clientX - rect.left;
-        const mouseYRelative = event.clientY - rect.top;
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
-
-        this.mousePos.screenX = mouseXRelative * scaleX;
-        this.mousePos.screenY = mouseYRelative * scaleY;
+        // Logical (CSS px) canvas coords — canvas.width/height is the HiDPI backing store.
+        const viewPos = this.game.clientToView(event.clientX, event.clientY);
+        this.mousePos.screenX = viewPos.x;
+        this.mousePos.screenY = viewPos.y;
 
         if (this.game && this.game.gameState === 'RUNNING') {
             const zoom = this.game.cameraZoom || 1.0;
-            const canvasWidth = this.canvas.width;
-            const canvasHeight = this.canvas.height;
+            const canvasWidth = this.game.viewWidth;
+            const canvasHeight = this.game.viewHeight;
             this.mousePos.worldX = this.game.cameraX + (this.mousePos.screenX - canvasWidth / 2) / zoom + canvasWidth / (2 * zoom);
             this.mousePos.worldY = this.game.cameraY + (this.mousePos.screenY - canvasHeight / 2) / zoom + canvasHeight / (2 * zoom);
         } else {

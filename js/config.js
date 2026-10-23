@@ -26,6 +26,8 @@ const CONFIG = {
     // =============================================================================
     CANVAS_ASPECT_RATIO_SQUISH: 1.0,                      // Multiplier for the canvas aspect ratio calculation. >1 = wider canvas (less height squish), <1 = narrower canvas (more height squish). Tweak if the 16:9 canvas appears too tall/short relative to the HUD.
     DISPLAY_SIZE: 'stretched',                            // Display size mode: 'stretched' = fill entire canvas container (may squish), 'widescreen' = maintain aspect ratio with letterboxing.
+    RENDER_SCALE: 1.0,                                    // Default game-canvas resolution as a fraction of the screen's native (physical) resolution. 1.0 = native/sharpest, 0.75 / 0.5 = cheaper for weaker GPUs. Player can override in Options (saved as the 'renderScale' preference). 0.5 on a 200%-scaled display matches the old pre-HiDPI look.
+    RENDER_SCALE_OPTIONS: [1.0, 0.75, 0.5],               // Allowed Render Scale values (must match the <option> values in index.html).
 
     // =============================================================================
     // INPUT
@@ -183,7 +185,67 @@ const CONFIG = {
         UNIT_HOVER_INERTIA: 0.15,
         UNIT_HOVER_FRICTION: 3.0,
         UNIT_HOVER_BOB_AMPLITUDE: 0.5,
-        UNIT_HOVER_BOB_SPEED: 1.5
+        UNIT_HOVER_BOB_SPEED: 1.5,
+
+        // Faction-coloured silhouette outline around living units. Baked once per sprite while
+        // assets load (js/unitSpriteFx.js), so it costs nothing per frame.
+        //
+        // To restyle a faction, edit its block below and reload the page:
+        //   ENEMY   -> possums
+        //   HOSTAGE -> hostages waiting for rescue
+        // Player units are NOT listed here: they have no static rim, because the blue rim in
+        // SELECTION_OUTLINE (below) is reserved for the selected ones.
+        //
+        // ENABLED can be toggled live; WIDTH / colours are baked in, so changes need a reload.
+        OUTLINE: {
+            ENABLED: true,
+            MAX_SOURCE_PX: 6,                             // Cap on rim thickness in sprite-image pixels (protects very small scale factors from huge, slow-to-bake outlines).
+            ENEMY: {
+                COLOR: 'rgba(69, 21, 17, 0.78)',        // Possums. Set to null for no rim.
+                WIDTH: 1.0                              // Rim thickness in world px (on screen: × camera zoom × display scaling).
+            },
+            HOSTAGE: {
+                COLOR: 'rgba(56, 42, 2, 0.6)',       // Hostages waiting for rescue. Set to null for no rim.
+                WIDTH: 1.0                              // Rim thickness in world px.
+            }
+        },
+
+        // Blue outline for SELECTED player units only, so a blue rim always means "this one is
+        // under your control". Baked into the player sprites; unselected player units draw
+        // the plain sprite, with no rim at all.
+        SELECTION_OUTLINE: {
+            ENABLED: true,
+            WIDTH: 1.0,                                  // Rim thickness in world px (same conversion as OUTLINE.WIDTH).
+            MAX_SOURCE_PX: 6,                             // Cap on thickness in sprite-image pixels.
+            COLOR: 'rgba(90, 200, 255, 0.5)'             // The blue rim itself.
+        },
+
+        // Blue ring on the ground under the feet of selected player units. Drawn under the
+        // sprite, so the unit covers the middle and only the rim peeks out.
+        SELECTION_RING: {
+            ENABLED: true,
+            COLOR: 'rgba(90, 200, 255, 0.35)',            // Ring colour.
+            LINE_WIDTH: 1.5,                              // Ring thickness in world px.
+            GLOW_COLOR: 'rgba(90, 200, 255, 0.25)',        // Wider, fainter ring underneath (cheap stand-in for a blur).
+            GLOW_WIDTH: 7,                                // Width of the halo ring in world px.
+            RADIUS_FACTOR: 2.6,                           // Ring radius = measured foot width × this. Large enough to clear the body silhouette (raccoon bodies are ~18 px half-width on screen).
+            HEIGHT_RATIO: 0.34,                           // Ring height ÷ width (flattened for the top-down 3/4 view).
+            RAISE: 0.35                                   // Lift the ring centre by this × its half-height.
+        },
+
+        // Soft contact shadow under living units. One pre-rendered gradient drawn as an ellipse
+        // (one cheap drawImage per unit). Foot positions are measured from each sprite's alpha
+        // at load, so the shadow sits under the feet for every unit type without manual tuning.
+        GROUND_SHADOW: {
+            ENABLED: true,
+            OPACITY: 0.55,                                // Darkness at the shadow's centre (0-1). Most of the centre is hidden behind the feet; what shows is the softer rim.
+            WIDTH_FACTOR: 2.2,                            // Shadow width = measured leg/foot width × this (≈ body width, so it peeks out on both sides).
+            HEIGHT_RATIO: 0.35,                           // Ellipse height ÷ width (flattened for the top-down 3/4 view).
+            RAISE: 0.3,                                   // Lift the centre by this × the ellipse's half-height, so feet stand inside the shadow rather than on its top edge.
+            HOVER_DROP: 6,                                // Hovering units: shadow sits this many world px below the feet...
+            HOVER_SCALE: 0.85,                            // ...a bit smaller...
+            HOVER_OPACITY_MULT: 0.6                       // ...and lighter.
+        }
     },
 
     // =============================================================================
@@ -776,7 +838,7 @@ const CONFIG = {
         },
         POSSUM_HEAVY_WEAPON: {
             name: "Possum Heavy MG",
-            damage: 18,
+            damage: 12,
             rof: 2,
             range: 500,
             projectileSpeed: 500,
@@ -794,7 +856,7 @@ const CONFIG = {
         },
         POSSUM_SNIPER_RIFLE: {
             name: "Possum Sniper Rifle",
-            damage: 35,
+            damage: 25,
             rof: 0.2,
             range: 600,
             projectileSpeed: 900,
@@ -812,7 +874,7 @@ const CONFIG = {
         },
         POSSUM_ELITE_WEAPON: {
             name: "Possum Elite Rifle",
-            damage: 12,
+            damage: 18,
             rof: 7,
             range: 550,
             projectileSpeed: 550,
@@ -1935,12 +1997,12 @@ const CONFIG = {
         QUADRANT_MIN_ROWS: 3,
         QUADRANT_MAX_COLS: 16,
         QUADRANT_MAX_ROWS: 9,
-        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 20,
+        BASE_ENEMY_COUNT_PER_DENSITY_FACTOR: 15,
         RANDOM_ADDITION_FACTOR_MAX: 0.1,
         AVG_ENEMIES_PER_GROUP_ATTEMPT: 2.0,
         SMALL_GROUP_CHANCE: 0.6,
         SMALL_GROUP_SIZE_MIN: 2,
-        SMALL_GROUP_SIZE_MAX: 5,
+        SMALL_GROUP_SIZE_MAX: 4,
         MIN_DISTANCE_FROM_PLAYER_SPAWN_ZONE: 700,
         LEADER_PLACEMENT_MAX_ATTEMPTS: 5,
         MEMBER_PLACEMENT_MAX_ATTEMPTS: 5,
