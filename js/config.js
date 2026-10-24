@@ -9,7 +9,7 @@ const CONFIG = {
     MIN_CANVAS_WIDTH: 1920,
     MIN_CANVAS_HEIGHT: 1080,
     MAX_DELTA_TIME_STEP: 0.1,
-    CAMERA_LERP_SPEED: 0.08,
+    CAMERA_LERP_SPEED: 0.08,                          // Fraction of the remaining distance the follow-camera closes per 1/60 s. Frame-rate independent (scaled by delta time), so it feels the same at 60, 144 Hz or during frame drops.
     CAMERA_ZOOM: 1.15,
 
     // =============================================================================
@@ -20,6 +20,15 @@ const CONFIG = {
     AUTO_PHASE_ENEMIES_DURATION_BASE: 1.0,            // Base perf-phase duration (seconds).
     AUTO_PHASE_ENEMIES_DURATION_JITTER: 1.0,          // Random extra duration (0..this) per unit. Desynchronizes phase-end so units don't all repath in the same frame.
     AUTO_PHASE_ENEMIES_CAMERA_BUFFER: 400,            // Enemies within (half view diagonal + this) px of the camera center are never perf-phased (avoids visible ghosting/freezing).
+
+    // Ground terrain is replayed into device-resolution chunk canvases around the camera (js/terrainChunks.js)
+    // instead of one world-sized canvas stretched by zoom x DPR. Memory scales with screen size, not map size.
+    TERRAIN_CHUNKS: {
+        CHUNK_DEVICE_PX: 512,                         // Chunk canvas size in device pixels (~1 MB each). Smaller = less overdraw at the view edges but more chunks and more tiles replayed twice across seams.
+        PREFETCH_PER_FRAME: 2,                        // Chunks in the ring just outside the view built ahead of time per frame. 0 = build only when a chunk scrolls into view.
+        CACHE_EXTRA_CHUNKS: 16,                       // Recently seen chunks kept beyond the view + ring, for when the camera turns back.
+        SMOOTHING_QUALITY: 'high',                    // imageSmoothingQuality used when tiles are downscaled into a chunk ('low' | 'medium' | 'high').
+    },
 
     // =============================================================================
     // LAYOUT
@@ -231,6 +240,19 @@ const CONFIG = {
             RADIUS_FACTOR: 2.6,                           // Ring radius = measured foot width × this. Large enough to clear the body silhouette (raccoon bodies are ~18 px half-width on screen).
             HEIGHT_RATIO: 0.34,                           // Ring height ÷ width (flattened for the top-down 3/4 view).
             RAISE: 0.35                                   // Lift the ring centre by this × its half-height.
+        },
+
+        // "X-ray" silhouette for player units hidden behind trees, rocks, buildings and other
+        // obstacles. Only the hidden part of the unit is drawn, on top of the obstacle, so the
+        // visible part looks unchanged. Costs nothing until a unit is actually behind something.
+        // All values can be changed live.
+        OCCLUSION_SILHOUETTE: {
+            ENABLED: true,
+            INCLUDE_RESCUED_HOSTAGES: true,               // Also show rescued hostages following the squad.
+            COLOR: 'rgb(235, 232, 215)',                  // Unselected units (blue stays reserved for selection).
+            SELECTED_COLOR: 'rgb(90, 200, 255)',          // Selected units, matching SELECTION_OUTLINE.
+            TINT_STRENGTH: 0.7,                           // 0 = faint ghost of the real sprite, 1 = flat COLOR silhouette.
+            ALPHA: 0.5                                    // Opacity of the silhouette over the obstacle.
         },
 
         // Soft contact shadow under living units. One pre-rendered gradient drawn as an ellipse

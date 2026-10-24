@@ -620,6 +620,12 @@ class UI {
     showVideoLoadingScreen(videoPath) {
         if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return Promise.resolve();
 
+        // Drop focus from the button that started the mission, so Space/Enter during the
+        // video can't "click" it again behind the overlay.
+        if (document.activeElement && typeof document.activeElement.blur === 'function') {
+            document.activeElement.blur();
+        }
+
         const game = this.game;
         if (game && game.audioManager) {
             this.loadingVideoPlayer.volume = game.audioManager.globalVolume * game.audioManager.sfxVolume;

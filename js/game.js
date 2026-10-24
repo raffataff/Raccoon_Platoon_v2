@@ -9,8 +9,8 @@ class Game {
             return;
         }
 
-        this.prerenderedBackgroundCanvas = document.createElement('canvas');
-        this.prerenderedBackgroundCtx = this.prerenderedBackgroundCanvas.getContext('2d', { willReadFrequently: true });
+        // Ground terrain: recorded once per mission, replayed into device-resolution chunks.
+        this.terrainChunks = new TerrainChunkCache();
 
         // Night mission overlay canvas (offscreen)
         this.isNightMission = false;
@@ -135,6 +135,11 @@ class Game {
 
         this.fps = 0;
         this.frameCount = 0;
+        this.renderFrameId = 0; // Ever-increasing battlefield render counter (stamps per-frame unit draw data).
+        // Occlusion silhouettes (_renderOccludedUnitSilhouettes): reused occluder list + scratch canvas.
+        this._silhouetteOccluders = [];
+        this._silhouetteCanvas = null;
+        this._silhouetteCtx = null;
         this.lastFpsUpdateTime = 0;
         this.fpsUpdateInterval = 1000;
         this._perfPhasingActive = false;
@@ -192,6 +197,12 @@ class Game {
 
         this.resizeCanvas();
         window.addEventListener('resize', () => this.resizeCanvas());
+        // The container also changes size without a window resize, e.g. when the left HUD
+        // panel appears at mission start. Without this the canvas kept its menu-screen size,
+        // overflowing the container: its edges were clipped and rendered for nothing.
+        if (typeof ResizeObserver === 'function' && this.canvasContainer) {
+            new ResizeObserver(() => this.resizeCanvas()).observe(this.canvasContainer);
+        }
         document.addEventListener('fullscreenchange', () => {
             this.resizeCanvas();
             setTimeout(() => this.resizeCanvas(), 50);
@@ -1416,10 +1427,13 @@ class Game {
         }
     }
 
-    generatePrerenderedBackground(worldWidth, worldHeight, seedForBackground) {
-        this.prerenderedBackgroundCanvas.width = worldWidth;
-        this.prerenderedBackgroundCanvas.height = worldHeight;
-        const ctx = this.prerenderedBackgroundCtx;
+    // Lays out the mission's ground tiles (mud, then grass) and records them in
+    // this.terrainChunks, which draws them at screen resolution around the camera. Placement
+    // and RNG consumption are unchanged from the old one-big-canvas painter, so a given seed
+    // still produces the same ground.
+    buildTerrain(worldWidth, worldHeight, seedForBackground) {
+        const terrain = this.terrainChunks;
+        terrain.begin(worldWidth, worldHeight);
         const localRng = new SeededRandom(seedForBackground);
 
         // Get biome config for terrain settings
@@ -1466,18 +1480,13 @@ class Game {
         if (hasMudSprites) {
             const drawMudSprite = (mudImg, effectiveX, drawY) => {
                 const offsetX = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 1.8;
-                const offsetY = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 1.8;
+                const offsetY = (localRng.next() - 0.5) * mudTileSize * mudOverlapFactor * 1.8; // unused, but still rolled to keep the RNG sequence
                 const rotation = doRandomRotation ? localRng.nextFloat(0, Math.PI * 2) : 0;
                 const flipH = localRng.chance(0.5) ? -1 : 1;
                 const drawX = effectiveX + offsetX;
                 const centerX = drawX + mudTileSize / 2;
                 const centerY = drawY + mudTileSize / 2;
-                ctx.save();
-                ctx.translate(centerX, centerY);
-                ctx.rotate(rotation);
-                ctx.scale(flipH, 1);
-                ctx.drawImage(mudImg, -mudTileSize / 2, -mudTileSize / 2, mudTileSize, mudTileSize);
-                ctx.restore();
+                terrain.add(mudImg, centerX, centerY, mudTileSize, rotation, flipH);
             };
 
             const mudStepX = mudTileSize * (1 - mudOverlapFactor + 0.1);
@@ -1515,9 +1524,6 @@ class Game {
                     }
                 }
             }
-        } else {
-            ctx.fillStyle = baseMudColor;
-            ctx.fillRect(0, 0, worldWidth, worldHeight);
         }
 
         if (grassSpriteFiles && grassSpriteFiles.length > 0 && grassSpritePath) {
@@ -1532,11 +1538,7 @@ class Game {
                 const py = drawY + offsetY + configuredTileSize / 2;
                 const cx = px + configuredTileSize / 2;
                 const cy = py + configuredTileSize / 2;
-                ctx.save();
-                ctx.translate(cx, cy);
-                ctx.scale(finalFlip, 1);
-                ctx.drawImage(img, -configuredTileSize / 2, -configuredTileSize / 2, configuredTileSize, configuredTileSize);
-                ctx.restore();
+                terrain.add(img, cx, cy, configuredTileSize, 0, finalFlip);
             };
 
             for (let y = -configuredTileSize * overlapFactor; y < worldHeight; y += stepY) {
@@ -1584,6 +1586,9 @@ class Game {
                 }
             }
         }
+
+        // Biomes without mud sprites get a solid base colour under the grass instead.
+        terrain.finish(hasMudSprites ? null : baseMudColor);
     }
 
     start() {
@@ -1619,6 +1624,9 @@ class Game {
     }
 
     async confirmSquadAndStartMission(selectedRecruitsForDeployment) {
+        // Already deploying: a second call would pick a new loading video and restart it
+        // (e.g. Space/Enter re-activating the still-focused Start Mission button).
+        if (this.gameState === 'LOADING_MISSION') return;
         const maxSquadSize = CONFIG.MAX_SQUAD_SIZE_MVP || 4;
         if (!selectedRecruitsForDeployment || selectedRecruitsForDeployment.length === 0 || selectedRecruitsForDeployment.length > maxSquadSize) {
             let alertMsg = (CONFIG.UI_TEXT_STRINGS.INVALID_SQUAD_SIZE_ALERT || "Invalid squad size. Select 1 to {MAX_SQUAD_SIZE} recruits.").replace('{MAX_SQUAD_SIZE}', maxSquadSize.toString());
@@ -1778,7 +1786,7 @@ class Game {
                 this.currentMissionSeed
             );
 
-            this.generatePrerenderedBackground(worldWidth, worldHeight, this.currentMissionSeed);
+            this.buildTerrain(worldWidth, worldHeight, this.currentMissionSeed);
 
             this.initialEnemyCount = this.enemyUnits.length;
             if (this.currentMissionParams && this.currentMissionParams.objectives) {
@@ -2886,6 +2894,13 @@ class Game {
             canvasWidth = containerWidth;
             canvasHeight = containerHeight;
         }
+        // Keep the same world point at the centre of the view when its size changes
+        // (cameraX/Y is the view's top-left corner).
+        const zoom = this.cameraZoom || 1.0;
+        if (this.viewWidth > 0 && this.viewHeight > 0 && canvasWidth > 0 && canvasHeight > 0) {
+            this.cameraX += (this.viewWidth - canvasWidth) / (2 * zoom);
+            this.cameraY += (this.viewHeight - canvasHeight) / (2 * zoom);
+        }
         // Logical size (CSS px) — what every gameplay/camera/input/UI calculation uses.
         this.viewWidth = canvasWidth;
         this.viewHeight = canvasHeight;
@@ -2902,7 +2917,7 @@ class Game {
         this.canvas.style.width = canvasWidth + 'px';
         this.canvas.style.height = canvasHeight + 'px';
         this._applyBaseTransform();
-        if (this.gameState === 'RUNNING') this.clampCamera();
+        if (this.gameState === 'RUNNING' || this.gameState === 'PAUSED' || this.gameState === 'MINIGAME_ACTIVE') this.clampCamera();
     }
 
     // Backing-store pixels per logical (CSS) pixel: the screen's devicePixelRatio
@@ -4672,8 +4687,11 @@ class Game {
                 let targetCameraX = avgX - this.viewWidth / (2 * zoom); let targetCameraY = avgY - this.viewHeight / (2 * zoom);
                 targetCameraX = Math.max(0, Math.min(targetCameraX, Math.max(0, (CONFIG.WORLD_WIDTH || 0) - this.viewWidth / zoom)));
                 targetCameraY = Math.max(0, Math.min(targetCameraY, Math.max(0, (CONFIG.WORLD_HEIGHT || 0) - this.viewHeight / zoom)));
-                this.cameraX += (targetCameraX - this.cameraX) * CONFIG.CAMERA_LERP_SPEED;
-                this.cameraY += (targetCameraY - this.cameraY) * CONFIG.CAMERA_LERP_SPEED;
+                // CAMERA_LERP_SPEED is per 1/60 s; scale it by the real frame time so the
+                // camera keeps pace with the units (which move per second) at any frame rate.
+                const lerp = 1 - Math.pow(1 - CONFIG.CAMERA_LERP_SPEED, deltaTime * 60);
+                this.cameraX += (targetCameraX - this.cameraX) * lerp;
+                this.cameraY += (targetCameraY - this.cameraY) * lerp;
                 if (Math.abs(this.cameraX - targetCameraX) < 0.5) this.cameraX = targetCameraX;
                 if (Math.abs(this.cameraY - targetCameraY) < 0.5) this.cameraY = targetCameraY;
                 this.clampCamera();
@@ -4855,6 +4873,116 @@ class Game {
         }
     }
 
+    /**
+     * "X-ray" silhouettes for player units standing behind trees, rocks, buildings, etc.
+     * Only the hidden part is drawn: in a small device-resolution scratch canvas the
+     * obstacles drawn over the unit are stamped as a mask, the unit's sprite is kept only
+     * inside it ('source-in') and tinted ('source-atop'), and the result is composited on
+     * top. A unit nothing overlaps costs a few rect checks and no drawing.
+     * Call right after the depth-sorted pass, with the world transform still applied.
+     * Tuning: CONFIG.UNIT_VISUALS.OCCLUSION_SILHOUETTE.
+     */
+    _renderOccludedUnitSilhouettes(sortableObjects, deviceScaleX, deviceScaleY) {
+        const cfg = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.OCCLUSION_SILHOUETTE;
+        if (!cfg || !cfg.ENABLED) return;
+        const ctx = this.ctx;
+        const occluders = this._silhouetteOccluders;
+
+        for (let i = 0; i < sortableObjects.length; i++) {
+            const item = sortableObjects[i];
+            const unit = item.entity;
+            if (!item.isUnit || item.isDead || !unit || unit.team !== 'player') continue;
+            const draw = unit._occlusionDraw;
+            if (!draw || draw.frame !== this.renderFrameId || !draw.sprite) continue;
+            if (!cfg.INCLUDE_RESCUED_HOSTAGES && unit instanceof RaccoonHostage) continue;
+
+            // Everything sorted after the unit was drawn over it: keep the obstacles whose sprite overlaps.
+            const right = draw.x + draw.w;
+            const bottom = draw.y + draw.h;
+            occluders.length = 0;
+            for (let j = i + 1; j < sortableObjects.length; j++) {
+                const other = sortableObjects[j];
+                if (other.isUnit || other.isDestroyed) continue;
+                const obj = other.entity;
+                if (!obj || !obj.imageNormal || obj.isDestroyed) continue;
+                if (obj.x >= right || obj.x + obj.width <= draw.x || obj.y >= bottom || obj.y + obj.height <= draw.y) continue;
+                if (obj.type === 'intel_console' || obj.type === 'possum_turret' || obj.type === 'possum_anti_air_turret') continue;
+                occluders.push(obj);
+            }
+            if (occluders.length === 0) continue;
+
+            // Scratch origin snapped to whole device pixels, so the result lands 1:1 on the
+            // camera-snapped main canvas.
+            const px0 = Math.floor(draw.x * deviceScaleX);
+            const py0 = Math.floor(draw.y * deviceScaleY);
+            const pw = Math.ceil(right * deviceScaleX) - px0;
+            const ph = Math.ceil(bottom * deviceScaleY) - py0;
+            if (pw <= 0 || ph <= 0) continue;
+            const sctx = this._getSilhouetteContext(pw, ph);
+            sctx.setTransform(1, 0, 0, 1, 0, 0);
+            sctx.globalCompositeOperation = 'source-over';
+            sctx.globalAlpha = 1;
+            sctx.clearRect(0, 0, pw, ph);
+            sctx.setTransform(deviceScaleX, 0, 0, deviceScaleY, -px0, -py0);
+
+            // Mask = union of the occluders' pixels; keep the sprite only inside it, then tint.
+            for (let k = 0; k < occluders.length; k++) this._drawOcclusionMask(sctx, occluders[k]);
+            sctx.globalCompositeOperation = 'source-in';
+            sctx.drawImage(draw.sprite, draw.x, draw.y, draw.w, draw.h);
+            if (cfg.TINT_STRENGTH > 0) {
+                sctx.globalCompositeOperation = 'source-atop';
+                sctx.globalAlpha = Math.min(1, cfg.TINT_STRENGTH);
+                sctx.fillStyle = (unit.isSelected() && cfg.SELECTED_COLOR) ? cfg.SELECTED_COLOR : (cfg.COLOR || '#fff');
+                sctx.fillRect(draw.x, draw.y, draw.w, draw.h);
+            }
+
+            const prevAlpha = ctx.globalAlpha;
+            ctx.globalAlpha = cfg.ALPHA !== undefined ? cfg.ALPHA : 0.5;
+            ctx.drawImage(this._silhouetteCanvas, 0, 0, pw, ph,
+                px0 / deviceScaleX, py0 / deviceScaleY, pw / deviceScaleX, ph / deviceScaleY);
+            ctx.globalAlpha = prevAlpha;
+        }
+        occluders.length = 0;
+    }
+
+    // Draws an obstacle's current sprite the same way render() does (flip, animated tilesheet), as a mask.
+    _drawOcclusionMask(sctx, obj) {
+        const flipped = !!obj.isFlippedHorizontally;
+        if (flipped) {
+            sctx.save();
+            sctx.translate(obj.x + obj.width / 2, 0);
+            sctx.scale(-1, 1);
+            sctx.translate(-(obj.x + obj.width / 2), 0);
+        }
+        if (obj.isAnimated && obj.tilesheetPath && obj.frameWidth && obj.frameHeight) {
+            const sheet = this.preloadedImages[obj.tilesheetPath];
+            if (sheet) {
+                const framesPerRow = obj.framesPerRow || 2;
+                const sourceX = (obj.currentFrame % framesPerRow) * obj.frameWidth;
+                const sourceY = Math.floor(obj.currentFrame / framesPerRow) * obj.frameHeight;
+                sctx.drawImage(sheet, sourceX, sourceY, obj.frameWidth, obj.frameHeight, obj.x, obj.y, obj.width, obj.height);
+            }
+        } else if (obj.imageNormal.naturalWidth > 0) {
+            sctx.drawImage(obj.imageNormal, obj.x, obj.y, obj.width, obj.height);
+        }
+        if (flipped) sctx.restore();
+    }
+
+    // Grow-only scratch canvas for _renderOccludedUnitSilhouettes().
+    _getSilhouetteContext(w, h) {
+        if (!this._silhouetteCanvas) {
+            this._silhouetteCanvas = document.createElement('canvas');
+            this._silhouetteCanvas.width = Math.max(256, w);
+            this._silhouetteCanvas.height = Math.max(256, h);
+            this._silhouetteCtx = this._silhouetteCanvas.getContext('2d');
+        } else if (this._silhouetteCanvas.width < w || this._silhouetteCanvas.height < h) {
+            // Resizing keeps the same context object (its state is reset, which is fine).
+            this._silhouetteCanvas.width = Math.max(this._silhouetteCanvas.width, w);
+            this._silhouetteCanvas.height = Math.max(this._silhouetteCanvas.height, h);
+        }
+        return this._silhouetteCtx;
+    }
+
     render() {
         if (!this.ctx) {
 //            console.warn("Game render called but this.ctx is not defined.");
@@ -4890,15 +5018,20 @@ class Game {
         this.ctx.globalAlpha = 1.0;
         this.ctx.globalCompositeOperation = 'source-over';
         this.ctx.clearRect(0, 0, viewW, viewH);
+        this.renderFrameId++;
         this.ctx.save();
-        // Apply camera zoom - translate to center, scale, then translate by camera position
-        this.ctx.translate(viewW / 2, viewH / 2);
-        this.ctx.scale(this.cameraZoom, this.cameraZoom);
-        this.ctx.translate(-this.cameraX - viewW / (2 * this.cameraZoom), -this.cameraY - viewH / (2 * this.cameraZoom));
+        // World transform: zoom, then offset by the camera snapped to whole device pixels.
+        // Unsnapped, every static sprite and the terrain get resampled at a new sub-pixel
+        // offset each frame, which reads as soft, shimmering ground while the camera glides.
+        const zoom = this.cameraZoom;
+        const deviceScaleX = zoom * this.backingScaleX;
+        const deviceScaleY = zoom * this.backingScaleY;
+        const camX = Math.round(this.cameraX * deviceScaleX) / deviceScaleX;
+        const camY = Math.round(this.cameraY * deviceScaleY) / deviceScaleY;
+        this.ctx.scale(zoom, zoom);
+        this.ctx.translate(-camX, -camY);
 
-        if (this.prerenderedBackgroundCanvas && this.prerenderedBackgroundCanvas.width > 0 && this.prerenderedBackgroundCanvas.height > 0) {
-            try { this.ctx.drawImage(this.prerenderedBackgroundCanvas, 0, 0); } catch (e) { }
-        } else {
+        if (!this.terrainChunks.render(this.ctx, camX, camY, viewW / zoom, viewH / zoom, deviceScaleX, deviceScaleY)) {
             this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || viewW, CONFIG.WORLD_HEIGHT || viewH);
         }
@@ -5100,6 +5233,8 @@ class Game {
                 }
             } catch (e) { }
         });
+
+        this._renderOccludedUnitSilhouettes(sortableObjects, deviceScaleX, deviceScaleY);
 
         if (this.intelConsoles) {
             this.intelConsoles.forEach(console => {

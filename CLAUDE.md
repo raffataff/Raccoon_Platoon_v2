@@ -105,6 +105,7 @@ UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only t
 | `utils.js` | Geometry (line/circle/rect/ellipse/OBB intersection), line-of-sight, and the whole pathfinding pipeline: `findPath` (A*) → `smoothPath` → `deflatePath`. |
 | `effects.js` | ~15 canvas effect classes (explosions, blood, muzzle flash, speech bubbles…) driven via `game.addVisualEffect(type, data)`. |
 | `waterSwirl.js` | Water ambient effect. |
+| `terrainChunks.js` | `TerrainChunkCache` — records the mission's ground-tile placements and replays them into LRU-cached, device-resolution chunk canvases around the camera. |
 
 ### Audio / content / misc
 | File | Role |
@@ -151,7 +152,7 @@ A reusable **modal mini-game framework**. A mini-game can gate any interaction; 
 
 - **Object pooling** for anything spawned frequently (projectiles, grenades). Follow `ObjectPool` pattern for new high-churn objects.
 - **SpatialGrid** for any proximity query — never O(n²) loops over all units.
-- Background terrain is **pre-rendered once** to an offscreen canvas (`generatePrerenderedBackground`); night overlay is a separate offscreen canvas. Don't add per-frame full-map draws.
+- Background terrain is **recorded once** per mission (`buildTerrain` → `TerrainChunkCache` in `js/terrainChunks.js`) and replayed into device-resolution chunk canvases around the camera (tuning: `CONFIG.TERRAIN_CHUNKS`); the camera is snapped to whole device pixels in `render()` so chunks blit 1:1. Night overlay is a separate offscreen canvas. Don't add per-frame full-map draws.
 - Auto-degradation exists: `CONFIG.AUTO_PHASE_ENEMIES_FPS_THRESHOLD` (35 FPS) phases enemy AI when slow. FPS counter is on-screen (`#hud-fps`).
 - Pathfinding is budgeted: A* capped at `PATHFINDING_MAX_EXPANSIONS` (20k), path smoothing uses coarse stepping on long paths, repaths are cooldown-gated. Respect these knobs when touching movement code.
 - Prefer squared-distance comparisons (`distanceSq` pattern already used) over `Math.sqrt` in hot loops.

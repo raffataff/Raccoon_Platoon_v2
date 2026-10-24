@@ -2429,6 +2429,17 @@ class Unit {
                 spriteHeight = spriteToDraw.naturalHeight * spriteScale;
                 drawOffsetX = -spriteWidth / 2;
                 drawOffsetY = -spriteHeight / 2;
+
+                // World-space sprite rect for Game._renderOccludedUnitSilhouettes() later this frame.
+                if (this.team === 'player') {
+                    const od = this._occlusionDraw || (this._occlusionDraw = { sprite: null, x: 0, y: 0, w: 0, h: 0, frame: -1 });
+                    od.sprite = spriteToDraw;
+                    od.x = this.x + drawOffsetX;
+                    od.y = this.y + yOffset + drawOffsetY;
+                    od.w = spriteWidth;
+                    od.h = spriteHeight;
+                    od.frame = this.game.renderFrameId;
+                }
             }
         } else {
             const deadSpriteConfigPath = this.deadSpritePathKey ? CONFIG[this.deadSpritePathKey] : null;
