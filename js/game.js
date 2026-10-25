@@ -62,6 +62,9 @@ class Game {
 
         this.projectilePool = new ObjectPool(Projectile, 50, this);
         this.grenadeProjectilePool = new ObjectPool(GrenadeProjectile, 10, this);
+        // Pooled grenade explosion VFX + the camera shake they drive (js/grenadeFx.js).
+        this.grenadeFx = new GrenadeFx(this);
+        this.cameraShake = new CameraShake();
 
         this.isDragging = false;
         this.draggedFarEnough = false;
@@ -79,6 +82,7 @@ class Game {
 
         this.level = new Level(this);
         this.inputHandler = new InputHandler(this.canvas, this);
+        this.cursorManager = new CursorManager(); // before UI: the Cursors options screen binds to it
         this.ui = new UI(this);
 
         this.campaignRules = CAMPAIGN_RULES;
@@ -210,6 +214,8 @@ class Game {
         });
 
         this.lastTime = 0;
+        this._refreshInterval = 0; // estimated display refresh interval (s), see _pacedDeltaTime
+        this._refreshMisses = 0;
         this.gameLoop = this.gameLoop.bind(this);
 
         (async () => {
@@ -478,28 +484,6 @@ class Game {
         }
         const explosionConfig = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.EXPLOSION;
         if (explosionConfig) {
-            if (explosionConfig.GRENADE && explosionConfig.GRENADE.SPRITE_PATH) {
-                const path = explosionConfig.GRENADE.SPRITE_PATH;
-                if (!this.preloadedImages[path]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
-                        img.onerror = () => { console.warn(`[Preload FAILED - Misc] Grenade explosion sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
-                        img.src = path;
-                    }));
-                }
-            }
-            if (explosionConfig.BARREL && explosionConfig.BARREL.SPRITE_PATH) {
-                const path = explosionConfig.BARREL.SPRITE_PATH;
-                if (!this.preloadedImages[path]) {
-                    imagePromises.push(new Promise((resolve) => {
-                        const img = new Image();
-                        img.onload = () => { this.preloadedImages[path] = img; resolve(); };
-                        img.onerror = () => { console.warn(`[Preload FAILED - Misc] Barrel explosion sprite: '${path}'`); this.preloadedImages[path] = null; resolve(); };
-                        img.src = path;
-                    }));
-                }
-            }
             const fireConfig = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.FIRE;
             if (fireConfig && fireConfig.SPRITE_PATH) {
                 const path = fireConfig.SPRITE_PATH;
@@ -1847,6 +1831,8 @@ class Game {
             this.selectedUnits = [...this.deployedSquadRoster];
             this.gameObjects = [];
             this.visualEffects = [];
+            this.grenadeFx.clear();
+            this.cameraShake.reset();
 
             this.inputHandler.isCtrlDragSelecting = false;
             this.isDragging = false;
@@ -2701,6 +2687,8 @@ class Game {
         this.hostageUnits = [];
         this.gameObjects = [];
         this.visualEffects = [];
+        this.grenadeFx.clear();
+        this.cameraShake.reset();
         this.lastDeployedSquadIds = [];
         if (this.ui) {
             this.ui.hideHUD();
@@ -2747,7 +2735,7 @@ class Game {
         let currentLivingNames = [];
         const initialRosterRng = new SeededRandom(this.campaignSeed + 1);
 
-        const SPECIAL_GUEST_NAMES = ["DerGeissler", "Raffataff", "Xianah", "Gunslinger"];
+        const SPECIAL_GUEST_NAMES = ["Raffataff", "Rabidlorax", "DerGeissler", "Xianah", "Gunslinger"];
          for (let i = 0; i < initialSize; i++) {
              let faceImageFile = 'default_face.png';
              if (availableFaceImages.length > 0) {
@@ -2990,6 +2978,35 @@ class Game {
 
         this.cameraX = Math.max(0, Math.min(this.cameraX, maxX));
         this.cameraY = Math.max(0, Math.min(this.cameraY, maxY));
+    }
+
+    /** Eases the camera toward the centre of the living selected units (RUNNING only). */
+    _updateFollowCamera(deltaTime) {
+        if (!this.selectedUnits || this.selectedUnits.length === 0 || this.gameState !== 'RUNNING') return;
+        let avgX = 0, avgY = 0, count = 0;
+        for (const unit of this.selectedUnits) {
+            if (unit.isAlive()) { avgX += unit.x; avgY += unit.y; count++; }
+        }
+        if (count === 0) return;
+        avgX /= count; avgY /= count;
+        const zoom = this.cameraZoom || 1.0;
+        const maxX = Math.max(0, (CONFIG.WORLD_WIDTH || 0) - this.viewWidth / zoom);
+        const maxY = Math.max(0, (CONFIG.WORLD_HEIGHT || 0) - this.viewHeight / zoom);
+        // Aim at whole device pixels: the camera glides sub-pixel on the way, but comes to
+        // rest where the terrain chunks blit 1:1 (crisp ground when still).
+        const dsX = zoom * this.backingScaleX;
+        const dsY = zoom * this.backingScaleY;
+        const targetCameraX = Math.max(0, Math.min(Math.round((avgX - this.viewWidth / (2 * zoom)) * dsX), Math.floor(maxX * dsX))) / dsX;
+        const targetCameraY = Math.max(0, Math.min(Math.round((avgY - this.viewHeight / (2 * zoom)) * dsY), Math.floor(maxY * dsY))) / dsY;
+        // CAMERA_LERP_SPEED is per 1/60 s; scale it by the real frame time so the
+        // camera keeps pace with the units (which move per second) at any frame rate.
+        const lerp = 1 - Math.pow(1 - CONFIG.CAMERA_LERP_SPEED, deltaTime * 60);
+        this.cameraX += (targetCameraX - this.cameraX) * lerp;
+        this.cameraY += (targetCameraY - this.cameraY) * lerp;
+        // Finish the ease once the gap is an invisible fraction of a pixel.
+        if (Math.abs(this.cameraX - targetCameraX) * dsX < 0.02) this.cameraX = targetCameraX;
+        if (Math.abs(this.cameraY - targetCameraY) * dsY < 0.02) this.cameraY = targetCameraY;
+        this.clampCamera();
     }
 
     worldToScreen(worldX, worldY) {
@@ -4678,26 +4695,6 @@ class Game {
             }
         }
 
-        if (this.selectedUnits && this.selectedUnits.length > 0 && this.gameState === 'RUNNING') {
-            let avgX = 0, avgY = 0, count = 0;
-            this.selectedUnits.forEach(unit => { if (unit.isAlive()) { avgX += unit.x; avgY += unit.y; count++; } });
-            if (count > 0) {
-                avgX /= count; avgY /= count;
-                const zoom = this.cameraZoom || 1.0;
-                let targetCameraX = avgX - this.viewWidth / (2 * zoom); let targetCameraY = avgY - this.viewHeight / (2 * zoom);
-                targetCameraX = Math.max(0, Math.min(targetCameraX, Math.max(0, (CONFIG.WORLD_WIDTH || 0) - this.viewWidth / zoom)));
-                targetCameraY = Math.max(0, Math.min(targetCameraY, Math.max(0, (CONFIG.WORLD_HEIGHT || 0) - this.viewHeight / zoom)));
-                // CAMERA_LERP_SPEED is per 1/60 s; scale it by the real frame time so the
-                // camera keeps pace with the units (which move per second) at any frame rate.
-                const lerp = 1 - Math.pow(1 - CONFIG.CAMERA_LERP_SPEED, deltaTime * 60);
-                this.cameraX += (targetCameraX - this.cameraX) * lerp;
-                this.cameraY += (targetCameraY - this.cameraY) * lerp;
-                if (Math.abs(this.cameraX - targetCameraX) < 0.5) this.cameraX = targetCameraX;
-                if (Math.abs(this.cameraY - targetCameraY) < 0.5) this.cameraY = targetCameraY;
-                this.clampCamera();
-            }
-        }
-
         const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
         if (this.hostageUnits) {
             allUnitsInGame.push(...this.hostageUnits);
@@ -4718,6 +4715,11 @@ class Game {
                 }
             }
         });
+
+        // After the units move, so the camera chases where they are this frame. Before them,
+        // it chased last frame's positions and the followed unit wobbled on screen by however
+        // far it moved this frame, which varies with frame time.
+        this._updateFollowCamera(deltaTime);
 
         if (SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED) {
             const _sc = SPEECH_CONFIG.GLOBAL;
@@ -4792,6 +4794,8 @@ class Game {
             if (effect) effect.update(deltaTime);
             return effect && !effect.isMarkedForDeletion;
         });
+        this.grenadeFx.update(deltaTime);
+        this.cameraShake.update(deltaTime);
 
         this.waterEffects = this.waterEffects.filter(effect => {
             if (effect) effect.update(deltaTime);
@@ -4912,7 +4916,7 @@ class Game {
             if (occluders.length === 0) continue;
 
             // Scratch origin snapped to whole device pixels, so the result lands 1:1 on the
-            // camera-snapped main canvas.
+            // main canvas whenever the camera sits on a whole pixel.
             const px0 = Math.floor(draw.x * deviceScaleX);
             const py0 = Math.floor(draw.y * deviceScaleY);
             const pw = Math.ceil(right * deviceScaleX) - px0;
@@ -5015,19 +5019,33 @@ class Game {
             return;
         }
 
+        // Only mission states show the battlefield. Menus, debriefs and videos sit on a blank
+        // (CSS black) canvas — the world pass would otherwise keep running behind them and, with
+        // no mission terrain built, flood the view with WORLD_BASE_MUD_COLOR.
+        if (this.gameState !== 'RUNNING' && this.gameState !== 'PAUSED' && this.gameState !== 'MINIGAME_ACTIVE' &&
+            this.gameState !== 'MISSION_ENDING_VICTORY' && this.gameState !== 'MISSION_ENDING_DEFEAT') {
+            this.ctx.clearRect(0, 0, viewW, viewH);
+            return;
+        }
+
         this.ctx.globalAlpha = 1.0;
         this.ctx.globalCompositeOperation = 'source-over';
         this.ctx.clearRect(0, 0, viewW, viewH);
         this.renderFrameId++;
         this.ctx.save();
-        // World transform: zoom, then offset by the camera snapped to whole device pixels.
-        // Unsnapped, every static sprite and the terrain get resampled at a new sub-pixel
-        // offset each frame, which reads as soft, shimmering ground while the camera glides.
+        // World transform: zoom, then offset by the camera. Sub-pixel by default so pans glide
+        // evenly; the follow-camera settles on whole device pixels (_updateFollowCamera), so at
+        // rest the terrain chunks blit 1:1. CONFIG.CAMERA_PIXEL_SNAP forces whole pixels always.
         const zoom = this.cameraZoom;
         const deviceScaleX = zoom * this.backingScaleX;
         const deviceScaleY = zoom * this.backingScaleY;
-        const camX = Math.round(this.cameraX * deviceScaleX) / deviceScaleX;
-        const camY = Math.round(this.cameraY * deviceScaleY) / deviceScaleY;
+        let camX = CONFIG.CAMERA_PIXEL_SNAP ? Math.round(this.cameraX * deviceScaleX) / deviceScaleX : this.cameraX;
+        let camY = CONFIG.CAMERA_PIXEL_SNAP ? Math.round(this.cameraY * deviceScaleY) / deviceScaleY : this.cameraY;
+        // Screen shake (screen px), moved in whole device pixels so the chunks still blit 1:1.
+        if (this.cameraShake.offsetX !== 0 || this.cameraShake.offsetY !== 0) {
+            camX += Math.round(this.cameraShake.offsetX * this.backingScaleX) / deviceScaleX;
+            camY += Math.round(this.cameraShake.offsetY * this.backingScaleY) / deviceScaleY;
+        }
         this.ctx.scale(zoom, zoom);
         this.ctx.translate(-camX, -camY);
 
@@ -5035,6 +5053,8 @@ class Game {
             this.ctx.fillStyle = CONFIG.WORLD_BASE_MUD_COLOR || '#6B4F34';
             this.ctx.fillRect(0, 0, CONFIG.WORLD_WIDTH || viewW, CONFIG.WORLD_HEIGHT || viewH);
         }
+        // Ground layer, under units: blast decals, the Slagger pool, debris shadows, ground glow.
+        this.grenadeFx.renderGround(this.ctx, camX, camY, viewW / zoom, viewH / zoom, this.visualEffects);
 
         let sortableObjects = [];
         if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), isUnit: true, isDead: isDeadUnit }); } }); }
@@ -5574,6 +5594,8 @@ class Game {
             this.ctx.restore();
         }
 
+        this.grenadeFx.render(this.ctx);
+
         this.visualEffects.sort((a, b) => {
             const aY = (typeof a.getBaseY === 'function') ? a.getBaseY() : (a.y || 0);
             const bY = (typeof b.getBaseY === 'function') ? b.getBaseY() : (b.y || 0);
@@ -5728,8 +5750,8 @@ class Game {
             const zoom = this.cameraZoom || 1.0;
             visionUnits.forEach(unit => {
                 if (!unit || !unit.isAlive()) return;
-                const sx = (unit.x - this.cameraX) * zoom;
-                const sy = (unit.y - this.cameraY) * zoom;
+                const sx = (unit.x - camX) * zoom;
+                const sy = (unit.y - camY) * zoom;
                 const rankData = CONFIG.RANK_THRESHOLDS.find(r => r.rankName === unit.rank);
                 const baseRadius = (rankData && rankData.nightVisionRadius) || nightCfg.PLAYER_VISION_RADIUS || 220;
                 const r = baseRadius * zoom;
@@ -5744,14 +5766,15 @@ class Game {
                 octx.fill();
             });
 
-            // Pass 2b: Fire lights - cut holes in darkness for flame effects
+            // Pass 2b: Light sources - cut holes in darkness for flames, molten pools, blasts
             if (this.visualEffects) {
                 this.visualEffects.forEach(effect => {
-                    if (effect && effect.type === 'fire' && typeof effect.renderLight === 'function') {
-                        effect.renderLight(octx, this.cameraX, this.cameraY, zoom);
+                    if (effect && typeof effect.renderLight === 'function') {
+                        effect.renderLight(octx, camX, camY, zoom);
                     }
                 });
             }
+            this.grenadeFx.renderLights(octx, camX, camY, zoom);
 
             // Pass 3: Paint the residual tint into the transparent (vision) areas only.
             // destination-over draws BEHIND existing pixels, so it only fills where alpha=0
@@ -5795,12 +5818,45 @@ class Game {
         }
     }
 
+    /**
+     * Snaps a raw frame delta (seconds) to a whole number of display refreshes when it is
+     * within CONFIG.FRAME_PACING_SNAP_TOLERANCE of one. Vsync timestamps still wobble by a
+     * fraction of a millisecond while the display itself ticks evenly, so unsnapped deltas
+     * move everything a slightly different distance each displayed frame. The refresh
+     * interval is a running average of single-frame deltas, so the snapped deltas add up to
+     * real elapsed time and a refresh-rate change (another monitor, 60 <-> 144 Hz) re-seeds it.
+     */
+    _pacedDeltaTime(raw) {
+        const tolerance = CONFIG.FRAME_PACING_SNAP_TOLERANCE || 0;
+        if (tolerance <= 0 || !(raw > 0)) return raw;
+        const interval = this._refreshInterval;
+        if (!(interval > 0)) {
+            if (raw > 0.002 && raw < 0.05) this._refreshInterval = raw; // 20-500 Hz
+            return raw;
+        }
+        const frames = Math.round(raw / interval);
+        if (frames === 1) {
+            this._refreshInterval = interval + (raw - interval) * 0.05;
+            this._refreshMisses = 0;
+        } else if (++this._refreshMisses > 30) {
+            // Deltas keep missing the estimate (refresh rate changed, or seeded badly): re-seed.
+            this._refreshInterval = 0;
+            this._refreshMisses = 0;
+        }
+        if (frames < 1) return raw;
+        const snapped = frames * interval;
+        return Math.abs(raw - snapped) <= interval * tolerance ? snapped : raw;
+    }
+
     gameLoop(timestamp) {
-        const now = performance.now();
+        // rAF's timestamp is the frame's vsync time. performance.now() here would also count
+        // how late this callback happened to start, which varies every frame and showed up as
+        // jitter in anything moving at constant speed — most visibly the follow-camera's pan.
+        const now = timestamp > 0 ? timestamp : performance.now();
         if (!this.lastTime) {
             this.lastTime = now;
         }
-        let deltaTime = (now - this.lastTime) / 1000;
+        let deltaTime = this._pacedDeltaTime((now - this.lastTime) / 1000);
         this.lastTime = now;
 
         deltaTime = Math.min(deltaTime, CONFIG.MAX_DELTA_TIME_STEP || 0.1);
@@ -5979,11 +6035,12 @@ class Game {
             return;
         }
         if (type === 'grenade_explosion' && data) {
-            this.visualEffects.push(new SpriteExplosionEffect(data.x, data.y, data.radius, this, 'GRENADE'));
+            this.grenadeFx.spawnBlast(data.typeKey || 'FRAG', data.x, data.y, data.radius);
             return;
         }
+        // Exploding barrels and boss deaths reuse the frag blast; only the shake differs.
         if (type === 'barrel_explosion' && data) {
-            this.visualEffects.push(new SpriteExplosionEffect(data.x, data.y, data.radius, this, 'BARREL'));
+            this.grenadeFx.spawnBlast('FRAG', data.x, data.y, data.radius, data.shakeKey || 'BARREL');
             return;
         }
         if (type === 'plasma_pool' && data) {
@@ -5991,11 +6048,7 @@ class Game {
             return;
         }
         if (type === 'arc_lightning' && data) {
-            this.visualEffects.push(new ArcLightningEffect(data.x1, data.y1, data.x2, data.y2, data.color));
-            return;
-        }
-        if (type === 'shockwave_ring' && data) {
-            this.visualEffects.push(new ShockwaveRingEffect(data.x, data.y, data.radius, data.color, !!data.inward));
+            this.grenadeFx.spawnChainArc(data.x1, data.y1, data.x2, data.y2, data.color, data.delay || 0);
             return;
         }
         if (type === 'fire' && data && data.anchorObstacle) {
@@ -6056,6 +6109,23 @@ class Game {
             this.visualEffects.push(new SpeechBubbleEffect(data.parentUnit, data.text, this, color));
             return;
         }
+    }
+
+    // Add camera-shake trauma (0..1). With a world position, the shake fades with distance
+    // from the view center (CONFIG.VISUAL_EFFECTS.SCREEN_SHAKE.FALLOFF_NEAR/FAR).
+    addScreenShake(amount, worldX, worldY) {
+        const cfg = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.SCREEN_SHAKE;
+        if (!cfg || cfg.ENABLED === false || !(amount > 0)) return;
+        let falloff = 1;
+        if (typeof worldX === 'number' && typeof worldY === 'number') {
+            const zoom = this.cameraZoom || 1;
+            const dx = worldX - (this.cameraX + this.viewWidth / (2 * zoom));
+            const dy = worldY - (this.cameraY + this.viewHeight / (2 * zoom));
+            const d = Math.sqrt(dx * dx + dy * dy);
+            const near = cfg.FALLOFF_NEAR || 250, far = Math.max(near + 1, cfg.FALLOFF_FAR || 1100);
+            falloff = d <= near ? 1 : Math.max(0, 1 - (d - near) / (far - near));
+        }
+        if (falloff > 0) this.cameraShake.add(amount * falloff);
     }
 
     trySpeech(unit, category, customChance, force) {
@@ -6256,6 +6326,8 @@ class Game {
         this.enemyUnits = [];
         this.projectiles = [];
         this.visualEffects = [];
+        this.grenadeFx.clear();
+        this.cameraShake.reset();
     }
 
     updateShootoutMode(deltaTime) {

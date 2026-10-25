@@ -14,8 +14,11 @@
 // placement that touches it in the original global order, so overlaps across chunk seams
 // come out exactly as they would on one big canvas.
 //
-// Chunks sit on the device pixel grid (Game.render snaps the camera to whole device pixels),
-// so each one blits 1:1 with no resampling. Memory scales with the screen, not the map.
+// Chunks sit on the device pixel grid, so whenever the camera rests on a whole device pixel
+// each one blits 1:1 with no resampling. While the camera glides sub-pixel they are resampled,
+// and their antialiased edges would let the background show through as hairline seams; each
+// chunk therefore carries a GUTTER_PX border of its neighbours' content and is drawn that much
+// larger, so chunks overlap with identical pixels. Memory scales with the screen, not the map.
 //
 // Tuning lives in CONFIG.TERRAIN_CHUNKS.
 
@@ -145,6 +148,8 @@ class TerrainChunkCache {
 
         const cw = chunkPx / scaleX;
         const ch = chunkPx / scaleY;
+        const gx = TerrainChunkCache.GUTTER_PX / scaleX;
+        const gy = TerrainChunkCache.GUTTER_PX / scaleY;
         const cols = Math.ceil(this._worldW / cw);
         const rows = Math.ceil(this._worldH / ch);
         const c0 = Math.max(0, Math.floor(viewX / cw));
@@ -165,7 +170,7 @@ class TerrainChunkCache {
                 }
                 chunk.lastFrame = frame;
                 this._chunks.set(key, chunk);
-                ctx.drawImage(chunk.canvas, c * cw, r * ch, cw, ch);
+                ctx.drawImage(chunk.canvas, c * cw - gx, r * ch - gy, cw + 2 * gx, ch + 2 * gy);
             }
         }
 
@@ -205,9 +210,11 @@ class TerrainChunkCache {
         return true;
     }
 
-    // Replays every placement touching chunk (c, r) into a chunkPx x chunkPx canvas.
+    // Replays every placement touching chunk (c, r), plus its gutter, into a
+    // (chunkPx + 2 * GUTTER_PX)-square canvas.
     _buildChunk(c, r, cw, ch) {
-        const px = this._chunkPx;
+        const g = TerrainChunkCache.GUTTER_PX;
+        const px = this._chunkPx + 2 * g;
         const canvas = this._freeCanvases.pop() || document.createElement('canvas');
         if (canvas.width !== px) canvas.width = px;
         if (canvas.height !== px) canvas.height = px;
@@ -223,17 +230,21 @@ class TerrainChunkCache {
 
         const sx = this._scaleX;
         const sy = this._scaleY;
-        const ox = c * cw;
-        const oy = r * ch;
+        // World position of the canvas's top-left corner (the gutter included). Neighbouring
+        // chunks are offset by exactly chunkPx device px, so their overlap rasterizes identically.
+        const ox = c * cw - g / sx;
+        const oy = r * ch - g / sy;
 
-        // Clip at the world's right/bottom edge, as the old world-sized canvas did.
-        const clipW = Math.min(px, (this._worldW - ox) * sx);
-        const clipH = Math.min(px, (this._worldH - oy) * sy);
-        const clipped = clipW < px || clipH < px;
+        // Clip to the world rect, as the old world-sized canvas did.
+        const clipL = Math.max(0, -ox * sx);
+        const clipT = Math.max(0, -oy * sy);
+        const clipR = Math.min(px, (this._worldW - ox) * sx);
+        const clipB = Math.min(px, (this._worldH - oy) * sy);
+        const clipped = clipL > 0 || clipT > 0 || clipR < px || clipB < px;
         if (clipped) {
             ctx.save();
             ctx.beginPath();
-            ctx.rect(0, 0, clipW, clipH);
+            ctx.rect(clipL, clipT, clipR - clipL, clipB - clipT);
             ctx.clip();
         }
         if (this._fillColor) {
@@ -241,14 +252,14 @@ class TerrainChunkCache {
             ctx.fillRect(0, 0, px, px);
         }
 
-        const n = this._collect(ox, oy, ox + cw, oy + ch);
+        const x1 = ox + px / sx;
+        const y1 = oy + px / sy;
+        const n = this._collect(ox, oy, x1, y1);
         const items = this._scratch;
         const data = this._data;
         const imgIdx = this._imgIdx;
         const images = this._images;
         const S = TerrainChunkCache.STRIDE;
-        const x1 = ox + cw;
-        const y1 = oy + ch;
         for (let k = 0; k < n; k++) {
             const i = items[k];
             const o = i * S;
@@ -338,3 +349,4 @@ TerrainChunkCache.STRIDE = 5;               // floats per placement
 TerrainChunkCache.INITIAL_CAPACITY = 8192;  // placements; grows by doubling
 TerrainChunkCache.BUCKET_SIZE = 256;        // world px per spatial-index bucket
 TerrainChunkCache.MAX_FREE_CANVASES = 32;   // spare chunk canvases kept for reuse
+TerrainChunkCache.GUTTER_PX = 2;            // device px of neighbour overlap per chunk edge (covers bilinear + edge AA)

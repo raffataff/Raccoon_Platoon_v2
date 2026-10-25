@@ -48,7 +48,7 @@
             <button id="mainMenuMemorialButton" hidden>Recruit Memorial</button>
             <button id="optionsButton">Options</button>
         </div>
-        <p class="game-version">v0.1.31 Alpha</p>
+        <p class="game-version">v0.1.32 Alpha</p>
     </div>
 
     <div id="optionsMenuScreen" class="ui-panel" style="display: none;">
@@ -93,6 +93,10 @@
                     <option value="0.75">75%</option>
                     <option value="0.5">50%</option>
                 </select>
+            </div>
+            <div class="options-section">
+                <h3>Cursors</h3>
+                <button id="cursorOptionsButton" class="cursor-options-open">Customize Cursors</button>
             </div>
             <div class="options-section">
                 <h3>Show last objective</h3>
@@ -320,6 +324,10 @@
                 </select>
             </div>
             <div class="options-section">
+                <h3>Cursors</h3>
+                <button id="pauseCursorOptionsButton" class="cursor-options-open">Customize Cursors</button>
+            </div>
+            <div class="options-section">
                 <h3>Show last objective</h3>
                 <select id="pauseLastObjectiveSelect">
                     <option value="hide">Hide</option>
@@ -330,6 +338,103 @@
         </div>
         <div class="options-buttons">
             <button id="backFromPauseOptionsButton">Back</button>
+        </div>
+    </div>
+
+    <!-- Cursor customization (opened from either Options screen). Controls are generic:
+         [data-setting] names a CursorManager setting; choice buttons carry data-value,
+         and .cursor-swatches containers are filled from CONFIG.CURSORS.COLOR_SWATCHES. -->
+    <div id="cursorOptionsScreen" class="ui-panel" style="display: none;">
+        <h2>CURSORS</h2>
+        <div id="cursorPreviewStage" class="cursor-preview-stage">
+            <div class="cursor-preview-tile" data-kind="pointer"><img alt=""><span>Pointer</span></div>
+            <div class="cursor-preview-tile" data-kind="interact"><img alt=""><span>Button</span></div>
+            <div class="cursor-preview-tile" data-kind="crosshair"><img alt=""><span>Firing</span></div>
+            <div class="cursor-preview-tile" data-kind="target"><img alt=""><span>Target lock</span></div>
+            <div class="cursor-preview-tile" data-kind="grenade"><img alt=""><span>Grenade</span></div>
+        </div>
+        <div class="cursor-preview-footer">
+            <span class="cursor-preview-hint">Hover a tile to try the live cursor</span>
+            <div id="cursorPreviewBackgrounds" class="cursor-choice-group"></div>
+        </div>
+        <div class="cursor-option-row cursor-preset-row">
+            <label>Preset</label>
+            <div id="cursorPresetGroup" class="cursor-choice-group"></div>
+        </div>
+        <div class="cursor-options-columns">
+            <div class="options-section">
+                <h3>Pointer</h3>
+                <div class="cursor-option-row">
+                    <label>Style</label>
+                    <div class="cursor-choice-group" data-setting="pointerStyle">
+                        <button data-value="arrow">Arrow</button>
+                        <button data-value="tactical">Tactical</button>
+                        <button data-value="system">System</button>
+                    </div>
+                </div>
+                <div class="cursor-option-row volume-slider-row">
+                    <label for="cursorPointerSize">Size</label>
+                    <input type="range" id="cursorPointerSize" data-setting="pointerSize" step="2">
+                    <span class="cursor-option-value" data-unit="px"></span>
+                </div>
+                <div class="cursor-option-row">
+                    <label>Color</label>
+                    <div class="cursor-swatches" data-setting="pointerColor"></div>
+                </div>
+                <h3>Contrast</h3>
+                <div class="cursor-option-row volume-slider-row">
+                    <label for="cursorOutlineWidth">Outline</label>
+                    <input type="range" id="cursorOutlineWidth" data-setting="outlineWidth" step="1">
+                    <span class="cursor-option-value" data-unit="px"></span>
+                </div>
+                <div class="cursor-option-row">
+                    <label>Outline color</label>
+                    <div class="cursor-choice-group" data-setting="outlineColor">
+                        <button data-value="#000000">Dark</button>
+                        <button data-value="#ffffff">Light</button>
+                    </div>
+                </div>
+                <div class="cursor-option-row">
+                    <label for="cursorShadowToggle">Shadow</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="cursorShadowToggle" data-setting="shadow">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="options-section">
+                <h3>Crosshair</h3>
+                <div class="cursor-option-row">
+                    <label>Style</label>
+                    <div class="cursor-choice-group" data-setting="crosshairStyle">
+                        <button data-value="cross">Cross</button>
+                        <button data-value="circle">Circle</button>
+                        <button data-value="brackets">Brackets</button>
+                        <button data-value="dot">Dot</button>
+                    </div>
+                </div>
+                <div class="cursor-option-row volume-slider-row">
+                    <label for="cursorCrosshairSize">Size</label>
+                    <input type="range" id="cursorCrosshairSize" data-setting="crosshairSize" step="2">
+                    <span class="cursor-option-value" data-unit="px"></span>
+                </div>
+                <div class="cursor-option-row">
+                    <label>Firing</label>
+                    <div class="cursor-swatches" data-setting="crosshairColor"></div>
+                </div>
+                <div class="cursor-option-row">
+                    <label>Target lock</label>
+                    <div class="cursor-swatches" data-setting="targetColor"></div>
+                </div>
+                <div class="cursor-option-row">
+                    <label>Grenade</label>
+                    <div class="cursor-swatches" data-setting="grenadeColor"></div>
+                </div>
+            </div>
+        </div>
+        <div class="options-buttons">
+            <button id="cursorResetButton">Reset to Default</button>
+            <button id="backFromCursorOptionsButton">Back</button>
         </div>
     </div>
 
@@ -810,6 +915,7 @@
     <!-- scripts -->
     <script src="js/ObjectPool.js"></script>
     <script src="js/effects.js"></script>
+    <script src="js/grenadeFx.js"></script>
     <script src="js/waterSwirl.js"></script>
     <script src="js/spatialGrid.js"></script>
     <script src="js/raccoonNames.js"></script>
@@ -826,6 +932,7 @@
     <script src="js/biomes/temperate.js"></script>
     <script src="js/biomes/junkyard.js"></script>
     <script src="js/biomes/index.js"></script>
+    <script src="js/cursorManager.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/audioManager.js"></script>
     <script src="js/musicManager.js"></script>

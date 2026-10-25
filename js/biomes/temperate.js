@@ -465,6 +465,44 @@ const TEMPERATE_BIOME = {
             collisionShape: { 
                 type: 'circle', offsetX: (w => w * 0.5), offsetY: (h => h * 0.75), radius: (w => w * 0.1) },
         },
+
+        {
+            type: 'forest_patch_small_1',
+            name: 'Small Forest Patch',
+            color: '#0E2908',
+            destructible: false,
+            hp: Infinity,
+            maxHp: Infinity,
+            blocksMovement: true,
+            providesCover: true,
+            spawnWeight: 8,
+            spriteScale: 0.5,
+            spriteDestroyed: null,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.36), radiusY: (h => h * 0.17) },
+            placementBuffer: 150,
+            decorationBuffer: 50,
+            canBeFlipped: true,
+            isDecoration: true
+        },
+        {
+            type: 'forest_patch_large_1',
+            name: 'Large Forest Patch',
+            color: '#0E2908',
+            destructible: false,
+            hp: Infinity,
+            maxHp: Infinity,
+            blocksMovement: true,
+            providesCover: true,
+            spawnWeight: 9,
+            spriteScale: 0.5,
+            spriteDestroyed: null,
+            collisionShape: { type: 'ellipse', offsetX: (w => w * 0.5), offsetY: (h => h * 0.32), radiusX: (w => w * 0.46), radiusY: (h => h * 0.2) },
+            placementBuffer: 150,
+            decorationBuffer: 50,
+            canBeFlipped: true,
+            isDecoration: true
+        },
+
         {
             type: 'possum_barracks_1', name: 'Possum Barracks', color: '#62a170',
             destructible: true, hp: 120, maxHp: 120,

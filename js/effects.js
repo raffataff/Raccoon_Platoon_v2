@@ -362,65 +362,6 @@ class FireEffect {
     }
 }
 
-class SpriteExplosionEffect {
-    constructor(x, y, radius, gameInstance, type) {
-        this.game = gameInstance;
-        this.x = x;
-        this.y = y;
-        this.radius = radius;
-        this.type = type;
-        this.effectConfig = (CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.EXPLOSION) ? CONFIG.VISUAL_EFFECTS.EXPLOSION : {};
-        this.spriteConfig = this.effectConfig[type] || {};
-
-        this.image = this.game.preloadedImages[this.spriteConfig.SPRITE_PATH];
-        this.frameWidth = this.spriteConfig.FRAME_WIDTH || 64;
-        this.frameHeight = this.spriteConfig.FRAME_HEIGHT || 64;
-        this.numFrames = this.spriteConfig.NUM_FRAMES || 16;
-        this.animationSpeed = this.spriteConfig.ANIMATION_SPEED || 0.1;
-        this.scale = this.spriteConfig.SCALE || 1.0;
-
-        this.currentFrame = 0;
-        this.animationTimer = 0;
-        this.isMarkedForDeletion = false;
-        this.lifetime = this.numFrames * this.animationSpeed;
-
-        this.width = this.frameWidth * this.scale;
-        this.height = this.frameHeight * this.scale;
-        this.drawWidth = this.radius * 2 * this.scale;
-        this.drawHeight = this.radius * 2 * this.scale;
-    }
-
-    update(deltaTime) {
-        this.animationTimer += deltaTime;
-        if (this.animationTimer >= this.animationSpeed) {
-            this.animationTimer = 0;
-            this.currentFrame++;
-            if (this.currentFrame >= this.numFrames) {
-                this.isMarkedForDeletion = true;
-            }
-        }
-    }
-
-    render(ctx) {
-        if (!this.image || this.isMarkedForDeletion) return;
-
-        const sourceX = this.currentFrame * this.frameWidth;
-        const sourceY = 0;
-
-        ctx.drawImage(
-            this.image,
-            sourceX,
-            sourceY,
-            this.frameWidth,
-            this.frameHeight,
-            this.x - this.drawWidth / 2,
-            this.y - this.drawHeight / 2,
-            this.drawWidth,
-            this.drawHeight
-        );
-    }
-}
-
 class ExplosionEffect {
     constructor(x, y, radius, gameInstance) {
         this.game = gameInstance;
@@ -1288,19 +1229,12 @@ class PlasmaPoolEffect {
         this.isMarkedForDeletion = false;
         this.type = 'plasma_pool';
 
-        // Pre-rolled blobs give the pool an irregular molten look without per-frame randomness.
-        this.blobs = [];
-        const blobCount = 6;
-        for (let i = 0; i < blobCount; i++) {
-            const a = Math.random() * Math.PI * 2;
-            const r = Math.random() * this.radius * 0.55;
-            this.blobs.push({
-                x: this.x + Math.cos(a) * r,
-                y: this.y + Math.sin(a) * r,
-                radius: this.radius * (0.25 + Math.random() * 0.3),
-                phase: Math.random() * Math.PI * 2
-            });
-        }
+        // The look (molten crust, bubbling, glow, night light) lives in GrenadeFx; these
+        // just make each pool a little different.
+        this.rotA = Math.random() * Math.PI * 2;
+        this.rotB = Math.random() * Math.PI * 2;
+        this.variant = Math.random();
+        this.emitTimer = 0;
     }
 
     update(deltaTime) {
@@ -1308,6 +1242,12 @@ class PlasmaPoolEffect {
         if (this.elapsedTime >= this.duration) {
             this.isMarkedForDeletion = true;
             return;
+        }
+
+        this.emitTimer -= deltaTime;
+        if (this.emitTimer <= 0 && this.game.grenadeFx) {
+            this.emitTimer = 0.05;
+            this.game.grenadeFx.emitMoltenPool(this);
         }
 
         this.tickTimer -= deltaTime;
@@ -1334,117 +1274,14 @@ class PlasmaPoolEffect {
         }
     }
 
-    render(ctx) {
-        const progress = this.elapsedTime / this.duration;
-        const fade = progress > 0.75 ? (1 - progress) / 0.25 : 1.0;
-        const pulse = 0.85 + 0.15 * Math.sin(this.elapsedTime * 6);
-
-        ctx.save();
-        ctx.globalAlpha = 0.45 * fade;
-        const grad = ctx.createRadialGradient(this.x, this.y, this.radius * 0.15, this.x, this.y, this.radius);
-        grad.addColorStop(0, '#FFE080');
-        grad.addColorStop(0.45, this.color);
-        grad.addColorStop(1, 'rgba(120, 20, 0, 0)');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.radius * pulse, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.globalAlpha = 0.35 * fade;
-        for (const blob of this.blobs) {
-            const blobPulse = 0.8 + 0.2 * Math.sin(this.elapsedTime * 5 + blob.phase);
-            ctx.fillStyle = '#FFB040';
-            ctx.beginPath();
-            ctx.arc(blob.x, blob.y, blob.radius * blobPulse, 0, Math.PI * 2);
-            ctx.fill();
-        }
-        ctx.restore();
-    }
-}
-
-// Jagged lightning bolt between two points (Tesla Egg chain segments). Purely visual.
-class ArcLightningEffect {
-    constructor(x1, y1, x2, y2, color) {
-        this.x1 = x1; this.y1 = y1;
-        this.x2 = x2; this.y2 = y2;
-        this.color = color || '#FFDC00';
-        this.lifetime = 0.22;
-        this.elapsedTime = 0;
-        this.isMarkedForDeletion = false;
-        this.type = 'arc_lightning';
-
-        // Fixed jitter points rolled once — no per-frame allocation.
-        this.points = [{ x: x1, y: y1 }];
-        const segments = 6;
-        const dx = x2 - x1, dy = y2 - y1;
-        const len = Math.hypot(dx, dy) || 1;
-        const nx = -dy / len, ny = dx / len; // perpendicular
-        for (let i = 1; i < segments; i++) {
-            const t = i / segments;
-            const jitter = (Math.random() - 0.5) * len * 0.18;
-            this.points.push({ x: x1 + dx * t + nx * jitter, y: y1 + dy * t + ny * jitter });
-        }
-        this.points.push({ x: x2, y: y2 });
+    // Drawn in the ground layer (under units) by GrenadeFx.renderGround, not here.
+    renderGround(ctx) {
+        if (this.game.grenadeFx) this.game.grenadeFx.renderMoltenPool(ctx, this);
     }
 
-    update(deltaTime) {
-        this.elapsedTime += deltaTime;
-        if (this.elapsedTime >= this.lifetime) this.isMarkedForDeletion = true;
-    }
+    render(ctx) {}
 
-    render(ctx) {
-        const alpha = 1 - (this.elapsedTime / this.lifetime);
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 8;
-        ctx.beginPath();
-        ctx.moveTo(this.points[0].x, this.points[0].y);
-        for (let i = 1; i < this.points.length; i++) ctx.lineTo(this.points[i].x, this.points[i].y);
-        ctx.stroke();
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = '#FFFFFF';
-        ctx.globalAlpha = alpha * 0.8;
-        ctx.stroke();
-        ctx.restore();
-    }
-}
-
-// Expanding (or imploding, for graviton) colored ring — generic exotic-grenade burst visual.
-class ShockwaveRingEffect {
-    constructor(x, y, maxRadius, color, inward = false) {
-        this.x = x; this.y = y;
-        this.maxRadius = maxRadius;
-        this.color = color || '#FFFFFF';
-        this.inward = inward;
-        this.lifetime = 0.45;
-        this.elapsedTime = 0;
-        this.isMarkedForDeletion = false;
-        this.type = 'shockwave_ring';
-    }
-
-    update(deltaTime) {
-        this.elapsedTime += deltaTime;
-        if (this.elapsedTime >= this.lifetime) this.isMarkedForDeletion = true;
-    }
-
-    render(ctx) {
-        const progress = Math.min(1, this.elapsedTime / this.lifetime);
-        const radius = this.inward ? this.maxRadius * (1 - progress) : this.maxRadius * progress;
-        const alpha = 1 - progress;
-        if (radius <= 1) return;
-        ctx.save();
-        ctx.globalAlpha = alpha * 0.8;
-        ctx.strokeStyle = this.color;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, radius, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.globalAlpha = alpha * 0.25;
-        ctx.lineWidth = 8;
-        ctx.stroke();
-        ctx.restore();
+    renderLight(ctx, cameraX, cameraY, zoom) {
+        if (this.game.grenadeFx) this.game.grenadeFx.renderMoltenPoolLight(ctx, this, cameraX, cameraY, zoom);
     }
 }

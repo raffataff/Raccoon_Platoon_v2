@@ -27,7 +27,7 @@ body {
     padding: 0;
     height: 100%;
     overflow: hidden;
-    background-color: var(--brand-dark);
+    background-color: #000;
     color: var(--text-main);
     font-family: var(--font-ui);
     font-size: 16px;
@@ -58,12 +58,50 @@ body {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background-size: auto 100%;
-    background-position: center;
-    background-repeat: no-repeat;
     z-index: 100;
     pointer-events: none;
     display: none;
+}
+
+/* The wallpaper is height-fitted, so a window wider than the image leaves side gaps. Those are
+   filled by stretching the image's edge pixels outward: a fill layer scales the image 1000x
+   viewport width so a single pixel column covers the gap. It samples 0.5% in from the edge
+   (offset 500vw) because the outermost few columns of the JPEGs are lighter than the rest and
+   would leave a visible step. The element fills with the left edge, ::before covers the right
+   half with the right edge, and ::after draws the actual image on top.
+   --wallpaper-image is set by UI.applyWallpaper(). */
+#mainMenuWallpaper,
+#mainMenuWallpaper::before,
+#mainMenuWallpaper::after {
+    background-image: var(--wallpaper-image, none);
+    background-repeat: no-repeat;
+}
+
+#mainMenuWallpaper {
+    background-size: 100000vw 100%;
+    background-position: -500vw center;
+}
+
+#mainMenuWallpaper::before,
+#mainMenuWallpaper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    height: 100%;
+}
+
+#mainMenuWallpaper::before {
+    right: 0;
+    width: 50%;
+    background-size: 100000vw 100%;
+    background-position: right -500vw center;
+}
+
+#mainMenuWallpaper::after {
+    left: 0;
+    width: 100%;
+    background-size: auto 100%;
+    background-position: center;
 }
 
 body,
@@ -84,7 +122,7 @@ canvas {
     width: 100vw;
     height: 100vh;
     align-items: stretch;
-    background-color: #181c17;
+    background-color: #000;
     /* This will cover the body bg during gameplay */
 }
 
@@ -123,16 +161,16 @@ canvas {
     /* Centers canvas if its max-width is hit */
     align-items: center;
     /* Centers canvas if its max-height is hit */
-    background-color: #2E2D2A;
-    /* This will cover the body bg during gameplay */
+    background-color: #000;
+    /* Letterbox bars in 'widescreen' display size */
     position: relative;
     overflow: hidden;
 }
 
 canvas#gameCanvas {
     border: 3px ridge #201E1A;
-    background-color: var(--bg-color);
-    /* This will be drawn over by game's world fill if world is smaller */
+    background-color: #000;
+    /* Shows behind menus (render() leaves the canvas blank outside missions); the world fill covers it in play */
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.6) inset, 0 0 5px rgba(0, 0, 0, 0.5);
     display: block;
     /* Good practice for canvas responsiveness */
@@ -257,7 +295,7 @@ canvas#gameCanvas {
     color: #bdb9af;
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     transition: all 0.2s ease;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     position: relative;
     overflow: hidden;
 }
@@ -416,7 +454,7 @@ canvas#gameCanvas {
     border: 1px solid var(--panel-border);
     border-radius: 4px;
     outline: none;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 .volume-slider-row input[type="range"]::-webkit-slider-thumb {
@@ -427,7 +465,7 @@ canvas#gameCanvas {
     background: var(--brand-primary);
     border: 2px solid var(--brand-dark);
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: background 0.15s ease;
 }
 
@@ -441,7 +479,7 @@ canvas#gameCanvas {
     background: var(--brand-primary);
     border: 2px solid var(--brand-dark);
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 .volume-slider-row input[type="range"]::-moz-range-track {
@@ -478,7 +516,7 @@ canvas#gameCanvas {
     background-position: center;
     border: 2px solid var(--panel-border);
     border-radius: 3px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s ease;
     overflow: hidden;
 }
@@ -552,7 +590,7 @@ canvas#gameCanvas {
     font-size: 0.8em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     outline: none;
     width: 150px;
 }
@@ -566,7 +604,7 @@ canvas#gameCanvas {
     font-size: 0.8em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     outline: none;
     width: 150px;
 }
@@ -593,7 +631,7 @@ canvas#gameCanvas {
 
 .toggle-slider {
     position: absolute;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     top: 0;
     left: 0;
     right: 0;
@@ -710,7 +748,7 @@ canvas#gameCanvas {
     font-size: 1em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     outline: none;
     width: 200px;
 }
@@ -734,7 +772,7 @@ canvas#gameCanvas {
     font-size: 1em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     outline: none;
     width: 200px;
 }
@@ -925,7 +963,7 @@ canvas#gameCanvas {
     border: 1px solid var(--panel-border);
     border-radius: 0;
     /* Square tactical look */
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s ease;
     overflow: hidden;
     display: flex;
@@ -1047,7 +1085,7 @@ canvas#gameCanvas {
     border: 1px solid var(--brand-secondary);
     border-left: 4px solid var(--brand-secondary);
     border-radius: 2px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s ease;
     flex-shrink: 0;
     margin-right: 0px;
@@ -1480,7 +1518,7 @@ button {
     color: var(--text-main);
     border: 1px solid #555046;
     border-radius: 2px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     font-size: 0.9em;
     font-family: var(--font-ui);
     font-weight: 700;
@@ -1528,7 +1566,7 @@ input[type="range"]::-webkit-slider-thumb {
     height: 16px;
     background: #786F60;
     border-radius: 2px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     border: 1px outset #9A8F78;
     margin-top: -5px;
     box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
@@ -1539,7 +1577,7 @@ input[type="range"]::-moz-range-thumb {
     height: 14px;
     background: #786F60;
     border-radius: 2px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     border: 1px outset #9A8F78;
     box-shadow: 1px 1px 1px rgba(0, 0, 0, 0.5);
 }
@@ -1555,25 +1593,28 @@ input[type="range"]::-moz-range-thumb {
     font-size: 0.9em;
 }
 
-/* Cursor classes */
-.cursor-default {
-    cursor: default;
+/* Cursors. The --rp-cursor-* variables are generated from the player's settings by
+   CursorManager (js/cursorManager.js); the var() fallbacks are the old static cursors.
+   Menus inherit the pointer from <html>; clickable elements use --rp-cursor-interact. */
+html {
+    cursor: var(--rp-cursor-pointer, default);
 }
 
-.cursor-attack {
-    cursor: url('assets/images/ui/cursors/crosshair.png') 16 16, crosshair;
+.cursor-default {
+    cursor: var(--rp-cursor-pointer, default);
+}
+
+.cursor-attack,
+.cursor-target-mode-default {
+    cursor: var(--rp-cursor-crosshair, url('assets/images/ui/cursors/crosshair.png') 16 16, crosshair);
 }
 
 .cursor-cell {
-    cursor: cell;
-}
-
-.cursor-target-mode-default {
-    cursor: url('assets/images/ui/cursors/target_default.png') 16 16, crosshair;
+    cursor: var(--rp-cursor-grenade, cell);
 }
 
 .cursor-target-mode-enemy {
-    cursor: url('assets/images/ui/cursors/target_enemy_hover.png') 16 16, crosshair;
+    cursor: var(--rp-cursor-target, url('assets/images/ui/cursors/target_enemy_hover.png') 16 16, crosshair);
 }
 
 /* NOTE: Duplicate rules for #preMissionScreen, #preMissionHeader, panels removed - see line 167-231 */
@@ -1600,7 +1641,7 @@ input[type="range"]::-moz-range-thumb {
     border: 1px solid var(--panel-border);
     border-radius: 2px;
     margin-bottom: 5px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s ease;
     overflow: hidden;
     display: flex;
@@ -1631,7 +1672,7 @@ input[type="range"]::-moz-range-thumb {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: background-color 0.15s ease;
     white-space: nowrap;
 }
@@ -1757,7 +1798,7 @@ input[type="range"]::-moz-range-thumb {
     /* Greenish tint to show they are selected */
     border: 1px solid #60A050;
     border-radius: 3px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: background-color 0.2s ease, transform 0.2s ease;
     flex-shrink: 0;
 }
@@ -1826,7 +1867,7 @@ input[type="range"]::-moz-range-thumb {
     height: 90px;
     background-color: #3F4E3A;
     border-color: #60A050;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
@@ -1980,7 +2021,7 @@ input[type="range"]::-moz-range-thumb {
     font-size: 0.95em;
     text-transform: uppercase;
     letter-spacing: 1px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: 0.15s all ease;
 }
 
@@ -2480,7 +2521,7 @@ input[type="range"]::-moz-range-thumb {
     letter-spacing: 1px;
     border: 1px solid var(--brand-secondary);
     border-radius: 3px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     background: rgba(20, 18, 14, 0.8);
     color: #C8C6B8;
     transition: all 0.15s ease;
@@ -3702,7 +3743,7 @@ input[type="range"]::-moz-range-thumb {
     background-color: #3A3733;
     border: 2px solid #4A4640;
     border-radius: 4px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s ease;
 }
 
@@ -3971,7 +4012,7 @@ input[type="range"]::-moz-range-thumb {
     font-family: var(--font-ui);
     font-size: 0.85em;
     color: var(--text-main);
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     user-select: none;
     transition: color 0.15s ease;
 }
@@ -4030,7 +4071,7 @@ input[type="range"]::-moz-range-thumb {
     letter-spacing: 2px;
     padding: 8px 24px;
     border-radius: 2px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.15s ease;
     border: 1px solid;
 }
@@ -4153,7 +4194,7 @@ input[type="range"]::-moz-range-thumb {
     background: var(--brand-dark);
     color: var(--text-muted);
     border: 1px solid var(--panel-border);
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s;
 }
 
@@ -4193,7 +4234,7 @@ input[type="range"]::-moz-range-thumb {
     color: var(--text-muted);
     font-family: var(--font-header);
     font-size: 1.2em;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s;
     text-transform: uppercase;
 }
@@ -4521,7 +4562,7 @@ input[type="range"]::-moz-range-thumb {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid #555;
     color: #888;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s ease;
     clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
 }
@@ -4654,7 +4695,7 @@ input[type="range"]::-moz-range-thumb {
     background: rgba(10, 15, 10, 0.8);
     border: 1px solid rgba(76, 175, 80, 0.2);
     border-radius: 4px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: all 0.2s ease;
     display: flex;
     flex-direction: column;
@@ -4753,7 +4794,7 @@ input[type="range"]::-moz-range-thumb {
 
 #shootoutPreGameScreen .toggle-switch .slider {
     position: absolute;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     inset: 0;
     background-color: #333;
     transition: 0.3s;
@@ -4812,7 +4853,7 @@ input[type="range"]::-moz-range-thumb {
     letter-spacing: 1px;
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     transition: all 0.2s ease;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     min-width: 0;
     border: none;
     position: relative;
@@ -4871,7 +4912,7 @@ input[type="range"]::-moz-range-thumb {
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     z-index: 5;
     transition: all 0.2s ease;
 }
@@ -4882,7 +4923,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 #shootoutPreGameScreen .night-toggle input {
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 #shootoutPreGameScreen .map-card.night-mode {
@@ -5001,7 +5042,7 @@ input[type="range"]::-moz-range-thumb {
     color: #00ff00;
     padding: 8px 16px;
     border-radius: 4px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     font-family: 'Rajdhani', sans-serif;
     font-weight: 600;
     transition: all 0.2s ease;
@@ -5743,7 +5784,7 @@ input[type="range"]::-moz-range-thumb {
     letter-spacing: 2px;
     clip-path: polygon(15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%, 0 15px);
     transition: all 0.2s ease;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     min-width: 220px;
     border: none;
     position: relative;
@@ -5976,7 +6017,7 @@ input[type="range"]::-moz-range-thumb {
     background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
     border: 1px solid #555;
     color: #ddd;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     border-radius: 4px;
     transition: all 0.2s ease;
 }
@@ -6226,7 +6267,7 @@ input[type="range"]::-moz-range-thumb {
     background: linear-gradient(180deg, #5a3a3a 0%, #4a2a2a 100%);
     border: 1px solid #aa5555;
     color: #ffaaaa;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     border-radius: 4px;
     transition: all 0.2s ease;
 }
@@ -6255,7 +6296,7 @@ input[type="range"]::-moz-range-thumb {
     background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
     border: 1px solid #555;
     color: #ddd;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     border-radius: 4px;
     transition: all 0.2s ease;
     text-align: center;
@@ -6291,7 +6332,7 @@ input[type="range"]::-moz-range-thumb {
     height: 16px;
     background: #00ff00;
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 #spawnScaleSlider::-moz-range-thumb {
@@ -6299,7 +6340,7 @@ input[type="range"]::-moz-range-thumb {
     height: 16px;
     background: #00ff00;
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     border: none;
 }
 
@@ -6332,7 +6373,7 @@ input[type="range"]::-moz-range-thumb {
     height: 16px;
     background: #00ff00;
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 #spawnOffsetSlider::-moz-range-thumb {
@@ -6340,7 +6381,7 @@ input[type="range"]::-moz-range-thumb {
     height: 16px;
     background: #00ff00;
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     border: none;
 }
 
@@ -6355,7 +6396,7 @@ input[type="range"]::-moz-range-thumb {
     display: flex !important;
     align-items: center;
     gap: 8px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     font-size: 13px !important;
     color: #ccc !important;
     text-transform: none !important;
@@ -6366,7 +6407,7 @@ input[type="range"]::-moz-range-thumb {
 .checkbox-label input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     accent-color: #00ff00;
 }
 
@@ -6413,7 +6454,7 @@ input[type="range"]::-moz-range-thumb {
 .enemy-config-title input[type="checkbox"] {
     width: 18px;
     height: 18px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     accent-color: #00ff00;
 }
 
@@ -6440,7 +6481,7 @@ input[type="range"]::-moz-range-thumb {
     height: 14px;
     background: #00ff00;
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 .enemy-weight-value {
@@ -6486,7 +6527,7 @@ input[type="range"]::-moz-range-thumb {
     height: 14px;
     background: #0088ff;
     border-radius: 50%;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 .enemy-slider-row .value-display {
@@ -6504,7 +6545,7 @@ input[type="range"]::-moz-range-thumb {
     padding: 2px 6px;
     background: rgba(100, 100, 100, 0.3);
     border-radius: 4px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
 }
 
 .enemy-show-control:hover {
@@ -6556,7 +6597,7 @@ input[type="range"]::-moz-range-thumb {
 }
 
 .debug-panel-close {
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     font-size: 14px;
     color: #8a8578;
     padding: 2px 6px;
@@ -6578,7 +6619,7 @@ input[type="range"]::-moz-range-thumb {
     align-items: center;
     gap: 8px;
     padding: 5px 12px;
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     transition: background 0.12s;
     user-select: none;
 }
@@ -6595,7 +6636,7 @@ input[type="range"]::-moz-range-thumb {
     border: 1px solid #4a453d;
     border-radius: 3px;
     background: rgba(0, 0, 0, 0.3);
-    cursor: pointer;
+    cursor: var(--rp-cursor-interact, pointer);
     flex-shrink: 0;
     position: relative;
     margin: 0;
@@ -6781,4 +6822,207 @@ input[type="range"]::-moz-range-thumb {
     border-color: #c94f4f;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), 0 18px 60px rgba(0, 0, 0, 0.7),
         0 0 46px rgba(201, 79, 79, 0.28);
+}
+
+/* ==================== CURSOR OPTIONS SCREEN ==================== */
+#cursorOptionsScreen {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: min(920px, 94vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 28px 34px;
+    z-index: 160;
+    flex-direction: column;
+    gap: 14px;
+    border: 2px solid var(--panel-border);
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), inset 0 0 50px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(8px);
+}
+
+#cursorOptionsScreen h2 {
+    color: var(--brand-secondary);
+    margin: 0;
+    text-align: center;
+    font-size: 32px;
+    letter-spacing: 2px;
+}
+
+.cursor-preview-stage {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    min-height: 150px;
+    background-color: var(--brand-dark);
+    background-size: cover;
+    background-position: center;
+    border: 1px solid var(--panel-border);
+}
+
+.cursor-preview-tile {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px dashed rgba(255, 255, 255, 0.18);
+    transition: background-color 0.15s ease;
+}
+
+.cursor-preview-tile:last-child {
+    border-right: none;
+}
+
+.cursor-preview-tile img {
+    pointer-events: none;
+    user-select: none;
+    transition: opacity 0.15s ease;
+}
+
+/* While hovering, the live cursor is the sample; fade the static one behind it. */
+.cursor-preview-tile:hover {
+    background-color: rgba(255, 255, 255, 0.06);
+}
+
+.cursor-preview-tile:hover img {
+    opacity: 0.2;
+}
+
+.cursor-preview-tile span {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 6px;
+    text-align: center;
+    color: #fff;
+    font-size: 0.8em;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    text-shadow: 0 1px 2px #000, 0 0 5px #000;
+    pointer-events: none;
+}
+
+.cursor-preview-tile[data-kind="pointer"] { cursor: var(--rp-cursor-pointer, default); }
+.cursor-preview-tile[data-kind="interact"] { cursor: var(--rp-cursor-interact, pointer); }
+.cursor-preview-tile[data-kind="crosshair"] { cursor: var(--rp-cursor-crosshair, crosshair); }
+.cursor-preview-tile[data-kind="target"] { cursor: var(--rp-cursor-target, crosshair); }
+.cursor-preview-tile[data-kind="grenade"] { cursor: var(--rp-cursor-grenade, cell); }
+
+.cursor-preview-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: -6px;
+}
+
+.cursor-preview-hint {
+    color: var(--text-muted);
+    font-size: 0.85em;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+.cursor-options-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 34px;
+}
+
+.cursor-options-columns .options-section h3 {
+    margin: 8px 0 10px;
+}
+
+.cursor-option-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 30px;
+    margin-bottom: 8px;
+}
+
+.cursor-option-row > label:first-child {
+    flex: 0 0 auto;
+    min-width: 112px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    color: var(--text-main);
+    font-size: 0.9em;
+    letter-spacing: 1px;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+.cursor-preset-row {
+    padding-top: 10px;
+    border-top: 1px solid var(--panel-border);
+}
+
+.cursor-choice-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.cursor-choice-group button {
+    padding: 5px 10px;
+    font-size: 0.8em;
+}
+
+.cursor-choice-group button.selected {
+    background: var(--brand-secondary);
+    color: var(--brand-dark);
+    border-color: #ffd080;
+}
+
+.cursor-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Swatch colour is set inline; drop the global button gradient so it shows. */
+.cursor-swatch,
+.cursor-swatch:hover {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    background-image: none;
+    border: 2px solid #555046;
+    border-radius: 3px;
+    box-shadow: none;
+    clip-path: none;
+}
+
+.cursor-swatch:hover {
+    border-color: var(--text-main);
+}
+
+.cursor-swatch.selected {
+    border-color: var(--brand-dark);
+    box-shadow: 0 0 0 2px #ffd080;
+}
+
+.cursor-swatch-custom {
+    width: 32px;
+    height: 26px;
+    padding: 1px;
+    background: none;
+    border: 2px dashed #555046;
+    border-radius: 3px;
+    cursor: var(--rp-cursor-interact, pointer);
+}
+
+.cursor-swatch-custom.selected {
+    border-style: solid;
+    border-color: #ffd080;
+}
+
+@media (max-width: 760px) {
+    .cursor-options-columns {
+        grid-template-columns: 1fr;
+    }
 }

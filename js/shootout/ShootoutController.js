@@ -36,7 +36,6 @@ class ShootoutController {
 
         // Cursor/Aiming
         this.cursorPosition = { x: 0, y: 0 };
-        this.crosshairSize = CONFIG.SHOOTOUT_MODE.CROSSHAIR_SIZE;
 
         // Fire cooldown
         this.fireCooldown = 0;
@@ -284,8 +283,8 @@ class ShootoutController {
             this.init();
         }
 
-        // Hide cursor and use crosshair
-        this.game.canvas.style.cursor = 'none';
+        // Aim with the player's customizable hardware crosshair (CursorManager)
+        if (this.game.ui) this.game.ui.setCursor('crosshair');
 
         // Disable dev mode when starting actual gameplay
         if (this.isDevMode) {
@@ -384,8 +383,8 @@ class ShootoutController {
             this.init();
         }
 
-        // Hide cursor and use crosshair
-        this.game.canvas.style.cursor = 'none';
+        // Aim with the player's customizable hardware crosshair (CursorManager)
+        if (this.game.ui) this.game.ui.setCursor('crosshair');
 
         // Update UI
         if (this.game.ui) {
@@ -428,7 +427,7 @@ class ShootoutController {
             
             // Clear round state so update() doesn't run again
             this.isRoundActive = false;
-            this.game.canvas.style.cursor = 'default';
+            if (this.game.ui) this.game.ui.setCursor('default');
 
             // Signal that ambush result is pending — prevents update() from
             // transitioning to RUNNING before handleAmbushResult processes the outcome
@@ -449,7 +448,7 @@ class ShootoutController {
         }
         
         this.isRoundActive = false;
-        this.game.canvas.style.cursor = 'default';
+        if (this.game.ui) this.game.ui.setCursor('default');
 
         // Calculate survival bonus
         this.calculateSurvivalBonus();
@@ -1462,11 +1461,6 @@ class ShootoutController {
             this.drawDebugOverlay(ctx);
         }
 
-        // Draw crosshair at cursor position (only in normal mode)
-        if (!this.isDevMode) {
-            this.drawCrosshair(ctx);
-        }
-
         // Draw muzzle flash if firing
         if (this.fireCooldown > this.FIRE_COOLDOWN_TIME * 0.5) {
             this.drawMuzzleFlash(ctx);
@@ -1603,43 +1597,6 @@ class ShootoutController {
             ctx.fillStyle = '#1a3d1a';
             ctx.fillRect(0, 0, nativeWidth, nativeHeight);
         }
-    }
-
-    drawCrosshair(ctx) {
-        const x = this.cursorPosition.x;
-        const y = this.cursorPosition.y;
-        const size = this.crosshairSize;
-        const halfSize = size / 2;
-
-        ctx.save();
-        ctx.strokeStyle = '#ff0000';
-        ctx.lineWidth = 2;
-        ctx.shadowColor = '#ff0000';
-        ctx.shadowBlur = 5;
-
-        // Draw crosshair lines
-        ctx.beginPath();
-        // Top
-        ctx.moveTo(x, y - halfSize - 5);
-        ctx.lineTo(x, y - 5);
-        // Bottom
-        ctx.moveTo(x, y + 5);
-        ctx.lineTo(x, y + halfSize + 5);
-        // Left
-        ctx.moveTo(x - halfSize - 5, y);
-        ctx.lineTo(x - 5, y);
-        // Right
-        ctx.moveTo(x + 5, y);
-        ctx.lineTo(x + halfSize + 5, y);
-        ctx.stroke();
-
-        // Draw center dot
-        ctx.fillStyle = '#ff0000';
-        ctx.beginPath();
-        ctx.arc(x, y, 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        ctx.restore();
     }
 
     drawMuzzleFlash(ctx) {

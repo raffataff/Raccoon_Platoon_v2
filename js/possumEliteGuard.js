@@ -140,7 +140,7 @@ class PossumEliteGuard extends Unit {
         if (this.game) {
             const explosionRadius = this.bossAIConfig.DEATH_EXPLOSION_RADIUS;
             if (explosionRadius > 0) {
-                this.game.addVisualEffect('barrel_explosion', { x: this.x, y: this.y, radius: explosionRadius });
+                this.game.addVisualEffect('barrel_explosion', { x: this.x, y: this.y, radius: explosionRadius, shakeKey: 'BOSS_DEATH' });
             }
             const sfxKey = this.bossAIConfig.DEATH_EXPLOSION_SFX;
             if (sfxKey && this.game.audioManager) {

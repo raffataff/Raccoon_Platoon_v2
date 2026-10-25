@@ -360,7 +360,7 @@ class GrenadeProjectile {
             this.game.audioManager.play((this.typeConfig && this.typeConfig.explosionSfx) || 'GRENADE_EXPLODE');
         }
 
-        if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('grenade_explosion', { x: this.x, y: this.y, radius: this.aoeRadius });
+        if(this.game && this.game.addVisualEffect) this.game.addVisualEffect('grenade_explosion', { x: this.x, y: this.y, radius: this.aoeRadius, typeKey: this.typeKey });
 
         let objectsInAOE = [];
         if (this.game.spatialGrid) {
@@ -430,6 +430,7 @@ class GrenadeProjectile {
 
     // Exotic grenade payloads, applied after the base AoE damage. Debuffs only affect
     // units hostile to the thrower; blast damage keeps the normal friendly-fire rules.
+    // Each type's blast visuals are its recipe in js/grenadeFx.js.
     _applyTypeEffects(unitsInBlast) {
         const cfg = this.typeConfig;
         if (!cfg || !this.game) return;
@@ -450,14 +451,12 @@ class GrenadeProjectile {
             unitsInBlast.forEach(u => {
                 if (u.team !== this.shooterTeam) u.applyStatusEffect('slow', cfg.slow);
             });
-            this.game.addVisualEffect('shockwave_ring', { x: this.x, y: this.y, radius: this.aoeRadius, color: cfg.color });
         }
 
         if (cfg.vulnerability) {  // Gray Rain: nanite corrosion (+damage taken)
             unitsInBlast.forEach(u => {
                 if (u.team !== this.shooterTeam) u.applyStatusEffect('vulnerability', cfg.vulnerability);
             });
-            this.game.addVisualEffect('shockwave_ring', { x: this.x, y: this.y, radius: this.aoeRadius, color: cfg.color });
         }
 
         if (cfg.pull) this._applyGravitonPull(cfg.pull);
@@ -505,8 +504,6 @@ class GrenadeProjectile {
             u.currentPath = [];
             if (this.game.spatialGrid) this.game.spatialGrid.updateObject(u);
         });
-
-        this.game.addVisualEffect('shockwave_ring', { x: this.x, y: this.y, radius: radius, color: this.typeConfig.color, inward: true });
     }
 
     // Tesla Egg: chain lightning. Jumps between hostile units (damage + brief stun) and,
@@ -554,7 +551,10 @@ class GrenadeProjectile {
             const isUnit = best instanceof Unit;
             const bx = isUnit ? best.x : best.x + (best.width || 0) / 2;
             const by = isUnit ? best.y : best.y + (best.height || 0) / 2;
-            this.game.addVisualEffect('arc_lightning', { x1: fromX, y1: fromY, x2: bx, y2: by, color: this.typeConfig.color });
+            // Damage lands instantly; the bolts are staggered so the chain visibly travels.
+            const fxCfg = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.GRENADE_FX;
+            const stagger = (fxCfg && fxCfg.CHAIN_ARC_STAGGER !== undefined) ? fxCfg.CHAIN_ARC_STAGGER : 0.06;
+            this.game.addVisualEffect('arc_lightning', { x1: fromX, y1: fromY, x2: bx, y2: by, color: this.typeConfig.color, delay: j * stagger });
 
             if (isUnit) {
                 best.takeDamage(chainDamage, this.shooterUnit);

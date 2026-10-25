@@ -578,6 +578,12 @@ class InputHandler {
             if (this.game && this.game.ui) this.game.ui.setCursor('default');
             return;
         }
+        const shootout = this.game.shootoutController;
+        if ((this.game.gameState === 'SHOOTOUT_PLAYING' || this.game.gameState === 'SHOOTOUT_AMBUSH') &&
+            shootout && shootout.isRoundActive && !shootout.isDevMode) {
+            this.game.ui.setCursor('crosshair');
+            return;
+        }
         if (this.game.gameState !== 'RUNNING' && this.game.gameState !== 'PAUSED') {
             this.game.ui.setCursor('default');
             return;

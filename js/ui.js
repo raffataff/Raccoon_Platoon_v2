@@ -173,6 +173,7 @@ class UI {
         }
 
         this.initManual();
+        this._initCursorOptions();
 
         this._addSoundToButton(this.mainMenuMemorialButton, () => this.showRecruitMemorialScreen());
         this._addSoundToButton(this.startMissionButton, () => {
@@ -1847,7 +1848,8 @@ class UI {
         }
 
         if (this.mainMenuWallpaper) {
-            this.mainMenuWallpaper.style.backgroundImage = `url('${wallpaper.path}')`;
+            // Read by the wallpaper's edge-fill layers in style.css, not set as backgroundImage.
+            this.mainMenuWallpaper.style.setProperty('--wallpaper-image', `url('${wallpaper.path}')`);
         }
 
         if (this.game) {
@@ -2948,26 +2950,188 @@ class UI {
         });
     }
 
-    setCursor(styleName) {
-        if (this.game && this.game.canvas) {
-            this.game.canvas.classList.remove(
-                'cursor-default', 'cursor-attack', 'cursor-cell',
-                'cursor-target-mode-default', 'cursor-target-mode-enemy'
-            );
-            this.game.canvas.style.cursor = '';
+    // Canvas cursor states → CSS classes in style.css (backed by CursorManager's generated cursors).
+    static CANVAS_CURSOR_CLASSES = {
+        'default': 'cursor-default',
+        'attack': 'cursor-attack',
+        'crosshair': 'cursor-attack',                 // shootout aiming
+        'cell': 'cursor-cell',                        // grenade aiming
+        'target-mode-default': 'cursor-target-mode-default',
+        'target-enemy-hover': 'cursor-target-mode-enemy',
+    };
 
-            if (styleName === 'attack') this.game.canvas.classList.add('cursor-attack');
-            else if (styleName === 'cell') this.game.canvas.classList.add('cursor-cell');
-            else if (styleName === 'target-mode-default') this.game.canvas.classList.add('cursor-target-mode-default');
-            else if (styleName === 'target-enemy-hover') this.game.canvas.classList.add('cursor-target-mode-enemy');
-            else {
-                this.game.canvas.classList.add('cursor-default');
-                if (styleName !== 'default' && styleName !== 'attack' && styleName !== 'cell' &&
-                    styleName !== 'target-mode-default' && styleName !== 'target-enemy-hover') {
-                    this.game.canvas.style.cursor = styleName;
+    setCursor(styleName) {
+        const canvas = this.game && this.game.canvas;
+        // Called on every mouse move; skip the class churn when nothing changed.
+        if (!canvas || styleName === this._canvasCursorStyle) return;
+        this._canvasCursorStyle = styleName;
+
+        canvas.classList.remove(...new Set(Object.values(UI.CANVAS_CURSOR_CLASSES)));
+        canvas.style.cursor = '';
+        const cls = UI.CANVAS_CURSOR_CLASSES[styleName];
+        if (cls) {
+            canvas.classList.add(cls);
+        } else {
+            // Any other value is used as a raw CSS cursor.
+            canvas.classList.add('cursor-default');
+            canvas.style.cursor = styleName;
+        }
+    }
+
+    // ==================== CURSOR OPTIONS SCREEN ====================
+
+    _initCursorOptions() {
+        const cm = this.game && this.game.cursorManager;
+        this.cursorOptionsScreen = document.getElementById('cursorOptionsScreen');
+        if (!cm || !this.cursorOptionsScreen) return;
+        const screen = this.cursorOptionsScreen;
+        const cfg = CONFIG.CURSORS;
+
+        this._addSoundToButton(document.getElementById('cursorOptionsButton'), () => this.showCursorOptions(this.optionsMenuScreen));
+        this._addSoundToButton(document.getElementById('pauseCursorOptionsButton'), () => this.showCursorOptions(this.pauseOptionsScreen));
+        this._addSoundToButton(document.getElementById('backFromCursorOptionsButton'), () => this.hideCursorOptions());
+        this._addSoundToButton(document.getElementById('cursorResetButton'), () => cm.reset());
+
+        // Generated choices: presets, preview backdrops, colour swatches (+ a custom colour picker).
+        const presetGroup = document.getElementById('cursorPresetGroup');
+        for (const preset of cfg.PRESETS) {
+            const btn = document.createElement('button');
+            btn.textContent = preset.name;
+            btn.dataset.preset = preset.key;
+            presetGroup.appendChild(btn);
+        }
+        presetGroup.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-preset]');
+            if (btn) cm.applyPreset(btn.dataset.preset);
+        });
+
+        const stage = document.getElementById('cursorPreviewStage');
+        const bgGroup = document.getElementById('cursorPreviewBackgrounds');
+        const setBackground = (key) => {
+            const bg = cfg.PREVIEW_BACKGROUNDS.find(b => b.key === key) || cfg.PREVIEW_BACKGROUNDS[0];
+            stage.style.backgroundImage = `url('${bg.image}')`;
+            for (const b of bgGroup.children) b.classList.toggle('selected', b.dataset.value === bg.key);
+        };
+        for (const bg of cfg.PREVIEW_BACKGROUNDS) {
+            const btn = document.createElement('button');
+            btn.textContent = bg.name;
+            btn.dataset.value = bg.key;
+            btn.addEventListener('click', () => setBackground(bg.key));
+            bgGroup.appendChild(btn);
+        }
+        this._setCursorPreviewBackground = setBackground;
+
+        for (const container of screen.querySelectorAll('.cursor-swatches')) {
+            for (const color of cfg.COLOR_SWATCHES) {
+                const sw = document.createElement('button');
+                sw.className = 'cursor-swatch';
+                sw.dataset.value = color;
+                sw.style.backgroundColor = color;
+                sw.title = color;
+                container.appendChild(sw);
+            }
+            const custom = document.createElement('input');
+            custom.type = 'color';
+            custom.className = 'cursor-swatch-custom';
+            custom.title = 'Custom color';
+            container.appendChild(custom);
+        }
+
+        // Generic binding: every [data-setting] control writes straight into the CursorManager.
+        for (const el of screen.querySelectorAll('[data-setting]')) {
+            const key = el.dataset.setting;
+            if (el.type === 'range') {
+                const [min, max] = cfg.LIMITS[key];
+                el.min = min;
+                el.max = max;
+                el.addEventListener('input', () => cm.update({ [key]: Number(el.value) }));
+            } else if (el.type === 'checkbox') {
+                el.addEventListener('change', () => cm.update({ [key]: el.checked }));
+            } else {
+                // Choice group / swatch row: buttons carry data-value; the colour input is the custom pick.
+                el.addEventListener('click', (e) => {
+                    const btn = e.target.closest('button[data-value]');
+                    if (btn) cm.update({ [key]: btn.dataset.value });
+                });
+                const custom = el.querySelector('input[type="color"]');
+                if (custom) custom.addEventListener('input', () => cm.update({ [key]: custom.value }));
+            }
+        }
+
+        // Escape backs out of this screen instead of reaching the game's key handling (e.g. unpausing).
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && screen.style.display !== 'none') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                this.hideCursorOptions();
+            }
+        }, true);
+
+        cm.onChange(() => this._syncCursorOptions());
+        setBackground(cfg.PREVIEW_BACKGROUNDS[0].key);
+        this._syncCursorOptions();
+    }
+
+    /** Reflect the current cursor settings in every control and refresh the preview tiles. */
+    _syncCursorOptions() {
+        const cm = this.game && this.game.cursorManager;
+        const screen = this.cursorOptionsScreen;
+        if (!cm || !screen) return;
+        const s = cm.getSettings();
+
+        for (const el of screen.querySelectorAll('[data-setting]')) {
+            const value = s[el.dataset.setting];
+            if (el.type === 'range') {
+                el.value = value;
+                const label = el.parentElement.querySelector('.cursor-option-value');
+                if (label) label.textContent = value + (label.dataset.unit || '');
+            } else if (el.type === 'checkbox') {
+                el.checked = !!value;
+            } else {
+                let matched = false;
+                for (const btn of el.querySelectorAll('button[data-value]')) {
+                    const on = btn.dataset.value === value;
+                    btn.classList.toggle('selected', on);
+                    matched = matched || on;
+                }
+                const custom = el.querySelector('input[type="color"]');
+                if (custom) {
+                    custom.value = value;
+                    custom.classList.toggle('selected', !matched);
                 }
             }
         }
+
+        const activePreset = cm.activePresetKey();
+        for (const btn of document.querySelectorAll('#cursorPresetGroup button')) {
+            btn.classList.toggle('selected', btn.dataset.preset === activePreset);
+        }
+
+        for (const tile of screen.querySelectorAll('.cursor-preview-tile')) {
+            const img = tile.querySelector('img');
+            const info = cm.images[tile.dataset.kind];
+            img.style.visibility = info ? 'visible' : 'hidden';   // 'System' pointer: nothing to draw
+            if (info) {
+                img.src = info.url;
+                img.style.width = info.width + 'px';
+                img.style.height = info.height + 'px';
+            }
+        }
+    }
+
+    showCursorOptions(returnTo) {
+        if (!this.cursorOptionsScreen) return;
+        this._cursorOptionsReturnTo = returnTo || null;
+        if (returnTo) returnTo.style.display = 'none';
+        this._syncCursorOptions();
+        this.cursorOptionsScreen.style.display = 'flex';
+    }
+
+    hideCursorOptions() {
+        if (!this.cursorOptionsScreen || this.cursorOptionsScreen.style.display === 'none') return;
+        this.cursorOptionsScreen.style.display = 'none';
+        if (this._cursorOptionsReturnTo) this._cursorOptionsReturnTo.style.display = 'flex';
+        this._cursorOptionsReturnTo = null;
     }
 
     // ==================== SAVE/LOAD MODAL METHODS ====================

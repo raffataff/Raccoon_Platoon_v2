@@ -2708,7 +2708,7 @@ class LevelGenerator {
                     } else if (this.rng.chance(phaseSniperChance)) {
                         EnemyClass = PossumSniper;
                         currentEnemyUnitSize = CONFIG.POSSUM_SNIPER_SIZE;
-                    } else if ((m === 0 && currentGroupSizeAttempt > 0 && this.rng.chance(phaseHeavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0))) || (currentGroupSizeAttempt === 1 && this.rng.chance(phaseHeavyChance))) {
+                    } else if ((m === 0 && currentGroupSizeAttempt > 0 && phaseHeavyChance > 0 && this.rng.chance(phaseHeavyChance + (currentGroupSizeAttempt > 1 ? heavyLeaderBonus : 0))) || (currentGroupSizeAttempt === 1 && this.rng.chance(phaseHeavyChance))) {
                         EnemyClass = PossumHeavy;
                         currentEnemyUnitSize = CONFIG.POSSUM_HEAVY_SIZE;
                     }

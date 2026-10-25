@@ -9,8 +9,10 @@ const CONFIG = {
     MIN_CANVAS_WIDTH: 1920,
     MIN_CANVAS_HEIGHT: 1080,
     MAX_DELTA_TIME_STEP: 0.1,
+    FRAME_PACING_SNAP_TOLERANCE: 0.15,                // Frame deltas within this fraction of a whole number of display refreshes are snapped to it, so motion advances evenly per displayed frame despite vsync timestamp wobble. 0 = use raw deltas.
     CAMERA_LERP_SPEED: 0.08,                          // Fraction of the remaining distance the follow-camera closes per 1/60 s. Frame-rate independent (scaled by delta time), so it feels the same at 60, 144 Hz or during frame drops.
     CAMERA_ZOOM: 1.15,
+    CAMERA_PIXEL_SNAP: false,                         // true = always draw the world at whole device pixels: crisp, but a pan advances in uneven 1-px steps that read as jitter. false = glide sub-pixel while the camera moves; the follow-camera still comes to rest on a whole pixel, so the ground is crisp when still.
 
     // =============================================================================
     // PERFORMANCE
@@ -453,26 +455,26 @@ const CONFIG = {
     RACCOON_DEAD_SPRITE_SCALE: 0.06,
     RACCOON_RECRUIT_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/recruit/dead/',
     RACCOON_RECRUIT_DEAD_SPRITE_FILES: ['raccoon_recruit_dead_1.png'],
-    RACCOON_RECRUIT_DEAD_SPRITE_SCALE: 0.38,
+    RACCOON_RECRUIT_DEAD_SPRITE_SCALE: 0.42,
     RACCOON_PRIVATE_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/private/dead/',
     RACCOON_PRIVATE_DEAD_SPRITE_FILES: ['raccoon_private_dead_1.png'],
-    RACCOON_PRIVATE_DEAD_SPRITE_SCALE: 0.38,
+    RACCOON_PRIVATE_DEAD_SPRITE_SCALE: 0.42,
     RACCOON_CORPORAL_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/corporal/dead/',
     RACCOON_CORPORAL_DEAD_SPRITE_FILES: ['raccoon_corporal_dead_1.png'],
-    RACCOON_CORPORAL_DEAD_SPRITE_SCALE: 0.38,
+    RACCOON_CORPORAL_DEAD_SPRITE_SCALE: 0.42,
     RACCOON_SERGEANT_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/sergeant/dead/',
     RACCOON_SERGEANT_DEAD_SPRITE_FILES: ['raccoon_sergeant_dead_1.png'],
-    RACCOON_SERGEANT_DEAD_SPRITE_SCALE: 0.38,
+    RACCOON_SERGEANT_DEAD_SPRITE_SCALE: 0.42,
     RACCOON_ELITE_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/elite/dead/',
     RACCOON_ELITE_DEAD_SPRITE_FILES: ['raccoon_elite_dead_1.png'],
-    RACCOON_ELITE_DEAD_SPRITE_SCALE: 0.38,
+    RACCOON_ELITE_DEAD_SPRITE_SCALE: 0.42,
     RACCOON_GHOST_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/ghost/dead/',
     RACCOON_GHOST_DEAD_SPRITE_FILES: ['raccoon_ghost_dead_1.png'],
-    RACCOON_GHOST_DEAD_SPRITE_SCALE: 0.35,
+    RACCOON_GHOST_DEAD_SPRITE_SCALE: 0.4,
     RACCOON_MAVERICK_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
     RACCOON_MAVERICK_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
     RACCOON_MAVERICK_DEAD_SPRITE_SCALE: 0.06,
-    RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 0.38,
+    RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 0.42,
     HOSTAGE_KNEELING_SPRITE_PATH: 'assets/images/units/raccoon/hostage/kneeling/type1/',
     HOSTAGE_STANDING_SPRITE_PATH: 'assets/images/units/raccoon/hostage/standing/type1/',
     HOSTAGE_RESCUED_SPRITE_PATH: 'assets/images/units/raccoon/hostage/rescued/type2/idle/',
@@ -519,7 +521,7 @@ const CONFIG = {
     POSSUM_GRUNT_SIZE: 14,
     POSSUM_GRUNT_COLOR: '#A0522D',
     POSSUM_GRUNT_DEFAULT_WEAPON: 'POSSUM_RIFLE',
-        POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/',
+    POSSUM_GRUNT_SPRITE_PATH: 'assets/images/units/possum_grunt/',
     POSSUM_GRUNT_SPRITE_SCALE_FACTOR: 0.5,
     POSSUM_GRUNT_DEAD_SPRITE_PATH: 'assets/images/units/possum_grunt/dead/',
     POSSUM_GRUNT_DEAD_SPRITE_FILES: ['possum_grunt_dead_3.png', 'possum_grunt_dead_4.png'],
@@ -536,7 +538,7 @@ const CONFIG = {
     POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.4,
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'],
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.15,
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.13,
     PROJECTILE_COLOR_POSSUM_HEAVY: '#ff47478e',
     POSSUM_HEAVY_TURN_RATE: 5.0,
     
@@ -578,7 +580,7 @@ const CONFIG = {
     POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR: 0.45,
     POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH: 'assets/images/units/possum_eliteGuard/dead/',
     POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES: ['possum_eliteGuard_dead1.png', 'possum_eliteGuard_dead2.png'],
-    POSSUM_ELITE_GUARD_DEAD_SPRITE_SCALE: 0.35,
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_SCALE: 0.1,
     PROJECTILE_COLOR_POSSUM_ELITE_GUARD: '#00E5FF',
     XP_FOR_ELITE_GUARD_KILL: 200,
     POSSUM_ELITE_GUARD_TURN_RATE: 8.0,
@@ -656,7 +658,7 @@ const CONFIG = {
     POSSUM_SCIENTIST_1_SPRITE_PATH: 'assets/images/units/possum_scientist/type1/',
     POSSUM_SCIENTIST_1_SPRITE_SCALE_FACTOR: 0.35,
     // Dead body reuses the grunt corpse sprites (no dedicated dead set yet).
-    POSSUM_SCIENTIST_1_DEAD_SPRITE_PATH_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_PATH',
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_PATH_KEY: 'assets/images/units/possum_boss_1/dead/',
     POSSUM_SCIENTIST_1_DEAD_SPRITE_FILES_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_FILES',
     POSSUM_SCIENTIST_1_DEAD_SPRITE_SCALE_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_SCALE',
     XP_FOR_SCIENTIST_1_KILL: 120,
@@ -693,8 +695,8 @@ const CONFIG = {
             name: "MG-1",
             damage: 7,
             rof: 7,
-            range: 500,
-            projectileSpeed: 650,
+            range: 400,
+            projectileSpeed: 550,
             projectileColor: '#ffcc00',
             accuracyStationary: 0.90,
             accuracyMoving: 0.60,
@@ -711,8 +713,8 @@ const CONFIG = {
             name: "MG-2",
             damage: 8,
             rof: 7,
-            range: 530,
-            projectileSpeed: 650,
+            range: 430,
+            projectileSpeed: 550,
             projectileColor: '#cc9900',
             accuracyStationary: 0.90,
             accuracyMoving: 0.60,
@@ -729,14 +731,14 @@ const CONFIG = {
             name: "MG-3",
             damage: 8,
             rof: 8,
-            range: 550,
-            projectileSpeed: 650,
+            range: 450,
+            projectileSpeed: 580,
             projectileColor: '#bb8800',
             accuracyStationary: 0.90,
             accuracyMoving: 0.60,
             sfxFireKey: 'RACCOON_MG_FIRE',
             muzzleFlashScale: 1.0,
-            bulletLifetime: 0.7,
+            bulletLifetime: 0.8,
             bulletSpritePath: 'assets/images/projectiles/bullet_goldRed_1.png',
             bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
@@ -746,15 +748,15 @@ const CONFIG = {
         RACCOON_SERGEANT_MG: {
             name: "MG-4",
             damage: 9,
-            rof: 8,
-            range: 570,
-            projectileSpeed: 700,
+            rof: 9,
+            range: 470,
+            projectileSpeed: 600,
             projectileColor: '#aa7700',
             accuracyStationary: 0.90,
             accuracyMoving: 0.60,
             sfxFireKey: 'RACCOON_MG_FIRE',
             muzzleFlashScale: 1.0,
-            bulletLifetime: 0.7,
+            bulletLifetime: 0.9,
             bulletSpritePath: 'assets/images/projectiles/bullet_goldBlue_1.png',
             bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
@@ -765,14 +767,14 @@ const CONFIG = {
             name: "ALG-1",
             damage: 10,
             rof: 10,
-            range: 590,
-            projectileSpeed: 800,
+            range: 500,
+            projectileSpeed: 700,
             projectileColor: '#996600',
             accuracyStationary: 0.95,
             accuracyMoving: 0.8,
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.0,
-            bulletLifetime: 0.7,
+            bulletLifetime: 1.0,
             bulletSpritePath: 'assets/images/projectiles/bullet_blackBlue_1.png',
             bulletSpriteScale: 0.65,
             isDefaultWeapon: true,
@@ -783,14 +785,14 @@ const CONFIG = {
             name: "ALG-2",
             damage: 12,
             rof: 11,
-            range: 600,
-            projectileSpeed: 850,
+            range: 550,
+            projectileSpeed: 750,
             projectileColor: '#66ffcc',
             accuracyStationary: 0.99,
             accuracyMoving: 0.9,
             sfxFireKey: 'LASER_WEAPON_FIRE',
             muzzleFlashScale: 1.0,
-            bulletLifetime: 0.7,
+            bulletLifetime: 1.1,
             bulletSpritePath: 'assets/images/projectiles/bullet_blue_2.png',
             bulletSpriteScale: 0.65,
             isDefaultWeapon: true,
@@ -861,7 +863,7 @@ const CONFIG = {
         POSSUM_HEAVY_WEAPON: {
             name: "Possum Heavy MG",
             damage: 12,
-            rof: 2,
+            rof: 1,
             range: 500,
             projectileSpeed: 500,
             projectileColor: '#ff47478e',
@@ -2193,24 +2195,35 @@ const CONFIG = {
                 SCREEN_SHAKE: 0           // screen shake amount if game.addScreenShake exists (0 = off)
             }
         },
+        // Grenade explosions are procedural (js/grenadeFx.js): one recipe per GRENADE_TYPES
+        // key. Exploding barrels and boss deaths reuse the FRAG recipe at their own radius.
+        // These are the shared knobs; the look of each type lives in its recipe.
+        GRENADE_FX: {
+            ENABLED: true,
+            MAX_PARTICLES: 2400,       // particle pool size, shared by every live blast
+            MAX_DECALS: 96,            // scorch/frost/corrosion/slag marks on the ground (oldest recycled)
+            PARTICLE_DENSITY: 1.0,     // multiplier on every recipe's particle counts
+            LOW_FPS_THRESHOLD: 40,     // below this FPS, new blasts spawn at LOW_FPS_DENSITY
+            LOW_FPS_DENSITY: 0.5,
+            DECAL_LIFETIME_SCALE: 1.0, // multiplier on how long ground marks linger
+            NIGHT_LIGHT: true,         // blasts and molten pools light up night-mission darkness
+            CHAIN_ARC_STAGGER: 0.06,   // Tesla Egg: seconds between each chain jump's bolt
+            // Camera-shake trauma per blast (0..1, see SCREEN_SHAKE). Graviton shakes at the collapse.
+            // BARREL is per barrel, so chain reactions stack; BOSS_DEATH is a boss's death blast.
+            SHAKE: { FRAG: 0.55, PLASMA_SLAG: 0.5, CRYO_FOAM: 0.4, GRAVITON: 0.65, ARC_CASCADE: 0.45, NANITE_SWARM: 0.3,
+                     BARREL: 0.45, BOSS_DEATH: 0.85 },
+        },
+        // Camera shake (game.addScreenShake). Offset = MAX_OFFSET x trauma^2; trauma decays linearly.
+        SCREEN_SHAKE: {
+            ENABLED: true,
+            MAX_OFFSET: 22,            // screen px at full trauma
+            DECAY: 1.6,                // trauma lost per second
+            FREQUENCY: 30,             // shake speed
+            FALLOFF_NEAR: 250,         // world units from view center: full shake inside,
+            FALLOFF_FAR: 1100,         // fading to none at FAR
+        },
         EXPLOSION: {
             LIFETIME: 1.8,
-            GRENADE: {
-                SPRITE_PATH: 'assets/images/effects/explosion_25.png',
-                FRAME_WIDTH: 205,
-                FRAME_HEIGHT: 205,
-                NUM_FRAMES: 25,
-                ANIMATION_SPEED: 0.15,
-                SCALE: 0.8
-            },
-            BARREL: {
-                SPRITE_PATH: 'assets/images/effects/explosion_16.png',
-                FRAME_WIDTH: 256,
-                FRAME_HEIGHT: 256,
-                NUM_FRAMES: 16,
-                ANIMATION_SPEED: 0.1,
-                SCALE: 0.5
-            }
         },
         FIRE: {
             SPRITE_PATH: 'assets/images/effects/fire_2.png',
@@ -2615,7 +2628,7 @@ const CONFIG = {
         SCORE_PER_KILL: 500,
         ACCURACY_BONUS_THRESHOLD: 0.8,
         TIME_BONUS_MULTIPLIER: 10,
-        CROSSHAIR_SIZE: 32,
+        // (crosshair look/size: CONFIG.CURSORS, player-customizable)
 
         WARNING_DURATION: 1.0,
         BASE_TRAVEL_TIME: 1.0,
@@ -3139,5 +3152,69 @@ const CONFIG = {
 
             ALLOW_ABORT: true,
         },
+    },
+
+    // ------------------------------------------------------------------
+    // CURSORS
+    // Procedurally drawn hardware cursors (js/cursorManager.js), customizable
+    // from Options → Cursors. The player's choices live in the 'cursorSettings'
+    // preference and are merged over DEFAULTS (no save impact).
+    // ------------------------------------------------------------------
+    CURSORS: {
+        DEFAULTS: {
+            pointerStyle: 'arrow',          // 'arrow' | 'tactical' | 'system' (plain OS cursor)
+            pointerSize: 32,                // CSS px, tip to tail
+            pointerColor: '#ffffff',
+            crosshairStyle: 'cross',        // 'cross' | 'circle' | 'brackets' | 'dot'
+            crosshairSize: 40,              // CSS px, outer diameter
+            crosshairColor: '#ff3b30',      // LMB firing and Shift target mode
+            targetColor: '#ffd60a',         // Shift + hovering an enemy (target lock)
+            grenadeColor: '#ff9f1a',        // grenade aiming
+            outlineColor: '#000000',
+            outlineWidth: 2,                // CSS px; 0 = no outline
+            shadow: true,                   // soft dark halo behind every cursor
+        },
+        LIMITS: {                           // [min, max] for the numeric settings
+            pointerSize: [20, 64],
+            crosshairSize: [20, 96],
+            outlineWidth: [0, 4],
+        },
+        // Browsers refuse cursor images over 128 CSS px, and drop ones over 32 px
+        // when they would cross the page edge. Every cursor therefore also ships a
+        // copy shrunk to EDGE_SAFE_SIZE as the next entry in its CSS fallback list.
+        MAX_IMAGE_SIZE: 128,
+        EDGE_SAFE_SIZE: 32,
+        SHADOW_BLUR: 3,
+        SHADOW_COLOR: 'rgba(0, 0, 0, 0.8)',
+
+        COLOR_SWATCHES: ['#ffffff', '#ffd60a', '#ff9f1a', '#ff3b30', '#ff2bd6', '#3fe0ff', '#39ff6a', '#111111'],
+        // Backdrops for the live preview on the Cursors screen.
+        PREVIEW_BACKGROUNDS: [
+            { key: 'jungle', name: 'Jungle', image: 'assets/images/shootouts/tropical/Shootout_Jungle_1.png' },
+            { key: 'temperate', name: 'Forest', image: 'assets/images/shootouts/temperate/Shootout_temperate_1.png' },
+            { key: 'junkyard', name: 'Junkyard', image: 'assets/images/shootouts/junkyard/Shootout_junkyard_1.png' },
+            { key: 'night', name: 'Night', image: 'assets/images/shootouts/tropical/Shootout_Jungle_1_night.png' },
+        ],
+        // One-click bundles; each is applied on top of DEFAULTS.
+        PRESETS: [
+            { key: 'standard', name: 'Standard', settings: {} },
+            {
+                key: 'high_visibility', name: 'High Visibility', settings: {
+                    pointerColor: '#ffd60a', pointerSize: 44, crosshairStyle: 'circle', crosshairSize: 60,
+                    crosshairColor: '#ff2bd6', targetColor: '#3fe0ff', outlineWidth: 3,
+                },
+            },
+            {
+                key: 'inverted', name: 'Inverted', settings: {
+                    pointerColor: '#111111', outlineColor: '#ffffff', crosshairColor: '#111111',
+                    targetColor: '#ff3b30', grenadeColor: '#111111',
+                },
+            },
+            {
+                key: 'minimal', name: 'Minimal', settings: {
+                    pointerSize: 24, crosshairStyle: 'dot', crosshairSize: 28, outlineWidth: 1, shadow: false,
+                },
+            },
+        ],
     },
 };

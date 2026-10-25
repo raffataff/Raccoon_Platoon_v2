@@ -74,12 +74,13 @@ UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only t
 | File | Role |
 |---|---|
 | `game.js` (~6k lines) | `Game` class: state machine, campaign flow, mission lifecycle, update/render loop, formations, ambushes, shootout hooks, speech triggers. |
-| `config.js` (~2.6k lines) | `CONFIG` — the single tuning surface. Sections: CORE, PERFORMANCE, PATHFINDING, SPATIAL_GRID, DEBUG, ENEMY_ALERT, PLAYER_RACCOON, XP_RANKS, ENEMY_UNITS, WEAPON_DEFINITIONS, TURRETS, AI_BEHAVIOR, PROJECTILES, ROSTER_CAMPAIGN, Z_INDEX, LEVEL_GENERATION, ENEMY_SPAWNING, HOSTAGES, VISUAL_EFFECTS, UI, NIGHT_MISSION, AUDIO, SHOOTOUT_MODE, MINIGAMES. **Balance/tuning changes belong here, not hardcoded.** |
+| `config.js` (~2.6k lines) | `CONFIG` — the single tuning surface. Sections: CORE, PERFORMANCE, PATHFINDING, SPATIAL_GRID, DEBUG, ENEMY_ALERT, PLAYER_RACCOON, XP_RANKS, ENEMY_UNITS, WEAPON_DEFINITIONS, TURRETS, AI_BEHAVIOR, PROJECTILES, ROSTER_CAMPAIGN, Z_INDEX, LEVEL_GENERATION, ENEMY_SPAWNING, HOSTAGES, VISUAL_EFFECTS, UI, NIGHT_MISSION, AUDIO, SHOOTOUT_MODE, MINIGAMES, CURSORS. **Balance/tuning changes belong here, not hardcoded.** |
 | `campaignRules.js` | `CAMPAIGN_RULES` — procedural campaign generation: per-phase scaling parameters, biome pool, objective pool, destroy-target pool. |
 | `level.js` | `Level` — holds current level data, obstacles, nav grid, walkability queries. |
 | `levelGenerator.js` (~2.7k lines) | `LevelGenerator` — seeded procedural placement of obstacles, crates/pickups, enemies, hostages, bosses + arenas, extraction zones. |
 | `saveManager.js` | `SaveManager` (all static) — localStorage saves. Keys: `raccoon_platoon_saves` (5 slots, `SAVE_VERSION = 1`), `raccoon_platoon_preferences`. Also JSON export/import. **Bump SAVE_VERSION if you change the save shape.** |
-| `input.js` | `InputHandler` — mouse/keyboard, selection, drag-select, commands. |
+| `input.js` | `InputHandler` — mouse/keyboard, selection, drag-select, commands. `updateMouseCursor()` picks the canvas cursor state → `ui.setCursor()`. |
+| `cursorManager.js` | `CursorManager` (`game.cursorManager`) — procedurally draws the player-customizable hardware cursors (pointer, button hand, crosshair, target lock, grenade) from the `cursorSettings` preference and publishes them as `--rp-cursor-*` CSS variables that `style.css` uses. Zero per-frame cost. Tuning/presets: `CONFIG.CURSORS`; UI: Options → Customize Cursors (`ui._initCursorOptions`). Clickable elements use `cursor: var(--rp-cursor-interact, pointer)`, not plain `pointer`. |
 | `ui.js` (~2.8k lines) | `UI` — every DOM screen: menus, pre/post-mission, phase debrief, memorial, save/load modal, options, HUD squad cards. |
 | `rng.js` | `SeededRandom` — deterministic RNG. Campaign seed → phase RNG → mission RNG chain makes procgen reproducible. **Use the passed-in RNG instance in procgen code, never `Math.random()`.** |
 
@@ -104,6 +105,7 @@ UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only t
 | `minHeap.js` | Priority queue for A*. |
 | `utils.js` | Geometry (line/circle/rect/ellipse/OBB intersection), line-of-sight, and the whole pathfinding pipeline: `findPath` (A*) → `smoothPath` → `deflatePath`. |
 | `effects.js` | ~15 canvas effect classes (explosions, blood, muzzle flash, speech bubbles…) driven via `game.addVisualEffect(type, data)`. |
+| `grenadeFx.js` | `GrenadeFx` (`game.grenadeFx`) — procedural grenade explosions, one recipe per `CONFIG.GRENADE_TYPES` key (`GRENADE_FX_RECIPES`, bottom of file); exploding barrels and boss deaths (`'barrel_explosion'`) reuse the FRAG recipe. Textures baked once at startup; particles/rings/bolts/decals pooled. Draws a ground layer under units (`renderGround`: decals, Slagger pool), an air layer over the world (`render`), and night-overlay lights. Also `CameraShake` (`game.cameraShake`, fed by `game.addScreenShake`). Tuning: `CONFIG.VISUAL_EFFECTS.GRENADE_FX` / `SCREEN_SHAKE`. |
 | `waterSwirl.js` | Water ambient effect. |
 | `terrainChunks.js` | `TerrainChunkCache` — records the mission's ground-tile placements and replays them into LRU-cached, device-resolution chunk canvases around the camera. |
 
