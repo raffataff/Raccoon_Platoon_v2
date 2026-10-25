@@ -1,5 +1,8 @@
 // js/SpatialGrid.js
 
+// Every object in a grid remembers which grid it is in (_sgGrid) and the block of cells it covers
+// (_sgMinCol.._sgMaxCol x _sgMinRow.._sgMaxRow), so an update that stays in the same cells costs a
+// few compares and nothing is allocated. Cells are created the first time something enters them.
 class SpatialGrid {
     constructor(worldWidth, worldHeight, cellSize, gameInstance) { // Added gameInstance
         this.worldWidth = worldWidth;
@@ -9,11 +12,10 @@ class SpatialGrid {
 
         this.gridCols = Math.ceil(worldWidth / cellSize);
         this.gridRows = Math.ceil(worldHeight / cellSize);
-        this.grid = [];
+        this.grid = new Array(this.gridCols * this.gridRows).fill(null);
 
-        for (let i = 0; i < this.gridCols * this.gridRows; i++) {
-            this.grid[i] = new Set();
-        }
+        // Cell block of the object being added/updated (see _computeCells).
+        this._minCol = 0; this._maxCol = -1; this._minRow = 0; this._maxRow = -1;
 
 //        console.log(`[SpatialGrid] Initialized: ${this.gridCols}x${this.gridRows} grid, CellSize: ${this.cellSize}`);
     }
@@ -27,34 +29,14 @@ class SpatialGrid {
         return row * this.gridCols + col;
     }
 
-    _getCellsForObject(obj) {
-        const cells = new Set();
-        if (!obj || obj.isMarkedForDeletion) return cells;
-
+    // Sets this._minCol/_maxCol/_minRow/_maxRow to the cells the object's bounds cover (empty when
+    // it is entirely outside the world, as the old per-cell Set was).
+    _computeCells(obj) {
         let minX, minY, maxX, maxY;
-        if (obj.getCollisionShape && typeof obj.getCollisionShape === 'function') {
-            const shape = obj.getCollisionShape();
-            if (shape.type === 'circle') {
-                minX = shape.x - shape.radius;
-                minY = shape.y - shape.radius;
-                maxX = shape.x + shape.radius;
-                maxY = shape.y + shape.radius;
-            } else if (shape.type === 'rectangle') {
-                minX = shape.x;
-                minY = shape.y;
-                maxX = shape.x + shape.width;
-                maxY = shape.y + shape.height;
-            } else if (shape.type === 'ellipse') {
-                minX = shape.x - shape.radiusX;
-                minY = shape.y - shape.radiusY;
-                maxX = shape.x + shape.radiusX;
-                maxY = shape.y + shape.radiusY;
-            } else { 
-                minX = obj.x - (obj.size || obj.width || 0) / 2;
-                minY = obj.y - (obj.size || obj.height || 0) / 2;
-                maxX = obj.x + (obj.size || obj.width || 0) / 2;
-                maxY = obj.y + (obj.size || obj.height || 0) / 2;
-            }
+        if (obj instanceof Unit) {
+            // Unit.getCollisionShape(): a circle of radius size / 2 (read directly, no shape object).
+            const r = obj.size / 2;
+            minX = obj.x - r; minY = obj.y - r; maxX = obj.x + r; maxY = obj.y + r;
         } else if (obj.collisionShape && this.game && this.game.level) { // Check for this.game and this.game.level
              const shapeOrShapes = this.game.level._getObstacleCollisionShape(obj);
              const shapes = Array.isArray(shapeOrShapes) ? shapeOrShapes : [shapeOrShapes];
@@ -79,74 +61,85 @@ class SpatialGrid {
                  if (syMax > shapeMaxY) shapeMaxY = syMax;
              }
              minX = shapeMinX; minY = shapeMinY; maxX = shapeMaxX; maxY = shapeMaxY;
-        } else { 
+        } else {
             minX = obj.x - (obj.size || obj.width || 0) / 2;
             minY = obj.y - (obj.size || obj.height || 0) / 2;
             maxX = obj.x + (obj.size || obj.width || 0) / 2;
             maxY = obj.y + (obj.size || obj.height || 0) / 2;
         }
 
-        const startCol = Math.max(0, Math.floor(minX / this.cellSize));
-        const endCol = Math.min(this.gridCols - 1, Math.floor(maxX / this.cellSize));
-        const startRow = Math.max(0, Math.floor(minY / this.cellSize));
-        const endRow = Math.min(this.gridRows - 1, Math.floor(maxY / this.cellSize));
+        this._minCol = Math.max(0, Math.floor(minX / this.cellSize));
+        this._maxCol = Math.min(this.gridCols - 1, Math.floor(maxX / this.cellSize));
+        this._minRow = Math.max(0, Math.floor(minY / this.cellSize));
+        this._maxRow = Math.min(this.gridRows - 1, Math.floor(maxY / this.cellSize));
+    }
 
-        for (let r = startRow; r <= endRow; r++) {
-            for (let c = startCol; c <= endCol; c++) {
-                cells.add(r * this.gridCols + c);
+    _insert(obj) {
+        const cols = this.gridCols, grid = this.grid;
+        for (let r = this._minRow; r <= this._maxRow; r++) {
+            for (let c = this._minCol; c <= this._maxCol; c++) {
+                const i = r * cols + c;
+                (grid[i] || (grid[i] = new Set())).add(obj);
             }
         }
-        return cells;
+        obj._sgGrid = this;
+        obj._sgMinCol = this._minCol; obj._sgMaxCol = this._maxCol;
+        obj._sgMinRow = this._minRow; obj._sgMaxRow = this._maxRow;
     }
 
     addObject(obj) {
         if (!obj || obj.isMarkedForDeletion) return;
-        const cells = this._getCellsForObject(obj);
-        cells.forEach(cellIndex => {
-            if (this.grid[cellIndex]) {
-                this.grid[cellIndex].add(obj);
-                obj._spatialGridCells = obj._spatialGridCells || new Set();
-                obj._spatialGridCells.add(cellIndex);
-            }
-        });
+        if (obj._sgGrid === this) { this.updateObject(obj); return; }
+        this._computeCells(obj);
+        this._insert(obj);
     }
 
     removeObject(obj) {
-        if (obj && obj._spatialGridCells) {
-            obj._spatialGridCells.forEach(cellIndex => {
-                if (this.grid[cellIndex]) {
-                    this.grid[cellIndex].delete(obj);
-                }
-            });
-            obj._spatialGridCells.clear();
+        if (!obj || obj._sgGrid !== this) return;
+        const cols = this.gridCols, grid = this.grid;
+        for (let r = obj._sgMinRow; r <= obj._sgMaxRow; r++) {
+            for (let c = obj._sgMinCol; c <= obj._sgMaxCol; c++) {
+                const cell = grid[r * cols + c];
+                if (cell) cell.delete(obj);
+            }
         }
+        obj._sgGrid = null;
     }
 
     updateObject(obj) {
         if (!obj || obj.isMarkedForDeletion) return;
+        if (obj._sgGrid !== this) { this._computeCells(obj); this._insert(obj); return; }
+        this._computeCells(obj);
+        const oMinC = obj._sgMinCol, oMaxC = obj._sgMaxCol, oMinR = obj._sgMinRow, oMaxR = obj._sgMaxRow;
+        const nMinC = this._minCol, nMaxC = this._maxCol, nMinR = this._minRow, nMaxR = this._maxRow;
+        if (oMinC === nMinC && oMaxC === nMaxC && oMinR === nMinR && oMaxR === nMaxR) return;
 
-        const oldCells = obj._spatialGridCells ? new Set(obj._spatialGridCells) : new Set();
-        const newCells = this._getCellsForObject(obj);
-
+        const cols = this.gridCols, grid = this.grid;
         // Remove from cells it's no longer in
-        oldCells.forEach(cellIndex => {
-            if (!newCells.has(cellIndex) && this.grid[cellIndex]) {
-                this.grid[cellIndex].delete(obj);
+        for (let r = oMinR; r <= oMaxR; r++) {
+            for (let c = oMinC; c <= oMaxC; c++) {
+                if (r >= nMinR && r <= nMaxR && c >= nMinC && c <= nMaxC) continue;
+                const cell = grid[r * cols + c];
+                if (cell) cell.delete(obj);
             }
-        });
-
+        }
         // Add to new cells it wasn't in before
-        newCells.forEach(cellIndex => {
-            if (!oldCells.has(cellIndex) && this.grid[cellIndex]) {
-                this.grid[cellIndex].add(obj);
+        for (let r = nMinR; r <= nMaxR; r++) {
+            for (let c = nMinC; c <= nMaxC; c++) {
+                if (r >= oMinR && r <= oMaxR && c >= oMinC && c <= oMaxC) continue;
+                const i = r * cols + c;
+                (grid[i] || (grid[i] = new Set())).add(obj);
             }
-        });
-
-        obj._spatialGridCells = newCells;
+        }
+        obj._sgMinCol = nMinC; obj._sgMaxCol = nMaxC; obj._sgMinRow = nMinR; obj._sgMaxRow = nMaxR;
     }
 
-    queryRange(x, y, range) {
-        const results = new Set();
+    // Objects in the cells overlapping the square around (x, y), each listed once, in the same order
+    // as the old Set-based version. Pass `out` to reuse an array (it is cleared first).
+    queryRange(x, y, range, out = null) {
+        const results = out || [];
+        results.length = 0;
+        const stamp = ++SpatialGrid.queryStamp;
         const minX = x - range;
         const minY = y - range;
         const maxX = x + range;
@@ -159,13 +152,15 @@ class SpatialGrid {
 
         for (let r = startRow; r <= endRow; r++) {
             for (let c = startCol; c <= endCol; c++) {
-                const cellIndex = r * this.gridCols + c;
-                if (this.grid[cellIndex]) {
-                    this.grid[cellIndex].forEach(obj => results.add(obj));
+                const cell = this.grid[r * this.gridCols + c];
+                if (cell) {
+                    for (const obj of cell) {
+                        if (obj._sgStamp !== stamp) { obj._sgStamp = stamp; results.push(obj); }
+                    }
                 }
             }
         }
-        return Array.from(results); 
+        return results;
     }
 
     // Objects in the cells the segment passes through, each listed once. Duplicates (objects
@@ -174,7 +169,7 @@ class SpatialGrid {
     queryLine(x1, y1, x2, y2, out = null) {
         const results = out || [];
         results.length = 0;
-        const stamp = ++SpatialGrid.lineQueryStamp;
+        const stamp = ++SpatialGrid.queryStamp;
         const dx = Math.abs(x2 - x1);
         const dy = Math.abs(y2 - y1);
 
@@ -196,7 +191,7 @@ class SpatialGrid {
         const startCellIndex = this._getCellIndex(x1, y1);
         if (startCellIndex !== -1 && this.grid[startCellIndex]) {
             for (const obj of this.grid[startCellIndex]) {
-                if (obj._sgLineStamp !== stamp) { obj._sgLineStamp = stamp; results.push(obj); }
+                if (obj._sgStamp !== stamp) { obj._sgStamp = stamp; results.push(obj); }
             }
         }
 
@@ -212,7 +207,7 @@ class SpatialGrid {
             const cellIndex = currentY * this.gridCols + currentX;
             if (cellIndex >= 0 && cellIndex < this.grid.length && this.grid[cellIndex]) {
                 for (const obj of this.grid[cellIndex]) {
-                    if (obj._sgLineStamp !== stamp) { obj._sgLineStamp = stamp; results.push(obj); }
+                    if (obj._sgStamp !== stamp) { obj._sgStamp = stamp; results.push(obj); }
                 }
             }
 
@@ -226,7 +221,11 @@ class SpatialGrid {
 
     clear() {
         for (let i = 0; i < this.grid.length; i++) {
-            this.grid[i].clear();
+            const cell = this.grid[i];
+            if (cell) {
+                for (const obj of cell) if (obj._sgGrid === this) obj._sgGrid = null;
+                cell.clear();
+            }
         }
     }
 
@@ -254,5 +253,6 @@ class SpatialGrid {
 }
 
 // Shared by every grid (a new one is built per mission while roster units carry over), so an
-// object's leftover stamp from an earlier grid can never match a fresh query.
-SpatialGrid.lineQueryStamp = 0;
+// object's leftover stamp from an earlier grid can never match a fresh query. Queries never nest,
+// so queryRange and queryLine share it (and the per-object _sgStamp).
+SpatialGrid.queryStamp = 0;

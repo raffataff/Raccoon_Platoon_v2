@@ -293,7 +293,8 @@ class MusicManager {
 
         const instance = this.audioManager.play(key, {
             loop: loop,
-            volume: volumeValue
+            volume: volumeValue,
+            asElement: true // fades and pauses need the <audio> element, even for a non-looping track
         });
 
         if (instance) {
@@ -344,7 +345,8 @@ class MusicManager {
 
         const instance = this.audioManager.play(key, {
             loop: loop,
-            volume: volumeValue
+            volume: volumeValue,
+            asElement: true // fades and pauses need the <audio> element, even for a non-looping track
         });
 
         if (instance) {

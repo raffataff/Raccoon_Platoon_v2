@@ -172,7 +172,8 @@ class PossumGrunt extends Unit {
                         this.patrolWaitTimer = this.PATROL_WAIT_TOTAL_DURATION;
                         this.currentTargetPatrolPoint = (this.currentTargetPatrolPoint === this.patrolPoint1) ? this.patrolPoint2 : this.patrolPoint1;
                         this.PATROL_WAIT_TOTAL_DURATION = (this.gruntAIConfig.PATROL_WAIT_BASE || 1.5) + Math.random() * (this.gruntAIConfig.PATROL_WAIT_RANDOM_ADD || 2.0);
-                    } else if (!this.isMoving && targetIsPatrolPoint && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75) {
+                    } else if (!this.isMoving && ((targetIsPatrolPoint && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75) ||
+                        this.isAtMoveGoal(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y))) {
                         this.patrolWaitTimer = this.PATROL_WAIT_TOTAL_DURATION;
                         this.currentTargetPatrolPoint = (this.currentTargetPatrolPoint === this.patrolPoint1) ? this.patrolPoint2 : this.patrolPoint1;
                         this.PATROL_WAIT_TOTAL_DURATION = (this.gruntAIConfig.PATROL_WAIT_BASE || 1.5) + Math.random() * (this.gruntAIConfig.PATROL_WAIT_RANDOM_ADD || 2.0);

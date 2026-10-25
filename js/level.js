@@ -5,6 +5,7 @@ class Level {
         this.game = game;
         this.obstacles = [];
         this.navGrid = null;
+        this.navGridVersion = 0; // bumped on every nav grid change (ChaseFlowField rebuilds on it)
         this.gridCellSize = CONFIG.PATHFINDING.GRID_CELL_SIZE || 8;
         this.gridWidth = 0;
         this.gridHeight = 0;
@@ -95,7 +96,27 @@ class Level {
         return null;
     }
 
+    // The resolved shapes depend only on the obstacle's shape definition(s), type, position, size
+    // and flip, and no caller modifies them, so they are cached on the obstacle: line of sight,
+    // collision, the spatial grid and render ask for them many times per frame. Callers must not
+    // modify the returned shapes.
     _getObstacleCollisionShape(obstacle) {
+        const c = obstacle._shapeCache;
+        if (c && c.shapes === obstacle.collisionShapes && c.shape === obstacle.collisionShape && c.type === obstacle.type &&
+            c.x === obstacle.x && c.y === obstacle.y && c.w === obstacle.width && c.h === obstacle.height &&
+            c.flip === obstacle.isFlippedHorizontally) {
+            return c.result;
+        }
+        const result = this._resolveObstacleCollisionShape(obstacle);
+        obstacle._shapeCache = {
+            shapes: obstacle.collisionShapes, shape: obstacle.collisionShape, type: obstacle.type,
+            x: obstacle.x, y: obstacle.y, w: obstacle.width, h: obstacle.height, flip: obstacle.isFlippedHorizontally,
+            result
+        };
+        return result;
+    }
+
+    _resolveObstacleCollisionShape(obstacle) {
         if (obstacle.collisionShapes && Array.isArray(obstacle.collisionShapes) && obstacle.collisionShapes.length > 0) {
             const shapes = [];
             for (const shapeDef of obstacle.collisionShapes) {
@@ -375,6 +396,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
     }
 
      generateNavigationGrid(worldWidth, worldHeight) {
+        this.navGridVersion++;
         this.gridCellSize = CONFIG.PATHFINDING.GRID_CELL_SIZE || 16;
         this.gridWidth = Math.floor(worldWidth / this.gridCellSize);
         this.gridHeight = Math.floor(worldHeight / this.gridCellSize);
@@ -481,6 +503,7 @@ if (obstacle.type === 'possum_hut' || obstacle.type === 'possum_hut_round' || ob
 
      updateNavigationGridForObstacle(obstacle, isDestroyedAndNowWalkable) {
         if (!this.navGrid || !obstacle) return;
+        this.navGridVersion++;
 
         // Calculate max unit size to ensure all units can pathfind correctly
         const maxUnitSize = Math.max(

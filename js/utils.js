@@ -718,6 +718,14 @@ function smoothPath(rawPathGridCoords, unitSize, levelInstance, startWorldPos = 
         startIndex = 0;
     }
     smoothedPathWorldCoords.push(currentAnchorWorld);
+    // Every node but the last is within the unit's radius of where it stands: the loop below
+    // wouldn't run and the path would end where it starts (the unit then "arrives" at once and
+    // asks for the same path again every frame).
+    if (startIndex >= rawPathGridCoords.length - 1) {
+        const last = rawPathGridCoords[rawPathGridCoords.length - 1];
+        smoothedPathWorldCoords.push(levelInstance.gridToWorldCoords(last.x, last.y));
+        return smoothedPathWorldCoords;
+    }
 
     let i = startIndex;
     const maxIterations = Math.max(rawPathGridCoords.length * CONFIG.PATHFINDING.SMOOTHING_MAX_ITER_FACTOR, 100);

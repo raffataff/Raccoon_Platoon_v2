@@ -31,6 +31,12 @@ class Unit {
         this._losTarget = null; this._losVisible = false; this._losTimer = 0;
         // Enemy move request waiting for the per-frame path budget (see Game.deferEnemyPathRequest).
         this._pendingPath = null; this._servingQueuedPath = false;
+        // Last move request as asked for, before setMoveTarget resolved it (see isAtMoveGoal).
+        this._moveGoalX = NaN; this._moveGoalY = NaN;
+        // Goal the last search couldn't get any closer to, and from where (see _isNoProgressGoal).
+        this._lastPathNoProgress = false;
+        this._noProgressGoalX = NaN; this._noProgressGoalY = NaN;
+        this._noProgressCellX = 0; this._noProgressCellY = 0; this._noProgressNavVersion = -1; this._noProgressTime = 0;
 
         this._weaponName = null;
         Object.defineProperty(this, 'weaponName', {
@@ -169,6 +175,7 @@ class Unit {
         this.furbyTimer = Math.random() * SPEECH_CONFIG.GLOBAL.FURBY_COOLDOWN;
 
         this.formationGroup = null; // Units in the same formation move group - don't avoid each other during pathfinding
+        this._formationSetCache = null; this._formationSetSource = null; this._formationSetLength = 0; // see _formationSet()
     }
 
     getNightVisionRadius(unit) {
@@ -528,6 +535,7 @@ class Unit {
     }
 
     calculatePath(explicitStartGrid = null, isPhasingOverride = false, excludeUnits = null) {
+        this._lastPathNoProgress = false;
         if (!this.game || !this.game.level) { this.isMoving = false; this.currentPath = []; this.clearFormationState(); return false; }
         const navGrid = this.game.level.getNavigationGrid();
         if (!navGrid) { this.isMoving = false; this.currentPath = []; this.clearFormationState(); return false; }
@@ -566,7 +574,8 @@ class Unit {
             if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Phasing: Allowing path start from 'blocked' navGrid cell.`);
         }
 
-        if (navGrid[endGrid.y][endGrid.x] === 1 && !isPhasingOverride) {
+        const endsOnTargetCell = !(navGrid[endGrid.y][endGrid.x] === 1 && !isPhasingOverride);
+        if (!endsOnTargetCell) {
             let bestX = -1, bestY = -1, bestDistSq = Infinity;
             for (let r = 1; r <= CONFIG.PATHFINDING.ENDPOINT_WALKABLE_SEARCH_RADIUS; r++) {
                 for (let dy = -r; dy <= r; dy++) {
@@ -596,7 +605,17 @@ class Unit {
 
          // Time spent here counts toward this frame's enemy path budget (Game.deferEnemyPathRequest).
          const pathStartTime = performance.now();
-         const rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
+         // Enemies chasing from far away follow the shared chase field when it covers them.
+         let rawPathGridCoords = (this.team === 'enemy' && !isPhasingOverride && this.game.chaseFlowField)
+             ? this.game.chaseFlowField.pathFrom(startGrid, endGrid) : null;
+         if (!rawPathGridCoords) {
+             rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
+             // No path, or one that ends no closer to the goal than the start (goal walled off, or the
+             // search capped out in a dead end): asking again from here gets the same (see setMoveTarget).
+             const pathEnd = rawPathGridCoords && rawPathGridCoords.length > 0 ? rawPathGridCoords[rawPathGridCoords.length - 1] : null;
+             this._lastPathNoProgress = !pathEnd || ((pathEnd.x !== endGrid.x || pathEnd.y !== endGrid.y) &&
+                 heuristic(startGrid.x, startGrid.y, endGrid.x, endGrid.y) - heuristic(pathEnd.x, pathEnd.y, endGrid.x, endGrid.y) <= CONFIG.PATHFINDING.NO_PROGRESS_MAX_CELLS);
+         }
 
          if (rawPathGridCoords && rawPathGridCoords.length > 0) {
              if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) {
@@ -623,6 +642,14 @@ class Unit {
              this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level, { x: this.x, y: this.y });
             if (this.currentPath && this.currentPath.length > 0) {
                 this.currentPath = deflatePath(this.currentPath, this.size / 2, this.game.level);
+                // End on the target itself rather than the centre of its nav cell (up to half a cell
+                // diagonal away). Stopping within arrival tolerance of the centre could leave the unit
+                // outside the final arrival tolerance of the target, repathing to it every frame.
+                const lastRaw = rawPathGridCoords[rawPathGridCoords.length - 1];
+                if (endsOnTargetCell && lastRaw.x === endGrid.x && lastRaw.y === endGrid.y) {
+                    const lastNode = this.currentPath[this.currentPath.length - 1];
+                    lastNode.x = this.worldTargetX; lastNode.y = this.worldTargetY;
+                }
                 this.game.pathfindingMsThisFrame += performance.now() - pathStartTime;
                 this.currentPathNodeIndex = 0; this.isMoving = true;
                 if (!this.manualTarget && !this.autoTarget && !this.isPlayerDirectFiring) { this.gunAimAngle = this.facingAngle; }
@@ -765,7 +792,7 @@ class Unit {
             ];
         }
 
-        const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+        const formationGroupSet = this._formationSet();
         let totalPushX = 0;
         let totalPushY = 0;
         let hasOverlap = false;
@@ -1159,7 +1186,7 @@ class Unit {
                     ...(this.game.hostageUnits || [])
                 ];
             }
-            const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+            const formationGroupSet = this._formationSet();
             for (const otherUnit of nearbyUnits) {
                 if (otherUnit === this || !otherUnit.isAlive() || otherUnit.isPhasing) continue;
                 const isInSameFormation = formationGroupSet && formationGroupSet.has(otherUnit);
@@ -1285,7 +1312,7 @@ class Unit {
                 const nearbyUnitsCol = this.game.spatialGrid ?
                     this.game.spatialGrid.queryRange(this.x, this.y, this.size * CONFIG.PATHFINDING.UNIT_COLLISION_CHECK_RADIUS_FACTOR).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
                     [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
-                const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+                const formationGroupSet = this._formationSet();
                 for (const otherUnit of nearbyUnitsCol) {
                     const isInSameFormation = formationGroupSet && formationGroupSet.has(otherUnit);
                     const combinedR = unitColR + otherUnit.size * 0.5;
@@ -1327,7 +1354,7 @@ class Unit {
                 if (canMoveX) {
                     const testX = this.x + finalDeltaX;
                     const unitColR = this.size * 0.5;
-                    const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+                    const formationGroupSet = this._formationSet();
                     const nearbyUnitsX = this.game.spatialGrid ?
                         this.game.spatialGrid.queryRange(testX, this.y, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
                         [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
@@ -1363,7 +1390,7 @@ class Unit {
                 if (canMoveY) {
                     const testY = this.y + finalDeltaY;
                     const unitColR = this.size * 0.5;
-                    const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+                    const formationGroupSet = this._formationSet();
                     const nearbyUnitsY = this.game.spatialGrid ?
                         this.game.spatialGrid.queryRange(this.x, testY, this.size * 2.5).filter(o => o instanceof Unit && o !== this && o.isAlive() && !o.isPhasing) :
                         [...(this.game.getLivingPlayerControlledUnits?.() || []), ...(this.game.enemyUnits || []), ...(this.game.hostageUnits || [])].filter(o => o !== this && o.isAlive() && !o.isPhasing);
@@ -1875,10 +1902,19 @@ class Unit {
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
 
+        // This goal's last search from about here got no closer to it: it would only say so again
+        // (guard and patrol loops ask every frame, each time a capped-out search).
+        // Stops the unit, as that search's path going nowhere would have.
+        if (this.team === 'enemy' && !this.isPhasing && this._isNoProgressGoal(worldX, worldY)) {
+            this.isMoving = false; this.currentPath = []; this.currentPathNodeIndex = 0;
+            return false;
+        }
+
         // Over this frame's path budget: queue the request and report success, keeping the
         // current path until the queue gets to this unit.
         if (this.team === 'enemy' && this.game.deferEnemyPathRequest(this, worldX, worldY, excludeUnits)) return true;
 
+        this._moveGoalX = worldX; this._moveGoalY = worldY; // as requested, before resolving (see isAtMoveGoal)
         this.formationGroup = excludeUnits || null;
 
         if (this.team === 'player' && this.isHoldingPosition && !(this instanceof RaccoonHostage)) {
@@ -1963,7 +1999,9 @@ class Unit {
 
         this.worldTargetX = finalWorldTargetX; this.worldTargetY = finalWorldTargetY;
 
-        if (this.calculatePath(conceptualStartGrid, this.isPhasing, excludeUnits)) {
+        const pathFound = this.calculatePath(conceptualStartGrid, this.isPhasing, excludeUnits);
+        if (this.team === 'enemy' && this._lastPathNoProgress && !this.isPhasing) this._rememberNoProgressGoal(worldX, worldY);
+        if (pathFound) {
             return true;
         } else {
             if (this.isPhasing && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * CONFIG.PATHFINDING.PHASING_DIRECT_MOVE_THRESHOLD) {
@@ -1987,8 +2025,62 @@ class Unit {
         return this.setMoveTarget(this.worldTargetX, this.worldTargetY);
     }
 
+    // True when another move to (x, y) would get no closer: the unit is within the tolerance the
+    // movement code stops at, or its last move request was for exactly (x, y) and it stands where
+    // that request resolved to (a post inside an obstacle resolves to a nearby walkable cell).
+    // Guard/patrol loops check it so an idle unit doesn't request the same path every frame.
+    isAtMoveGoal(x, y) {
+        const tol = this.size * CONFIG.PATHFINDING.UNIT_COLLISION_RADIUS_FACTOR * CONFIG.PATHFINDING.FINAL_ARRIVAL_TOLERANCE_FACTOR;
+        const tolSq = tol * tol;
+        let dx = this.x - x, dy = this.y - y;
+        if (dx * dx + dy * dy <= tolSq) return true;
+        // As close as it can get: the search from here got no closer (see _isNoProgressGoal).
+        if (!this.isMoving && this._isNoProgressGoal(x, y)) return true;
+        if (this.isMoving || this._moveGoalX !== x || this._moveGoalY !== y) return false;
+        dx = this.x - this.worldTargetX; dy = this.y - this.worldTargetY;
+        return dx * dx + dy * dy <= tolSq;
+    }
+
+    // Goal whose search from the unit's cell got no closer to it (calculatePath's
+    // _lastPathNoProgress). Forgotten once the unit has left that cell's neighbourhood, the nav
+    // grid changes (a destroyed obstacle may open a way) or CONFIG.PATHFINDING.NO_PROGRESS_RETRY_SECONDS pass.
+    _rememberNoProgressGoal(x, y) {
+        const level = this.game.level;
+        this._noProgressGoalX = x; this._noProgressGoalY = y;
+        this._noProgressCellX = Math.floor(this.x / level.gridCellSize);
+        this._noProgressCellY = Math.floor(this.y / level.gridCellSize);
+        this._noProgressNavVersion = level.navGridVersion;
+        this._noProgressTime = performance.now();
+    }
+
+    _isNoProgressGoal(x, y) {
+        if (x !== this._noProgressGoalX || y !== this._noProgressGoalY) return false;
+        const level = this.game.level;
+        if (level.navGridVersion !== this._noProgressNavVersion ||
+            performance.now() - this._noProgressTime > CONFIG.PATHFINDING.NO_PROGRESS_RETRY_SECONDS * 1000) {
+            this._noProgressGoalX = NaN;
+            return false;
+        }
+        const cell = level.gridCellSize;
+        return Math.abs(Math.floor(this.x / cell) - this._noProgressCellX) <= 1 && Math.abs(Math.floor(this.y / cell) - this._noProgressCellY) <= 1;
+    }
+
     clearFormationState() {
         this.formationGroup = null;
+    }
+
+    // formationGroup as a Set, for the movement code's per-frame "same formation?" checks. Built
+    // once per group; rebuilt if the group array changes length (a deselect splices the live
+    // selection array the group may be).
+    _formationSet() {
+        const group = this.formationGroup;
+        if (!group) return null;
+        if (this._formationSetSource !== group || this._formationSetLength !== group.length) {
+            this._formationSetCache = new Set(group);
+            this._formationSetSource = group;
+            this._formationSetLength = group.length;
+        }
+        return this._formationSetCache;
     }
 
     setManualTarget(target) {
@@ -2211,7 +2303,8 @@ class Unit {
 
         if (!died && this.team === 'enemy' && attackerUnit && attackerUnit.team === 'player') {
             let becameAware = false;
-            const activeObstacles = this.game.level.obstacles.filter(o => !o.isDestroyed && o.blocksMovement);
+            // hasLineOfSight takes its candidates from the spatial grid; the list is only a fallback.
+            const activeObstacles = this.game.level.activeObstacles || [];
             const hasLOSToAttacker = hasLineOfSight(this.x, this.y, attackerUnit.x, attackerUnit.y, activeObstacles, this.game.level, false);
             if (this.manualTarget !== attackerUnit) { this.manualTarget = attackerUnit; becameAware = true; }
             else { becameAware = true; }
@@ -2674,7 +2767,7 @@ class Unit {
             ];
         }
 
-        const formationGroupSet = this.formationGroup ? new Set(this.formationGroup) : null;
+        const formationGroupSet = this._formationSet();
 
         for (const other of nearbyUnits) {
             if (other === this || !other.isAlive() || other.isPhasing) continue;

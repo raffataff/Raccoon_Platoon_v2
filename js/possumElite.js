@@ -160,7 +160,8 @@ class PossumElite extends Unit {
 
         let minDistanceSq = engagementRange ** 2;
         if (!potentialTargets || !Array.isArray(potentialTargets)) { this.autoTarget = null; return; }
-        const activeObstacles = Array.isArray(obstacles) ? obstacles.filter(o => !o.isDestroyed && o.blocksMovement) : [];
+        // hasLineOfSight takes its candidates from the spatial grid; the list is only a fallback.
+        const activeObstacles = (this.game.level && this.game.level.activeObstacles) || [];
 
         const validTargets = [];
         potentialTargets.forEach(target => {
@@ -266,7 +267,8 @@ class PossumElite extends Unit {
         const targetIsPatrolPoint = this.worldTargetX !== undefined &&
             Math.abs(this.worldTargetX - this.currentTargetPatrolPoint.x) < this.game.level.gridCellSize * 2 &&
             Math.abs(this.worldTargetY - this.currentTargetPatrolPoint.y) < this.game.level.gridCellSize * 2;
-        const atWorldTarget = targetIsPatrolPoint && !this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75;
+        const atWorldTarget = !this.isMoving && ((targetIsPatrolPoint && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75) ||
+            this.isAtMoveGoal(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y));
         const atPatrolPoint = !this.isMoving && distToPatrolPoint <= arrivalTolerance;
 
         if (atPatrolPoint || atWorldTarget) {

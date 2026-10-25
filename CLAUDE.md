@@ -101,7 +101,8 @@ UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only t
 |---|---|
 | `weapon.js` | `Weapon`, `Projectile`, `GrenadeProjectile`; `buildWEAPONSFromConfig()` builds the global `WEAPONS` table from `CONFIG.WEAPON_DEFINITIONS`. |
 | `ObjectPool.js` | Generic pool — projectiles & grenades are pooled on `Game` (`projectilePool`, `grenadeProjectilePool`). **Reuse pools; don't `new Projectile()` per shot.** |
-| `spatialGrid.js` | `SpatialGrid` — broad-phase neighbor queries (cell size = `PATHFINDING.GRID_CELL_SIZE × SPATIAL_GRID.CELL_SIZE_FACTOR`). |
+| `spatialGrid.js` | `SpatialGrid` — broad-phase neighbor queries (cell size = `PATHFINDING.GRID_CELL_SIZE × SPATIAL_GRID.CELL_SIZE_FACTOR`). Each object stores its grid (`_sgGrid`) and cell block, so `updateObject` is nearly free while it stays in the same cells; `queryRange`/`queryLine` take an optional `out` array. |
+| `chaseFlowField.js` | `ChaseFlowField` (`game.chaseFlowField`) — shared distance field toward the player's units, rebuilt in slices while enemies use it. `Unit.calculatePath` asks it first for far-chasing enemies (walk downhill instead of a long A*). Tuning: `CONFIG.PATHFINDING.CHASE_FLOW_FIELD`. |
 | `minHeap.js` | Priority queue for A*. |
 | `utils.js` | Geometry (line/circle/rect/ellipse/OBB intersection), line-of-sight, and the whole pathfinding pipeline: `findPath` (A*) → `smoothPath` → `deflatePath`. |
 | `effects.js` | ~15 canvas effect classes (explosions, blood, muzzle flash, speech bubbles…) driven via `game.addVisualEffect(type, data)`. |
@@ -112,7 +113,7 @@ UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only t
 ### Audio / content / misc
 | File | Role |
 |---|---|
-| `audioManager.js` | SFX + volume buses (master/music/sfx/ambience). |
+| `audioManager.js` | SFX + volume buses (master/music/sfx/ambience). One-shot SFX play through the Web Audio API from clips decoded once at load (voice cap per clip, `CONFIG.AUDIO_SFX`); music/ambient stream through `<audio>` — callers that need the element back pass `asElement: true` (musicManager does). |
 | `musicManager.js` | Music track selection/crossfade (init'd from `CONFIG.AUDIO_MUSIC`). |
 | `speechConfig.js` | `SPEECH_CONFIG` — unit barks/one-liners. |
 | `raccoonNames.js` | Random recruit name generator. |
@@ -161,6 +162,12 @@ A reusable **modal mini-game framework**. A mini-game can gate any interaction; 
 - A* (`_astar` in `utils.js`) and `MinHeap` allocate nothing per search: they reuse stamped scratch arrays (`_pathScratch`). Keep it that way — a whole-grid allocation per search costs ~0.15 ms on late-phase maps even for a one-step path.
 - Enemy AI checks line of sight to its target via `Unit.hasLineOfSightTo()`, cached for `CONFIG.ENEMY_LOS_RECHECK_INTERVAL` seconds; use it instead of raw `hasLineOfSight()` for per-frame target checks.
 - Prefer squared-distance comparisons (`distanceSq` pattern already used) over `Math.sqrt` in hot loops.
+- Far-chasing enemies get their paths from `ChaseFlowField` (shared Dijkstra field, built under the same path budget); A* only does the last stretch. Guard/patrol loops must check `unit.isAtMoveGoal(x, y)` before re-requesting a fixed point (a post inside an obstacle resolves elsewhere; a goal the last search couldn't get closer to is remembered per spot, `_isNoProgressGoal`) — otherwise an idle unit requests the same path every frame.
+- Shared, cached results — never mutate them: `game.getLivingPlayerControlledUnits()` (one array per frame), `level._getObstacleCollisionShape(obs)` (cached on the obstacle, keyed on its shape defs/position/size/flip).
+- Per-frame lists (`gameObjects`, `visualEffects`, `hostageUnits`, …) are compacted in place (`Game._updateInPlace`), so their array identity is stable; don't rebuild them with `.filter()` every frame.
+- `Game.render` culls enemies, corpses, bullets and obstacles outside the view (`CONFIG.RENDER_CULLING`), so their `render()` isn't called while off-screen: keep gameplay state out of render methods.
+- One-shot sounds must not create an `<audio>` element per play (that, not drawing, was the big-firefight bottleneck): go through `audioManager.play()`, which uses Web Audio.
+- Measuring: `tools/perf/` (headless CDP bench; see `docs/plans/performance_optimization_plan.md` §1). Compare against a baseline served from a `git archive` copy rather than stashing.
 
 ## 9. Debugging Tools
 

@@ -52,7 +52,7 @@ class PossumBoss3 extends Unit {
         if (!target) {
             this.aiState = 'GUARDING';
             if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > 10) {
-                if (!this.isMoving) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
+                if (!this.isMoving && !this.isAtMoveGoal(this.guardPost.x, this.guardPost.y)) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
             } else {
                 this.isMoving = false;
             }

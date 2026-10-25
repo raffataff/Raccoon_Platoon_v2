@@ -57,7 +57,7 @@ class Projectile {
         // --- POOLING NOTE: This constructor is primarily for pool creation. ---
         // --- Actual initialization happens in reset() for pooled objects. ---
         this.game = game; // Game instance needed early by SpatialGrid
-        this._spatialGridCells = new Set();
+        this._sgGrid = null; // spatial grid it is in, if any (see SpatialGrid)
         this._pooled = false; // Will be set by ObjectPool if created by it
         this.isActiveInPool = false; // Will be set by ObjectPool
 
@@ -109,9 +109,7 @@ class Projectile {
         const baseLifetime = bulletConfig.LIFETIME || 1.5;
         this.lifetime = baseLifetime + (bulletLifetimeBonus || 0);
         
-        // Ensure spatial grid cells are cleared if it's being reused
-        if (this._spatialGridCells) this._spatialGridCells.clear();
-        else this._spatialGridCells = new Set();
+        // Reused while still in the spatial grid: SpatialGrid.addObject moves it (see _sgGrid).
 
         this.isActiveInPool = true; // Mark as active when reset
         return this; // Return instance for chaining or direct use
@@ -151,7 +149,7 @@ class Projectile {
                     this.isMarkedForDeletion = true;
                     return;
                 }
-            } else if (this.game.level.obstacles.includes(obj) && !obj.isDestroyed && obj !== this.shooterObstacle) {
+            } else if (levelObstacleSet(this.game.level).has(obj) && !obj.isDestroyed && obj !== this.shooterObstacle) {
                 const obsCollisionShapes = this.game.level._getObstacleCollisionShape(obj);
                 if (!obsCollisionShapes) continue;
                 const shapesArray = Array.isArray(obsCollisionShapes) ? obsCollisionShapes : [obsCollisionShapes];
@@ -247,7 +245,7 @@ class Projectile {
 class GrenadeProjectile {
     constructor(startX, startY, targetX, targetY, game, shooterUnit) {
         this.game = game;
-        this._spatialGridCells = new Set();
+        this._sgGrid = null; // spatial grid it is in, if any (see SpatialGrid)
         this._pooled = false;
         this.isActiveInPool = false;
         
@@ -311,8 +309,7 @@ class GrenadeProjectile {
         this.exploded = false;
         this.maxLifetime = this.fuseTimer + this.flightTimeTotal + (grenadeVisualConfig.MAX_LIFETIME_BUFFER || 2.0);
 
-        if (this._spatialGridCells) this._spatialGridCells.clear();
-        else this._spatialGridCells = new Set();
+        // Reused while still in the spatial grid: SpatialGrid.addObject moves it (see _sgGrid).
 
         this.isActiveInPool = true;
         return this;
@@ -387,7 +384,7 @@ class GrenadeProjectile {
                     }
                     obj.takeDamage(this.damage * damageMultiplier, this.shooterUnit);
                 }
-            } else if (this.game.level.obstacles.includes(obj) && obj.destructible && !obj.isDestroyed && obj.hp > 0) {
+            } else if (levelObstacleSet(this.game.level).has(obj) && obj.destructible && !obj.isDestroyed && obj.hp > 0) {
                 const obsCollisionShapes = this.game.level._getObstacleCollisionShape(obj);
                 if (!obsCollisionShapes) return;
                 const shapesArray = Array.isArray(obsCollisionShapes) ? obsCollisionShapes : [obsCollisionShapes];

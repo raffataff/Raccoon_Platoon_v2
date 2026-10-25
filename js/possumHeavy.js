@@ -85,7 +85,8 @@ class PossumHeavy extends Unit {
                 const targetIsGuardPost = this.worldTargetX !== undefined &&
                     Math.abs(this.worldTargetX - this.guardPost.x) < this.game.level.gridCellSize &&
                     Math.abs(this.worldTargetY - this.guardPost.y) < this.game.level.gridCellSize;
-                const atWorldTarget = targetIsGuardPost && !this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75;
+                const atWorldTarget = !this.isMoving && ((targetIsGuardPost && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) <= this.size * 0.75) ||
+                    this.isAtMoveGoal(this.guardPost.x, this.guardPost.y));
 
                 if (distToGuardPostCurrent <= atPostTolerance) {
                     if (this.isMoving) { this.isMoving = false; this.currentPath = []; }

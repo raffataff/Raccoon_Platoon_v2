@@ -14,7 +14,89 @@ class AudioManager {
         this.loopingSounds = new Map(); // Map<key, { instance: HTMLAudioElement, userVolume: number }>
         // ---
 
+        // One-shot SFX play through the Web Audio API from clips decoded once at load
+        // (sounds[key].buffer): a buffer source per shot instead of a new <audio> element, which
+        // in a big firefight (hundreds of shots a second) cost more main-thread time than the
+        // whole game update. Music, ambience and long clips stay on <audio> (CONFIG.AUDIO_SFX).
+        this.context = null;
+        try {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (Ctx) this.context = new Ctx();
+        } catch (e) {
+            this.context = null;
+        }
+        if (this.context) {
+            // Browsers start the context suspended until the first user gesture.
+            const resume = () => { if (this.context.state === 'suspended') this.context.resume().catch(() => {}); };
+            window.addEventListener('pointerdown', resume, true);
+            window.addEventListener('keydown', resume, true);
+        }
+
 //        console.log("[AudioManager] Initialized.");
+    }
+
+    // Decodes the short clips (CONFIG.AUDIO_SFX.BUFFER_MAX_SECONDS) into AudioBuffers in the
+    // background; until a clip's buffer is ready, its one-shots use the <audio> path.
+    _decodeShortClips() {
+        const cfg = CONFIG.AUDIO_SFX;
+        if (!this.context || !cfg || !cfg.WEB_AUDIO_ENABLED) return;
+        const decoded = new Map(); // path -> Promise<AudioBuffer|null>, files shared by several keys decode once
+        for (const key in this.sounds) {
+            const sound = this.sounds[key];
+            if (!sound.loaded || !sound.audio || sound.buffer || sound.decoding) continue;
+            const duration = sound.audio.duration;
+            if (!(duration > 0) || duration > cfg.BUFFER_MAX_SECONDS) continue;
+            sound.decoding = true;
+            let pending = decoded.get(sound.path);
+            if (!pending) {
+                pending = fetch(sound.path)
+                    .then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status)))
+                    .then(data => this.context.decodeAudioData(data))
+                    .catch(() => null);
+                decoded.set(sound.path, pending);
+            }
+            pending.then(buffer => { sound.buffer = buffer; sound.decoding = false; });
+        }
+    }
+
+    // One-shot through Web Audio: buffer source (pitch via playbackRate) -> per-voice gain -> out.
+    // Returns false when the clip can't go this way, so the caller falls back to <audio>.
+    _playBuffer(key, sound, volume, pitchVariation) {
+        const ctx = this.context;
+        const cfg = CONFIG.AUDIO_SFX;
+        if (!sound.buffer || !ctx || ctx.state !== 'running' || !cfg || !cfg.WEB_AUDIO_ENABLED) return false;
+        // A firefight fires the same clip far more often than anyone can hear apart. Within a few ms
+        // of the last start it is skipped; past a few overlapping copies the oldest one fades out
+        // to make room, so the newest shots are always heard without piling up into clipping.
+        const now = ctx.currentTime;
+        if (sound.lastStart !== undefined && (now - sound.lastStart) * 1000 < cfg.MIN_RETRIGGER_MS) return true;
+        sound.lastStart = now;
+        const voices = sound.voices || (sound.voices = []);
+        if (voices.length >= cfg.MAX_VOICES_PER_KEY) {
+            const oldest = voices.shift();
+            oldest.gain.gain.setTargetAtTime(0, now, 0.005);
+            oldest.source.stop(now + 0.03);
+        }
+
+        const source = ctx.createBufferSource();
+        source.buffer = sound.buffer;
+        if (pitchVariation) {
+            source.playbackRate.value = Math.max(0.1, 1.0 + (Math.random() - 0.5) * pitchVariation * 2);
+        }
+        const gain = ctx.createGain();
+        gain.gain.value = Math.max(0, Math.min(1, volume));
+        source.connect(gain);
+        gain.connect(ctx.destination);
+        const voice = { source, gain };
+        voices.push(voice);
+        source.onended = () => {
+            const i = voices.indexOf(voice);
+            if (i !== -1) voices.splice(i, 1);
+            source.disconnect();
+            gain.disconnect();
+        };
+        source.start();
+        return true;
     }
 
     addSoundToLoadQueue(key, path, defaultVolume = 1.0) {
@@ -88,7 +170,8 @@ class AudioManager {
 
         await Promise.all(loadPromises);
 //        console.log("[AudioManager] All sounds processed.");
-        this.loadQueue = []; 
+        this.loadQueue = [];
+        this._decodeShortClips();
         if (onComplete) onComplete();
     }
 
@@ -137,6 +220,11 @@ class AudioManager {
 
         } else { // Play as a one-shot sound effect (cloned)
             if (this.isMuted) return null;
+            // Callers that keep the returned element (music tracks: volume, fades, pause) ask for one.
+            if (!playConfig.asElement) {
+                if (finalEffectiveVolume <= 0) return null;
+                if (this._playBuffer(key, this.sounds[key], finalEffectiveVolume, playConfig.pitchVariation)) return null;
+            }
 
             const soundInstance = masterAudio.cloneNode(true);
             soundInstance.volume = finalEffectiveVolume;

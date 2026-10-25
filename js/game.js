@@ -44,6 +44,8 @@ class Game {
         // (see deferEnemyPathRequest).
         this.pathfindingMsThisFrame = 0;
         this._enemyPathQueue = [];
+        // Shared distance field far-chasing enemies follow instead of long A* searches.
+        this.chaseFlowField = new ChaseFlowField(this);
         this.selectedUnits = [];
         this.squadGroups = [null, null, null, null, null, null]; // indices 0-5 map to keys 5-9, 0
         this.visualEffects = [];
@@ -427,10 +429,29 @@ class Game {
         });
     }
 
+    // Living squad members, then rescued hostages. Enemy AI asks for this several times per enemy
+    // per frame, so the list is built once per update and shared: callers must not modify it. It is
+    // rebuilt early when one of its units has died or the squad/hostage list was replaced.
     getLivingPlayerControlledUnits() {
-        const livingRaccoons = this.deployedSquadRoster ? this.deployedSquadRoster.filter(r => r.isAlive()) : [];
-        const livingRescuedHostages = this.hostageUnits ? this.hostageUnits.filter(h => h.isRescued && h.isAlive()) : [];
-        return [...livingRaccoons, ...livingRescuedHostages];
+        const cached = this._livingPlayerUnits;
+        if (cached && this._livingPlayerUnitsSquad === this.deployedSquadRoster && this._livingPlayerUnitsHostages === this.hostageUnits) {
+            let allAlive = true;
+            for (let i = 0; i < cached.length; i++) {
+                if (!cached[i].isAlive()) { allAlive = false; break; }
+            }
+            if (allAlive) return cached;
+        }
+        const units = [];
+        if (this.deployedSquadRoster) {
+            for (const r of this.deployedSquadRoster) if (r.isAlive()) units.push(r);
+        }
+        if (this.hostageUnits) {
+            for (const h of this.hostageUnits) if (h.isRescued && h.isAlive()) units.push(h);
+        }
+        this._livingPlayerUnits = units;
+        this._livingPlayerUnitsSquad = this.deployedSquadRoster;
+        this._livingPlayerUnitsHostages = this.hostageUnits;
+        return units;
     }
 
     setNextBirdSpawnTimer(rngInstance = null) {
@@ -1823,7 +1844,9 @@ class Game {
             if (this.level && this.level.obstacles) {
                 for (const obs of this.level.obstacles) {
                     if (WATER_TYPES.includes(obs.type) && obs.imageNormal) {
-                        this.waterEffects.push(new WaterSwirlEffect(obs));
+                        const waterEffect = new WaterSwirlEffect(obs);
+                        obs._waterEffect = waterEffect;
+                        this.waterEffects.push(waterEffect);
                     }
                 }
             }
@@ -4699,29 +4722,32 @@ class Game {
             }
         }
 
+        this._livingPlayerUnits = null; // rebuilt on first use this frame (picks up rescued hostages)
         this.pathfindingMsThisFrame = 0;
+        this.chaseFlowField.update();
         this._serveQueuedEnemyPaths();
 
-        const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
-        if (this.hostageUnits) {
-            allUnitsInGame.push(...this.hostageUnits);
-        }
+        // Reused every frame (nothing keeps it past this update).
+        const allUnitsInGame = this._cachedAllUnits || (this._cachedAllUnits = []);
+        allUnitsInGame.length = 0;
+        if (this.deployedSquadRoster) for (let i = 0; i < this.deployedSquadRoster.length; i++) allUnitsInGame.push(this.deployedSquadRoster[i]);
+        if (this.enemyUnits) for (let i = 0; i < this.enemyUnits.length; i++) allUnitsInGame.push(this.enemyUnits[i]);
+        if (this.hostageUnits) for (let i = 0; i < this.hostageUnits.length; i++) allUnitsInGame.push(this.hostageUnits[i]);
 
-        this._cachedAllUnits = allUnitsInGame;
-
-        allUnitsInGame.forEach(unit => {
+        for (let i = 0; i < allUnitsInGame.length; i++) {
+            const unit = allUnitsInGame[i];
             if (unit && typeof unit.update === 'function') {
-                const oldGridCells = unit._spatialGridCells ? new Set(unit._spatialGridCells) : null;
                 unit.update(deltaTime);
-                if (this.spatialGrid && (unit.isMoving || unit.isMarkedForDeletion || !unit.isAlive() || !oldGridCells || !unit._spatialGridCells || ![...oldGridCells].every(cell => unit._spatialGridCells.has(cell)))) {
+                if (this.spatialGrid) {
                     if (!unit.isAlive() || unit.isMarkedForDeletion) {
                         this.spatialGrid.removeObject(unit);
                     } else {
+                        // Costs a few compares while the unit stays in the same grid cells.
                         this.spatialGrid.updateObject(unit);
                     }
                 }
             }
-        });
+        }
 
         // After the units move, so the camera chases where they are this frame. Before them,
         // it chased last frame's positions and the followed unit wobbled on screen by however
@@ -4750,6 +4776,8 @@ class Game {
                         if (!(_other instanceof Unit) || _other === unit || !_other.isAlive()) continue;
                         if (_other.team !== unit.team) continue;
                         if (_other.speechCooldown > 0) continue;
+                        const _dx = _other.x - unit.x, _dy = _other.y - unit.y;
+                        if (_dx * _dx + _dy * _dy > _sc.PROXIMITY_RANGE * _sc.PROXIMITY_RANGE) continue;
                         _ally = _other;
                         break;
                     }
@@ -4760,7 +4788,7 @@ class Game {
             });
         }
 
-        this.delayedSpeech = this.delayedSpeech.filter(ds => {
+        this._updateInPlace(this.delayedSpeech, ds => {
             if (!ds.unit.isAlive()) return false;
             ds.delay -= deltaTime;
             if (ds.delay <= 0) {
@@ -4772,7 +4800,7 @@ class Game {
             return true;
         });
 
-        this.gameObjects = this.gameObjects.filter(obj => {
+        this._updateInPlace(this.gameObjects, obj => {
             if (obj) {
                 if (obj instanceof Projectile || obj instanceof GrenadeProjectile || this.gameState === 'RUNNING') {
                     obj.update(deltaTime);
@@ -4797,20 +4825,20 @@ class Game {
             return obj && !obj.isMarkedForDeletion;
         });
 
-        this.visualEffects = this.visualEffects.filter(effect => {
+        this._updateInPlace(this.visualEffects, effect => {
             if (effect) effect.update(deltaTime);
             return effect && !effect.isMarkedForDeletion;
         });
         this.grenadeFx.update(deltaTime);
         this.cameraShake.update(deltaTime);
 
-        this.waterEffects = this.waterEffects.filter(effect => {
+        for (let i = 0; i < this.waterEffects.length; i++) {
+            const effect = this.waterEffects[i];
             if (effect) effect.update(deltaTime);
-            return true;
-        });
+        }
 
         if (CONFIG.SCENT_MARKERS && CONFIG.SCENT_MARKERS.ENABLED) {
-            this.scentMarkers = this.scentMarkers.filter(m => {
+            this._updateInPlace(this.scentMarkers, m => {
                 m.update(deltaTime);
                 return !m.isMarkedForDeletion;
             });
@@ -4831,7 +4859,7 @@ class Game {
             this.grenadeRadialMenu.update(deltaTime);
         }
 
-        this.hostageUnits = this.hostageUnits.filter(h => !h.isMarkedForDeletion);
+        this._updateInPlace(this.hostageUnits, h => !h.isMarkedForDeletion);
 
         if (!this.missionStartedAndPopulated && this.gameState === 'RUNNING') {
             this.missionStartedAndPopulated = true;
@@ -4884,6 +4912,20 @@ class Game {
         }
     }
 
+    // Steps every item and keeps those `step` returns true for, compacting the array in place
+    // instead of building a new one each frame. Items added while it runs are kept and first
+    // stepped next frame (a filter() pass dropped them).
+    _updateInPlace(items, step) {
+        const n = items.length;
+        let kept = 0;
+        for (let i = 0; i < n; i++) {
+            const item = items[i];
+            if (step(item)) items[kept++] = item;
+        }
+        for (let i = n; i < items.length; i++) items[kept++] = items[i];
+        items.length = kept;
+    }
+
     /**
      * Per-frame budget for enemy AI pathfinding (CONFIG.PATHFINDING.ENEMY_PATH_BUDGET_MS).
      * Unit.setMoveTarget asks this first for enemies; returns true when the request was queued
@@ -4928,6 +4970,105 @@ class Game {
             }
         }
         queue.splice(0, served);
+    }
+
+    // Sort entries for render(): one pooled array of pooled { entity, sortY, isUnit, isDead,
+    // isDestroyed } records, refilled every frame instead of allocated.
+    _beginSortables() {
+        if (!this._sortables) { this._sortables = []; this._sortablePool = []; }
+        this._sortables.length = 0;
+        return this._sortables;
+    }
+
+    _pushSortable(entity, sortY, isUnit, isDead, isDestroyed) {
+        const list = this._sortables, pool = this._sortablePool;
+        let item = pool[list.length];
+        if (!item) item = pool[list.length] = { entity: null, sortY: 0, isUnit: false, isDead: false, isDestroyed: false };
+        item.entity = entity; item.sortY = sortY; item.isUnit = isUnit; item.isDead = isDead; item.isDestroyed = isDestroyed;
+        list.push(item);
+    }
+
+    // Depth-sort key of an obstacle: the bottom of its collision shapes plus the Z offset for its
+    // kind, or null when it isn't drawn in the sorted pass. Obstacles don't move, so the key is
+    // cached on the obstacle until something it depends on changes (destroyed, new shapes...).
+    _obstacleSortY(obstacle) {
+        const shapes = obstacle.collisionShape || obstacle.collisionShapes ? this.level._getObstacleCollisionShape(obstacle) : null;
+        const c = obstacle._sortYCache;
+        if (c && c.shapes === shapes && c.destroyed === obstacle.isDestroyed && c.imageDestroyed === obstacle.imageDestroyed &&
+            c.imageNormal === obstacle.imageNormal && c.pickup === obstacle.isPickup && c.type === obstacle.type &&
+            c.y === obstacle.y && c.h === obstacle.height) {
+            return c.value;
+        }
+        const value = this._computeObstacleSortY(obstacle, shapes);
+        obstacle._sortYCache = {
+            shapes, destroyed: obstacle.isDestroyed, imageDestroyed: obstacle.imageDestroyed, imageNormal: obstacle.imageNormal,
+            pickup: obstacle.isPickup, type: obstacle.type, y: obstacle.y, h: obstacle.height, value
+        };
+        return value;
+    }
+
+    _computeObstacleSortY(obstacle, collisionShapes) {
+        const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null;
+        let shouldSort = true;
+        if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) {
+            if (borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) {
+                shouldSort = false;
+            }
+        }
+        if (!(shouldSort && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed)))) return null;
+        const shapesArray = Array.isArray(collisionShapes) ? collisionShapes : (collisionShapes ? [collisionShapes] : null);
+        const isBehindLiving = !!obstacle.isDestroyed;
+        const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
+        const isTree = obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree_pheonix' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
+        const isPickup = !!obstacle.isPickup;
+        let sortYValue = obstacle.y + obstacle.height;
+        if (shapesArray && shapesArray.length > 0) {
+            let maxBottom = -Infinity;
+            shapesArray.forEach(shape => {
+                let bottom;
+                if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
+                else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
+                else if (shape.type === 'rectangle') {
+                    bottom = isTree ? shape.y + (shape.height || shape.radiusY || obstacle.height * 0.1) : shape.y + shape.height;
+                }
+                else { bottom = shape.y + (shape.height || 0); }
+                if (bottom > maxBottom) maxBottom = bottom;
+            });
+            if (maxBottom !== -Infinity) sortYValue = maxBottom;
+        }
+        if (typeof sortYValue !== 'number' || isNaN(sortYValue)) return null;
+        let zOffset = 0;
+        if (isHelipad) {
+            zOffset += CONFIG.Z_INDEX.BACKGROUND;
+        } else if (isBehindLiving) {
+            if (isPickup) { zOffset += CONFIG.Z_INDEX.USED_PICKUP; }
+            else { zOffset += CONFIG.Z_INDEX.DESTROYED_OBSTACLE; }
+        } else if (isPickup) {
+            zOffset += CONFIG.Z_INDEX.PICKUP;
+        }
+        return sortYValue + zOffset;
+    }
+
+    // Sort key of a console or turret: the bottom of its collision shapes (else of its box).
+    _shapeBottomSortY(obj) {
+        let sortYValue = obj.y + obj.height;
+        if (this.level && typeof this.level._getObstacleCollisionShape === 'function') {
+            const shapes = this.level._getObstacleCollisionShape(obj);
+            const shapesArray = Array.isArray(shapes) ? shapes : (shapes ? [shapes] : null);
+            if (shapesArray && shapesArray.length > 0) {
+                let maxBottom = -Infinity;
+                for (const shape of shapesArray) {
+                    let bottom;
+                    if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
+                    else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
+                    else if (shape.type === 'rectangle') { bottom = shape.y + shape.height; }
+                    else { bottom = shape.y + (shape.height || 0); }
+                    if (bottom > maxBottom) maxBottom = bottom;
+                }
+                if (maxBottom !== -Infinity) sortYValue = maxBottom;
+            }
+        }
+        return sortYValue;
     }
 
     /**
@@ -5109,139 +5250,80 @@ class Game {
         // Ground layer, under units: blast decals, the Slagger pool, debris shadows, ground glow.
         this.grenadeFx.renderGround(this.ctx, camX, camY, viewW / zoom, viewH / zoom, this.visualEffects);
 
-        let sortableObjects = [];
-        if (this.deployedSquadRoster) { this.deployedSquadRoster.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), isUnit: true, isDead: isDeadUnit }); } }); }
-        if (this.enemyUnits) { this.enemyUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), isUnit: true, isDead: isDeadUnit }); } }); }
-        if (this.hostageUnits) { this.hostageUnits.forEach(unit => { if (unit && typeof unit.y === 'number' && typeof unit.size === 'number') { const isDeadUnit = !unit.isAlive(); const hitbox = unit.getHitbox ? unit.getHitbox() : null; sortableObjects.push({ entity: unit, sortY: (hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2) + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), isUnit: true, isDead: isDeadUnit }); } }); }
+        // Depth-sorted pass. Entries come from a pool reused every frame; with culling on, enemies,
+        // corpses, bullets and obstacles outside the view (plus margins) are left out.
+        const cull = CONFIG.RENDER_CULLING && CONFIG.RENDER_CULLING.ENABLED ? CONFIG.RENDER_CULLING : null;
+        const viewMinX = camX, viewMinY = camY, viewMaxX = camX + viewW / zoom, viewMaxY = camY + viewH / zoom;
+        const sortableObjects = this._beginSortables();
+        const addUnits = (units, cullUnits) => {
+            if (!units) return;
+            const m = cull ? cull.UNIT_MARGIN : 0;
+            for (let i = 0; i < units.length; i++) {
+                const unit = units[i];
+                if (!unit || typeof unit.y !== 'number' || typeof unit.size !== 'number') continue;
+                if (cullUnits && cull && (unit.x < viewMinX - m || unit.x > viewMaxX + m || unit.y < viewMinY - m || unit.y > viewMaxY + m)) continue;
+                const isDeadUnit = !unit.isAlive();
+                // Bottom of the hitbox (Unit.getHitbox: y - size / 2, size tall), read without building it.
+                let bottom;
+                if (unit.getHitbox === Unit.prototype.getHitbox) bottom = unit.y + unit.size / 2;
+                else { const hitbox = unit.getHitbox ? unit.getHitbox() : null; bottom = hitbox ? hitbox.y + hitbox.height : unit.y + unit.size / 2; }
+                this._pushSortable(unit, bottom + (isDeadUnit ? CONFIG.Z_INDEX.DEAD_UNIT : 0), true, isDeadUnit, false);
+            }
+        };
+        addUnits(this.deployedSquadRoster, false);
+        addUnits(this.enemyUnits, true);
+        addUnits(this.hostageUnits, false);
                     // --- MODIFICATION START: Fix extraction zone not being drawn after isHidden=false ---
             // Added check for isHidden to allow extraction zones to appear when revealed
-            if (this.level.obstacles) { this.level.obstacles.forEach(obstacle => { 
-                if (obstacle.isHidden) return;
-                const borderObstacleType = CONFIG.LEVEL_GENERATION ? CONFIG.LEVEL_GENERATION.BORDER_OBSTACLE_TYPE : null; 
-                let shouldSort = true; 
-                if (obstacle.type === 'border_wall' || (borderObstacleType && obstacle.type === borderObstacleType)) { 
-                    if (borderObstacleType && obstacle.type === borderObstacleType && !obstacle.imageNormal) { 
-                        shouldSort = false; 
-                    } 
-                } 
-                if (shouldSort && obstacle && typeof obstacle.y === 'number' && typeof obstacle.height === 'number' && (!obstacle.isDestroyed || (obstacle.isDestroyed && obstacle.imageDestroyed))) {
-                    const collisionShapes = obstacle.collisionShape || obstacle.collisionShapes ? this.level._getObstacleCollisionShape(obstacle) : null;
-                    const shapesArray = Array.isArray(collisionShapes) ? collisionShapes : (collisionShapes ? [collisionShapes] : null);
-                    const isBehindLiving = !!obstacle.isDestroyed;
-                    const isHelipad = obstacle.type && obstacle.type.startsWith('helipad');
-                    const isTree = obstacle.type === 'tree_robusta_tall' || obstacle.type === 'tree_robusta_small' || obstacle.type === 'tree_palm_triple' || obstacle.type === 'tree_deciduous_single' || obstacle.type === 'tree_pheonix' || obstacle.type === 'tree_rubber_single' || obstacle.type === 'tree_fan_single' || obstacle.type === 'tree_fan_double' || obstacle.type === 'tree_fan_triple';
-                    const isPickup = !!obstacle.isPickup;
-                    let sortYValue = obstacle.y + obstacle.height;
-                    if (shapesArray && shapesArray.length > 0) {
-                        let maxBottom = -Infinity;
-                        shapesArray.forEach(shape => {
-                            let bottom;
-                            if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
-                            else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
-                            else if (shape.type === 'rectangle') {
-                                bottom = isTree ? shape.y + (shape.height || shape.radiusY || obstacle.height * 0.1) : shape.y + shape.height;
-                            }
-                            else { bottom = shape.y + (shape.height || 0); }
-                            if (bottom > maxBottom) maxBottom = bottom;
-                        });
-                        if (maxBottom !== -Infinity) sortYValue = maxBottom;
-                    }
-                    if (typeof sortYValue === 'number' && !isNaN(sortYValue)) {
-                        let zOffset = 0;
-                        if (isHelipad) {
-                            zOffset += CONFIG.Z_INDEX.BACKGROUND;
-                        } else if (isBehindLiving) {
-                            if (isPickup) { zOffset += CONFIG.Z_INDEX.USED_PICKUP; }
-                            else { zOffset += CONFIG.Z_INDEX.DESTROYED_OBSTACLE; }
-                        } else if (isPickup) {
-                            zOffset += CONFIG.Z_INDEX.PICKUP;
-                        }
-                        sortableObjects.push({ entity: obstacle, sortY: sortYValue + zOffset, isUnit: false, isDestroyed: isBehindLiving });
-                    }
+            if (this.level.obstacles) {
+                const m = cull ? cull.OBSTACLE_MARGIN : 0;
+                const obstacles = this.level.obstacles;
+                for (let i = 0; i < obstacles.length; i++) {
+                    const obstacle = obstacles[i];
+                    if (!obstacle || obstacle.isHidden) continue;
+                    if (cull && (obstacle.x + obstacle.width < viewMinX - m || obstacle.x > viewMaxX + m ||
+                        obstacle.y + obstacle.height < viewMinY - m || obstacle.y > viewMaxY + m)) continue;
+                    const sortY = this._obstacleSortY(obstacle);
+                    if (sortY !== null) this._pushSortable(obstacle, sortY, false, false, !!obstacle.isDestroyed);
                 }
-            }); }
+            }
         // Add intel consoles to sortable objects for proper depth sorting
         if (this.intelConsoles) {
             this.intelConsoles.forEach(console => {
                 if (console && typeof console.y === 'number' && typeof console.height === 'number') {
-                    let sortYValue = console.y + console.height;
-                    if (this.level && typeof this.level._getObstacleCollisionShape === 'function') {
-                        const shapes = this.level._getObstacleCollisionShape(console);
-                        const shapesArray = Array.isArray(shapes) ? shapes : (shapes ? [shapes] : null);
-                        if (shapesArray && shapesArray.length > 0) {
-                            let maxBottom = -Infinity;
-                            shapesArray.forEach(shape => {
-                                let bottom;
-                                if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
-                                else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
-                                else if (shape.type === 'rectangle') { bottom = shape.y + shape.height; }
-                                else { bottom = shape.y + (shape.height || 0); }
-                                if (bottom > maxBottom) maxBottom = bottom;
-                            });
-                            if (maxBottom !== -Infinity) sortYValue = maxBottom;
-                        }
-                    }
-                    sortableObjects.push({ entity: console, sortY: sortYValue, isUnit: false, isDestroyed: false });
+                    this._pushSortable(console, this._shapeBottomSortY(console), false, false, false);
                 }
             });
         }
         if (this.possumTurrets) {
             this.possumTurrets.forEach(turret => {
                 if (turret && typeof turret.y === 'number' && typeof turret.height === 'number') {
-                    let sortYValue = turret.y + turret.height;
-                    if (this.level && typeof this.level._getObstacleCollisionShape === 'function') {
-                        const shapes = this.level._getObstacleCollisionShape(turret);
-                        const shapesArray = Array.isArray(shapes) ? shapes : (shapes ? [shapes] : null);
-                        if (shapesArray && shapesArray.length > 0) {
-                            let maxBottom = -Infinity;
-                            shapesArray.forEach(shape => {
-                                let bottom;
-                                if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
-                                else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
-                                else if (shape.type === 'rectangle') { bottom = shape.y + shape.height; }
-                                else { bottom = shape.y + (shape.height || 0); }
-                                if (bottom > maxBottom) maxBottom = bottom;
-                            });
-                            if (maxBottom !== -Infinity) sortYValue = maxBottom;
-                        }
-                    }
-                    sortableObjects.push({ entity: turret, sortY: sortYValue, isUnit: false, isDestroyed: false });
+                    this._pushSortable(turret, this._shapeBottomSortY(turret), false, false, false);
                 }
             });
         }
         if (this.possumAntiAirTurrets) {
             this.possumAntiAirTurrets.forEach(turret => {
                 if (turret && typeof turret.y === 'number' && typeof turret.height === 'number') {
-                    let sortYValue = turret.y + turret.height;
-                    if (this.level && typeof this.level._getObstacleCollisionShape === 'function') {
-                        const shapes = this.level._getObstacleCollisionShape(turret);
-                        const shapesArray = Array.isArray(shapes) ? shapes : (shapes ? [shapes] : null);
-                        if (shapesArray && shapesArray.length > 0) {
-                            let maxBottom = -Infinity;
-                            shapesArray.forEach(shape => {
-                                let bottom;
-                                if (shape.type === 'ellipse') { bottom = shape.y + shape.radiusY; }
-                                else if (shape.type === 'circle') { bottom = shape.y + shape.radius; }
-                                else if (shape.type === 'rectangle') { bottom = shape.y + shape.height; }
-                                else { bottom = shape.y + (shape.height || 0); }
-                                if (bottom > maxBottom) maxBottom = bottom;
-                            });
-                            if (maxBottom !== -Infinity) sortYValue = maxBottom;
-                        }
-                    }
-                    sortableObjects.push({ entity: turret, sortY: sortYValue, isUnit: false, isDestroyed: false });
+                    this._pushSortable(turret, this._shapeBottomSortY(turret), false, false, false);
                 }
             });
         }
-        this.gameObjects.forEach(obj => {
-            if (obj instanceof FlyingBird || obj instanceof UFO) {
-                return;
-            } else if (this.isProjectileOrBird(obj) && typeof obj.y === 'number') {
-                sortableObjects.push({ entity: obj, sortY: obj.y + CONFIG.Z_INDEX.PROJECTILE, isUnit: true });
-            } else if (obj && typeof obj.render === 'function') {
-                obj.render(this.ctx);
+        {
+            const m = cull ? cull.PROJECTILE_MARGIN : 0;
+            for (let i = 0; i < this.gameObjects.length; i++) {
+                const obj = this.gameObjects[i];
+                if (obj instanceof FlyingBird || obj instanceof UFO) {
+                    continue;
+                } else if (this.isProjectileOrBird(obj) && typeof obj.y === 'number') {
+                    // Grenades arc high above their ground position: never culled (there are few).
+                    if (cull && obj instanceof Projectile && (obj.x < viewMinX - m || obj.x > viewMaxX + m || obj.y < viewMinY - m || obj.y > viewMaxY + m)) continue;
+                    this._pushSortable(obj, obj.y + CONFIG.Z_INDEX.PROJECTILE, true, false, false);
+                } else if (obj && typeof obj.render === 'function') {
+                    obj.render(this.ctx);
+                }
             }
-        });
+        }
         sortableObjects.sort((a, b) => { if (isNaN(a.sortY) || isNaN(b.sortY)) { return 0; } return a.sortY - b.sortY; });
         sortableObjects.forEach((item, index) => {
             const obj = item.entity; if (!obj) { return; } try {
@@ -5266,7 +5348,7 @@ class Game {
                         }
                         if (obj.imageDestroyed && obj.imageDestroyed.naturalWidth > 0) this.ctx.drawImage(obj.imageDestroyed, drawX, drawY, renderWidth, renderHeight);
                     } else if (!obj.isDestroyed && obj.imageNormal) {
-                        const waterEffect = this.waterEffects ? this.waterEffects.find(we => we.obstacle === obj) : null;
+                        const waterEffect = obj._waterEffect || null; // set when the mission's water effects are built
                         if (waterEffect) {
                             waterEffect.render(this.ctx, obj.imageNormal);
                         } else if (obj.isAnimated && obj.tilesheetPath && obj.frameWidth && obj.frameHeight) {
@@ -5308,6 +5390,10 @@ class Game {
         });
 
         this._renderOccludedUnitSilhouettes(sortableObjects, deviceScaleX, deviceScaleY);
+        // Pool entries past this frame's count drop their entity (a corpse, or a previous mission's obstacle).
+        for (let i = sortableObjects.length; i < this._sortablePool.length && this._sortablePool[i].entity !== null; i++) {
+            this._sortablePool[i].entity = null;
+        }
 
         if (this.intelConsoles) {
             this.intelConsoles.forEach(console => {
@@ -5649,11 +5735,22 @@ class Game {
 
         this.grenadeFx.render(this.ctx);
 
-        this.visualEffects.sort((a, b) => {
-            const aY = (typeof a.getBaseY === 'function') ? a.getBaseY() : (a.y || 0);
-            const bY = (typeof b.getBaseY === 'function') ? b.getBaseY() : (b.y || 0);
-            return aY - bY;
-        });
+        // Same order as sorting by base Y (stable), but each key is read once and the insertion sort
+        // is linear on what is almost always last frame's already-sorted list.
+        {
+            const effects = this.visualEffects;
+            for (let i = 0; i < effects.length; i++) {
+                const e = effects[i];
+                e._renderSortY = (typeof e.getBaseY === 'function') ? e.getBaseY() : (e.y || 0);
+            }
+            for (let i = 1; i < effects.length; i++) {
+                const e = effects[i];
+                const key = e._renderSortY;
+                let j = i - 1;
+                while (j >= 0 && effects[j]._renderSortY - key > 0) { effects[j + 1] = effects[j]; j--; }
+                effects[j + 1] = e;
+            }
+        }
         this.visualEffects.forEach(effect => { if (effect && typeof effect.render === 'function') { effect.render(this.ctx); } });
 
         if (this.selectedUnits) {
@@ -5853,7 +5950,8 @@ class Game {
             this.grenadeRadialMenu.render(this.ctx);
         }
 
-        if (this.fpsDisplayElement) {
+        if (this.fpsDisplayElement && this._shownFps !== this.fps) {
+            this._shownFps = this.fps;
             this.fpsDisplayElement.textContent = `FPS: ${this.fps}`;
         }
 

@@ -60,7 +60,7 @@ class PossumSniper extends Unit {
         switch (this.aiState) {
             case 'GUARDING':
                 if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > 5) {
-                    if (!this.isMoving) {
+                    if (!this.isMoving && !this.isAtMoveGoal(this.guardPost.x, this.guardPost.y)) {
                         this.setMoveTarget(this.guardPost.x, this.guardPost.y);
                     }
                 } else {

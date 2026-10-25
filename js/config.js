@@ -32,6 +32,16 @@ const CONFIG = {
         SMOOTHING_QUALITY: 'high',                    // imageSmoothingQuality used when tiles are downscaled into a chunk ('low' | 'medium' | 'high').
     },
 
+    // Game.render skips enemies, corpses, bullets and obstacles entirely outside the view (plus
+    // these margins, in world px, for sprites, shadows and health bars that reach past their
+    // footprint). Player units, grenades, consoles and turrets are always drawn.
+    RENDER_CULLING: {
+        ENABLED: true,
+        UNIT_MARGIN: 200,                             // Around a unit's position (largest boss sprites are ~300 px across).
+        OBSTACLE_MARGIN: 96,                          // Around an obstacle's x/y/width/height box.
+        PROJECTILE_MARGIN: 64,                        // Around a bullet's position.
+    },
+
     // =============================================================================
     // LAYOUT
     // =============================================================================
@@ -155,7 +165,24 @@ const CONFIG = {
 
         ENEMY_CHASE_THROTTLE_COUNT: 20,                   // When active enemies exceed this, begin throttling chase repaths.
         ENEMY_CHASE_THROTTLE_MULTIPLIER: 2.0,             // Multiply base chase refresh interval when above throttle count.
+        NO_PROGRESS_MAX_CELLS: 2,                         // An enemy search that ends at most this many cells closer to its goal than it started "made no progress": the same goal isn't searched again from that spot (it counts as reached) until the unit moves away, the nav grid changes, or...
+        NO_PROGRESS_RETRY_SECONDS: 5,                     // ...this long has passed.
         ENEMY_PATH_BUDGET_MS: 3,                          // Per-frame time budget (ms) for enemy AI path searches. Requests beyond it queue for the next frame(s), oldest first, at least one per frame, so an alerted camp can't stall a frame. Player orders never wait. 0 = no budget.
+
+        // --- Chase flow field (js/chaseFlowField.js) ---
+        // One shared distance field toward the player's units. Enemies chasing from far away walk it
+        // downhill instead of running a long A* search; the last stretch is a short A* as usual.
+        CHASE_FLOW_FIELD: {
+            ENABLED: true,
+            BUILD_BUDGET_MS: 1.0,                         // Per-frame time slice for (re)building the field (~20 ms in all on a phase-20 map, spread over frames). Counts toward ENEMY_PATH_BUDGET_MS.
+            MIN_CHASE_CELLS: 40,                          // Used only when the enemy is at least this many cells from its destination (closer, A* is cheap).
+            TARGET_RADIUS_CELLS: 64,                      // ...and the destination is within this many cells of the player unit the field leads to (the nearest one, not necessarily the enemy's target: a spread-out squad still counts).
+            STOP_CELLS: 16,                               // The field path ends about this many cells short of that unit; the path-end repath does the rest with A*.
+            MAX_WALK_CELLS: 300,                          // Longest field path handed out at once (the unit asks again at its end).
+            REBUILD_MOVE_CELLS: 6,                        // Rebuild once a player unit is this many cells from where the field was built for it.
+            MIN_REBUILD_INTERVAL: 0.25,                   // Seconds between rebuild starts.
+            IDLE_SECONDS: 3,                              // Stop rebuilding when no enemy has asked for a field path for this long.
+        },
     },
 
     // =============================================================================
@@ -2549,6 +2576,15 @@ const CONFIG = {
         MUSIC_SHOOTOUT: { path: 'assets/audio/music/boss_battle.mp3', defaultVolume: 0.5 },
         MUSIC_CAMPAIGN_COMPLETE: { path: 'assets/audio/music/End Game.mp3', defaultVolume: 0.7 },
         MUSIC_GAME_OVER: { path: 'assets/audio/music/Broken Raccoon.mp3', defaultVolume: 0.6 },
+    },
+
+    // One-shot sound effects (js/audioManager.js). Short clips are decoded once and played through
+    // the Web Audio API; music, ambience and longer clips keep streaming through <audio> elements.
+    AUDIO_SFX: {
+        WEB_AUDIO_ENABLED: true,                          // false = every one-shot clones an <audio> element (the old way).
+        BUFFER_MAX_SECONDS: 10,                           // Clips up to this long are decoded into memory for Web Audio playback.
+        MAX_VOICES_PER_KEY: 8,                            // At most this many copies of one clip play at once; a new one fades out the oldest.
+        MIN_RETRIGGER_MS: 20,                             // A clip started less than this long ago doesn't start again (a camp firing the same rifle).
     },
 
     AUDIO_MUSIC: {

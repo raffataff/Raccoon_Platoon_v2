@@ -1148,22 +1148,29 @@ class SpeechBubbleEffect {
         ctx.font = this.font;
         ctx.globalAlpha = this.opacity;
 
-        const words = this.text.split(' ');
-        const lines = [];
-        let currentLine = '';
-        for (const word of words) {
-            const testLine = currentLine ? currentLine + ' ' + word : word;
-            if (ctx.measureText(testLine).width > this.maxWidth && currentLine) {
-                lines.push(currentLine);
-                currentLine = word;
-            } else {
-                currentLine = testLine;
+        // Word-wrap once (text and font don't change over the bubble's life), not every frame.
+        if (this._wrapText !== this.text || this._wrapFont !== this.font || this._wrapMaxWidth !== this.maxWidth) {
+            const words = this.text.split(' ');
+            const wrapped = [];
+            let currentLine = '';
+            for (const word of words) {
+                const testLine = currentLine ? currentLine + ' ' + word : word;
+                if (ctx.measureText(testLine).width > this.maxWidth && currentLine) {
+                    wrapped.push(currentLine);
+                    currentLine = word;
+                } else {
+                    currentLine = testLine;
+                }
             }
+            if (currentLine) wrapped.push(currentLine);
+            this._lines = wrapped;
+            this._textWidth = Math.max(...wrapped.map(l => ctx.measureText(l).width));
+            this._wrapText = this.text; this._wrapFont = this.font; this._wrapMaxWidth = this.maxWidth;
         }
-        if (currentLine) lines.push(currentLine);
+        const lines = this._lines;
 
         const lineHeight = 16;
-        const textWidth = Math.max(...lines.map(l => ctx.measureText(l).width));
+        const textWidth = this._textWidth;
         const bubbleWidth = textWidth + this.padding * 2;
         const bubbleHeight = lines.length * lineHeight + this.padding * 2;
         const renderX = this.parentUnit.x;
