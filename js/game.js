@@ -40,6 +40,10 @@ class Game {
         this.gameObjects = [];
         this.enemyUnits = [];
         this.hostageUnits = [];
+        // Enemy path budget: A* time spent this frame, and enemies waiting for their turn
+        // (see deferEnemyPathRequest).
+        this.pathfindingMsThisFrame = 0;
+        this._enemyPathQueue = [];
         this.selectedUnits = [];
         this.squadGroups = [null, null, null, null, null, null]; // indices 0-5 map to keys 5-9, 0
         this.visualEffects = [];
@@ -4695,6 +4699,9 @@ class Game {
             }
         }
 
+        this.pathfindingMsThisFrame = 0;
+        this._serveQueuedEnemyPaths();
+
         const allUnitsInGame = [...(this.deployedSquadRoster || []), ...(this.enemyUnits || [])];
         if (this.hostageUnits) {
             allUnitsInGame.push(...this.hostageUnits);
@@ -4875,6 +4882,52 @@ class Game {
                 this.ui.updateObjective();
             }
         }
+    }
+
+    /**
+     * Per-frame budget for enemy AI pathfinding (CONFIG.PATHFINDING.ENEMY_PATH_BUDGET_MS).
+     * Unit.setMoveTarget asks this first for enemies; returns true when the request was queued
+     * for a later frame instead of running now. Requests run straight away while nothing is
+     * queued and this frame's A* time is under budget; otherwise they wait in arrival order,
+     * keeping only each unit's latest target. Without it an alerted camp ran dozens of A*
+     * searches in one frame (0.5 s+ hitches on late-phase maps). Player orders never wait.
+     */
+    deferEnemyPathRequest(unit, worldX, worldY, excludeUnits) {
+        const budget = CONFIG.PATHFINDING.ENEMY_PATH_BUDGET_MS;
+        if (!(budget > 0) || unit._servingQueuedPath) return false;
+        if (this._enemyPathQueue.length === 0 && this.pathfindingMsThisFrame < budget) return false;
+        const request = unit._pendingPath || (unit._pendingPath = { x: 0, y: 0, excludeUnits: null, queued: false });
+        request.x = worldX;
+        request.y = worldY;
+        request.excludeUnits = excludeUnits;
+        if (!request.queued) {
+            request.queued = true;
+            this._enemyPathQueue.push(unit);
+        }
+        return true;
+    }
+
+    // Runs queued enemy path requests, oldest first, until this frame's budget is spent. At least
+    // one runs every frame, so the queue always drains.
+    _serveQueuedEnemyPaths() {
+        const queue = this._enemyPathQueue;
+        if (queue.length === 0) return;
+        const budget = CONFIG.PATHFINDING.ENEMY_PATH_BUDGET_MS > 0 ? CONFIG.PATHFINDING.ENEMY_PATH_BUDGET_MS : Infinity;
+        let served = 0;
+        while (served < queue.length && (served === 0 || this.pathfindingMsThisFrame < budget)) {
+            const unit = queue[served++];
+            const request = unit._pendingPath;
+            request.queued = false;
+            // Dead, or left over from a previous mission.
+            if (!unit.isAlive() || unit.isMarkedForDeletion || !this.enemyUnits.includes(unit)) continue;
+            unit._servingQueuedPath = true;
+            try {
+                unit.setMoveTarget(request.x, request.y, request.excludeUnits);
+            } finally {
+                unit._servingQueuedPath = false;
+            }
+        }
+        queue.splice(0, served);
     }
 
     /**

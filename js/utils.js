@@ -4,15 +4,36 @@ function distance(x1, y1, x2, y2) {
     return Math.hypot(x2 - x1, y2 - y1);
 }
 
+// Reused candidate buffer for hasLineOfSight (not re-entrant, which it never needs to be).
+const _losCandidates = [];
+
+// The level's obstacles as a Set, for "is this grid entry an obstacle?" checks. During a mission
+// obstacles are only ever appended (a new mission gets a new array), so the Set is rebuilt
+// whenever the array or its length changes.
+function levelObstacleSet(level) {
+    const obstacles = level.obstacles;
+    if (level._obstacleSetSource !== obstacles || level._obstacleSetSize !== obstacles.length) {
+        level._obstacleSet = new Set(obstacles);
+        level._obstacleSetSource = obstacles;
+        level._obstacleSetSize = obstacles.length;
+    }
+    return level._obstacleSet;
+}
+
 function hasLineOfSight(x1, y1, x2, y2, obstacles /* May become legacy */, gameLevelInstance = null, checkOnlyCover = false) {
     let candidateObstacles = obstacles; // Fallback
 
     // --- MODIFIED: Use Spatial Grid if available ---
     if (gameLevelInstance && gameLevelInstance.game && gameLevelInstance.game.spatialGrid) {
-        const gridCandidates = gameLevelInstance.game.spatialGrid.queryLine(x1, y1, x2, y2);
-        // Filter to only include actual obstacle objects from the level,
-        // as the grid might contain units or projectiles too.
-        candidateObstacles = gridCandidates.filter(obj => gameLevelInstance.obstacles.includes(obj));
+        const gridCandidates = gameLevelInstance.game.spatialGrid.queryLine(x1, y1, x2, y2, _losCandidates);
+        // Keep only actual obstacle objects from the level, as the grid holds units too.
+        const levelObstacles = levelObstacleSet(gameLevelInstance);
+        let kept = 0;
+        for (let i = 0; i < gridCandidates.length; i++) {
+            if (levelObstacles.has(gridCandidates[i])) gridCandidates[kept++] = gridCandidates[i];
+        }
+        gridCandidates.length = kept;
+        candidateObstacles = gridCandidates;
     }
     // --- END MODIFIED ---
 
@@ -328,45 +349,57 @@ function obbEllipseOverlap(obb, ellipse) {
 }
 
 
-class PathNode {
-    constructor(x, y, g = 0, h = 0, parent = null) {
-        this.x = x;
-        this.y = y;
-        this.g = g;
-        this.h = h;
-        this.f = g + h;
-        this.parent = parent;
-    }
+// Scratch state shared by every A* and border search, grown to the largest nav grid seen.
+// Instead of allocating and clearing whole-grid arrays per search (which made even a one-cell
+// path cost ~0.15 ms on late-phase maps), each search takes a new searchId: a cell's g-cost and
+// parent count only while gStamp[idx] === searchId, and it is closed while
+// closedStamp[idx] === searchId. A search then only pays for the cells it touches.
+const _pathScratch = {
+    capacity: 0,
+    searchId: 0,
+    gCost: null,
+    parent: null,
+    gStamp: null,
+    closedStamp: null,
+    heap: null,
+    bfsQueue: new Int32Array(4096)
+};
 
-    reset(x, y, g, h, parent) {
-        this.x = x;
-        this.y = y;
-        this.g = g;
-        this.h = h;
-        this.f = g + h;
-        this.parent = parent;
+// Neighbour order matches the old directions table (cardinals first, then diagonals), so
+// searches expand cells in the same order as before.
+const _PATH_DIR_X = [0, 0, -1, 1, -1, 1, -1, 1];
+const _PATH_DIR_Y = [-1, 1, 0, 0, -1, -1, 1, 1];
+const _PATH_DIR_COST = [1, 1, 1, 1, Math.SQRT2, Math.SQRT2, Math.SQRT2, Math.SQRT2];
+
+function _beginPathSearch(gridLen) {
+    const s = _pathScratch;
+    if (s.capacity < gridLen) {
+        s.capacity = gridLen;
+        s.gCost = new Float64Array(gridLen);
+        s.parent = new Int32Array(gridLen);
+        s.gStamp = new Uint32Array(gridLen);
+        s.closedStamp = new Uint32Array(gridLen);
     }
+    if (s.searchId >= 0xFFFFFFFE) {
+        // Stamps are about to wrap around: forget every old stamp and start counting again.
+        s.gStamp.fill(0);
+        s.closedStamp.fill(0);
+        s.searchId = 0;
+    }
+    return ++s.searchId;
 }
 
-(function setupPathNodePool() {
-    const POOL_SIZE = 16384;
-    PathNode._pool = new Array(POOL_SIZE);
-    PathNode._poolIndex = 0;
-    for (let i = 0; i < POOL_SIZE; i++) {
-        PathNode._pool[i] = new PathNode(0, 0, 0, 0, null);
+// Walks the parent links of the current search back from `idx` to the start cell.
+function _buildGridPath(idx, gridW) {
+    const parent = _pathScratch.parent;
+    const path = [];
+    while (idx !== -1) {
+        const x = idx % gridW;
+        path.push({ x: x, y: (idx - x) / gridW });
+        idx = parent[idx];
     }
-    PathNode.acquire = function(x, y, g, h, parent) {
-        if (this._poolIndex < this._pool.length) {
-            const node = this._pool[this._poolIndex++];
-            node.reset(x, y, g, h, parent);
-            return node;
-        }
-        return new PathNode(x, y, g, h, parent);
-    };
-    PathNode.releaseAll = function() {
-        this._poolIndex = 0;
-    };
-})();
+    return path.reverse();
+}
 
 function heuristic(ax, ay, bx, by) {
     const dX = Math.abs(ax - bx);
@@ -437,18 +470,15 @@ function findPath(startPos, endPos, grid, isUnitPhasing = false) {
 }
 
 function _findBorderWaypoints(startPos, endPos, grid, gridW, gridH, isUnitPhasing) {
-    const visited = new Uint8Array(gridW * gridH);
-    const queue = new Array(gridW * gridH);
+    // Visited = closedStamp of a search of its own; the queue is a reused, growable buffer.
+    const searchId = _beginPathSearch(gridW * gridH);
+    const visited = _pathScratch.closedStamp;
+    let queue = _pathScratch.bfsQueue;
     let head = 0, tail = 0;
 
     queue[tail++] = startPos.x;
     queue[tail++] = startPos.y;
-    visited[startPos.y * gridW + startPos.x] = 1;
-
-    const cardinal = [
-        { x: 0, y: -1 }, { x: 0, y: 1 },
-        { x: -1, y: 0 }, { x: 1, y: 0 }
-    ];
+    visited[startPos.y * gridW + startPos.x] = searchId;
 
     const borderCells = [];
     const maxSearch = CONFIG.PATHFINDING.BORDER_BFS_MAX_CELLS;
@@ -460,9 +490,9 @@ function _findBorderWaypoints(startPos, endPos, grid, gridW, gridH, isUnitPhasin
         searched++;
 
         let isBorder = false;
-        for (const d of cardinal) {
-            const nnx = cx + d.x;
-            const nny = cy + d.y;
+        for (let d = 0; d < 4; d++) {
+            const nnx = cx + _PATH_DIR_X[d];
+            const nny = cy + _PATH_DIR_Y[d];
             if (nnx < 0 || nnx >= gridW || nny < 0 || nny >= gridH) continue;
             if (grid[nny][nnx] === 1) {
                 isBorder = true;
@@ -482,17 +512,19 @@ function _findBorderWaypoints(startPos, endPos, grid, gridW, gridH, isUnitPhasin
             }
         }
 
-        for (const d of cardinal) {
-            const nx = cx + d.x;
-            const ny = cy + d.y;
+        for (let d = 0; d < 4; d++) {
+            const nx = cx + _PATH_DIR_X[d];
+            const ny = cy + _PATH_DIR_Y[d];
             if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
             const idx = ny * gridW + nx;
-            if (visited[idx]) continue;
-            if (grid[ny][nx] === 1) {
-                visited[idx] = 1;
-                continue;
+            if (visited[idx] === searchId) continue;
+            visited[idx] = searchId;
+            if (grid[ny][nx] === 1) continue;
+            if (tail + 2 > queue.length) {
+                const grown = new Int32Array(queue.length * 2);
+                grown.set(queue);
+                queue = _pathScratch.bfsQueue = grown;
             }
-            visited[idx] = 1;
             queue[tail++] = nx;
             queue[tail++] = ny;
         }
@@ -503,100 +535,76 @@ function _findBorderWaypoints(startPos, endPos, grid, gridW, gridH, isUnitPhasin
 }
 
 function _astar(startPos, endPos, grid, gridW, gridH, isUnitPhasing, maxExpansions) {
-    const gridLen = gridW * gridH;
-    const visited = new Uint8Array(gridLen);
-    if (typeof _astar._gCosts === 'undefined' || _astar._gCosts.length < gridLen) {
-        _astar._gCosts = new Float64Array(gridLen);
-    }
-    const gCosts = _astar._gCosts;
-    gCosts.fill(Infinity, 0, gridLen);
+    const searchId = _beginPathSearch(gridW * gridH);
+    const s = _pathScratch;
+    const gCost = s.gCost, parent = s.parent, gStamp = s.gStamp, closed = s.closedStamp;
+    const openList = s.heap || (s.heap = new MinHeap());
+    openList.clear();
 
-    const openList = new MinHeap();
-
-    const endH = heuristic(startPos.x, startPos.y, endPos.x, endPos.y);
-    const startNode = PathNode.acquire(startPos.x, startPos.y, 0, endH, null);
-    openList.insert(startNode);
+    const endX = endPos.x, endY = endPos.y;
     const startIdx = startPos.y * gridW + startPos.x;
-    gCosts[startIdx] = 0;
-
-    const directions = [
-        { x: 0, y: -1, cost: 1 }, { x: 0, y: 1, cost: 1 },
-        { x: -1, y: 0, cost: 1 }, { x: 1, y: 0, cost: 1 },
-        { x: -1, y: -1, cost: Math.SQRT2 }, { x: 1, y: -1, cost: Math.SQRT2 },
-        { x: -1, y: 1, cost: Math.SQRT2 }, { x: 1, y: 1, cost: Math.SQRT2 }
-    ];
+    const endH = heuristic(startPos.x, startPos.y, endX, endY);
+    gCost[startIdx] = 0;
+    gStamp[startIdx] = searchId;
+    parent[startIdx] = -1;
+    openList.push(endH, 0, startIdx);
 
     let expansions = 0;
-    let bestNode = startNode;
+    // Closest cell to the goal popped so far (by heuristic): the fallback when the goal is out of reach.
+    let bestIdx = startIdx, bestH = endH;
 
     while (!openList.isEmpty()) {
-        const cur = openList.extractMin();
+        const curIdx = openList.pop();
+        const curG = openList.poppedG;
+        const curX = curIdx % gridW;
+        const curY = (curIdx - curX) / gridW;
 
-        if (cur.h < bestNode.h) {
-            bestNode = cur;
+        const curH = heuristic(curX, curY, endX, endY);
+        if (curH < bestH) {
+            bestIdx = curIdx;
+            bestH = curH;
         }
 
-        if (cur.x === endPos.x && cur.y === endPos.y) {
-            const path = [];
-            let temp = cur;
-            while (temp) {
-                path.push({ x: temp.x, y: temp.y });
-                temp = temp.parent;
-            }
-            PathNode.releaseAll();
-            return path.reverse();
+        if (curX === endX && curY === endY) {
+            return _buildGridPath(curIdx, gridW);
         }
 
-        const curIdx = cur.y * gridW + cur.x;
-        if (visited[curIdx]) continue;
-        visited[curIdx] = 1;
+        // Cells can be queued more than once (no decrease-key); later copies are stale.
+        if (closed[curIdx] === searchId) continue;
+        closed[curIdx] = searchId;
 
         expansions++;
         if (expansions > maxExpansions) {
-            const path = [];
-            let temp = bestNode;
-            while (temp) {
-                path.push({ x: temp.x, y: temp.y });
-                temp = temp.parent;
-            }
-            PathNode.releaseAll();
-            return path.reverse();
+            return _buildGridPath(bestIdx, gridW);
         }
 
+        const curRow = grid[curY];
         for (let d = 0; d < 8; d++) {
-            const dir = directions[d];
-            const nx = cur.x + dir.x;
-            const ny = cur.y + dir.y;
+            const nx = curX + _PATH_DIR_X[d];
+            const ny = curY + _PATH_DIR_Y[d];
 
             if (nx < 0 || nx >= gridW || ny < 0 || ny >= gridH) continue;
             if (grid[ny][nx] === 1 && !isUnitPhasing) continue;
 
             const nIdx = ny * gridW + nx;
-            if (visited[nIdx]) continue;
+            if (closed[nIdx] === searchId) continue;
 
-            if (dir.x !== 0 && dir.y !== 0) {
-                if (!isUnitPhasing && grid[cur.y][cur.x + dir.x] === 1 && grid[cur.y + dir.y][cur.x] === 1) continue;
-            }
+            // Diagonal: don't squeeze between two blocked corners.
+            if (d >= 4 && !isUnitPhasing && curRow[nx] === 1 && grid[ny][curX] === 1) continue;
 
-            const newG = cur.g + dir.cost;
-            if (newG < gCosts[nIdx]) {
-                gCosts[nIdx] = newG;
-                openList.insert(PathNode.acquire(nx, ny, newG, heuristic(nx, ny, endPos.x, endPos.y), cur));
+            const newG = curG + _PATH_DIR_COST[d];
+            if (gStamp[nIdx] !== searchId || newG < gCost[nIdx]) {
+                gCost[nIdx] = newG;
+                gStamp[nIdx] = searchId;
+                parent[nIdx] = curIdx;
+                openList.push(newG + heuristic(nx, ny, endX, endY), newG, nIdx);
             }
         }
     }
 
-    if (bestNode !== startNode) {
-        const path = [];
-        let temp = bestNode;
-        while (temp) {
-            path.push({ x: temp.x, y: temp.y });
-            temp = temp.parent;
-        }
-        PathNode.releaseAll();
-        return path.reverse();
+    if (bestIdx !== startIdx) {
+        return _buildGridPath(bestIdx, gridW);
     }
-    PathNode.releaseAll();
     return null;
 }
 

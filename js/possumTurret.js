@@ -95,7 +95,8 @@ class PossumTurret {
         let candidateObstacles = obstacles;
         if (gameLevelInstance && gameLevelInstance.game && gameLevelInstance.game.spatialGrid) {
             const gridCandidates = gameLevelInstance.game.spatialGrid.queryLine(x1, y1, x2, y2);
-            candidateObstacles = gridCandidates.filter(obj => gameLevelInstance.obstacles.includes(obj) && obj !== this.obstacle);
+            const levelObstacles = levelObstacleSet(gameLevelInstance);
+            candidateObstacles = gridCandidates.filter(obj => levelObstacles.has(obj) && obj !== this.obstacle);
         }
         if (!candidateObstacles) return true;
         for (const obs of candidateObstacles) {

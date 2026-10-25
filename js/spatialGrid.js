@@ -168,8 +168,13 @@ class SpatialGrid {
         return Array.from(results); 
     }
 
-    queryLine(x1, y1, x2, y2) {
-        const results = new Set();
+    // Objects in the cells the segment passes through, each listed once. Duplicates (objects
+    // spanning several cells) are skipped with a per-query stamp instead of a Set; pass `out` to
+    // reuse an array across calls (it is cleared first).
+    queryLine(x1, y1, x2, y2, out = null) {
+        const results = out || [];
+        results.length = 0;
+        const stamp = ++SpatialGrid.lineQueryStamp;
         const dx = Math.abs(x2 - x1);
         const dy = Math.abs(y2 - y1);
 
@@ -190,7 +195,9 @@ class SpatialGrid {
 
         const startCellIndex = this._getCellIndex(x1, y1);
         if (startCellIndex !== -1 && this.grid[startCellIndex]) {
-            this.grid[startCellIndex].forEach(obj => results.add(obj));
+            for (const obj of this.grid[startCellIndex]) {
+                if (obj._sgLineStamp !== stamp) { obj._sgLineStamp = stamp; results.push(obj); }
+            }
         }
 
         while (currentX !== endX || currentY !== endY) {
@@ -204,14 +211,16 @@ class SpatialGrid {
 
             const cellIndex = currentY * this.gridCols + currentX;
             if (cellIndex >= 0 && cellIndex < this.grid.length && this.grid[cellIndex]) {
-                this.grid[cellIndex].forEach(obj => results.add(obj));
+                for (const obj of this.grid[cellIndex]) {
+                    if (obj._sgLineStamp !== stamp) { obj._sgLineStamp = stamp; results.push(obj); }
+                }
             }
-            
-            if (results.size > 1000 || (Math.abs(currentX - endX) > this.gridCols*2) || (Math.abs(currentY - endY) > this.gridRows*2)) {
+
+            if (results.length > 1000 || (Math.abs(currentX - endX) > this.gridCols*2) || (Math.abs(currentY - endY) > this.gridRows*2)) {
                  break;
             }
         }
-        return Array.from(results);
+        return results;
     }
 
 
@@ -243,3 +252,7 @@ class SpatialGrid {
         ctx.restore();
     }
 }
+
+// Shared by every grid (a new one is built per mission while roster units carry over), so an
+// object's leftover stamp from an earlier grid can never match a fresh query.
+SpatialGrid.lineQueryStamp = 0;

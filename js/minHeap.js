@@ -1,113 +1,73 @@
 // js/minHeap.js
 // complete
+// Binary min-heap for the A* open list (see _astar in utils.js). Entries are (f, g, cell index)
+// kept in parallel typed arrays, so pushing and popping allocate nothing and one heap is reused
+// for every search. Ordering matches the old object-based heap exactly: smallest f first, and
+// on equal f the smaller g, so A* expands cells in the same order and finds the same paths.
 class MinHeap {
-    constructor() {
-        this.heap = []; // Array to store heap elements (PathNode objects)
+    constructor(initialCapacity = 4096) {
+        this.f = new Float64Array(initialCapacity);
+        this.g = new Float64Array(initialCapacity);
+        this.idx = new Int32Array(initialCapacity);
+        this.size = 0;
+        this.poppedG = 0; // g of the entry returned by the last pop()
     }
 
-    // Helper to get parent index
-    _getParentIndex(i) {
-        return Math.floor((i - 1) / 2);
-    }
-
-    // Helper to get left child index
-    _getLeftChildIndex(i) {
-        return 2 * i + 1;
-    }
-
-    // Helper to get right child index
-    _getRightChildIndex(i) {
-        return 2 * i + 2;
-    }
-
-    // Helper to swap two elements in the heap
-    _swap(i, j) {
-        [this.heap[i], this.heap[j]] = [this.heap[j], this.heap[i]];
-    }
-
-    // Heapify up (bubble up) - maintain heap property after insertion
-    _heapifyUp(index) {
-        let currentIndex = index;
-        let parentIndex = this._getParentIndex(currentIndex);
-
-        // Compare with parent and swap if current node's F-cost is smaller
-        // Also considers G-cost as a tie-breaker (smaller G-cost is preferred for same F-cost)
-        // This can sometimes lead to slightly more "natural" looking paths or faster convergence.
-        while (currentIndex > 0 &&
-               (this.heap[currentIndex].f < this.heap[parentIndex].f ||
-               (this.heap[currentIndex].f === this.heap[parentIndex].f && this.heap[currentIndex].g < this.heap[parentIndex].g))) {
-            this._swap(currentIndex, parentIndex);
-            currentIndex = parentIndex;
-            parentIndex = this._getParentIndex(currentIndex);
-        }
-    }
-
-    // Heapify down (bubble down) - maintain heap property after extraction
-    _heapifyDown(index) {
-        let currentIndex = index;
-        let leftChildIndex = this._getLeftChildIndex(currentIndex);
-        let rightChildIndex = this._getRightChildIndex(currentIndex);
-        let smallestChildIndex = currentIndex;
-
-        // Find the smallest among current, left child, and right child
-        if (leftChildIndex < this.heap.length &&
-            (this.heap[leftChildIndex].f < this.heap[smallestChildIndex].f ||
-            (this.heap[leftChildIndex].f === this.heap[smallestChildIndex].f && this.heap[leftChildIndex].g < this.heap[smallestChildIndex].g))) {
-            smallestChildIndex = leftChildIndex;
-        }
-
-        if (rightChildIndex < this.heap.length &&
-            (this.heap[rightChildIndex].f < this.heap[smallestChildIndex].f ||
-            (this.heap[rightChildIndex].f === this.heap[smallestChildIndex].f && this.heap[rightChildIndex].g < this.heap[smallestChildIndex].g))) {
-            smallestChildIndex = rightChildIndex;
-        }
-
-        // If the smallest is not the current node, swap and continue heapifying down
-        if (smallestChildIndex !== currentIndex) {
-            this._swap(currentIndex, smallestChildIndex);
-            this._heapifyDown(smallestChildIndex);
-        }
-    }
-
-    // Insert a new node into the heap
-    insert(node) { // node is expected to be a PathNode object with an 'f' property
-        this.heap.push(node);
-        this._heapifyUp(this.heap.length - 1);
-    }
-
-    // Extract the node with the minimum F-cost (the root)
-    extractMin() {
-        if (this.isEmpty()) {
-            return null;
-        }
-        if (this.heap.length === 1) {
-            return this.heap.pop();
-        }
-
-        const minNode = this.heap[0]; // The root is the minimum
-        this.heap[0] = this.heap.pop(); // Move the last element to the root
-        this._heapifyDown(0); // Restore heap property from the root
-
-        return minNode;
-    }
-
-    // Check if the heap is empty
-    isEmpty() {
-        return this.heap.length === 0;
-    }
-
-    // Get the size of the heap
-    size() {
-        return this.heap.length;
-    }
-
-    // Peek at the minimum element without extracting
-    peek() {
-        return this.isEmpty() ? null : this.heap[0];
-    }
-
-    // (Optional) Clear the heap
     clear() {
-        this.heap = [];
+        this.size = 0;
+    }
+
+    isEmpty() {
+        return this.size === 0;
+    }
+
+    _grow() {
+        const capacity = this.f.length * 2;
+        const f = new Float64Array(capacity); f.set(this.f); this.f = f;
+        const g = new Float64Array(capacity); g.set(this.g); this.g = g;
+        const idx = new Int32Array(capacity); idx.set(this.idx); this.idx = idx;
+    }
+
+    push(f, g, idx) {
+        if (this.size === this.f.length) this._grow();
+        const F = this.f, G = this.g, I = this.idx;
+        // Bubble up: shift parents that sort after the new entry down, then drop it into the gap.
+        let i = this.size++;
+        while (i > 0) {
+            const p = (i - 1) >> 1;
+            if (f < F[p] || (f === F[p] && g < G[p])) {
+                F[i] = F[p]; G[i] = G[p]; I[i] = I[p];
+                i = p;
+            } else {
+                break;
+            }
+        }
+        F[i] = f; G[i] = g; I[i] = idx;
+    }
+
+    // Removes the minimum entry and returns its cell index (its g is left in this.poppedG).
+    pop() {
+        const F = this.f, G = this.g, I = this.idx;
+        const top = I[0];
+        this.poppedG = G[0];
+        const n = --this.size;
+        if (n > 0) {
+            // Sift the last entry down from the root, moving the smaller child up each step.
+            const xf = F[n], xg = G[n], xi = I[n];
+            let i = 0;
+            for (;;) {
+                const l = 2 * i + 1;
+                if (l >= n) break;
+                let c = -1, cf = xf, cg = xg;
+                if (F[l] < cf || (F[l] === cf && G[l] < cg)) { c = l; cf = F[l]; cg = G[l]; }
+                const r = l + 1;
+                if (r < n && (F[r] < cf || (F[r] === cf && G[r] < cg))) { c = r; }
+                if (c < 0) break;
+                F[i] = F[c]; G[i] = G[c]; I[i] = I[c];
+                i = c;
+            }
+            F[i] = xf; G[i] = xg; I[i] = xi;
+        }
+        return top;
     }
 }

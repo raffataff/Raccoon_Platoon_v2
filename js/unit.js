@@ -27,6 +27,11 @@ class Unit {
         this.weapon = null;
         this.autoTarget = null; this.manualTarget = null;
 
+        // Cached line of sight to the current target (see hasLineOfSightTo).
+        this._losTarget = null; this._losVisible = false; this._losTimer = 0;
+        // Enemy move request waiting for the per-frame path budget (see Game.deferEnemyPathRequest).
+        this._pendingPath = null; this._servingQueuedPath = false;
+
         this._weaponName = null;
         Object.defineProperty(this, 'weaponName', {
             get: function() { return this._weaponName; },
@@ -264,7 +269,7 @@ class Unit {
                     this.currentPathNodeIndex = 0;
                 } else if (this.isMoving && distance(this.x, this.y, this.worldTargetX, this.worldTargetY) > this.size * CONFIG.PATHFINDING.SKIP_FIRST_NODE_DIST_FACTOR) {
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id}] Player-forced Phasing ended. Repathing to target: (${this.worldTargetX.toFixed(0)}, ${this.worldTargetY.toFixed(0)})`);
-                    this.setMoveTarget(this.worldTargetX, this.worldTargetY);
+                    this._repathToCurrentTarget();
                 } else {
                     if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id && this.isMoving) console.log(`[${this.id}] Phasing ended, already near target or no target. Stopping.`);
                     this.isMoving = false;
@@ -280,6 +285,7 @@ class Unit {
 
         // --- OPTIMIZATION Phase 2: Decrement repath cooldown ---
         if (this.repathCooldown > 0) this.repathCooldown -= deltaTime;
+        if (this._losTimer > 0) this._losTimer -= deltaTime;
 
         this._updateStatusEffects(deltaTime);
 
@@ -331,7 +337,7 @@ class Unit {
                 if (this.weapon) isFiringThisFrame = true;
             } else {
                 const dist = distance(this.x, this.y, fireAtX, fireAtY);
-                const hasLOS = hasLineOfSight(this.x, this.y, fireAtX, fireAtY, this.game.level.activeObstacles, this.game.level);
+                const hasLOS = this.hasLineOfSightTo(target);
 
                 if (this.weapon && dist <= this.weapon.range && hasLOS) {
                     isFiringThisFrame = true;
@@ -588,6 +594,8 @@ class Unit {
             }
         }
 
+         // Time spent here counts toward this frame's enemy path budget (Game.deferEnemyPathRequest).
+         const pathStartTime = performance.now();
          const rawPathGridCoords = findPath(startGrid, endGrid, navGrid, isPhasingOverride);
 
          if (rawPathGridCoords && rawPathGridCoords.length > 0) {
@@ -615,12 +623,14 @@ class Unit {
              this.currentPath = smoothPath(rawPathGridCoords, this.size, this.game.level, { x: this.x, y: this.y });
             if (this.currentPath && this.currentPath.length > 0) {
                 this.currentPath = deflatePath(this.currentPath, this.size / 2, this.game.level);
+                this.game.pathfindingMsThisFrame += performance.now() - pathStartTime;
                 this.currentPathNodeIndex = 0; this.isMoving = true;
                 if (!this.manualTarget && !this.autoTarget && !this.isPlayerDirectFiring) { this.gunAimAngle = this.facingAngle; }
                 if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.log(`[${this.id} calculatePath] Path found (phasing: ${isPhasingOverride}). Smoothed len: ${this.currentPath.length}. isMoving=true.`);
                 return true;
             }
         }
+        this.game.pathfindingMsThisFrame += performance.now() - pathStartTime;
         if (CONFIG.DEBUG_PATHING_UNIT_ID === this.id) console.warn(`[${this.id} calculatePath] No path found (phasing: ${isPhasingOverride}). isMoving=false.`);
         this.isMoving = false; this.currentPath = []; this.clearFormationState();
         return false;
@@ -1099,7 +1109,7 @@ class Unit {
                 this.clearFormationState();
                 //this.x = this.worldTargetX; this.y = this.worldTargetY;
             } else if (this.isMoving) {
-                this.setMoveTarget(this.worldTargetX, this.worldTargetY);
+                this._repathToCurrentTarget();
             }
             if (!this.isMoving) {
                 this.lastDeltaX = 0; this.lastDeltaY = 0; return;
@@ -1737,7 +1747,7 @@ class Unit {
                         this.hoverVelocityY = 0;
                     }
                 } else if (this.isMoving) {
-                    this.setMoveTarget(this.worldTargetX, this.worldTargetY);
+                    this._repathToCurrentTarget();
                 }
             }
         }
@@ -1865,6 +1875,10 @@ class Unit {
         if (this.isPlayerDirectFiring) this.isPlayerDirectFiring = false;
         if (this.actionTimer > 0 && !(this instanceof Raccoon && this.isAimingGrenade)) return false;
 
+        // Over this frame's path budget: queue the request and report success, keeping the
+        // current path until the queue gets to this unit.
+        if (this.team === 'enemy' && this.game.deferEnemyPathRequest(this, worldX, worldY, excludeUnits)) return true;
+
         this.formationGroup = excludeUnits || null;
 
         if (this.team === 'player' && this.isHoldingPosition && !(this instanceof RaccoonHostage)) {
@@ -1965,6 +1979,14 @@ class Unit {
         }
     }
 
+    // Movement code re-paths to the current target when a path runs out or a phase ends. If a
+    // newer move request is already queued (enemy path budget), it will replace the path once
+    // served, so don't overwrite it with this older target.
+    _repathToCurrentTarget() {
+        if (this._pendingPath && this._pendingPath.queued) return true;
+        return this.setMoveTarget(this.worldTargetX, this.worldTargetY);
+    }
+
     clearFormationState() {
         this.formationGroup = null;
     }
@@ -2019,6 +2041,23 @@ class Unit {
             this.findAutoTarget(potentialTargets, obstacles);
             this.targetAcquisitionTimer = 0.2 + Math.random() * 0.1;
         }
+    }
+
+    /**
+     * Line of sight from this unit to `target`. Enemies reuse the answer for
+     * CONFIG.ENEMY_LOS_RECHECK_INTERVAL seconds (±25%, so a camp's checks spread over frames)
+     * while the target stays the same: their AI asks every frame, which on late-phase maps
+     * meant over a thousand ray casts per frame. Player units always cast: there are only a
+     * few of them, and a stale answer would show as shots fired into cover.
+     */
+    hasLineOfSightTo(target) {
+        const interval = this.team === 'enemy' ? (CONFIG.ENEMY_LOS_RECHECK_INTERVAL || 0) : 0;
+        if (interval > 0 && target === this._losTarget && this._losTimer > 0) return this._losVisible;
+        const visible = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level);
+        this._losTarget = target;
+        this._losVisible = visible;
+        this._losTimer = interval * (0.75 + Math.random() * 0.5);
+        return visible;
     }
 
     findAutoTarget(potentialTargets, obstacles) {

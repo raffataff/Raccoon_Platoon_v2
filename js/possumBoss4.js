@@ -71,7 +71,7 @@ class PossumBoss4 extends Unit {
 
         this.manualTarget = target;
         const dist = distance(this.x, this.y, target.x, target.y);
-        const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level);
+        const hasLOS = this.hasLineOfSightTo(target);
 
         this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
         this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);

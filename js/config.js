@@ -155,6 +155,7 @@ const CONFIG = {
 
         ENEMY_CHASE_THROTTLE_COUNT: 20,                   // When active enemies exceed this, begin throttling chase repaths.
         ENEMY_CHASE_THROTTLE_MULTIPLIER: 2.0,             // Multiply base chase refresh interval when above throttle count.
+        ENEMY_PATH_BUDGET_MS: 3,                          // Per-frame time budget (ms) for enemy AI path searches. Requests beyond it queue for the next frame(s), oldest first, at least one per frame, so an alerted camp can't stall a frame. Player orders never wait. 0 = no budget.
     },
 
     // =============================================================================
@@ -182,6 +183,7 @@ const CONFIG = {
     ENEMY_ALERT_PROPAGATION_RADIUS: 180,
     ENEMY_INVESTIGATE_ATTACK_CHANCE: 0.95,
     ENEMY_ALERT_ON_DMG_THRESHOLD_PERCENT: 0.10,
+    ENEMY_LOS_RECHECK_INTERVAL: 0.15,                 // Seconds an enemy reuses its line-of-sight result to its current target before casting the ray again (±25% jitter). 0 = check every frame.
 
     UNIT_VISUALS: {
         STUCK_FRAMES_THRESHOLD: 6,
@@ -658,9 +660,9 @@ const CONFIG = {
     POSSUM_SCIENTIST_1_SPRITE_PATH: 'assets/images/units/possum_scientist/type1/',
     POSSUM_SCIENTIST_1_SPRITE_SCALE_FACTOR: 0.35,
     // Dead body reuses the grunt corpse sprites (no dedicated dead set yet).
-    POSSUM_SCIENTIST_1_DEAD_SPRITE_PATH_KEY: 'assets/images/units/possum_boss_1/dead/',
-    POSSUM_SCIENTIST_1_DEAD_SPRITE_FILES_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_FILES',
-    POSSUM_SCIENTIST_1_DEAD_SPRITE_SCALE_KEY: 'POSSUM_GRUNT_DEAD_SPRITE_SCALE',
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_PATH_KEY: 'assets/images/units/possum_eliteGuard/dead',
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_FILES_KEY: ['possum_eliteGuard_dead1.png', 'possum_eliteGuard_dead2.png', 'possum_eliteGuard_dead3.png'],
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_SCALE_KEY: 0.2,
     XP_FOR_SCIENTIST_1_KILL: 120,
 
     // --- Possum Scientist 2 (evil researcher assassination target, non-boss) ---
@@ -720,7 +722,7 @@ const CONFIG = {
             accuracyMoving: 0.60,
             sfxFireKey: 'RACCOON_MG_FIRE',
             muzzleFlashScale: 1.0,
-            bulletLifetime: 0.7,
+            bulletLifetime: 0.75,
             bulletSpritePath: 'assets/images/projectiles/bullet_gold_1.png',
             bulletSpriteScale: 0.6,
             isDefaultWeapon: true,

@@ -157,6 +157,9 @@ A reusable **modal mini-game framework**. A mini-game can gate any interaction; 
 - Background terrain is **recorded once** per mission (`buildTerrain` → `TerrainChunkCache` in `js/terrainChunks.js`) and replayed into device-resolution chunk canvases around the camera (tuning: `CONFIG.TERRAIN_CHUNKS`); the camera is snapped to whole device pixels in `render()` so chunks blit 1:1. Night overlay is a separate offscreen canvas. Don't add per-frame full-map draws.
 - Auto-degradation exists: `CONFIG.AUTO_PHASE_ENEMIES_FPS_THRESHOLD` (35 FPS) phases enemy AI when slow. FPS counter is on-screen (`#hud-fps`).
 - Pathfinding is budgeted: A* capped at `PATHFINDING_MAX_EXPANSIONS` (20k), path smoothing uses coarse stepping on long paths, repaths are cooldown-gated. Respect these knobs when touching movement code.
+- Enemy path requests share a per-frame time budget (`CONFIG.PATHFINDING.ENEMY_PATH_BUDGET_MS`): over budget, `Unit.setMoveTarget` queues the request on `Game` (`deferEnemyPathRequest`) and returns `true` before the path exists; the queue drains oldest-first at the start of each running frame. Player orders never wait. Movement code that re-paths to the current target goes through `_repathToCurrentTarget()` so it can't overwrite a newer queued target.
+- A* (`_astar` in `utils.js`) and `MinHeap` allocate nothing per search: they reuse stamped scratch arrays (`_pathScratch`). Keep it that way — a whole-grid allocation per search costs ~0.15 ms on late-phase maps even for a one-step path.
+- Enemy AI checks line of sight to its target via `Unit.hasLineOfSightTo()`, cached for `CONFIG.ENEMY_LOS_RECHECK_INTERVAL` seconds; use it instead of raw `hasLineOfSight()` for per-frame target checks.
 - Prefer squared-distance comparisons (`distanceSq` pattern already used) over `Math.sqrt` in hot loops.
 
 ## 9. Debugging Tools

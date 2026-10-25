@@ -78,7 +78,7 @@ class PossumBoss1 extends Unit {
         // We have a target, lock on and evaluate
         this.manualTarget = target;
         const dist = distance(this.x, this.y, target.x, target.y);
-        const hasLOS = hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level);
+        const hasLOS = this.hasLineOfSightTo(target);
         const currentWeapon = this.attackMode === 'GRENADE_VOLLEY' ? WEAPONS[this.primaryWeaponName] : WEAPONS[this.secondaryWeaponName];
 
         // AIM: Always aim if there is a target

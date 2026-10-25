@@ -218,7 +218,7 @@ class PossumElite extends Unit {
 
         this.manualTarget = currentTarget;
         const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
-        const losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.activeObstacles, this.game.level);
+        const losToTarget = this.hasLineOfSightTo(currentTarget);
 
         // --- Dynamic state transitions every frame (like grunt) ---
         if (this.aiState === 'PATROLLING' || this.aiState === 'SUSPICIOUS') {
@@ -294,7 +294,7 @@ class PossumElite extends Unit {
     _updateSuspiciousState(deltaTime, target, obstacles) {
         this.suspiciousTimer -= deltaTime;
         if (this.suspiciousTimer <= 0) {
-            if (hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level)) {
+            if (this.hasLineOfSightTo(target)) {
                 this.changeState('ENGAGING_SHOOTING');
             } else {
                 this.changeState('ENGAGING_CHASING');
@@ -305,7 +305,7 @@ class PossumElite extends Unit {
     _updateEngagingShootingState(deltaTime, target, obstacles) {
         const distToTarget = distance(this.x, this.y, target.x, target.y);
 
-        if (distToTarget > this.weapon.range + this.ENGAGE_RANGE_BUFFER || !hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level)) {
+        if (distToTarget > this.weapon.range + this.ENGAGE_RANGE_BUFFER || !this.hasLineOfSightTo(target)) {
             this.changeState('ENGAGING_CHASING');
             return;
         }
@@ -354,7 +354,7 @@ class PossumElite extends Unit {
     }
 
     _updateEngagingChasingState(deltaTime, target, distToTarget, obstacles) {
-        if (distToTarget <= this.weapon.range * 0.85 && hasLineOfSight(this.x, this.y, target.x, target.y, this.game.level.activeObstacles, this.game.level)) {
+        if (distToTarget <= this.weapon.range * 0.85 && this.hasLineOfSightTo(target)) {
             this.changeState('ENGAGING_SHOOTING');
             return;
         }

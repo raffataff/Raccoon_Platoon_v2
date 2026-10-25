@@ -110,7 +110,7 @@ class PossumGrunt extends Unit {
         if (currentTarget && currentTarget.isAlive()) {
             this.manualTarget = currentTarget;
             const distToTarget = distance(this.x, this.y, currentTarget.x, currentTarget.y);
-            let losToTarget = hasLineOfSight(this.x, this.y, currentTarget.x, currentTarget.y, this.game.level.activeObstacles, this.game.level);
+            let losToTarget = this.hasLineOfSightTo(currentTarget);
 
             // Night mission: stealth in darkness
             if (losToTarget && this.game.isNightMission && currentTarget.team === 'player') {
