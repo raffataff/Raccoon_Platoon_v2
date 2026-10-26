@@ -654,6 +654,16 @@ class UI {
         return videoPlayPromise;
     }
 
+    /**
+     * Ms until the fade-out must start for it to end on the loading clip's last frame
+     * (clip time left minus the overlay's 0.5s fade). Infinity if the length is unknown.
+     */
+    getLoadingVideoFadeLeadMs() {
+        const video = this.loadingVideoPlayer;
+        if (!video || !isFinite(video.duration) || video.duration <= 0) return Infinity;
+        return Math.max(0, (video.duration - video.currentTime) * 1000 - 500);
+    }
+
     hideVideoLoadingScreen() {
         if (!this.videoLoadingScreen || !this.loadingVideoPlayer) return;
 
@@ -2764,88 +2774,241 @@ class UI {
         if (this.game && this.game.fpsDisplayElement) this.game.fpsDisplayElement.style.display = 'none';
     }
 
+    // --- In-mission HUD ---------------------------------------------------------------
+    // The squad cards and the objective panel are built once (when the squad or the
+    // objective list changes) and then refreshed in place: the _hud* setters only touch
+    // the DOM when a value actually changed. Game.update calls tickHud() every running
+    // frame and it throttles to CONFIG.UI_SETTINGS.HUD.REFRESH_INTERVAL; game events still
+    // call updateSquadPanel() / updateObjective() directly for an immediate refresh.
+
+    tickHud(deltaTime) {
+        this._hudRefreshTimer = (this._hudRefreshTimer || 0) - deltaTime;
+        if (this._hudRefreshTimer > 0) return;
+        this._hudRefreshTimer = (this.uiSettings.HUD && this.uiSettings.HUD.REFRESH_INTERVAL) || 0.1;
+        this.updateSquadPanel();
+        this.updateObjective();
+    }
+
+    _hudText(el, value) {
+        if (el._hudText !== value) { el._hudText = value; el.textContent = value; }
+    }
+
+    _hudWidth(el, fraction) {
+        const pct = Math.round(Math.max(0, Math.min(1, fraction || 0)) * 1000) / 10;
+        if (el._hudWidth !== pct) { el._hudWidth = pct; el.style.width = pct + '%'; }
+    }
+
+    _hudColor(el, color) {
+        if (el._hudColor !== color) { el._hudColor = color; el.style.backgroundColor = color; }
+    }
+
+    _hudToggle(el, className, on) {
+        if (el.classList.contains(className) !== on) el.classList.toggle(className, on);
+    }
+
     updateObjective() {
-        const objectiveDisplayElement = this.objectiveTextContainer || document.getElementById('objectiveText');
+        const container = this.objectiveTextContainer;
+        if (!container) return;
+        const params = this.game && this.game.currentMissionParams;
+        const objectives = params && params.objectives;
 
-        if (!objectiveDisplayElement || !this.game || !this.game.currentMissionParams || !this.game.currentMissionParams.objectives) {
-            if (objectiveDisplayElement) objectiveDisplayElement.innerHTML = `<span>${this.uiText.UNKNOWN_OBJECTIVE_TEXT || "Unknown Objective"}</span>`;
-            return;
-        }
-
-        objectiveDisplayElement.innerHTML = '';
-        const objectives = this.game.currentMissionParams.objectives;
-
-        if (objectives.length === 0) {
-            objectiveDisplayElement.innerHTML = `<span>${this.uiText.DEFAULT_OBJECTIVE_TEXT || "Complete the mission!"}</span>`;
-            return;
-        }
-
-        objectives.forEach(obj => {
-            // Skip EXTRACTION objective if extraction zone hasn't been revealed yet
-            if (obj.type === 'EXTRACTION' && !obj.extractionZoneRevealed) {
-                return;
+        if (!objectives || objectives.length === 0) {
+            const message = objectives
+                ? (this.uiText.DEFAULT_OBJECTIVE_TEXT || "Complete the mission!")
+                : (this.uiText.UNKNOWN_OBJECTIVE_TEXT || "Unknown Objective");
+            if (this._objMessage !== message) {
+                this._objMessage = message;
+                this._objRows = null;
+                this._objSource = null;
+                container.innerHTML = '';
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'obj-message';
+                messageDiv.textContent = message;
+                container.appendChild(messageDiv);
             }
+            return;
+        }
 
-            const p = document.createElement('p');
-            p.style.margin = '2px 0';
-            p.style.fontSize = '0.9em';
-            let objectiveStr;
+        if (this._objSource !== objectives || this._objParams !== params || this._objCount !== objectives.length) {
+            this._buildObjectivePanel(params, objectives);
+        }
+        const indicator = this.game.lastObjectiveIndicator;
+        let orderChanged = false;
+        for (const row of this._objRows) {
+            const wasDone = row.isDone;
+            this._refreshObjectiveRow(row, indicator);
+            if (row.isDone !== wasDone) orderChanged = true;
+        }
+        if (orderChanged) this._orderObjectiveRows();
+    }
 
-            const templateData = {
-                CURRENT: obj.currentProgress,
-                TOTAL: obj.totalToAchieve,
-                TARGET_NAME_PLURAL: obj.targetNamePlural || "targets",
-                TARGET_NAME_SINGULAR: obj.targetNameSingular || "target",
-                TARGET_CALLSIGN: obj.targetDetails ? obj.targetDetails.callsign : "VIP", // For Assassination
-                TARGET_NAME: obj.targetDetails ? obj.targetDetails.name : "VIP",       // For Assassination
-                CURRENT_RESCUED: obj.currentProgress,
-                TOTAL_SPAWNED: obj.totalToAchieve,
-                CURRENT_EVACUATED: obj.currentEvacuated || 0,
-                MIN_TO_EVAC: obj.minToAchieveForCompletion || 0,
-                KIA_TEXT: (obj.hostagesKilled && obj.hostagesKilled > 0) ? ` | ${obj.hostagesKilled} KIA` : "",
-                HOSTAGES_KILLED: obj.hostagesKilled || 0
+    // Main objective first, then the open objectives, then completed ones, then extraction:
+    // finished rows sink so the ones still to do stay in view when the sidebar is short.
+    _orderObjectiveRows() {
+        const rows = this._objRows;
+        for (const row of rows) if (row.isMain) this._objList.appendChild(row.root);
+        for (const row of rows) if (!row.isMain && !row.isExtraction && !row.isDone) this._objList.appendChild(row.root);
+        for (const row of rows) if (!row.isMain && !row.isExtraction && row.isDone) this._objList.appendChild(row.root);
+        for (const row of rows) if (!row.isMain && row.isExtraction) this._objList.appendChild(row.root);
+    }
+
+    _buildObjectivePanel(params, objectives) {
+        const container = this.objectiveTextContainer;
+        this._objParams = params;
+        this._objSource = objectives;
+        this._objCount = objectives.length;
+        this._objMessage = null;
+        this._objHasExtraction = objectives.some(o => o.type === 'EXTRACTION');
+        container.innerHTML = '';
+
+        const header = document.createElement('div');
+        header.className = 'obj-header';
+        const title = document.createElement('div');
+        title.className = 'obj-title';
+        title.textContent = (params.baseParams && params.baseParams.name) || this.uiText.UNKNOWN_MISSION_TEXT || '';
+        const subtitle = document.createElement('div');
+        subtitle.className = 'obj-subtitle';
+        const phaseData = this.game.campaignStructure && this.game.campaignStructure[this.game.currentPhaseIndex];
+        if (phaseData) {
+            let text = this.game._fillTextTemplate(this.uiText.HUD_MISSION_SUBTITLE || "Phase {PHASE} · Mission {MISSION} of {TOTAL}", {
+                PHASE: this.game.currentPhaseIndex + 1,
+                MISSION: this.game.currentMissionIndex + 1,
+                TOTAL: phaseData.missionsInPhase
+            });
+            if (this.game.currentMissionIndex === phaseData.missionsInPhase - 1) text += ` · ${this.uiText.HUD_MISSION_FINALE || 'Finale'}`;
+            subtitle.textContent = text;
+        }
+        header.append(title, subtitle);
+        container.appendChild(header);
+
+        // Every objective is required (checkMissionStatus waits for all of them), so the panel
+        // shows no primary/secondary split: the mission's main objective (its first primary)
+        // leads, and extraction is always the last step (see _orderObjectiveRows).
+        const main = objectives.find(o => o.isPrimary) || objectives[0];
+
+        const list = document.createElement('div');
+        list.className = 'obj-list';
+        this._objList = list;
+        this._objRows = objectives.map(obj => {
+            const root = document.createElement('div');
+            root.className = 'obj-row';
+            root.innerHTML = '<span class="obj-icon"></span>'
+                + '<span class="obj-label"><span class="obj-label-text"></span></span>'
+                + '<span class="obj-count"></span>'
+                + '<div class="obj-bar"><i></i></div>'
+                + '<div class="obj-sub"><span class="obj-sub-danger"></span><span class="obj-sub-text"></span></div>';
+            if (obj === main) root.classList.add('is-main');
+            return {
+                obj, root,
+                isMain: obj === main,
+                isExtraction: obj.type === 'EXTRACTION',
+                isDone: false,
+                tooltip: null,
+                label: root.querySelector('.obj-label-text'),
+                count: root.querySelector('.obj-count'),
+                fill: root.querySelector('.obj-bar > i'),
+                subDanger: root.querySelector('.obj-sub-danger'),
+                subText: root.querySelector('.obj-sub-text'),
+                targetUnit: null,
+                lastColor: null
             };
+        });
+        this._orderObjectiveRows();
+        container.appendChild(list);
+    }
 
-            objectiveStr = this.uiText[obj.descriptionTemplateKey] || `Objective: ${obj.type}`;
-            objectiveStr = this.game._fillTextTemplate(objectiveStr, templateData);
+    _refreshObjectiveRow(row, indicator) {
+        const obj = row.obj;
+        const t = this.uiText;
+        const cur = obj.currentProgress || 0;
+        const total = obj.totalToAchieve || 0;
+        let label = '', count = '', fraction = -1, dangerText = '', subText = '', isHpBar = false;
+        let state = obj.isComplete ? 'done' : 'active';
 
-            if (obj.type === "ASSASSINATION" && obj.targetDetails) {
-                const targetName = obj.targetDetails.name || "VIP";
-                const targetCallsign = obj.targetDetails.callsign || obj.targetDetails.name || "TARGET";
-
-                let objectiveText = (this.uiText[obj.descriptionTemplateKey] || "Eliminate: {TARGET_CALLSIGN}")
-                    .replace("{TARGET_CALLSIGN}", targetCallsign)
-                    .replace("{TARGET_NAME}", targetName);
-
-                if (obj.isComplete) {
-                    objectiveText += " - ELIMINATED";
-                } else {
-                    const targetUnit = this.game.enemyUnits.find(e => e.id === obj.targetUnitId);
-                    if (targetUnit && targetUnit.isAlive()) {
-                        objectiveText += ` (HP: ${Math.round(targetUnit.hp)}/${targetUnit.maxHp})`;
-                    } else if (obj.targetUnitId && (!targetUnit || !targetUnit.isAlive())) {
-                    } else if (!obj.targetUnitId) {
-                        objectiveText += " - (AWAITING TARGET)";
+        switch (obj.type) {
+            case 'EXTERMINATE':
+            case 'DESTROY_TARGET':
+            case 'INTERACT_INTEL':
+            case 'DEACTIVATE_ANTI_AIR_TURRETS':
+                label = this.game._fillTextTemplate(t['HUD_OBJ_' + obj.type] || obj.type, { TARGET_NAME_PLURAL: obj.targetNamePlural || 'targets' });
+                count = `${cur} / ${total}`;
+                fraction = total > 0 ? cur / total : 0;
+                break;
+            case 'RESCUE_HOSTAGES':
+                label = t.HUD_OBJ_RESCUE_HOSTAGES || 'Rescue hostages';
+                count = `${cur} / ${total}`;
+                fraction = total > 0 ? cur / total : 0;
+                if (obj.hostagesKilled > 0) dangerText = this.game._fillTextTemplate(t.HUD_OBJ_HOSTAGES_KIA || '{COUNT} KIA', { COUNT: obj.hostagesKilled });
+                // Without an EXTRACTION objective the mission still waits for the rescued hostages
+                // to reach the extraction zone, so the row stays live until the mission ends.
+                if (obj.isComplete && !this._objHasExtraction) {
+                    state = 'active';
+                    subText = obj.extractionZoneRevealed
+                        ? (t.HUD_OBJ_HOSTAGES_ESCORT || 'Escort them to the extraction zone')
+                        : (t.HUD_OBJ_HOSTAGES_ESCORT_LOCKED || 'Extraction opens when the rest are done');
+                }
+                break;
+            case 'ASSASSINATION': {
+                const details = obj.targetDetails;
+                label = this.game._fillTextTemplate(t.HUD_OBJ_ASSASSINATION || 'Eliminate {TARGET_CALLSIGN}', {
+                    TARGET_CALLSIGN: (details && (details.callsign || details.name)) || 'VIP',
+                    TARGET_NAME: (details && details.name) || 'VIP'
+                });
+                if (!obj.isComplete) {
+                    if (!obj.targetUnitId) {
+                        subText = t.HUD_OBJ_VIP_AWAITING || 'Awaiting target';
+                    } else {
+                        let unit = row.targetUnit;
+                        if (!unit || unit.id !== obj.targetUnitId) {
+                            unit = row.targetUnit = (this.game.enemyUnits && this.game.enemyUnits.find(e => e.id === obj.targetUnitId)) || null;
+                        }
+                        if (unit && unit.isAlive()) {
+                            count = this.game._fillTextTemplate(t.HUD_OBJ_VIP_HP || '{HP} HP', { HP: Math.ceil(unit.hp) });
+                            fraction = unit.maxHp > 0 ? unit.hp / unit.maxHp : 0;
+                            isHpBar = true;
+                        }
                     }
                 }
-                objectiveStr = objectiveText;
+                break;
             }
+            case 'RESCUE_TAKEN_HOSTAGE':
+                label = this.game._fillTextTemplate(t.HUD_OBJ_RESCUE_TAKEN_HOSTAGE || 'Rescue {NAME}', { NAME: obj.targetRaccoonName || 'comrade' });
+                break;
+            case 'EXTRACTION':
+                label = t.HUD_OBJ_EXTRACTION || 'Extract the squad';
+                if (!obj.extractionZoneRevealed) {
+                    state = 'locked'; // explained in the row tooltip, to keep the row one line
+                } else if (!obj.isComplete) {
+                    subText = t.HUD_OBJ_EXTRACTION_GO || 'Get everyone to the extraction zone';
+                }
+                break;
+            default:
+                label = this.game._fillTextTemplate(t[obj.descriptionTemplateKey] || `Objective: ${obj.type}`, { CURRENT: cur, TOTAL: total });
+        }
 
+        this._hudText(row.label, label);
+        this._hudText(row.count, count);
+        this._hudToggle(row.root, 'no-bar', fraction < 0);
+        if (fraction >= 0) this._hudWidth(row.fill, fraction);
+        this._hudToggle(row.root, 'obj-hp', isHpBar);
+        this._hudText(row.subDanger, dangerText);
+        this._hudText(row.subText, subText);
+        this._hudToggle(row.root, 'has-sub', !!(dangerText || subText));
+        this._hudToggle(row.root, 'is-done', state === 'done');
+        this._hudToggle(row.root, 'is-locked', state === 'locked');
+        row.isDone = state === 'done';
 
-            const isLastObjective = !obj.isComplete &&
-                this.game.lastObjectiveIndicator && this.game.lastObjectiveIndicator.active &&
-                this.game.lastObjectiveIndicator.objectiveType === obj.type;
+        let tooltip = '';
+        if (state === 'locked') tooltip = t.HUD_OBJ_EXTRACTION_LOCKED || 'Opens when the rest are done';
+        else if (row.isMain) tooltip = t.HUD_OBJ_MAIN_TOOLTIP || 'Main objective';
+        if (row.tooltip !== tooltip) { row.tooltip = tooltip; row.root.title = tooltip; }
 
-            if (obj.isComplete) {
-                p.innerHTML = `<span style="color: lightgreen; text-decoration: line-through;">${obj.isPrimary ? '(P) ' : '(S) '}${objectiveStr}</span>`;
-            } else if (isLastObjective) {
-                p.classList.add('last-objective-highlight');
-                p.innerHTML = `<span style="color: ${this.game.lastObjectiveIndicator.color}; font-weight: bold;">${obj.isPrimary ? '(P) ' : '(S) '}&#x2192; ${objectiveStr}</span>`;
-            } else {
-                p.innerHTML = `<span>${obj.isPrimary ? '(P) ' : '(S) '}${objectiveStr}</span>`;
-            }
-            objectiveDisplayElement.appendChild(p);
-        });
+        const isLast = state === 'active' && !!indicator && indicator.active && indicator.objectiveType === obj.type;
+        this._hudToggle(row.root, 'is-last', isLast);
+        if (isLast && row.lastColor !== indicator.color) {
+            row.lastColor = indicator.color;
+            row.root.style.setProperty('--obj-last-color', indicator.color);
+        }
     }
 
     updateHostageStatus(hostage, wasRescuedAndIsAlive) {
@@ -2874,80 +3037,187 @@ class UI {
     }
 
     updateSquadPanel() {
-        if (!this.game || !this.squadPanel || !this.game.deployedSquadRoster) {
-            if (this.squadPanel) this.squadPanel.innerHTML = `<p>${this.uiText.HUD_NO_SQUAD_DEPLOYED || "No squad deployed."}</p>`;
+        if (!this.squadPanel) return;
+        const squad = this.game && this.game.deployedSquadRoster;
+        if (!squad || squad.length === 0) {
+            if (this._squadCards !== null) {
+                this._squadCards = null;
+                this.squadPanel.innerHTML = `<p>${this.uiText.HUD_NO_SQUAD_DEPLOYED || "No squad deployed."}</p>`;
+            }
             return;
         }
-        const displaySquad = this.game.deployedSquadRoster;
+
+        // Rebuild only when the deployed squad changed (new mission / different raccoons).
+        const cards = this._squadCards;
+        let sameSquad = !!cards;
+        let cardIndex = 0;
+        for (let i = 0; sameSquad && i < squad.length; i++) {
+            if (!squad[i]) continue;
+            sameSquad = cardIndex < cards.length && cards[cardIndex++].raccoon === squad[i];
+        }
+        if (!sameSquad || cardIndex !== cards.length) this._buildSquadCards(squad);
+
         const selectedUnits = this.game.selectedUnits || [];
+        for (const card of this._squadCards) this._refreshSquadCard(card, selectedUnits);
+    }
+
+    _buildSquadCards(squad) {
         this.squadPanel.innerHTML = '';
-        displaySquad.forEach((raccoon) => {
-            if (!raccoon) return;
-            const memberDiv = document.createElement('div');
-            memberDiv.classList.add('squad-member');
-            memberDiv.dataset.id = raccoon.id;
-            const isKIA = !raccoon.isAlive();
-            if (isKIA) memberDiv.classList.add('kia');
-            if (raccoon.faceImageUrl) memberDiv.style.backgroundImage = `url('${raccoon.faceImageUrl}')`;
+        this._squadCards = [];
+        const aimIndicator = CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR;
+        this.squadPanel.style.setProperty('--sm-aim-color', (aimIndicator && aimIndicator.COLOR) || 'orange');
 
-            const isSelected = selectedUnits.includes(raccoon);
-            if (isSelected) memberDiv.classList.add('selected');
-            if (raccoon.isAimingGrenade) {
-                memberDiv.style.borderColor = (CONFIG.UNIT_VISUALS && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR && CONFIG.UNIT_VISUALS.GRENADE_AIM_INDICATOR.COLOR) || 'orange';
-                memberDiv.style.borderWidth = '2px'; memberDiv.style.borderStyle = 'solid';
-            } else if (!isSelected) {
-                memberDiv.style.borderColor = ''; memberDiv.style.borderWidth = ''; memberDiv.style.borderStyle = '';
+        for (const raccoon of squad) {
+            if (!raccoon) continue;
+            const root = document.createElement('div');
+            root.className = 'squad-member';
+            root.dataset.id = raccoon.id;
+            root.innerHTML = '<div class="sm-top">'
+                +   '<div class="sm-portrait"><div class="sm-xp"><i></i></div></div>'
+                +   '<div class="sm-id">'
+                +     '<div class="sm-name-row"><span class="sm-name"></span><span class="sm-status"></span></div>'
+                +     '<div class="sm-rank"><span class="sm-rank-icon"></span><span class="sm-rank-name"></span></div>'
+                +     '<div class="sm-hp"><i></i><span></span></div>'
+                +   '</div>'
+                + '</div>'
+                + '<div class="sm-ammo"><span class="sm-weapon"></span><span class="sm-ammo-count"><b></b><span></span></span></div>'
+                + '<div class="sm-mag"><i></i></div>'
+                + '<div class="sm-grenades"></div>';
+            const card = {
+                raccoon, root,
+                portrait: root.querySelector('.sm-portrait'),
+                xpFill: root.querySelector('.sm-xp > i'),
+                name: root.querySelector('.sm-name'),
+                status: root.querySelector('.sm-status'),
+                rankIcon: root.querySelector('.sm-rank-icon'),
+                rankName: root.querySelector('.sm-rank-name'),
+                hpFill: root.querySelector('.sm-hp > i'),
+                hpText: root.querySelector('.sm-hp > span'),
+                weapon: root.querySelector('.sm-weapon'),
+                magCount: root.querySelector('.sm-ammo-count > b'),
+                reserve: root.querySelector('.sm-ammo-count > span'),
+                magFill: root.querySelector('.sm-mag > i'),
+                grenades: root.querySelector('.sm-grenades'),
+                grenadeKey: null,
+                grenadeChips: [],
+                xpTitle: null
+            };
+            if (raccoon.faceImageUrl) card.portrait.style.backgroundImage = `url('${raccoon.faceImageUrl}')`;
+            this.squadPanel.appendChild(root);
+            this._squadCards.push(card);
+        }
+    }
+
+    _refreshSquadCard(card, selectedUnits) {
+        const r = card.raccoon;
+        const t = this.uiText;
+        const isKIA = !r.isAlive();
+        this._hudToggle(card.root, 'kia', isKIA);
+        this._hudToggle(card.root, 'selected', !isKIA && selectedUnits.includes(r));
+        this._hudToggle(card.root, 'aiming', !isKIA && !!r.isAimingGrenade);
+
+        // Identity: name, rank (+ icon), XP toward the next rank
+        this._hudText(card.name, r.name || r.id);
+        const rank = r.rank || 'Recruit';
+        if (card.rankName._hudText !== rank) {
+            this._hudText(card.rankName, rank);
+            const iconFiles = this.uiSettings.RANK_ICON_FILES;
+            const iconPath = this.uiSettings.RANK_ICON_PATH;
+            card.rankIcon.style.backgroundImage = (iconFiles && iconPath && iconFiles[rank]) ? `url('${iconPath}${iconFiles[rank]}')` : '';
+        }
+        const xp = r.xp || 0;
+        let xpFraction = 1;
+        if (r.xpToNextRank !== undefined && r.xpToNextRank !== Infinity) {
+            const rankData = CONFIG.RANK_THRESHOLDS && CONFIG.RANK_THRESHOLDS.find(th => th.rankName === rank);
+            const floor = rankData ? rankData.xpNeeded : 0;
+            xpFraction = (xp - floor) / Math.max(1, r.xpToNextRank - floor);
+        }
+        this._hudWidth(card.xpFill, xpFraction);
+        const xpTitle = (r.xpToNextRank !== undefined && r.xpToNextRank !== Infinity) ? `XP ${xp} / ${r.xpToNextRank}` : `XP ${xp}`;
+        if (card.xpTitle !== xpTitle) { card.xpTitle = xpTitle; card.root.title = xpTitle; }
+
+        // Health
+        const healthBar = this.uiSettings.HEALTH_BAR || {};
+        const hpFraction = isKIA ? 0 : Math.max(0, r.hp / r.maxHp);
+        let hpColor = healthBar.HP_COLOR_FULL || '#70A060';
+        if (hpFraction < (healthBar.LOW_HP_THRESHOLD_PERCENT || 0.3)) hpColor = healthBar.HP_COLOR_LOW || '#A85050';
+        else if (hpFraction < (healthBar.MEDIUM_HP_THRESHOLD_PERCENT || 0.6)) hpColor = healthBar.HP_COLOR_MEDIUM || '#D09040';
+        this._hudWidth(card.hpFill, hpFraction);
+        this._hudColor(card.hpFill, hpColor);
+        this._hudToggle(card.hpFill, 'health-bar-flash', !isKIA && hpFraction <= (healthBar.FLASH_THRESHOLD || 0.25));
+        this._hudText(card.hpText, isKIA ? '' : `${Math.ceil(r.hp)} / ${r.maxHp}`);
+
+        // Status tag (reloading is shown in the ammo row instead)
+        let status = '';
+        if (isKIA) status = t.HUD_STATUS_KIA || 'KIA';
+        else if (r.isAimingGrenade) status = t.HUD_STATUS_AIMING || 'AIMING';
+        else if (r.isPlayerDirectFiring) status = t.HUD_STATUS_FIRING || 'FIRING';
+        else if (r.actionTimer > 0) status = t.HUD_STATUS_STUNNED || 'STUNNED';
+        this._hudText(card.status, status);
+        if (isKIA) return;
+
+        // Weapon + ammo: the magazine count is the big number, reserve beside it, magazine bar
+        // underneath. While reloading, the bar shows reload progress instead.
+        const weaponDef = CONFIG.WEAPON_DEFINITIONS[r.currentWeaponName];
+        this._hudText(card.weapon, (weaponDef && weaponDef.name) || r.currentWeaponName || '');
+        this._hudToggle(card.root, 'special-weapon', !!(weaponDef && !weaponDef.isDefaultWeapon));
+        const ammo = r._getCurrentAmmoState ? r._getCurrentAmmoState() : null;
+        let magFraction = 0, lowAmmo = false;
+        if (r.isReloading) {
+            this._hudText(card.magCount, '');
+            this._hudText(card.reserve, t.HUD_STATUS_RELOADING || 'RELOADING');
+            magFraction = r.reloadDuration > 0 ? 1 - r.reloadTimer / r.reloadDuration : 0;
+        } else if (ammo) {
+            this._hudText(card.magCount, String(ammo.currentMagazine));
+            this._hudText(card.reserve, ` / ${ammo.reserveAmmo === Infinity ? '∞' : ammo.reserveAmmo}`);
+            magFraction = ammo.magazineSize > 0 ? ammo.currentMagazine / ammo.magazineSize : 0;
+            lowAmmo = magFraction <= ((this.uiSettings.HUD && this.uiSettings.HUD.LOW_AMMO_FRACTION) || 0.25);
+        }
+        this._hudToggle(card.root, 'reloading', !!r.isReloading);
+        this._hudToggle(card.root, 'low-ammo', lowAmmo);
+        this._hudWidth(card.magFill, magFraction);
+
+        this._refreshGrenadeChips(card, r);
+    }
+
+    // One chip per grenade type the raccoon carries (its rank's loadout, plus any type it
+    // holds ammo for), in CONFIG.GRENADE_TYPES order; the type thrown next is outlined.
+    _refreshGrenadeChips(card, r) {
+        const grenadeTypes = CONFIG.GRENADE_TYPES || {};
+        const loadout = (CONFIG.GRENADE_LOADOUT_BY_RANK && CONFIG.GRENADE_LOADOUT_BY_RANK[r.rank]) || {};
+        const ammoByType = r.grenadeAmmoByType || {};
+        const typeKeys = this._grenadeTypeKeys || (this._grenadeTypeKeys = Object.keys(grenadeTypes));
+        let key = '';
+        for (const k of typeKeys) if (loadout[k] > 0 || ammoByType[k] > 0) key += k + ',';
+
+        if (key !== card.grenadeKey) {
+            card.grenadeKey = key;
+            card.grenades.innerHTML = '';
+            card.grenadeChips = [];
+            for (const k of typeKeys) {
+                if (!(loadout[k] > 0 || ammoByType[k] > 0)) continue;
+                const def = grenadeTypes[k];
+                const chip = document.createElement('span');
+                chip.className = 'sm-gren';
+                chip.title = def.label || k;
+                const icon = document.createElement('span');
+                icon.className = 'sm-gren-icon';
+                icon.textContent = (def.iconChar || '●') + '︎'; // text presentation, so the colour applies
+                if (def.color) icon.style.color = def.color;
+                const count = document.createElement('span');
+                chip.append(icon, count);
+                card.grenades.appendChild(chip);
+                card.grenadeChips.push({ typeKey: k, root: chip, count });
             }
+            this._hudToggle(card.root, 'no-grenades', card.grenadeChips.length === 0);
+        }
 
-            let statusText = 'Active';
-            if (isKIA) {
-                statusText = 'KIA';
-            } else if (raccoon.isReloading) {
-                statusText = 'Reloading';
-            } else if (raccoon.isAimingGrenade) {
-                statusText = 'Aiming Grnd';
-            } else if (raccoon.isPlayerDirectFiring) {
-                statusText = 'Firing MG';
-            } else if (raccoon.actionTimer > 0) {
-                statusText = 'Busy';
-            } else if (raccoon.manualTarget) {
-                statusText = 'Targeting';
-            }
-
-            const statusClass = isKIA ? 'status-kia' : '';
-            const hpPercent = isKIA ? 0 : Math.max(0, (raccoon.hp / raccoon.maxHp)) * 100;
-            const hpFraction = isKIA ? 0 : raccoon.hp / raccoon.maxHp;
-
-            const healthBarStyle = (this.uiSettings.HEALTH_BAR) || {};
-            let hpColor = healthBarStyle.HP_COLOR_FULL || '#70A060';
-            if (hpPercent < (healthBarStyle.LOW_HP_THRESHOLD_PERCENT || 0.3) * 100) hpColor = healthBarStyle.HP_COLOR_LOW || '#A85050';
-            else if (hpPercent < (healthBarStyle.MEDIUM_HP_THRESHOLD_PERCENT || 0.6) * 100) hpColor = healthBarStyle.HP_COLOR_MEDIUM || '#D09040';
-
-            const flashThreshold = healthBarStyle.FLASH_THRESHOLD || 0.25;
-            let fadeClass = '';
-            let fadeOpacity = '';
-            if (hpFraction <= flashThreshold && !isKIA) {
-                fadeClass = ' health-bar-flash';
-                fadeOpacity = 'opacity: 0.5;';
-            }
-
-            const infoOverlay = document.createElement('div');
-            infoOverlay.classList.add('squad-member-info-overlay');
-            const ammoState = raccoon._getCurrentAmmoState ? raccoon._getCurrentAmmoState() : { currentMagazine: '-', reserveAmmo: '-' };
-            const weaponName = raccoon.currentWeaponName ? CONFIG.WEAPON_DEFINITIONS[raccoon.currentWeaponName]?.name || raccoon.currentWeaponName : 'None';
-            infoOverlay.innerHTML = `
-                <div><span class="label">Name:</span> <span class="value">${raccoon.name || raccoon.id}</span></div>
-                <div><span class="label">Rank:</span> <span class="value">${raccoon.rank || 'Recruit'}</span></div>
-                <div><span class="label">Weapon:</span> <span class="value">${weaponName}</span></div>
-                <div><span class="label">Ammo:</span> <span class="value">${ammoState.currentMagazine} / ${ammoState.reserveAmmo}</span></div>
-                <div><span class="label">Grenades:</span> <span class="value">${raccoon.grenadeAmmo !== undefined ? raccoon.grenadeAmmo : 'N/A'}</span></div>
-                <div><span class="label">XP:</span> <span class="value">${raccoon.xp !== undefined ? raccoon.xp : 0}</span></div>
-                ${raccoon.xpToNextRank !== Infinity ? `<div><span class="label">Next:</span> <span class="value">${raccoon.xpToNextRank} XP</span></div>` : ''}
-                <div class="health-bar-container">
-                    <div class="health-bar-fill${fadeClass}" style="width: ${hpPercent}%; background-color: ${hpColor};${fadeOpacity}"></div>
-                </div>`;
-            memberDiv.appendChild(infoOverlay); this.squadPanel.appendChild(memberDiv);
-        });
+        for (const chip of card.grenadeChips) {
+            const n = ammoByType[chip.typeKey] || 0;
+            this._hudText(chip.count, String(n));
+            this._hudToggle(chip.root, 'empty', n <= 0);
+            this._hudToggle(chip.root, 'selected', chip.typeKey === r.selectedGrenadeType);
+        }
     }
 
     // Canvas cursor states → CSS classes in style.css (backed by CursorManager's generated cursors).

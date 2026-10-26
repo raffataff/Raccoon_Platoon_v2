@@ -1266,16 +1266,23 @@ canvas#gameCanvas {
 
 #toggleFormationButton {
     width: 100%;
+    padding: 5px 10px;
+}
+
+#hud-controls-left .hud-control-group:first-child {
+    padding: 0;
+    border: none;
+    background-color: transparent;
 }
 
 #hud-controls {
     margin-bottom: 0px;
-    margin-top: 5px;
+    margin-top: 6px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 4px;
     align-items: stretch;
-    padding: 2px 0px;
+    padding: 4px 0px 0px;
     border-top: 2px groove #403B30;
     border-bottom: none;
     width: 100%;
@@ -1286,11 +1293,11 @@ canvas#gameCanvas {
 #hud-squad {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    align-items: center;
+    gap: 6px;
+    align-items: stretch;
     width: 100%;
-    overflow-y: hidden;
-    flex-grow: 1;
+    /* Cards keep their own height (no stretching); the objective section below takes the leftover space. */
+    flex: 0 0 auto;
     padding: 0px 0px;
     margin-right: 0px;
 }
@@ -1300,7 +1307,7 @@ canvas#gameCanvas {
     align-items: center;
     justify-content: space-between;
     gap: 5px;
-    padding: 6px 8px;
+    padding: 4px 6px;
     background-color: rgba(10, 10, 5, 0.3);
     border-radius: 3px;
     border: 1px solid #302D2A;
@@ -1310,105 +1317,281 @@ canvas#gameCanvas {
     margin-right: auto;
 }
 
+/* --- In-mission squad cards (built by ui.updateSquadPanel) --- */
 .squad-member {
-    border: 1px solid var(--panel-border);
-    border-left: 2px solid var(--panel-border);
-    /* Default border state */
-    background-color: rgba(20, 18, 16, 0.8);
-    border-radius: 2px;
-    width: 99%;
-    margin: 0px 0px;
-    box-sizing: border-box;
-    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
+    gap: 3px;
     position: relative;
-    min-height: 150px;
-    /* Reduced min-height */
-    flex: 1 1 auto;
-    /* Allow shrinking/growing to fit */
-    background-size: cover;
-    background-position: center center;
-    background-repeat: no-repeat;
-    transition: all 0.2s ease;
-}
-
-
-
-.squad-member-info-overlay {
-    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.4) 60%, rgba(0, 0, 0, 0.9));
-    padding: 5px;
-    width: 100%;
-    height: 100%;
     box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
+    padding: 5px 6px;
+    background-color: #1d1b18;
+    border: 1px solid #3a362f;
+    border-left: 3px solid #3a362f;
+    border-radius: 2px;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.5);
     font-family: var(--font-ui);
     color: var(--text-main);
-    position: absolute;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-}
-
-.squad-member div {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    margin-bottom: 2px;
-}
-
-.squad-member .label {
-    text-transform: uppercase;
-    font-size: 0.7em;
-    color: var(--text-normal);
-    font-family: var(--font-mono);
-    letter-spacing: 2px;
-}
-
-.squad-member .value {
-    text-align: right;
-    color: var(--brand-primary);
-    font-weight: 700;
-    font-size: 0.8em;
-    letter-spacing: 2px;
-}
-
-.squad-member.kia {
-    background-color: rgba(10, 10, 10, 0.85);
-    filter: grayscale(0.6) brightness(0.6);
-}
-
-.squad-member .status-kia {
-    color: #555;
-    font-weight: bold;
-}
-
-.squad-member .status-kia .label .value {
-    font-weight: bold;
-    color: #242424;
+    cursor: var(--rp-cursor-interact, pointer);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .squad-member.selected {
     border-color: var(--brand-secondary);
-    border-left: 5px solid var(--brand-primary);
-    box-shadow: 0 0 15px rgba(230, 157, 69, 0.3);
+    border-left-color: var(--brand-primary);
+    background-color: #262119;
 }
 
-.health-bar-container {
-    background-color: #1C1A17;
-    height: 8px;
-    border-radius: 2px;
-    padding: 1px;
-    border: 1px solid #0F0E0C;
-    margin-top: 3px;
-    margin-bottom: 3px;
+.squad-member.aiming {
+    border-color: var(--sm-aim-color, orange);
 }
 
-.health-bar-fill {
+.squad-member.kia {
+    background-color: #141210;
+    color: var(--text-muted);
+    box-shadow: none;
+}
+
+.squad-member.kia .sm-portrait {
+    filter: grayscale(1) brightness(0.5);
+}
+
+.squad-member.kia .sm-ammo,
+.squad-member.kia .sm-mag,
+.squad-member.kia .sm-grenades,
+.squad-member.no-grenades .sm-grenades {
+    display: none;
+}
+
+.sm-top {
+    display: grid;
+    grid-template-columns: 48px minmax(0, 1fr);
+    column-gap: 8px;
+    align-items: center;
+}
+
+.sm-portrait {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    box-sizing: border-box;
+    overflow: hidden;
+    border: 1px solid var(--panel-border);
+    background-color: #2c2924;
+    background-size: cover;
+    background-position: center;
+}
+
+/* XP toward the next rank: thin strip along the bottom of the portrait (exact numbers in the card tooltip) */
+.sm-xp {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 4px;
+    background-color: rgba(0, 0, 0, 0.75);
+}
+
+.sm-xp > i,
+.sm-hp > i,
+.sm-mag > i {
+    display: block;
     height: 100%;
-    border-radius: 1px;
+}
+
+.sm-xp > i {
+    background-color: var(--text-normal);
+}
+
+.sm-id {
+    min-width: 0;
+}
+
+.sm-name-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px;
+}
+
+.sm-name {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.15;
+}
+
+.sm-status {
+    flex: 0 0 auto;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--brand-primary);
+}
+
+.squad-member.kia .sm-status {
+    color: var(--brand-danger);
+}
+
+.sm-rank {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--brand-primary);
+}
+
+.squad-member.kia .sm-rank {
+    color: var(--text-muted);
+}
+
+.sm-rank-icon {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+.sm-hp {
+    position: relative;
+    height: 12px;
+    margin-top: 3px;
+    background-color: #0c0b0a;
+    border: 1px solid #2c2924;
+}
+
+.sm-hp > i {
     transition: width 0.2s ease-out;
+}
+
+.sm-hp > span {
+    position: absolute;
+    inset: 0;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 10px;
+    text-align: center;
+    color: #fff;
+    text-shadow: 0 0 2px #000, 0 0 2px #000;
+    font-variant-numeric: tabular-nums;
+}
+
+.sm-ammo {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 6px;
+    padding-top: 3px;
+    border-top: 1px solid #2c2924;
+}
+
+.sm-weapon {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.squad-member.special-weapon .sm-weapon {
+    font-weight: 700;
+    color: var(--brand-primary);
+}
+
+.sm-ammo-count {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.sm-ammo-count > b {
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text-main);
+}
+
+.sm-ammo-count > span {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.squad-member.low-ammo .sm-ammo-count > b {
+    color: var(--brand-danger);
+}
+
+.squad-member.reloading .sm-ammo-count > span {
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #D09040;
+}
+
+.sm-mag {
+    height: 5px;
+    background-color: #0c0b0a;
+    border: 1px solid #2c2924;
+}
+
+.sm-mag > i {
+    background-color: var(--text-main);
+    transition: width 0.1s linear;
+}
+
+.squad-member.low-ammo .sm-mag > i {
+    background-color: var(--brand-danger);
+}
+
+.squad-member.reloading .sm-mag > i {
+    background-color: #D09040;
+}
+
+.sm-grenades {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+}
+
+.sm-gren {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    min-width: 24px;
+    box-sizing: border-box;
+    padding: 0 2px;
+    border: 1px solid #3a362f;
+    background-color: #141210;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 18px;
+    font-variant-numeric: tabular-nums;
+}
+
+.sm-gren-icon {
+    font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', sans-serif;
+    font-size: 0.85rem;
+}
+
+.sm-gren.selected {
+    border-color: var(--brand-primary);
+    background-color: #2e2518;
+}
+
+.squad-member.aiming .sm-gren.selected {
+    background-color: #4a3517;
+}
+
+.sm-gren.empty {
+    opacity: 0.4;
 }
 
 @keyframes healthBarFlash {
@@ -1420,31 +1603,167 @@ canvas#gameCanvas {
     animation: healthBarFlash 0.6s ease-in-out infinite;
 }
 
-.health-bar-fade {
-    transition: opacity 0.3s ease-out;
-}
 
-
+/* --- In-mission objective panel (built by ui.updateObjective) ---
+   Sidebar section under the squad cards: fills the space down to the formation controls and
+   scrolls inside itself if the objectives don't fit (min-height keeps the main objective visible). */
 #hud-objective {
-    position: absolute;
-    top: 20px;
-    right: 20px;
-    background-color: #2A2825;
-    padding: 8px 12px;
+    flex: 1 1 0;
+    min-height: 96px;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 6px;
+    padding: 7px 6px 4px;
+    overflow-y: auto;
+    background-color: #1a1815;
+    border: 1px solid #3a362f;
+    border-top: 2px solid var(--brand-primary);
     border-radius: 2px;
-    font-size: 0.9em;
-    border: 1px solid #1C1A17;
-    border-top: 1px solid #48443D;
-    border-left: 1px solid #48443D;
-    text-transform: uppercase;
-    box-shadow: 2px 2px 0px #12110F, 3px 3px 5px rgba(0, 0, 0, 0.6);
-    letter-spacing: 0.5px;
-    z-index: 50;
-    pointer-events: none;
+    font-family: var(--font-ui);
+    color: var(--text-main);
+    scrollbar-width: thin;
+    scrollbar-color: #4a453d transparent;
 }
 
-/* Last Objective Highlight in HUD */
-.last-objective-highlight {
+.obj-title {
+    font-family: var(--font-header);
+    font-size: 0.85rem;
+    line-height: 1.2;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--brand-primary);
+}
+
+.obj-subtitle {
+    margin-bottom: 5px;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+.obj-message {
+    font-size: 0.95rem;
+    font-weight: 700;
+}
+
+.obj-row {
+    display: grid;
+    grid-template-columns: 12px minmax(0, 1fr) auto;
+    column-gap: 5px;
+    row-gap: 2px;
+    align-items: center;
+    padding: 4px 2px 4px 4px;
+    border-top: 1px solid #24211d;
+    border-left: 3px solid transparent;
+}
+
+.obj-icon {
+    text-align: center;
+    line-height: 1;
+}
+
+.obj-icon::before {
+    content: '\25C6'; /* ◆ */
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.obj-label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 6px;
+    min-width: 0;
+    font-size: 0.85rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.obj-count {
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.obj-bar {
+    grid-column: 2 / 4;
+    height: 3px;
+    background-color: #2a2723;
+}
+
+.obj-bar > i {
+    display: block;
+    height: 100%;
+    background-color: var(--brand-primary);
+    transition: width 0.3s ease-out;
+}
+
+.obj-row.obj-hp .obj-bar > i {
+    background-color: var(--brand-danger);
+}
+
+.obj-row.no-bar .obj-bar,
+.obj-row.is-done .obj-bar {
+    display: none;
+}
+
+.obj-sub {
+    display: none;
+    grid-column: 2 / 4;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.obj-row.has-sub .obj-sub {
+    display: block;
+}
+
+.obj-sub-danger {
+    color: var(--brand-danger);
+}
+
+.obj-sub-danger:not(:empty) + .obj-sub-text:not(:empty)::before {
+    content: ' \00B7  '; /* · */
+    color: var(--text-muted);
+}
+
+.obj-row.is-main {
+    border-left-color: var(--brand-primary);
+    background-color: rgba(230, 157, 69, 0.08);
+}
+
+/* Main objective: star marker + accent edge (row tooltip says "Main objective") */
+.obj-row.is-main .obj-icon::before {
+    content: '\2605'; /* ★ */
+    font-size: 0.8rem;
+    color: var(--brand-primary);
+}
+
+.obj-row.is-done,
+.obj-row.is-locked {
+    color: var(--text-muted);
+}
+
+.obj-row.is-done .obj-icon::before {
+    content: '\2713'; /* ✓ */
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #70A060;
+}
+
+.obj-row.is-locked .obj-icon::before {
+    content: '\25C7'; /* ◇ */
+}
+
+/* Last remaining objective (CONFIG.OBJECTIVE_INDICATOR colour): steady edge, only the marker pulses */
+.obj-row.is-last {
+    border-left-color: var(--obj-last-color, var(--brand-primary));
+}
+
+.obj-row.is-last .obj-icon::before {
+    display: inline-block;
+    color: var(--obj-last-color, var(--brand-primary));
     animation: last-objective-pulse 1.5s ease-in-out infinite;
 }
 
@@ -1455,7 +1774,7 @@ canvas#gameCanvas {
     }
     50% {
         text-shadow: 0 0 10px currentColor, 0 0 20px currentColor;
-        opacity: 0.7;
+        opacity: 0.6;
     }
 }
 
@@ -3286,8 +3605,10 @@ html {
     pointer-events: auto;
 }
 
-#videoLoadingScreen.visible::before,
-#videoLoadingScreen.visible::after {
+/* Letterbox bars are not tied to .visible, so they fade out with the video
+   instead of vanishing the moment the fade starts. */
+#videoLoadingScreen::before,
+#videoLoadingScreen::after {
     content: '';
     position: absolute;
     left: 0;
@@ -3298,11 +3619,11 @@ html {
     pointer-events: none;
 }
 
-#videoLoadingScreen.visible::before {
+#videoLoadingScreen::before {
     top: 0;
 }
 
-#videoLoadingScreen.visible::after {
+#videoLoadingScreen::after {
     bottom: 0;
 }
 
@@ -3334,8 +3655,9 @@ html {
     pointer-events: auto;
 }
 
-#extractionVideoScreen.visible::before,
-#extractionVideoScreen.visible::after {
+/* Not tied to .visible: the bars fade out with the video (see #videoLoadingScreen). */
+#extractionVideoScreen::before,
+#extractionVideoScreen::after {
     content: '';
     position: absolute;
     left: 0;
@@ -3346,11 +3668,11 @@ html {
     pointer-events: none;
 }
 
-#extractionVideoScreen.visible::before {
+#extractionVideoScreen::before {
     top: 0;
 }
 
-#extractionVideoScreen.visible::after {
+#extractionVideoScreen::after {
     bottom: 0;
 }
 

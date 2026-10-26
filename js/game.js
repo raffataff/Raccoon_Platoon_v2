@@ -1719,9 +1719,13 @@ class Game {
             }
         }
         
-        const minDisplayTimePromise = new Promise(resolve =>
-            setTimeout(resolve, CONFIG.MIN_LOADING_VIDEO_DURATION_MS || 5000)
+        // Clips shorter than the minimum + fade (e.g. a 5.04s landing clip) cut over sooner,
+        // so the fade-out ends on their last frame rather than past it.
+        const minDisplayMs = Math.min(
+            CONFIG.MIN_LOADING_VIDEO_DURATION_MS || 5000,
+            this.ui ? this.ui.getLoadingVideoFadeLeadMs() : Infinity
         );
+        const minDisplayTimePromise = new Promise(resolve => setTimeout(resolve, minDisplayMs));
 
         // Load assets (music now handled by MusicManager when mission starts)
         const loadingTasksPromise = (async () => {
@@ -4907,7 +4911,7 @@ class Game {
                 }
             }
             if (this.ui) {
-                this.ui.updateObjective();
+                this.ui.tickHud(deltaTime); // throttled in-place refresh of squad cards + objectives
             }
         }
     }

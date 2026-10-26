@@ -48,7 +48,7 @@
             <button id="mainMenuMemorialButton" hidden>Recruit Memorial</button>
             <button id="optionsButton">Options</button>
         </div>
-        <p class="game-version">v0.1.35 Alpha</p>
+        <p class="game-version">v0.1.36 Alpha</p>
     </div>
 
     <div id="optionsMenuScreen" class="ui-panel" style="display: none;">
@@ -768,7 +768,8 @@
 
     <!-- Video Loading Screen -->
     <div id="videoLoadingScreen">
-        <video id="loadingVideoPlayer" loop playsinline></video>
+        <!-- No loop: if loading outlasts the clip, it holds on the last frame instead of restarting. -->
+        <video id="loadingVideoPlayer" playsinline></video>
     </div>
 
     <!-- Extraction Video Screen -->
@@ -826,6 +827,10 @@
         <div id="left-hud-panel" class="ui-panel" style="display: none;">
             <div id="hud-squad">
             </div>
+            <div id="hud-objective" hidden>
+                <div id="objectiveTextContainer">
+                </div>
+            </div>
             <div id="hud-controls">
                 <div id="hud-controls-left">
                     <div class="hud-control-group">
@@ -846,10 +851,6 @@
             <canvas id="gameCanvas"></canvas>
             <div id="hud-fps">FPS: 0</div>
             <div id="night-mission-badge" class="night-badge hidden">🌙 NIGHT MISSION</div>
-            <div id="hud-objective" class="ui-panel" hidden>
-                <div id="objectiveTextContainer">
-                </div>
-            </div>
         </div>
     </div>
 

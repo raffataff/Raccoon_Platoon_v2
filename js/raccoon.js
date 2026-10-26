@@ -41,6 +41,7 @@ class Raccoon extends Unit {
         this.specialCurrentMagazine = 0;
         
         this.reloadTimer = 0;
+        this.reloadDuration = 0;                  // full length of the current reload (HUD progress bar)
         this.isReloading = false;
 
         this.updateXpToNextRank();
@@ -339,6 +340,7 @@ class Raccoon extends Unit {
 
         this.isReloading = true;
         this.reloadTimer = reloadTime;
+        this.reloadDuration = reloadTime;
 
         if (this.game && this.game.trySpeech) {
             this.game.trySpeech(this, 'ON_RELOAD', 0.2);

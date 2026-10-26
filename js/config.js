@@ -2410,6 +2410,12 @@ const CONFIG = {
             'Sergeant': 'sergeant.png',
             'Elite': 'elite.png',
             'Ghost': 'ghost.png'
+        },
+        // In-mission HUD (squad cards + objective panel, ui.js). Built once per mission and
+        // refreshed in place; values only touch the DOM when they change.
+        HUD: {
+            REFRESH_INTERVAL: 0.1,      // Seconds between HUD refreshes while a mission runs (events also refresh immediately).
+            LOW_AMMO_FRACTION: 0.25     // Magazine at or below this fraction of its size shows in the low-ammo colour.
         }
     },
 
@@ -2490,7 +2496,33 @@ const CONFIG = {
         OBJECTIVE_EXTRACTION_HOSTAGES: "Extract remaining hostages: Get to Extraction Zone",
         OBJECTIVE_INTERACT_INTEL_TEXT: "Hack Intel Console: {CURRENT}/{TOTAL}",
         OBJECTIVE_DEACTIVATE_ANTI_AIR_TEXT: "Deactivate Anti-Air Turrets: {CURRENT}/{TOTAL}",
-        EXTRACTION_ZONE_REVEALED: "Extraction Zone Revealed!"
+        EXTRACTION_ZONE_REVEALED: "Extraction Zone Revealed!",
+
+        // In-mission HUD objective panel (short labels; counts and bars are drawn separately).
+        HUD_MISSION_SUBTITLE: "Phase {PHASE} · Mission {MISSION} of {TOTAL}",
+        HUD_MISSION_FINALE: "Finale",
+        HUD_OBJ_MAIN_TOOLTIP: "Main objective",
+        HUD_OBJ_EXTERMINATE: "Eliminate possums",
+        HUD_OBJ_DESTROY_TARGET: "Destroy {TARGET_NAME_PLURAL}",
+        HUD_OBJ_RESCUE_HOSTAGES: "Rescue hostages",
+        HUD_OBJ_RESCUE_TAKEN_HOSTAGE: "Rescue {NAME}",
+        HUD_OBJ_ASSASSINATION: "Eliminate {TARGET_CALLSIGN}",
+        HUD_OBJ_INTERACT_INTEL: "Hack intel consoles",
+        HUD_OBJ_DEACTIVATE_ANTI_AIR_TURRETS: "Disable anti-air turrets",
+        HUD_OBJ_EXTRACTION: "Extract the squad",
+        HUD_OBJ_EXTRACTION_LOCKED: "Opens when the rest are done",
+        HUD_OBJ_EXTRACTION_GO: "Get everyone to the extraction zone",
+        HUD_OBJ_HOSTAGES_KIA: "{COUNT} KIA",
+        HUD_OBJ_HOSTAGES_ESCORT: "Escort them to the extraction zone",
+        HUD_OBJ_HOSTAGES_ESCORT_LOCKED: "Extraction opens when the rest are done",
+        HUD_OBJ_VIP_AWAITING: "Awaiting target",
+        HUD_OBJ_VIP_HP: "{HP} HP",
+        // In-mission HUD squad card status tags
+        HUD_STATUS_KIA: "KIA",
+        HUD_STATUS_AIMING: "AIMING",
+        HUD_STATUS_FIRING: "FIRING",
+        HUD_STATUS_STUNNED: "STUNNED",
+        HUD_STATUS_RELOADING: "RELOADING"
     },
 
     // =============================================================================
