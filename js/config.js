@@ -481,7 +481,7 @@ const CONFIG = {
     },
     RACCOON_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
     RACCOON_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
-    RACCOON_DEAD_SPRITE_SCALE: 0.06,
+    RACCOON_DEAD_SPRITE_SCALE: 0.24,  // PNG stored at 1/4 size, scale x4: same on-screen size
     RACCOON_RECRUIT_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/rifleman/recruit/dead/',
     RACCOON_RECRUIT_DEAD_SPRITE_FILES: ['raccoon_recruit_dead_1.png'],
     RACCOON_RECRUIT_DEAD_SPRITE_SCALE: 0.42,
@@ -502,7 +502,7 @@ const CONFIG = {
     RACCOON_GHOST_DEAD_SPRITE_SCALE: 0.4,
     RACCOON_MAVERICK_DEAD_SPRITE_PATH: 'assets/images/units/raccoon/dead/',
     RACCOON_MAVERICK_DEAD_SPRITE_FILES: ['raccoon_dead_1.png'],
-    RACCOON_MAVERICK_DEAD_SPRITE_SCALE: 0.06,
+    RACCOON_MAVERICK_DEAD_SPRITE_SCALE: 0.24,  // PNG stored at 1/4 size, scale x4: same on-screen size
     RACCOON_HOSTAGE_SPRITE_SCALE_FACTOR: 0.42,
     HOSTAGE_KNEELING_SPRITE_PATH: 'assets/images/units/raccoon/hostage/kneeling/type1/',
     HOSTAGE_STANDING_SPRITE_PATH: 'assets/images/units/raccoon/hostage/standing/type1/',
@@ -567,7 +567,7 @@ const CONFIG = {
     POSSUM_HEAVY_SPRITE_SCALE_FACTOR: 0.4,
     POSSUM_HEAVY_DEAD_SPRITE_PATH: 'assets/images/units/possum_heavy/dead/',
     POSSUM_HEAVY_DEAD_SPRITE_FILES: ['possum_heavy_dead_1.png'],
-    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.13,
+    POSSUM_HEAVY_DEAD_SPRITE_SCALE: 0.26,  // PNG stored at 1/2 size, scale doubled: same on-screen size
     PROJECTILE_COLOR_POSSUM_HEAVY: '#ff47478e',
     POSSUM_HEAVY_TURN_RATE: 5.0,
     
@@ -609,7 +609,7 @@ const CONFIG = {
     POSSUM_ELITE_GUARD_SPRITE_SCALE_FACTOR: 0.45,
     POSSUM_ELITE_GUARD_DEAD_SPRITE_PATH: 'assets/images/units/possum_eliteGuard/dead/',
     POSSUM_ELITE_GUARD_DEAD_SPRITE_FILES: ['possum_eliteGuard_dead1.png', 'possum_eliteGuard_dead2.png'],
-    POSSUM_ELITE_GUARD_DEAD_SPRITE_SCALE: 0.1,
+    POSSUM_ELITE_GUARD_DEAD_SPRITE_SCALE: 0.2,  // PNG stored at 1/2 size, scale doubled: same on-screen size
     PROJECTILE_COLOR_POSSUM_ELITE_GUARD: '#00E5FF',
     XP_FOR_ELITE_GUARD_KILL: 200,
     POSSUM_ELITE_GUARD_TURN_RATE: 8.0,
@@ -672,7 +672,7 @@ const CONFIG = {
     POSSUM_REVOLVER_SPRITE_SCALE_FACTOR: 0.7,
     POSSUM_REVOLVER_DEAD_SPRITE_PATH: 'assets/images/units/possum_revolver/dead/',
     POSSUM_REVOLVER_DEAD_SPRITE_FILES: ['possum_revolver_dead.png'],
-    POSSUM_REVOLVER_DEAD_SPRITE_SCALE: 0.09,
+    POSSUM_REVOLVER_DEAD_SPRITE_SCALE: 0.36,  // PNG stored at 1/4 size, scale x4: same on-screen size
     PROJECTILE_COLOR_POSSUM_REVOLVER: '#FFD700',
     XP_FOR_REVOLVER_KILL: 150,
     POSSUM_REVOLVER_TURN_RATE: 9.0,
@@ -689,7 +689,7 @@ const CONFIG = {
     // Dead body reuses the grunt corpse sprites (no dedicated dead set yet).
     POSSUM_SCIENTIST_1_DEAD_SPRITE_PATH_KEY: 'assets/images/units/possum_eliteGuard/dead',
     POSSUM_SCIENTIST_1_DEAD_SPRITE_FILES_KEY: ['possum_eliteGuard_dead1.png', 'possum_eliteGuard_dead2.png', 'possum_eliteGuard_dead3.png'],
-    POSSUM_SCIENTIST_1_DEAD_SPRITE_SCALE_KEY: 0.2,
+    POSSUM_SCIENTIST_1_DEAD_SPRITE_SCALE_KEY: 0.4,  // PNG stored at 1/2 size, scale doubled: same on-screen size
     XP_FOR_SCIENTIST_1_KILL: 120,
 
     // --- Possum Scientist 2 (evil researcher assassination target, non-boss) ---
@@ -1110,7 +1110,7 @@ const CONFIG = {
             magazineSize: 60,
             maxAmmo: 240,
             crateColor: '#ff4400',
-            crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/pw001.png',
+            crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/PW001.png',
             crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/pw001_empty.png',
             phaseUnlocked: 4,
         },
@@ -1185,8 +1185,8 @@ const CONFIG = {
             pelletCount: 3,
             spreadAngle: 0.15,
             crateColor: '#ffaa00',
-            crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/s400.png',
-            crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/s400_empty.png',
+            crateSpriteWithWeapon: 'assets/images/objects/pickups/weapons/S400.png',
+            crateSpriteWithoutWeapon: 'assets/images/objects/pickups/weapons/S400_empty.png',
             phaseUnlocked: 4,
         },
         SG7: {
@@ -1713,8 +1713,8 @@ const CONFIG = {
             canBeFlipped: false,
             spawnWeight: 3,
             explosionDamage: 50, explosionAoeRadius: 100,
-            spriteScale: 0.13,
-            spriteDestroyedScale: 0.13,
+            spriteScale: 0.26,  // PNG stored at 1/2 size, scale doubled: same on-screen size
+            spriteDestroyedScale: 0.26,
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.3), offsetY: (h => h * 0.066), width: (w => w * 0.5), height: (h => h * 0.86) },
             sfxOnDestroy: 'EXPLOSIVE_BARREL_DESTROYED',
             flameCount: 1,
@@ -1893,7 +1893,7 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             spawnWeight: 0.5,
             pickupType: 'grenade', pickupQuantity: 2,
-            spriteScale: 0.2,
+            spriteScale: 0.3,  // PNG stored at 2/3 size, scale x1.5: same on-screen size
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
@@ -1905,7 +1905,7 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             spawnWeight: 0.5,
             pickupType: 'ammo', pickupQuantity: 120,
-            spriteScale: 0.2,
+            spriteScale: 0.3,  // PNG stored at 2/3 size, scale x1.5: same on-screen size
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
@@ -1917,7 +1917,7 @@ const CONFIG = {
             blocksMovement: false, providesCover: false,
             spawnWeight: 0.9,
             pickupType: 'health', pickupQuantity: 30,
-            spriteScale: 0.2,
+            spriteScale: 0.3,  // PNG stored at 2/3 size, scale x1.5: same on-screen size
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.875), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
@@ -1930,7 +1930,7 @@ const CONFIG = {
             spawnWeight: 0.1,
             pickupType: 'weapon', 
             baseCrateSprite: 'assets/images/objects/pickups/weapons/crate_base.png',
-            spriteScale: 0.15,
+            spriteScale: 0.3,  // PNG stored at 1/2 size, scale doubled: same on-screen size
             collisionShape: { type: 'rectangle', offsetX: (w => w * 0.0625), offsetY: (h => h * 0.0625), width: (w => w * 0.9), height: (h => h * 0.84) },
             isPickup: true,
             canBeFlipped: true,
@@ -2816,7 +2816,7 @@ const CONFIG = {
             },
             TEMPERATE_FOREST_EXTRACTION_1: {
                 NAME: 'A Rush Of Blood',
-                IMAGE: 'assets/images/shootouts/temperate/shootout_temperate_extraction_1.png'
+                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_extraction_1.png'
             },
             // JUNKYARD
             JUNKYARD_SHOOTOUT_1: {

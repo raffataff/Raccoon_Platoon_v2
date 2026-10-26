@@ -305,7 +305,7 @@ const TEMPERATE_BIOME = {
             destructible: false,
             blocksMovement: false, providesCover: false,
             spawnWeight: 1, isDecoration: true,
-            spriteScale: 0.2,
+            spriteScale: 0.4,  // PNG stored at 1/2 size, scale doubled: same on-screen size
             canBeFlipped: true,
         },
         {
@@ -313,7 +313,7 @@ const TEMPERATE_BIOME = {
             destructible: false,
             blocksMovement: false, providesCover: false,
             spawnWeight: 1, isDecoration: true,
-            spriteScale: 0.2,
+            spriteScale: 0.4,  // PNG stored at 1/2 size, scale doubled: same on-screen size
             canBeFlipped: true,
         },
         {
@@ -844,7 +844,7 @@ const TEMPERATE_BIOME = {
             },
             TEMPERATE_FOREST_EXTRACTION_1: {
                 NAME: 'A Rush Of Blood',
-                IMAGE: 'assets/images/shootouts/temperate/shootout_temperate_extraction_1.png',
+                IMAGE: 'assets/images/shootouts/temperate/Shootout_temperate_extraction_1.png',
                 TREE_SPAWN_POSITIONS: [
                     {"x":460,"y":1108,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":100,"peekOffset":175,"scale":1.7,"showInDevMode":false},"heavy":{"enabled":false,"weight":0,"peekOffset":85,"scale":2,"showInDevMode":true}}},
                     {"x":1404,"y":941,"peekDirection":"up","enemyConfigs":{"grunt":{"enabled":true,"weight":60,"peekOffset":135,"scale":0.9,"showInDevMode":true},"heavy":{"enabled":false,"weight":25,"peekOffset":50,"scale":1,"showInDevMode":true},"elite":{"enabled":false,"weight":15,"peekOffset":45,"scale":1,"showInDevMode":false}}},

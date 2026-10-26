@@ -1,11 +1,13 @@
 // Boot-profiles Raccoon Platoon in headless Chrome over CDP (muted, throwaway profile).
 // Usage: node cdp_boot.mjs <url> <profileDir> [cpuProfileOut]
+// Env: PORT (CDP port, default 9333), URLS=<file> writes "status path" for every request
+// (input for tools/perf/asset_audit.py). Output "failed" lists requests with status >= 400.
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
 const [, , URL_, PROFILE_DIR, CPU_OUT] = process.argv;
 const CHROME = 'C:/Program Files/Google/Chrome/Application/chrome.exe';
-const PORT = 9333;
+const PORT = +(process.env.PORT || 9333);
 
 const chrome = spawn(CHROME, [
   '--headless=new', `--remote-debugging-port=${PORT}`, `--user-data-dir=${PROFILE_DIR}`,
@@ -37,7 +39,7 @@ const evalJS = async (expr) => (await send('Runtime.evaluate', { expression: exp
 const reqs = new Map(); let firstReq = null;
 listeners.push(m => {
   if (m.method === 'Network.requestWillBeSent') { reqs.set(m.params.requestId, { url: m.params.request.url, t0: m.params.timestamp }); if (firstReq === null) firstReq = m.params.timestamp; }
-  if (m.method === 'Network.responseReceived') { const r = reqs.get(m.params.requestId); if (r) r.type = m.params.type; }
+  if (m.method === 'Network.responseReceived') { const r = reqs.get(m.params.requestId); if (r) { r.type = m.params.type; r.status = m.params.response.status; } }
   if (m.method === 'Network.loadingFinished') { const r = reqs.get(m.params.requestId); if (r) { r.bytes = m.params.encodedDataLength; r.t1 = m.params.timestamp; } }
 });
 await send('Network.enable', { maxTotalBufferSize: 0 });
@@ -82,8 +84,11 @@ const all = [...reqs.values()].filter(r => r.bytes !== undefined);
 const byType = {}; let total = 0; let lastEnd = 0;
 for (const r of all) { const ext = (r.url.split('?')[0].match(/\.(\w+)$/) || [, 'other'])[1].toLowerCase(); byType[ext] = byType[ext] || { n: 0, MB: 0 }; byType[ext].n++; byType[ext].MB += r.bytes / 1048576; total += r.bytes; if (r.t1 > lastEnd) lastEnd = r.t1; }
 for (const k in byType) byType[k].MB = +byType[k].MB.toFixed(1);
-const heaviest = all.sort((a, b) => b.bytes - a.bytes).slice(0, 10).map(r => `${(r.bytes / 1024).toFixed(0)} KB ${r.url.replace(/^.*?\/\/[^/]+\//, '')}`);
-console.log(JSON.stringify({ bootToMenuMs: bootMs, requests: all.length, downloadedMB: +(total / 1048576).toFixed(1), networkSpanS: +(lastEnd - firstReq).toFixed(1), byType, heaviest, game: stats.result?.result?.value }, null, 2));
+const relPath = url => decodeURIComponent(url.split('?')[0].replace(/^.*?\/\/[^/]+\//, ''));
+const failed = [...reqs.values()].filter(r => r.status >= 400).map(r => `${r.status} ${relPath(r.url)}`);
+if (process.env.URLS) writeFileSync(process.env.URLS, [...reqs.values()].filter(r => /^https?:/.test(r.url)).map(r => `${r.status ?? 0} ${relPath(r.url)}`).join('\n') + '\n');
+const heaviest = all.sort((a, b) => b.bytes - a.bytes).slice(0, 10).map(r => `${(r.bytes / 1024).toFixed(0)} KB ${relPath(r.url)}`);
+console.log(JSON.stringify({ bootToMenuMs: bootMs, requests: all.length, downloadedMB: +(total / 1048576).toFixed(1), networkSpanS: +(lastEnd - firstReq).toFixed(1), byType, heaviest, failed, game: stats.result?.result?.value }, null, 2));
 
 ws.close(); chrome.kill();
 process.exit(0);

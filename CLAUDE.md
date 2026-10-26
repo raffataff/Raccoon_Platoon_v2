@@ -167,7 +167,7 @@ A reusable **modal mini-game framework**. A mini-game can gate any interaction; 
 - Per-frame lists (`gameObjects`, `visualEffects`, `hostageUnits`, …) are compacted in place (`Game._updateInPlace`), so their array identity is stable; don't rebuild them with `.filter()` every frame.
 - `Game.render` culls enemies, corpses, bullets and obstacles outside the view (`CONFIG.RENDER_CULLING`), so their `render()` isn't called while off-screen: keep gameplay state out of render methods.
 - One-shot sounds must not create an `<audio>` element per play (that, not drawing, was the big-firefight bottleneck): go through `audioManager.play()`, which uses Web Audio.
-- Measuring: `tools/perf/` (headless CDP bench; see `docs/plans/performance_optimization_plan.md` §1). Compare against a baseline served from a `git archive` copy rather than stashing.
+- Measuring: `tools/perf/` (headless CDP bench, boot profiler, `asset_audit.mjs`, `sprite_scale.mjs` = how big each image is really drawn, `layout_dump.mjs` = level-layout diff; see `docs/plans/performance_optimization_plan.md` §1). Compare against a baseline served from a `git archive` copy rather than stashing.
 
 ## 9. Debugging Tools
 
@@ -185,6 +185,8 @@ A reusable **modal mini-game framework**. A mini-game can gate any interaction; 
 - **Save compatibility**: changing what gets serialized (roster, campaign state, mission params) requires bumping `SaveManager.SAVE_VERSION` and handling old saves.
 - **`weaponName` is a property setter** on `Unit` that resolves against the global `WEAPONS` table — set the name, not the object.
 - **Windows repo, CRLF line endings.** File paths in code use forward slashes (web paths).
+- **Asset paths are case-sensitive off Windows.** A path whose case differs from the file on disk loads fine here but 404s on Linux / Steam Deck. Match the on-disk name exactly; `node tools/perf/asset_audit.mjs .` lists mismatches (add a `cdp_boot.mjs URLS=` dump to cover runtime-built paths).
+- **Image binaries**: PNGs were losslessly recompressed (zlib + oxipng; colour chunks kept). Some sprites are stored smaller than their art with a matching larger CONFIG scale (lines commented "PNG stored at 1/2 size…"): replacement art at the original size needs the old scale back. Draw size = naturalWidth × scale everywhere, so a resize must change the scale by the inverse factor, keep `w × r` an integer, and pass `tools/perf/layout_dump.mjs --diff`. Don't resize, re-encode lossy, or delete assets without asking the user: many unreferenced sprites are future raccoon classes.
 - Turrets (`PossumTurret`, `PossumAntiAirTurret`) are *not* `Unit` subclasses — they're tracked in separate arrays on `Game` (`possumTurrets`, `possumAntiAirTurrets`).
 - UI text templates live in `CONFIG.UI_TEXT_STRINGS` and are filled via `_fillTextTemplate` (`{PLACEHOLDER}` syntax).
 - Commented-out code blocks (e.g. auto-save-on-unload in `game.js` constructor) are intentionally disabled — don't re-enable without checking the comment's reason (that one caused XP/death duplication bugs).
