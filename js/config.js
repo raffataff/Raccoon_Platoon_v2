@@ -3287,4 +3287,80 @@ const CONFIG = {
             },
         ],
     },
+
+    // ------------------------------------------------------------------
+    // OPTIONS
+    // Player preferences behind the tabbed Options window (ui.js, _initOptionsMenu).
+    // Each is stored as a SaveManager preference under the same key and falls back to
+    // these defaults; "Reset Tab" restores them. Display size / render scale defaults are
+    // DISPLAY_SIZE / RENDER_SCALE above. No save impact.
+    // ------------------------------------------------------------------
+    OPTIONS: {
+        DEFAULTS: {
+            // Graphics
+            screenShake: 100,               // % of VISUAL_EFFECTS.SCREEN_SHAKE trauma (0 = off)
+            crtScanlines: true,             // full-screen scanline overlay (#crt-overlay)
+            showFps: true,                  // FPS counter during missions (#hud-fps)
+            menuWallpaperShuffle: true,     // random main-menu wallpaper each visit
+            // Audio (0-100)
+            masterVolume: 100,
+            musicVolume: 50,
+            sfxVolume: 100,
+            ambienceVolume: 70,
+            muteInBackground: false,        // silence everything while the window is unfocused or hidden
+            // Controls
+            invertWheel: false,             // mouse wheel direction for formation spacing
+            // Gameplay
+            lastObjectiveMode: 'show',      // 'hide' | 'show' | 'after1min'
+            unitChatter: true,              // speech bubbles (SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED)
+            pauseOnFocusLoss: false,        // auto-pause a mission / shootout round when the window loses focus
+        },
+        SFX_PREVIEW_SOUND: 'RACCOON_MG_FIRE',   // played when the Sound Effects slider is released
+    },
+
+    // ------------------------------------------------------------------
+    // KEY BINDINGS
+    // Rebindable keyboard actions (js/keyBindings.js → game.keyBindings), edited in
+    // Options → Controls. `code` is a KeyboardEvent.code (a physical key), so bindings
+    // behave the same on any keyboard layout and with Shift held. The player's
+    // overrides live in the 'keyBindings' preference, merged over these (no save impact).
+    // ------------------------------------------------------------------
+    KEY_BINDINGS: {
+        // Listed in this order, under these group headings, on the Controls tab.
+        ACTIONS: [
+            { key: 'SELECT_ALL', group: 'Squad', name: 'Select Whole Squad', code: 'Space', desc: 'Select every raccoon in the squad.' },
+            { key: 'SELECT_UNIT_1', group: 'Squad', name: 'Select Raccoon 1', code: 'Digit1', desc: 'Select only the first raccoon in the squad.' },
+            { key: 'SELECT_UNIT_2', group: 'Squad', name: 'Select Raccoon 2', code: 'Digit2', desc: 'Select only the second raccoon in the squad.' },
+            { key: 'SELECT_UNIT_3', group: 'Squad', name: 'Select Raccoon 3', code: 'Digit3', desc: 'Select only the third raccoon in the squad.' },
+            { key: 'SELECT_UNIT_4', group: 'Squad', name: 'Select Raccoon 4', code: 'Digit4', desc: 'Select only the fourth raccoon in the squad.' },
+            { key: 'TOGGLE_FORMATION', group: 'Squad', name: 'Cycle Formation', code: 'KeyF', desc: 'Cycle the squad formation: Horizontal, Vertical, Square, Diamond.' },
+            { key: 'CALL_BACKUP', group: 'Squad', name: 'Call for Backup', code: 'KeyT', desc: 'Send the rest of the squad to back up the selected raccoon.' },
+            { key: 'HOSTAGE_ORDER', group: 'Squad', name: 'Hostages: Hold / Follow', code: 'KeyH', desc: 'Order rescued hostages to hold position, or to follow the squad again.' },
+            { key: 'RELOAD', group: 'Combat', name: 'Reload', code: 'KeyR', desc: 'Reload the selected raccoons\' weapons.' },
+            { key: 'GRENADE', group: 'Combat', name: 'Grenade', code: 'KeyG', desc: 'Tap to aim the last grenade type; hold to open the grenade wheel. Press again while aiming to cancel.' },
+            { key: 'SCENT_MARKER', group: 'Combat', name: 'Scent Markers', code: 'KeyQ', desc: 'Hold to open the scent-marker wheel, release on a choice to place, remove or sniff for markers.' },
+            { key: 'INTERACT', group: 'Combat', name: 'Interact', code: 'KeyE', desc: 'Hack an intel console or shut down a turret when a raccoon is next to it.' },
+            { key: 'SQUAD_GROUP_1', group: 'Squad Groups', name: 'Squad Group 1', code: 'Digit5', desc: 'Recall squad group 1. Hold Ctrl and press it to save the current selection as group 1.' },
+            { key: 'SQUAD_GROUP_2', group: 'Squad Groups', name: 'Squad Group 2', code: 'Digit6', desc: 'Recall squad group 2. Hold Ctrl and press it to save the current selection as group 2.' },
+            { key: 'SQUAD_GROUP_3', group: 'Squad Groups', name: 'Squad Group 3', code: 'Digit7', desc: 'Recall squad group 3. Hold Ctrl and press it to save the current selection as group 3.' },
+            { key: 'SQUAD_GROUP_4', group: 'Squad Groups', name: 'Squad Group 4', code: 'Digit8', desc: 'Recall squad group 4. Hold Ctrl and press it to save the current selection as group 4.' },
+            { key: 'SQUAD_GROUP_5', group: 'Squad Groups', name: 'Squad Group 5', code: 'Digit9', desc: 'Recall squad group 5. Hold Ctrl and press it to save the current selection as group 5.' },
+            { key: 'SQUAD_GROUP_6', group: 'Squad Groups', name: 'Squad Group 6', code: 'Digit0', desc: 'Recall squad group 6. Hold Ctrl and press it to save the current selection as group 6.' },
+            { key: 'PHASE_OUT', group: 'Debug', name: 'Phase Out (Unstick)', code: 'KeyU', desc: 'Let the squad pass through obstacles for a second to get unstuck. With Ctrl held, phases out every enemy instead.' },
+            { key: 'DEBUG_VISUALS', group: 'Debug', name: 'Debug Visuals', code: 'KeyP', desc: 'Toggle the debug overlay panel (nav grid, obstacle shapes, pathing bounds...).' },
+        ],
+        // Keys that can't be bound: Escape is always pause/back, Shift/Ctrl are the mouse
+        // modifiers below, and the rest belong to the browser/OS.
+        RESERVED: ['Escape', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight',
+                   'MetaLeft', 'MetaRight', 'OSLeft', 'OSRight', 'ContextMenu', 'CapsLock', 'Tab', 'F5', 'F11', 'F12'],
+        // Fixed mouse/modifier controls, listed read-only on the Controls tab.
+        FIXED: [
+            { input: 'RMB', name: 'Move', desc: 'Order the selected raccoons to move to the cursor.' },
+            { input: 'LMB', name: 'Fire', desc: 'Click to fire at the cursor; hold and drag to keep firing.' },
+            { input: 'SHIFT + LMB', name: 'Target Lock', desc: 'Focus fire: lock the selected raccoons onto the enemy under the cursor.' },
+            { input: 'CTRL + DRAG', name: 'Box Select', desc: 'Drag a box with the left button to select several raccoons.' },
+            { input: 'WHEEL', name: 'Formation Spacing', desc: 'Spread the formation out or pull it in. Direction can be inverted below.' },
+            { input: 'ESC', name: 'Pause / Cancel', desc: 'Cancel grenade aim or a radial menu, clear the selection, or pause the game.' },
+        ],
+    },
 };

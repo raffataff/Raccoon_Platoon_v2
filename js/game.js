@@ -71,6 +71,7 @@ class Game {
         // Pooled grenade explosion VFX + the camera shake they drive (js/grenadeFx.js).
         this.grenadeFx = new GrenadeFx(this);
         this.cameraShake = new CameraShake();
+        this.screenShakeScale = 1; // Options → Graphics → Screen Shake (applied by UI)
 
         this.isDragging = false;
         this.draggedFarEnough = false;
@@ -87,6 +88,7 @@ class Game {
         this.cameraZoom = CONFIG.CAMERA_ZOOM || 1.0;
 
         this.level = new Level(this);
+        this.keyBindings = new KeyBindings(); // rebindable keys, read by InputHandler and edited in Options → Controls
         this.inputHandler = new InputHandler(this.canvas, this);
         this.cursorManager = new CursorManager(); // before UI: the Cursors options screen binds to it
         this.ui = new UI(this);
@@ -154,7 +156,7 @@ class Game {
         this.fpsUpdateInterval = 1000;
         this._perfPhasingActive = false;
         this.fpsDisplayElement = document.getElementById('hud-fps');
-        this.displaySize = CONFIG.DISPLAY_SIZE || 'stretched';
+        this.displaySize = SaveManager.getPreference('displaySize', CONFIG.DISPLAY_SIZE || 'stretched');
 
         // --- HiDPI rendering ---
         // viewWidth/viewHeight: canvas size in logical CSS pixels. ALL gameplay, camera,
@@ -6270,7 +6272,7 @@ class Game {
     // from the view center (CONFIG.VISUAL_EFFECTS.SCREEN_SHAKE.FALLOFF_NEAR/FAR).
     addScreenShake(amount, worldX, worldY) {
         const cfg = CONFIG.VISUAL_EFFECTS && CONFIG.VISUAL_EFFECTS.SCREEN_SHAKE;
-        if (!cfg || cfg.ENABLED === false || !(amount > 0)) return;
+        if (!cfg || cfg.ENABLED === false || !(amount > 0) || !(this.screenShakeScale > 0)) return;
         let falloff = 1;
         if (typeof worldX === 'number' && typeof worldY === 'number') {
             const zoom = this.cameraZoom || 1;
@@ -6280,7 +6282,7 @@ class Game {
             const near = cfg.FALLOFF_NEAR || 250, far = Math.max(near + 1, cfg.FALLOFF_FAR || 1100);
             falloff = d <= near ? 1 : Math.max(0, 1 - (d - near) / (far - near));
         }
-        if (falloff > 0) this.cameraShake.add(amount * falloff);
+        if (falloff > 0) this.cameraShake.add(amount * falloff * this.screenShakeScale);
     }
 
     trySpeech(unit, category, customChance, force) {

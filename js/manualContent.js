@@ -52,16 +52,19 @@ const MANUAL_CONTENT = [
                     { key: "RMB Click", desc: "Move Unit" },
                     { key: "LMB Click/Hold", desc: "Shoot" },
                     { key: "CTRL + LMB Drag", desc: "Box Select Multiple Units" },
-                    { key: "SPACE", desc: "Select ALL Squad Members" },
-                    { key: "1 - 4", desc: "Select Specific Squad Member" },
-                    { key: "5 - 0", desc: "Recall Saved Squad Group" },
-                    { key: "CTRL + 5 - 0", desc: "Save Current Selection as Squad Group" },
+                    // `actions` (CONFIG.KEY_BINDINGS) swap `key` for the player's bindings once rebound.
+                    { key: "SPACE", actions: ["SELECT_ALL"], desc: "Select ALL Squad Members" },
+                    { key: "1 - 4", actions: ["SELECT_UNIT_1", "SELECT_UNIT_2", "SELECT_UNIT_3", "SELECT_UNIT_4"], desc: "Select Specific Squad Member" },
+                    { key: "5 - 0", actions: ["SQUAD_GROUP_1", "SQUAD_GROUP_2", "SQUAD_GROUP_3", "SQUAD_GROUP_4", "SQUAD_GROUP_5", "SQUAD_GROUP_6"], desc: "Recall Saved Squad Group" },
+                    { key: "CTRL + 5 - 0", prefix: "CTRL + ", actions: ["SQUAD_GROUP_1", "SQUAD_GROUP_2", "SQUAD_GROUP_3", "SQUAD_GROUP_4", "SQUAD_GROUP_5", "SQUAD_GROUP_6"], desc: "Save Current Selection as Squad Group" },
                     { key: "SHIFT + LMB", desc: "Set Manual Target Lock (Focus Fire)" },
-                    { key: "Q", desc: "Place Scent Marker / Sniff for Markers" },
-                    { key: "F", desc: "Toggle Formation" },
-                    { key: "G", desc: "Throw Grenade (Aim & Click)" },
-                    { key: "H", desc: "Toggle Hostage Hold/Follow" },
-                    { key: "T", desc: "Call for Backup" },
+                    { key: "Q", actions: ["SCENT_MARKER"], desc: "Place Scent Marker / Sniff for Markers" },
+                    { key: "F", actions: ["TOGGLE_FORMATION"], desc: "Toggle Formation" },
+                    { key: "G", actions: ["GRENADE"], desc: "Throw Grenade (Aim & Click)" },
+                    { key: "H", actions: ["HOSTAGE_ORDER"], desc: "Toggle Hostage Hold/Follow" },
+                    { key: "T", actions: ["CALL_BACKUP"], desc: "Call for Backup" },
+                    { key: "E", actions: ["INTERACT"], desc: "Hack Console / Shut Down Turret" },
+                    { key: "R", actions: ["RELOAD"], desc: "Reload" },
                     { key: "ESC", desc: "Pause / Cancel Action" }
                 ]
             }

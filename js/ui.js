@@ -45,17 +45,6 @@ class UI {
         this.resumeGameButton = document.getElementById('resumeGameButton');
         this.restartMissionPauseButton = document.getElementById('restartMissionPauseButton');
         this.mainMenuPauseButton = document.getElementById('mainMenuPauseButton');
-        this.pauseOptionsScreen = document.getElementById('pauseOptionsScreen');
-        this.backFromPauseOptionsButton = document.getElementById('backFromPauseOptionsButton');
-        this.pauseMasterVolumeSlider = document.getElementById('pauseMasterVolumeSlider');
-        this.pauseMusicVolumeSlider = document.getElementById('pauseMusicVolumeSlider');
-        this.pauseSfxVolumeSlider = document.getElementById('pauseSfxVolumeSlider');
-        this.pauseAmbienceVolumeSlider = document.getElementById('pauseAmbienceVolumeSlider');
-        this.pauseMasterVolValue = document.getElementById('pauseMasterVolValue');
-        this.pauseMusicVolValue = document.getElementById('pauseMusicVolValue');
-        this.pauseSfxVolValue = document.getElementById('pauseSfxVolValue');
-        this.pauseAmbienceVolValue = document.getElementById('pauseAmbienceVolValue');
-        this.pauseLastObjectiveSelect = document.getElementById('pauseLastObjectiveSelect');
         this.startMissionButton = document.getElementById('startMissionButton');
         this.retryMissionButton = document.getElementById('retryMissionButton');
         this.nextMissionButton = document.getElementById('nextMissionButton');
@@ -75,29 +64,13 @@ class UI {
         this.viewMemorialFromPhaseBtn = document.getElementById('viewMemorialFromPhaseBtn');
         this.continueFromPhaseDebriefBtn = document.getElementById('continueFromPhaseDebriefBtn');
 
-        // Options Menu elements
+        // Options window (shared by the main menu, mission pause and shootout pause)
         this.optionsMenuScreen = document.getElementById('optionsMenuScreen');
         this.backFromOptionsButton = document.getElementById('backFromOptionsButton');
         this.wallpaperSelectionGrid = document.getElementById('wallpaperSelectionGrid');
-        this.shuffleWallpaperToggle = document.getElementById('shuffleWallpaperToggle');
-        this.shuffleWallpaperLabel = document.getElementById('shuffleWallpaperLabel');
         this.currentWallpaperKey = SaveManager.getPreference('menuWallpaper', CONFIG.DEFAULT_MENU_WALLPAPER) || 'raccoon_marine_3';
-        this.menuWallpaperShuffleEnabled = SaveManager.getPreference('menuWallpaperShuffle', true);
-        this.lastObjectiveMode = SaveManager.getPreference('lastObjectiveMode', 'show');
-        this.lastObjectiveSelect = document.getElementById('lastObjectiveSelect');
-        this.displaySizeSelect = document.getElementById('displaySizeSelect');
-        this.pauseDisplaySizeSelect = document.getElementById('pauseDisplaySizeSelect');
-        this.renderScaleSelect = document.getElementById('renderScaleSelect');
-        this.pauseRenderScaleSelect = document.getElementById('pauseRenderScaleSelect');
-
-        this.masterVolumeSlider = document.getElementById('masterVolumeSlider');
-        this.musicVolumeSlider = document.getElementById('musicVolumeSlider');
-        this.sfxVolumeSlider = document.getElementById('sfxVolumeSlider');
-        this.ambienceVolumeSlider = document.getElementById('ambienceVolumeSlider');
-        this.masterVolValue = document.getElementById('masterVolValue');
-        this.musicVolValue = document.getElementById('musicVolValue');
-        this.sfxVolValue = document.getElementById('sfxVolValue');
-        this.ambienceVolValue = document.getElementById('ambienceVolValue');
+        this.menuWallpaperShuffleEnabled = SaveManager.getPreference('menuWallpaperShuffle', CONFIG.OPTIONS.DEFAULTS.menuWallpaperShuffle);
+        this.lastObjectiveMode = SaveManager.getPreference('lastObjectiveMode', CONFIG.OPTIONS.DEFAULTS.lastObjectiveMode);
 
         // Save/Load UI elements
         this.continueGameButton = document.getElementById('continueGameButton');
@@ -173,6 +146,7 @@ class UI {
         }
 
         this.initManual();
+        this._initOptionsMenu();
         this._initCursorOptions();
 
         this._addSoundToButton(this.mainMenuMemorialButton, () => this.showRecruitMemorialScreen());
@@ -249,15 +223,7 @@ class UI {
                 this.game.quitToMainMenu();
             }
         });
-        this._addSoundToButton(this.pauseOptionsButton, () => this.showPauseOptionsMenu());
-        this._addSoundToButton(this.backFromPauseOptionsButton, () => this.hidePauseOptionsMenu());
-        if (this.pauseLastObjectiveSelect) {
-            this.pauseLastObjectiveSelect.value = this.lastObjectiveMode;
-            this.pauseLastObjectiveSelect.addEventListener('change', (e) => {
-                this.lastObjectiveMode = e.target.value;
-                SaveManager.savePreference('lastObjectiveMode', e.target.value);
-            });
-        }
+        this._addSoundToButton(this.pauseOptionsButton, () => this.showOptionsMenu('pause'));
         this._addSoundToButton(this.restartCampaignButton, () => {
             // --- MODIFICATION: Explicitly restart the SAME campaign ---
             if (this.game) { this.game.initializeNewCampaign(false); this.game.start(); }
@@ -378,6 +344,7 @@ class UI {
         // --- SHOOTOUT PAUSE MENU ELEMENTS ---
         this.shootoutPauseMenuScreen = document.getElementById('shootoutPauseMenuScreen');
         this.shootoutResumeGameButton = document.getElementById('shootoutResumeGameButton');
+        this.shootoutOptionsButton = document.getElementById('shootoutOptionsButton');
         this.shootoutRestartButton = document.getElementById('shootoutRestartButton');
         this.shootoutMenuPauseButton = document.getElementById('shootoutMenuPauseButton');
 
@@ -387,6 +354,8 @@ class UI {
                 if (this.game) this.game.toggleShootoutPause();
             });
         }
+
+        this._addSoundToButton(this.shootoutOptionsButton, () => this.showOptionsMenu('shootout'));
 
         if (this.shootoutRestartButton) {
             this._addSoundToButton(this.shootoutRestartButton, () => {
@@ -797,7 +766,7 @@ class UI {
         this.hidePreMissionScreen(); this.hidePostMissionScreen(); this.hideGameOverScreen(); this.hideRecruitMemorialScreen(); this.hideEndOfPhaseScreen();
         this.hideSaveLoadModal();
         this.hideHowToPlayScreen();
-        this.hideOptionsMenu();
+        this.hideOptionsMenu(false);
         if (this.leftHudPanel) this.leftHudPanel.style.display = 'none';
         if (this.mainMenuMemorialButton && this.game) {
             this.mainMenuMemorialButton.disabled = !(this.game.fallenRaccoonsGlobal && this.game.fallenRaccoonsGlobal.length > 0);
@@ -1512,6 +1481,7 @@ class UI {
 
         navContainer.innerHTML = '';
         pagesContainer.innerHTML = '';
+        this._manualKeySpans = []; // { span, item } for control rows that follow key bindings
 
         MANUAL_CONTENT.forEach((page, index) => {
             // Tab
@@ -1556,6 +1526,7 @@ class UI {
                         const row = document.createElement('div');
                         row.className = 'control-row';
                         row.innerHTML = `<span class="key">${item.key}</span> <span>${item.desc}</span>`;
+                        if (item.actions) this._manualKeySpans.push({ span: row.firstElementChild, item });
                         grid.appendChild(row);
                     });
                     pageDiv.appendChild(grid);
@@ -1606,135 +1577,25 @@ class UI {
                 this.hideHowToPlayScreen();
             }
         });
-
-        // Options Menu button handlers
-        this._addSoundToButton(this.optionsButton, () => this.showOptionsMenu());
-        this._addSoundToButton(this.backFromOptionsButton, () => this.hideOptionsMenu());
-        if (this.shuffleWallpaperToggle) {
-            this.shuffleWallpaperToggle.checked = this.menuWallpaperShuffleEnabled;
-            this.updateShuffleLabel();
-            this.shuffleWallpaperToggle.addEventListener('change', (e) => {
-                this.menuWallpaperShuffleEnabled = e.target.checked;
-                SaveManager.savePreference('menuWallpaperShuffle', this.menuWallpaperShuffleEnabled);
-                this.updateShuffleLabel();
-            });
-        }
-        if (this.lastObjectiveSelect) {
-            this.lastObjectiveSelect.value = this.lastObjectiveMode;
-            this.lastObjectiveSelect.addEventListener('change', (e) => {
-                this.lastObjectiveMode = e.target.value;
-                SaveManager.savePreference('lastObjectiveMode', e.target.value);
-            });
-        }
-        const initDisplaySizeSelect = (select, isPause) => {
-            if (!select) return;
-            const saved = SaveManager.getPreference('displaySize', CONFIG.DISPLAY_SIZE || 'stretched');
-            select.value = saved;
-            if (this.game) this.game.displaySize = saved;
-            select.addEventListener('change', (e) => {
-                const val = e.target.value;
-                SaveManager.savePreference('displaySize', val);
-                if (this.game) {
-                    this.game.displaySize = val;
-                    this.game.resizeCanvas();
-                }
-                const other = isPause ? this.displaySizeSelect : this.pauseDisplaySizeSelect;
-                if (other) other.value = val;
-            });
-        };
-        initDisplaySizeSelect(this.displaySizeSelect, false);
-        initDisplaySizeSelect(this.pauseDisplaySizeSelect, true);
-
-        // Render Scale: game-canvas resolution as a fraction of the screen's native resolution.
-        // Runs during UI construction (before Game finishes init), so read the saved pref here.
-        const initRenderScaleSelect = (select, isPause) => {
-            if (!select || !this.game) return;
-            select.value = String(this.game.sanitizeRenderScale(SaveManager.getPreference('renderScale', CONFIG.RENDER_SCALE)));
-            select.addEventListener('change', (e) => {
-                this.game.setRenderScale(e.target.value);
-                SaveManager.savePreference('renderScale', this.game.renderScale);
-                const other = isPause ? this.renderScaleSelect : this.pauseRenderScaleSelect;
-                if (other) other.value = String(this.game.renderScale);
-            });
-        };
-        initRenderScaleSelect(this.renderScaleSelect, false);
-        initRenderScaleSelect(this.pauseRenderScaleSelect, true);
-
-        const initVolumeSlider = (slider, label, prefKey, defaultVal, applyFn) => {
-            if (!slider || !label) return;
-            const saved = SaveManager.getPreference(prefKey, defaultVal);
-            slider.value = saved;
-            label.textContent = saved + '%';
-            applyFn(saved / 100);
-            slider.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value, 10);
-                label.textContent = val + '%';
-                SaveManager.savePreference(prefKey, val);
-                applyFn(val / 100);
-            });
-        };
-        const syncSliderPair = (mainSlider, mainLabel, pauseSlider, pauseLabel) => {
-            if (mainSlider && pauseSlider) {
-                mainSlider.addEventListener('input', () => {
-                    pauseSlider.value = mainSlider.value;
-                    if (pauseLabel) pauseLabel.textContent = mainSlider.value + '%';
-                });
-                pauseSlider.addEventListener('input', () => {
-                    mainSlider.value = pauseSlider.value;
-                    if (mainLabel) mainLabel.textContent = pauseSlider.value + '%';
-                });
-            }
-        };
-        initVolumeSlider(this.masterVolumeSlider, this.masterVolValue, 'masterVolume', 100, (v) => {
-            if (this.game) {
-                if (this.game.audioManager) this.game.audioManager.setGlobalVolume(v);
-                if (this.game.musicManager) this.game.musicManager.setMasterVolume(v);
-            }
-        });
-        initVolumeSlider(this.musicVolumeSlider, this.musicVolValue, 'musicVolume', 50, (v) => {
-            if (this.game && this.game.musicManager) this.game.musicManager.setMusicVolume(v);
-        });
-        initVolumeSlider(this.sfxVolumeSlider, this.sfxVolValue, 'sfxVolume', 100, (v) => {
-            if (this.game && this.game.audioManager) this.game.audioManager.setSfxVolume(v);
-        });
-        initVolumeSlider(this.ambienceVolumeSlider, this.ambienceVolValue, 'ambienceVolume', 70, (v) => {
-            if (this.game && this.game.musicManager) this.game.musicManager.setAmbientVolume(v);
-        });
-        syncSliderPair(this.masterVolumeSlider, this.masterVolValue, this.pauseMasterVolumeSlider, this.pauseMasterVolValue);
-        syncSliderPair(this.musicVolumeSlider, this.musicVolValue, this.pauseMusicVolumeSlider, this.pauseMusicVolValue);
-        syncSliderPair(this.sfxVolumeSlider, this.sfxVolValue, this.pauseSfxVolumeSlider, this.pauseSfxVolValue);
-        syncSliderPair(this.ambienceVolumeSlider, this.ambienceVolValue, this.pauseAmbienceVolumeSlider, this.pauseAmbienceVolValue);
-        const initPauseVolumeSlider = (slider, label, prefKey, applyFn) => {
-            if (!slider || !label) return;
-            slider.addEventListener('input', (e) => {
-                const val = parseInt(e.target.value, 10);
-                label.textContent = val + '%';
-                SaveManager.savePreference(prefKey, val);
-                applyFn(val / 100);
-            });
-        };
-        initPauseVolumeSlider(this.pauseMasterVolumeSlider, this.pauseMasterVolValue, 'masterVolume', (v) => {
-            if (this.game) {
-                if (this.game.audioManager) this.game.audioManager.setGlobalVolume(v);
-                if (this.game.musicManager) this.game.musicManager.setMasterVolume(v);
-            }
-        });
-        initPauseVolumeSlider(this.pauseMusicVolumeSlider, this.pauseMusicVolValue, 'musicVolume', (v) => {
-            if (this.game && this.game.musicManager) this.game.musicManager.setMusicVolume(v);
-        });
-        initPauseVolumeSlider(this.pauseSfxVolumeSlider, this.pauseSfxVolValue, 'sfxVolume', (v) => {
-            if (this.game && this.game.audioManager) this.game.audioManager.setSfxVolume(v);
-        });
-        initPauseVolumeSlider(this.pauseAmbienceVolumeSlider, this.pauseAmbienceVolValue, 'ambienceVolume', (v) => {
-            if (this.game && this.game.musicManager) this.game.musicManager.setAmbientVolume(v);
-        });
     }
 
     showHowToPlayScreen() {
         if (this.mainMenuScreen) this.mainMenuScreen.style.display = 'none';
         if (this.howToPlayScreen) this.howToPlayScreen.style.display = 'flex';
+        this._refreshManualKeyLabels();
         // Reset to overview
         this.switchManualPage('manual-overview');
+    }
+
+    // Control rows show the player's current keys; untouched bindings keep the manual's own text ("1 - 4").
+    _refreshManualKeyLabels() {
+        const kb = this.game && this.game.keyBindings;
+        if (!kb || !this._manualKeySpans) return;
+        for (const { span, item } of this._manualKeySpans) {
+            span.textContent = item.actions.every(a => kb.isDefault(a))
+                ? item.key
+                : (item.prefix || '') + item.actions.map(a => kb.label(a)).join(' ');
+        }
     }
 
     switchManualPage(targetId) {
@@ -1763,59 +1624,498 @@ class UI {
         if (this.howToPlayScreen) this.howToPlayScreen.style.display = 'none';
     }
 
-    showOptionsMenu() {
-        if (this.mainMenuScreen) this.mainMenuScreen.style.display = 'none';
-        if (this.optionsMenuScreen) {
-            this.populateWallpaperSelection();
-            if (this.shuffleWallpaperToggle) {
-                this.shuffleWallpaperToggle.checked = this.menuWallpaperShuffleEnabled;
-                this.updateShuffleLabel();
+    // ==================== OPTIONS WINDOW ====================
+    // One window, opened from the main menu, the mission pause menu and the shootout pause
+    // menu; Back (or Esc) returns to whichever opened it. Every [data-option] control in it
+    // is bound to an entry of _buildOptionDefs(), so a new setting is one def here plus one
+    // row of markup in index.html (and its default in CONFIG.OPTIONS.DEFAULTS).
+
+    _initOptionsMenu() {
+        const screen = this.optionsMenuScreen;
+        if (!screen || !this.game) return;
+
+        this._optionDefs = this._buildOptionDefs();
+        this._optionControls = {};          // option key -> its control elements
+        this._optionsTab = 'graphics';      // remembered between visits
+        this._optionsReturnTo = null;       // menu panel to show again on Back
+        this._optionsInfoRow = null;        // row the info strip currently describes
+        this._rebindAction = null;          // key binding waiting for a key press
+        this._masterVolume = 1;
+        this._muteInBackground = false;
+        this._pauseOnFocusLoss = false;
+        this._inBackground = document.hidden || !document.hasFocus();
+        this._speechAllowedByConfig = SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED;
+
+        this._optionsTabs = [...screen.querySelectorAll('.opt-tab')];
+        this._optionsPages = [...screen.querySelectorAll('.opt-page')];
+        this._optionsInfo = screen.querySelector('.opt-info');
+        this._optionsInfoTitle = document.getElementById('optionsInfoTitle');
+        this._optionsInfoText = document.getElementById('optionsInfoText');
+        this._optionsContextBadge = document.getElementById('optionsContextBadge');
+        this._optionsResetButton = document.getElementById('optionsResetTabButton');
+
+        this._buildOptionControls();
+        this._initKeyBindingOptions();
+
+        // Push every saved setting into the game; atBoot: false ones the Game reads itself.
+        for (const key of Object.keys(this._optionDefs)) {
+            const def = this._optionDefs[key];
+            if (def.atBoot !== false) def.apply(this._getOption(key));
+        }
+
+        for (const tab of this._optionsTabs) {
+            tab.addEventListener('click', () => this._switchOptionsTab(tab.dataset.tab));
+        }
+        screen.querySelector('.opt-tabs').addEventListener('keydown', (e) => {
+            if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+            e.preventDefault();
+            const tabs = this._optionsTabs;
+            const i = tabs.findIndex(t => t.dataset.tab === this._optionsTab);
+            const next = tabs[(i + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+            this._switchOptionsTab(next.dataset.tab);
+            next.focus();
+        });
+
+        // Menu sounds for everything in the window (its buttons don't use _addSoundToButton).
+        screen.addEventListener('click', (e) => {
+            if (e.target.closest('button, .wallpaper-option') && this.game.audioManager) {
+                this.game.audioManager.play('UI_BUTTON_CLICK');
             }
-            if (this.lastObjectiveSelect) {
-                this.lastObjectiveSelect.value = this.lastObjectiveMode;
+        });
+        screen.addEventListener('mouseover', (e) => {
+            const btn = e.target.closest('.opt-tab, .opt-footer button');
+            if (btn && !btn.contains(e.relatedTarget) && this.game.audioManager) {
+                this.game.audioManager.play('UI_BUTTON_HOVER');
             }
-            if (this.renderScaleSelect && this.game) {
-                this.renderScaleSelect.value = String(this.game.renderScale);
+        });
+
+        // The info strip describes the row under the pointer or holding keyboard focus.
+        const describeRow = (e) => {
+            const row = e.target.closest('.opt-row[data-desc]');
+            if (row && row !== this._optionsInfoRow) this._setOptionsInfo(row);
+        };
+        screen.addEventListener('mouseover', describeRow);
+        screen.addEventListener('focusin', describeRow);
+
+        this._addSoundToButton(this.optionsButton, () => this.showOptionsMenu('menu'));
+        this.backFromOptionsButton.addEventListener('click', () => this.hideOptionsMenu());
+        this._optionsResetButton.addEventListener('click', () => this._onResetOptionsTab());
+        document.getElementById('optionsRestorePromptsButton').addEventListener('click', () => {
+            SaveManager.resetAllDismissalPreferences();
+            this._setOptionsInfo(null, 'Prompts restored', 'Every confirmation you hid with "Don\'t show this again" will appear again.', true);
+        });
+
+        // Esc backs out of the window (or cancels a rebind) instead of reaching the game's
+        // key handling, which would unpause underneath it.
+        window.addEventListener('keydown', (e) => {
+            if (screen.style.display === 'none') return;
+            if (this._rebindAction) {
+                this._onRebindKey(e);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                this.hideOptionsMenu();
             }
-            this.optionsMenuScreen.style.display = 'flex';
+        }, true);
+        // Clicking anywhere but the listening key cancels a rebind.
+        screen.addEventListener('pointerdown', (e) => {
+            if (this._rebindAction && !e.target.closest('.opt-keycap.is-listening')) this._cancelRebind();
+        }, true);
+
+        const onFocusChange = () => this._onWindowFocusChange();
+        window.addEventListener('blur', onFocusChange);
+        window.addEventListener('focus', onFocusChange);
+        document.addEventListener('visibilitychange', onFocusChange);
+        document.addEventListener('fullscreenchange', () => this._syncOptionControl('fullscreen'));
+    }
+
+    // pref: preference key (none = not saved); def: default; apply(value) pushes a value into
+    // the game; read() replaces "the saved preference" as the current value; store(value) is
+    // what gets saved; atBoot: false = the Game reads that preference itself while booting.
+    _buildOptionDefs() {
+        const game = this.game;
+        const D = CONFIG.OPTIONS.DEFAULTS;
+        const pref = (key, apply) => ({ pref: key, def: D[key], apply });
+        return {
+            // Graphics
+            fullscreen: {
+                def: false, atBoot: false,
+                read: () => !!document.fullscreenElement,
+                apply: (on) => this._setFullscreen(on),
+            },
+            displaySize: {
+                pref: 'displaySize', def: CONFIG.DISPLAY_SIZE || 'stretched', atBoot: false,
+                apply: (v) => { game.displaySize = v; game.resizeCanvas(); },
+            },
+            renderScale: {
+                pref: 'renderScale', def: String(game.sanitizeRenderScale(CONFIG.RENDER_SCALE)), atBoot: false,
+                read: () => String(game.renderScale),
+                apply: (v) => game.setRenderScale(v),
+                store: () => game.renderScale,
+            },
+            screenShake: pref('screenShake', (v) => { game.screenShakeScale = v / 100; }),
+            crtScanlines: pref('crtScanlines', (on) => {
+                const crt = document.getElementById('crt-overlay');
+                if (crt) crt.style.display = on ? '' : 'none';
+            }),
+            showFps: pref('showFps', (on) => document.body.classList.toggle('rp-hide-fps', !on)),
+            menuWallpaperShuffle: pref('menuWallpaperShuffle', (on) => { this.menuWallpaperShuffleEnabled = on; }),
+            // Audio
+            masterVolume: pref('masterVolume', (v) => { this._masterVolume = v / 100; this._applyMasterVolume(); }),
+            musicVolume: pref('musicVolume', (v) => { if (game.musicManager) game.musicManager.setMusicVolume(v / 100); }),
+            sfxVolume: pref('sfxVolume', (v) => { if (game.audioManager) game.audioManager.setSfxVolume(v / 100); }),
+            ambienceVolume: pref('ambienceVolume', (v) => { if (game.musicManager) game.musicManager.setAmbientVolume(v / 100); }),
+            muteInBackground: pref('muteInBackground', (on) => { this._muteInBackground = on; this._applyMasterVolume(); }),
+            // Controls
+            invertWheel: pref('invertWheel', (on) => { if (game.inputHandler) game.inputHandler.invertWheel = on; }),
+            // Gameplay
+            lastObjectiveMode: pref('lastObjectiveMode', (v) => { this.lastObjectiveMode = v; }),
+            unitChatter: pref('unitChatter', (on) => { SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED = on && this._speechAllowedByConfig; }),
+            pauseOnFocusLoss: pref('pauseOnFocusLoss', (on) => { this._pauseOnFocusLoss = on; }),
+        };
+    }
+
+    // Fill in and wire the generic controls: .opt-seg (choice buttons), .opt-switch, .opt-slider.
+    _buildOptionControls() {
+        for (const el of this.optionsMenuScreen.querySelectorAll('[data-option]')) {
+            const key = el.dataset.option;
+            if (!this._optionDefs[key]) continue;
+            (this._optionControls[key] = this._optionControls[key] || []).push(el);
+            const labelEl = el.closest('.opt-row') && el.closest('.opt-row').querySelector('.opt-label');
+            const label = labelEl ? labelEl.textContent : key;
+            if (el.classList.contains('opt-seg')) {
+                el.setAttribute('role', 'group');
+                el.setAttribute('aria-label', label);
+                el.addEventListener('click', (e) => {
+                    const btn = e.target.closest('button[data-value]');
+                    if (btn) this._setOption(key, btn.dataset.value);
+                });
+            } else if (el.classList.contains('opt-switch')) {
+                el.innerHTML = '<span class="opt-switch-text"></span><span class="opt-switch-track"><span class="opt-switch-thumb"></span></span>';
+                el.setAttribute('role', 'switch');
+                el.setAttribute('aria-label', label);
+                el.addEventListener('click', () => this._setOption(key, !this._getOption(key)));
+            } else if (el.classList.contains('opt-slider')) {
+                const input = document.createElement('input');
+                input.type = 'range';
+                input.min = el.dataset.min || '0';
+                input.max = el.dataset.max || '100';
+                input.step = el.dataset.step || '1';
+                input.setAttribute('aria-label', label);
+                el.append(input, document.createElement('output'));
+                input.addEventListener('input', () => this._setOption(key, Number(input.value)));
+                // Let the player hear the new effects level once they let go.
+                if (key === 'sfxVolume') {
+                    input.addEventListener('change', () => {
+                        if (this.game.audioManager) this.game.audioManager.play(CONFIG.OPTIONS.SFX_PREVIEW_SOUND);
+                    });
+                }
+            }
         }
     }
 
-    hideOptionsMenu() {
-        if (this.optionsMenuScreen) this.optionsMenuScreen.style.display = 'none';
-        if (this.mainMenuScreen) this.mainMenuScreen.style.display = 'flex';
+    _getOption(key) {
+        const def = this._optionDefs[key];
+        return def.read ? def.read() : SaveManager.getPreference(def.pref, def.def);
     }
 
-    showPauseOptionsMenu() {
-        if (this.pauseMenuScreen) this.pauseMenuScreen.style.display = 'none';
-        if (this.pauseOptionsScreen) {
-            const syncSlider = (slider, label, prefKey, defaultVal) => {
-                if (!slider || !label) return;
-                const saved = SaveManager.getPreference(prefKey, defaultVal);
-                slider.value = saved;
-                label.textContent = saved + '%';
-            };
-            syncSlider(this.pauseMasterVolumeSlider, this.pauseMasterVolValue, 'masterVolume', 100);
-            syncSlider(this.pauseMusicVolumeSlider, this.pauseMusicVolValue, 'musicVolume', 50);
-            syncSlider(this.pauseSfxVolumeSlider, this.pauseSfxVolValue, 'sfxVolume', 100);
-            syncSlider(this.pauseAmbienceVolumeSlider, this.pauseAmbienceVolValue, 'ambienceVolume', 70);
-            if (this.pauseLastObjectiveSelect) {
-                this.pauseLastObjectiveSelect.value = this.lastObjectiveMode;
+    _setOption(key, value) {
+        const def = this._optionDefs[key];
+        if (!def) return;
+        def.apply(value);
+        if (def.pref) SaveManager.savePreference(def.pref, def.store ? def.store(value) : value);
+        this._syncOptionControl(key);
+    }
+
+    _syncOptionControl(key) {
+        const controls = this._optionControls && this._optionControls[key];
+        if (!controls) return;
+        const value = this._getOption(key);
+        for (const el of controls) {
+            if (el.classList.contains('opt-seg')) {
+                for (const btn of el.querySelectorAll('button[data-value]')) {
+                    const on = btn.dataset.value === String(value);
+                    btn.classList.toggle('selected', on);
+                    btn.setAttribute('aria-pressed', on);
+                }
+            } else if (el.classList.contains('opt-switch')) {
+                el.setAttribute('aria-checked', !!value);
+                el.firstElementChild.textContent = value ? 'On' : 'Off';
+            } else if (el.classList.contains('opt-slider')) {
+                const input = el.firstElementChild;
+                const min = Number(input.min), max = Number(input.max);
+                input.value = value;
+                input.style.setProperty('--fill', ((Number(value) - min) / ((max - min) || 1)) * 100 + '%');
+                el.lastElementChild.textContent = value + (el.dataset.unit || '');
             }
-            if (this.pauseDisplaySizeSelect) {
-                const savedDisplaySize = SaveManager.getPreference('displaySize', CONFIG.DISPLAY_SIZE || 'stretched');
-                this.pauseDisplaySizeSelect.value = savedDisplaySize;
-            }
-            if (this.pauseRenderScaleSelect && this.game) {
-                this.pauseRenderScaleSelect.value = String(this.game.renderScale);
-            }
-            this.pauseOptionsScreen.style.display = 'flex';
         }
     }
 
-    hidePauseOptionsMenu() {
-        if (this.pauseOptionsScreen) this.pauseOptionsScreen.style.display = 'none';
-        if (this.pauseMenuScreen) this.pauseMenuScreen.style.display = 'flex';
+    showOptionsMenu(from = 'menu') {
+        const screen = this.optionsMenuScreen;
+        if (!screen || !this._optionDefs) return;
+        const origins = {
+            menu: [this.mainMenuScreen, 'Main Menu'],
+            pause: [this.pauseMenuScreen, 'Mission Paused'],
+            shootout: [this.shootoutPauseMenuScreen, 'Shootout Paused'],
+        };
+        const [returnTo, badge] = origins[from] || origins.menu;
+        this._optionsReturnTo = returnTo || null;
+        if (returnTo) returnTo.style.display = 'none';
+        this._optionsContextBadge.textContent = badge;
+
+        this.populateWallpaperSelection();
+        for (const key of Object.keys(this._optionControls)) this._syncOptionControl(key);
+        this._syncKeyBindings();
+        this._switchOptionsTab(this._optionsTab);
+        screen.style.display = 'flex';
+    }
+
+    /** Close the window, showing the menu that opened it again unless returnToOrigin is false. */
+    hideOptionsMenu(returnToOrigin = true) {
+        const screen = this.optionsMenuScreen;
+        if (!screen || screen.style.display === 'none') return;
+        this._cancelRebind();
+        this._disarmOptionsReset();
+        screen.style.display = 'none';
+        if (returnToOrigin && this._optionsReturnTo) this._optionsReturnTo.style.display = 'flex';
+        this._optionsReturnTo = null;
+    }
+
+    _switchOptionsTab(name) {
+        this._cancelRebind();
+        this._disarmOptionsReset();
+        this._optionsTab = name;
+        for (const tab of this._optionsTabs) {
+            const on = tab.dataset.tab === name;
+            tab.classList.toggle('active', on);
+            tab.setAttribute('aria-selected', on);
+            tab.tabIndex = on ? 0 : -1;
+        }
+        for (const page of this._optionsPages) page.classList.toggle('active', page.dataset.page === name);
+        this._setOptionsInfo(null);
+    }
+
+    _activeOptionsPage() {
+        return this._optionsPages.find(p => p.dataset.page === this._optionsTab) || this._optionsPages[0];
+    }
+
+    // Info strip: a row's description, the page's when row is null, or an explicit message.
+    // alert highlights the strip until the pointer moves on to another row.
+    _setOptionsInfo(row, title, text, alert = false) {
+        this._optionsInfoRow = row;
+        if (title === undefined) {
+            const src = row || this._activeOptionsPage();
+            const label = row && row.querySelector('.opt-label');
+            title = src.dataset.title || (label ? label.textContent : '');
+            text = src.dataset.desc || '';
+        }
+        this._optionsInfoTitle.textContent = title;
+        this._optionsInfoText.textContent = text;
+        this._optionsInfo.classList.toggle('is-alert', alert);
+    }
+
+    // First click arms the button ("Confirm Reset"), a second within 3 s resets the open tab.
+    _onResetOptionsTab() {
+        const btn = this._optionsResetButton;
+        if (!this._optionsResetArmed) {
+            this._optionsResetArmed = true;
+            btn.classList.add('is-armed');
+            btn.textContent = 'Confirm Reset';
+            this._optionsResetTimer = setTimeout(() => this._disarmOptionsReset(), 3000);
+            return;
+        }
+        this._disarmOptionsReset();
+        const page = this._activeOptionsPage();
+        const keys = new Set([...page.querySelectorAll('[data-option]')].map(el => el.dataset.option));
+        for (const key of keys) {
+            const def = this._optionDefs[key];
+            if (def && def.pref) this._setOption(key, def.def);
+        }
+        if (page.dataset.page === 'controls' && this.game.keyBindings) this.game.keyBindings.reset();
+        if (page.dataset.page === 'graphics') this.selectWallpaper(CONFIG.DEFAULT_MENU_WALLPAPER);
+        this._setOptionsInfo(null, `${page.dataset.title} reset`, 'Every setting on this tab is back to its default.', true);
+    }
+
+    _disarmOptionsReset() {
+        clearTimeout(this._optionsResetTimer);
+        this._optionsResetArmed = false;
+        if (this._optionsResetButton) {
+            this._optionsResetButton.classList.remove('is-armed');
+            this._optionsResetButton.textContent = 'Reset Tab';
+        }
+    }
+
+    _setFullscreen(on) {
+        const root = document.documentElement;
+        if (on && !document.fullscreenElement && root.requestFullscreen) {
+            root.requestFullscreen().catch(() => this._syncOptionControl('fullscreen'));
+        } else if (!on && document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        }
+    }
+
+    _applyMasterVolume() {
+        const v = (this._muteInBackground && this._inBackground) ? 0 : this._masterVolume;
+        if (this.game.audioManager) this.game.audioManager.setGlobalVolume(v);
+        if (this.game.musicManager) this.game.musicManager.setMasterVolume(v);
+    }
+
+    // Window blurred/hidden or back: drives Mute in Background and Pause on Focus Loss.
+    _onWindowFocusChange() {
+        const background = document.hidden || !document.hasFocus();
+        if (background === this._inBackground) return;
+        this._inBackground = background;
+        this._applyMasterVolume();
+        if (background && this._pauseOnFocusLoss && this.game) {
+            if (this.game.gameState === 'RUNNING') this.game.togglePause();
+            else if (this.game.gameState === 'SHOOTOUT_PLAYING') this.game.toggleShootoutPause();
+        }
+    }
+
+    // ---------------------------------------------------------------- key bindings (Controls tab)
+
+    _initKeyBindingOptions() {
+        const kb = this.game.keyBindings;
+        const page = this.optionsMenuScreen.querySelector('.opt-page[data-page="controls"]');
+        if (!kb || !page) return;
+        this._bindRows = new Map();     // action -> { row, keycap, reset }
+
+        for (const a of kb.actions) {
+            let card = page.querySelector(`.opt-card[data-bind-group="${a.group}"]`);
+            if (!card) {
+                // A group without a card in the markup gets one at the end of the last column.
+                card = document.createElement('div');
+                card.className = 'opt-card';
+                card.dataset.bindGroup = a.group;
+                card.appendChild(document.createElement('h3')).textContent = a.group;
+                const cols = page.querySelectorAll('.opt-col');
+                cols[cols.length - 1].appendChild(card);
+            }
+            const row = document.createElement('div');
+            row.className = 'opt-row opt-bind-row';
+            row.dataset.desc = a.desc;
+            row.innerHTML = '<span class="opt-label"></span><span class="opt-bind-keys">' +
+                '<button class="opt-bind-reset" title="Reset to default" aria-label="Reset to default">&#x21BA;</button>' +
+                '<button class="opt-keycap"></button></span>';
+            row.firstElementChild.textContent = a.name;
+            const reset = row.querySelector('.opt-bind-reset');
+            const keycap = row.querySelector('.opt-keycap');
+            keycap.setAttribute('aria-label', 'Rebind ' + a.name);
+            keycap.addEventListener('click', () => this._startRebind(a.key));
+            reset.addEventListener('click', () => this._applyBinding(a.key, a.code));
+            card.appendChild(row);
+            this._bindRows.set(a.key, { row, keycap, reset });
+        }
+
+        // Mouse and modifier controls can't be rebound; listed for reference.
+        const fixed = document.getElementById('optionsFixedControls');
+        if (fixed) {
+            for (const f of kb.cfg.FIXED) {
+                const row = document.createElement('div');
+                row.className = 'opt-row opt-bind-row is-fixed';
+                row.dataset.desc = f.desc;
+                row.innerHTML = '<span class="opt-label"></span><span class="opt-keycap is-fixed"></span>';
+                row.firstElementChild.textContent = f.name;
+                row.lastElementChild.textContent = f.input;
+                fixed.appendChild(row);
+            }
+        }
+
+        kb.onChange(() => this._syncKeyBindings());
+        this._syncKeyBindings();
+    }
+
+    _syncKeyBindings() {
+        const kb = this.game && this.game.keyBindings;
+        if (!kb || !this._bindRows) return;
+        for (const [action, { row, keycap, reset }] of this._bindRows) {
+            if (action === this._rebindAction) continue;
+            const custom = !kb.isDefault(action);
+            keycap.classList.remove('is-listening');
+            keycap.classList.toggle('is-custom', custom);
+            keycap.textContent = kb.label(action);
+            reset.classList.toggle('is-visible', custom);
+            reset.tabIndex = custom ? 0 : -1;
+            row.classList.toggle('is-unbound', !kb.codeFor(action));
+        }
+    }
+
+    _startRebind(action) {
+        this._cancelRebind();
+        const entry = this._bindRows.get(action);
+        if (!entry) return;
+        this._rebindAction = action;
+        entry.keycap.classList.add('is-listening');
+        entry.keycap.textContent = 'Press a key';
+        const name = this.game.keyBindings.getAction(action).name;
+        this._setOptionsInfo(entry.row, `Rebind: ${name}`, 'Press the new key now. Esc cancels.', true);
+    }
+
+    _cancelRebind() {
+        if (!this._rebindAction) return;
+        this._rebindAction = null;
+        this._syncKeyBindings();
+    }
+
+    // keydown while a binding is listening; runs in the capture phase, ahead of the game.
+    _onRebindKey(e) {
+        if (e.key === 'Shift' || e.key === 'Control' || e.key === 'Alt' || e.key === 'Meta') return; // wait for the real key
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        if (e.repeat) return;
+        const action = this._rebindAction;
+        const { row, keycap } = this._bindRows.get(action);
+        const code = KeyBindings.codeOf(e);
+        if (code === 'Escape') {
+            this._cancelRebind();
+            this._setOptionsInfo(row);
+            return;
+        }
+        if (this.game.keyBindings.isReserved(code)) {
+            this._playOnce(keycap, 'is-denied');
+            this._setOptionsInfo(row, `${KeyBindings.codeLabel(code)} is reserved`,
+                'Esc, Shift, Ctrl, Alt, Tab and a few system keys can\'t be bound. Press another key, or Esc to cancel.', true);
+            return;
+        }
+        this._applyBinding(action, code);
+        // Drop focus so the key's own keyup (Space/Enter) can't click the keycap into listening again.
+        keycap.blur();
+    }
+
+    _applyBinding(action, code) {
+        const kb = this.game.keyBindings;
+        this._rebindAction = null;
+        const swapped = kb.set(action, code);
+        this._syncKeyBindings();
+        const name = kb.getAction(action).name;
+        let text = `${name} is now on ${KeyBindings.codeLabel(code)}.`;
+        this._flashBindRow(action);
+        if (swapped) {
+            this._flashBindRow(swapped);
+            const other = kb.getAction(swapped).name;
+            text += kb.codeFor(swapped) ? ` ${other} moved to ${kb.label(swapped)}.` : ` ${other} is now unbound.`;
+        }
+        this._setOptionsInfo(this._bindRows.get(action).row, 'Key bound', text, true);
+    }
+
+    _flashBindRow(action) {
+        const entry = this._bindRows.get(action);
+        if (entry) this._playOnce(entry.row, 'is-flash');
+    }
+
+    // Restart a one-shot CSS animation class, and drop it when done so it doesn't replay
+    // every time the window is shown again.
+    _playOnce(el, cls) {
+        el.classList.remove(cls);
+        void el.offsetWidth;
+        el.classList.add(cls);
+        const done = (e) => {
+            if (e.target !== el) return; // a child's animation
+            el.classList.remove(cls);
+            el.removeEventListener('animationend', done);
+        };
+        el.addEventListener('animationend', done);
     }
 
     populateWallpaperSelection() {
@@ -1872,12 +2172,6 @@ class UI {
         }
 
         this.populateWallpaperSelection();
-    }
-
-    updateShuffleLabel() {
-        if (this.shuffleWallpaperLabel) {
-            this.shuffleWallpaperLabel.textContent = 'Shuffle: ' + (this.menuWallpaperShuffleEnabled ? 'ON' : 'OFF');
-        }
     }
 
     shuffleWallpaper() {
@@ -3257,8 +3551,8 @@ class UI {
         const screen = this.cursorOptionsScreen;
         const cfg = CONFIG.CURSORS;
 
-        this._addSoundToButton(document.getElementById('cursorOptionsButton'), () => this.showCursorOptions(this.optionsMenuScreen));
-        this._addSoundToButton(document.getElementById('pauseCursorOptionsButton'), () => this.showCursorOptions(this.pauseOptionsScreen));
+        // Lives in the Options window, which plays its own click sound.
+        document.getElementById('cursorOptionsButton').addEventListener('click', () => this.showCursorOptions(this.optionsMenuScreen));
         this._addSoundToButton(document.getElementById('backFromCursorOptionsButton'), () => this.hideCursorOptions());
         this._addSoundToButton(document.getElementById('cursorResetButton'), () => cm.reset());
 

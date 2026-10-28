@@ -1,8 +1,13 @@
 class InputHandler {
+    // Rebindable actions that address a slot by index (CONFIG.KEY_BINDINGS.ACTIONS).
+    static SELECT_UNIT_ACTIONS = ['SELECT_UNIT_1', 'SELECT_UNIT_2', 'SELECT_UNIT_3', 'SELECT_UNIT_4'];
+    static SQUAD_GROUP_ACTIONS = ['SQUAD_GROUP_1', 'SQUAD_GROUP_2', 'SQUAD_GROUP_3', 'SQUAD_GROUP_4', 'SQUAD_GROUP_5', 'SQUAD_GROUP_6'];
+
     constructor(canvas, game) {
         this.canvas = canvas;
         this.game = game;
         this.mousePos = { screenX: 0, screenY: 0, worldX: 0, worldY: 0 };
+        this.invertWheel = false; // Options → Controls (applied by UI)
 
         this.isShiftPressed = false;
         this.isCtrlPressed = false;
@@ -26,7 +31,7 @@ class InputHandler {
         this.canvas.addEventListener('wheel', (event) => {
             if (this.game && this.game.gameState === 'RUNNING') {
                 event.preventDefault();
-                const scrollDelta = event.deltaY > 0 ? -0.2 : 0.2;
+                const scrollDelta = (event.deltaY > 0 ? -0.2 : 0.2) * (this.invertWheel ? -1 : 1);
                 const currentSpacing = this.game.formationSpacingMultiplier || CONFIG.INITIAL_FORMATION_SPACING || 1.5;
                 const newSpacing = Math.max(1.5, Math.min(6.0, currentSpacing + scrollDelta));
                 this.game.setFormationSpacing(newSpacing);
@@ -106,11 +111,12 @@ class InputHandler {
                 return;
             }
 
-            const gameKeys = ['f', 'g', 'h', 't', ' ', 'escape', 'u', 'p', 'r', 'e', 'q', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
             const activeEl = document.activeElement;
             const isInputFieldActive = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA');
+            // Rebindable keys resolve through game.keyBindings (Options → Controls).
+            const action = this.game.keyBindings ? this.game.keyBindings.actionFor(event) : null;
 
-            if (gameKeys.includes(event.key.toLowerCase()) && !isInputFieldActive) {
+            if ((action || event.key === 'Escape') && !isInputFieldActive) {
                 event.preventDefault();
             }
 
@@ -144,201 +150,64 @@ class InputHandler {
                 }
             }
 
-            if (event.code === 'Space' && !isInputFieldActive) {
-                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
-                this.game.selectAllPlayerUnits();
-            }
-            if ((event.key === 'f' || event.key === 'F') && !isInputFieldActive) {
-                if (this.game.toggleFormation) this.game.toggleFormation();
-            }
-            if ((event.key === 't' || event.key === 'T') && !isInputFieldActive) {
-                if (this.game.handleAutoBackupCommand) this.game.handleAutoBackupCommand();
-            }
-            if ((event.key === 'g' || event.key === 'G') && !isInputFieldActive) {
-                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
-                // Hold-to-open grenade radial menu; quick tap = aim last-selected type.
-                // Guard against keydown auto-repeat while held.
-                if (!this.game.isGrenadeMenuKeyHeld) {
-                    this.game.isGrenadeMenuKeyHeld = true;
-                    if (this.game.handleGrenadeMenuKeyDown) {
-                        this.game.handleGrenadeMenuKeyDown();
-                    }
-                }
-            }
-            if ((event.key === 'r' || event.key === 'R') && !isInputFieldActive) {
-                // Manual reload for selected raccoons
-                if (this.game.selectedUnits) {
-                    this.game.selectedUnits.forEach(unit => {
-                        if (unit instanceof Raccoon && unit.isAlive() && !unit.isReloading) {
-                            const ammoState = unit._getCurrentAmmoState();
-                            if (ammoState.reserveAmmo > 0 && ammoState.currentMagazine < ammoState.magazineSize) {
-                                unit.startReload();
-                            }
-                        }
-                    });
-                }
-            }
-        if ((event.key === 'e' || event.key === 'E') && !isInputFieldActive) {
-            // Intel console interaction
-            if (this.game.handleIntelConsoleInteraction) {
-                this.game.handleIntelConsoleInteraction();
-            }
-            // Possum turret shutdown
-            if (this.game.handlePossumTurretShutdown) {
-                this.game.handlePossumTurretShutdown();
-            }
-            // Possum anti-air turret shutdown
-            if (this.game.handlePossumAntiAirTurretShutdown) {
-                this.game.handlePossumAntiAirTurretShutdown();
-            }
-        }
-            if ((event.key === 'q' || event.key === 'Q') && !isInputFieldActive) {
-                if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
-                if (!this.game.isScentMenuKeyHeld) {
-                    this.game.isScentMenuKeyHeld = true;
-                    if (this.game.handleScentMenuKeyDown) {
-                        this.game.handleScentMenuKeyDown();
-                    }
-                }
-            }
-            if ((event.key === 'h' || event.key === 'H') && !isInputFieldActive) {
-                const rescuedHostages = this.game.hostageUnits.filter(h => h.isRescued && h.isAlive());
-                if (rescuedHostages.length > 0) {
-                    const anyHostageFollowing = rescuedHostages.some(h => !h.isHoldingPosition);
-
-                    if (anyHostageFollowing) {
-                        rescuedHostages.forEach(h => {
-                            h.isHoldingPosition = true;
-                            h.isMoving = false;
-                            h.currentPath = [];
-                        });
-                        this.game.trySpeech(rescuedHostages[0], 'ON_HOLD', undefined, true);
-                        const raccoons = this.game.getLivingPlayerControlledUnits();
-                        if (raccoons && raccoons.length > 0) {
-                            const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
-                            this.game.trySpeech(speaker, 'ON_ORDER_HOLD', undefined, true);
-                        }
-                    } else {
-                        rescuedHostages.forEach(h => {
-                            h.isHoldingPosition = false;
-                        });
-                        this.game.trySpeech(rescuedHostages[0], 'ON_FOLLOW', undefined, true);
-                        const raccoons = this.game.getLivingPlayerControlledUnits();
-                        if (raccoons && raccoons.length > 0) {
-                            const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
-                            this.game.trySpeech(speaker, 'ON_ORDER_FOLLOW', undefined, true);
+            if (!action || isInputFieldActive) return;
+            switch (action) {
+                case 'SELECT_ALL':
+                    if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                    this.game.selectAllPlayerUnits();
+                    break;
+                case 'TOGGLE_FORMATION':
+                    if (this.game.toggleFormation) this.game.toggleFormation();
+                    break;
+                case 'CALL_BACKUP':
+                    if (this.game.handleAutoBackupCommand) this.game.handleAutoBackupCommand();
+                    break;
+                case 'GRENADE':
+                    if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                    // Hold-to-open grenade radial menu; quick tap = aim last-selected type.
+                    // Guard against keydown auto-repeat while held.
+                    if (!this.game.isGrenadeMenuKeyHeld) {
+                        this.game.isGrenadeMenuKeyHeld = true;
+                        if (this.game.handleGrenadeMenuKeyDown) {
+                            this.game.handleGrenadeMenuKeyDown();
                         }
                     }
-                }
-            }
-
-            if ((event.key === 'u' || event.key === 'U') && !isInputFieldActive) {
-                if (this.isCtrlPressed) {
-                    const enemyUnits = this.game.enemyUnits;
-                    if (enemyUnits && enemyUnits.length > 0) {
-                        enemyUnits.forEach(unit => {
-                            if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
-                                unit.forcePhaseOut(1.0);
-                            }
-                        });
-                    }
-                } else {
-                    const playerUnits = this.game.getLivingPlayerControlledUnits();
-                    if (playerUnits && playerUnits.length > 0) {
-                        playerUnits.forEach(unit => {
-                            if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
-                                if (unit instanceof RaccoonHostage && !unit.isRescued) {
-                                } else {
-                                    unit.forcePhaseOut(1.0);
-                                }
-                            }
-                        });
-                    }
-                }
-            }
-
-            if ((event.key === 'p' || event.key === 'P') && !isInputFieldActive) {
-                if (this.game && typeof this.game.toggleDebugVisuals === 'function') {
-                    this.game.toggleDebugVisuals();
-                }
-            }
-
-            const keyNumber = parseInt(event.key, 10);
-            if (!isNaN(keyNumber) && keyNumber >= 1 && keyNumber <= 9 && !isInputFieldActive) {
-                console.log('[DEBUG] Number key:', keyNumber, 'Ctrl pressed:', this.isCtrlPressed, 'selectedUnits:', this.game.selectedUnits?.length);
-                if (this.isCtrlPressed && keyNumber >= 5) {
-                    if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
-                        const groupIndex = keyNumber - 5;
-                        this.game.squadGroups[groupIndex] = [...this.game.selectedUnits];
-                        console.log('[DEBUG] Saved squad group', groupIndex, 'with', this.game.squadGroups[groupIndex].length, 'units');
-                    }
-                } else if (!this.isCtrlPressed && keyNumber >= 5) {
-                    const groupIndex = keyNumber - 5;
-                    if (this.game.squadGroups[groupIndex]) {
-                        const aliveUnits = this.game.squadGroups[groupIndex].filter(u => u.isAlive());
-                        if (aliveUnits.length > 0) {
-                            if (this.game.selectedUnits) {
-                                this.game.selectedUnits.forEach(unit => {
-                                    if (unit instanceof Raccoon && unit.isAimingGrenade) {
-                                        unit.cancelGrenadeAim();
-                                    }
-                                });
-                            }
-                            this.game.selectedUnits = aliveUnits;
-                            this.game.ui.updateSquadPanel();
-                            this.updateMouseCursor();
-                            console.log('[DEBUG] Recalled squad group', groupIndex, 'with', aliveUnits.length, 'units');
+                    break;
+                case 'RELOAD':
+                    this._reloadSelectedUnits();
+                    break;
+                case 'INTERACT':
+                    // Intel console hack, possum turret shutdown, anti-air turret shutdown.
+                    if (this.game.handleIntelConsoleInteraction) this.game.handleIntelConsoleInteraction();
+                    if (this.game.handlePossumTurretShutdown) this.game.handlePossumTurretShutdown();
+                    if (this.game.handlePossumAntiAirTurretShutdown) this.game.handlePossumAntiAirTurretShutdown();
+                    break;
+                case 'SCENT_MARKER':
+                    if (this.isLMBHoldFiringActionActive) { this.game.handleLMBFireActionEnd(); this.isLMBHoldFiringActionActive = false; }
+                    if (!this.game.isScentMenuKeyHeld) {
+                        this.game.isScentMenuKeyHeld = true;
+                        if (this.game.handleScentMenuKeyDown) {
+                            this.game.handleScentMenuKeyDown();
                         }
                     }
-                } else {
-                    if (this.game.deployedSquadRoster && this.game.deployedSquadRoster.length >= keyNumber) {
-                        const targetUnit = this.game.deployedSquadRoster[keyNumber - 1];
-
-                        if (targetUnit && targetUnit.isAlive()) {
-                            if (this.game.selectedUnits) {
-                                this.game.selectedUnits.forEach(unit => {
-                                    if (unit instanceof Raccoon && unit.isAimingGrenade) {
-                                        unit.cancelGrenadeAim();
-                                    }
-                                });
-                            }
-
-                            this.game.selectedUnits = [targetUnit];
-
-                            this.game.ui.updateSquadPanel();
-                            this.updateMouseCursor();
-                        }
+                    break;
+                case 'HOSTAGE_ORDER':
+                    this._toggleHostageHold();
+                    break;
+                case 'PHASE_OUT':
+                    this._forcePhaseOut();
+                    break;
+                case 'DEBUG_VISUALS':
+                    if (typeof this.game.toggleDebugVisuals === 'function') this.game.toggleDebugVisuals();
+                    break;
+                default: {
+                    const unitIndex = InputHandler.SELECT_UNIT_ACTIONS.indexOf(action);
+                    if (unitIndex >= 0) {
+                        this._selectSquadMember(unitIndex);
+                        break;
                     }
-                }
-            }
-
-            if (!isNaN(keyNumber) && keyNumber === 0 && !isInputFieldActive && !this.isCtrlPressed) {
-                console.log('[DEBUG] Recall squad group 5 (key 0), Ctrl:', this.isCtrlPressed);
-                const groupIndex = 5;
-                if (this.game.squadGroups[groupIndex]) {
-                    const aliveUnits = this.game.squadGroups[groupIndex].filter(u => u.isAlive());
-                    if (aliveUnits.length > 0) {
-                        if (this.game.selectedUnits) {
-                            this.game.selectedUnits.forEach(unit => {
-                                if (unit instanceof Raccoon && unit.isAimingGrenade) {
-                                    unit.cancelGrenadeAim();
-                                }
-                            });
-                        }
-                        this.game.selectedUnits = aliveUnits;
-                        this.game.ui.updateSquadPanel();
-                        this.updateMouseCursor();
-                        console.log('[DEBUG] Recalled squad group 5 with', aliveUnits.length, 'units');
-                    }
-                }
-            }
-
-            if (!isNaN(keyNumber) && keyNumber === 0 && this.isCtrlPressed && !isInputFieldActive) {
-                console.log('[DEBUG] Save squad group 5 (key 0), Ctrl:', this.isCtrlPressed, 'selectedUnits:', this.game.selectedUnits?.length);
-                if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
-                    const groupIndex = 5;
-                    this.game.squadGroups[groupIndex] = [...this.game.selectedUnits];
-                    console.log('[DEBUG] Saved squad group 5 with', this.game.squadGroups[groupIndex].length, 'units');
+                    const groupIndex = InputHandler.SQUAD_GROUP_ACTIONS.indexOf(action);
+                    if (groupIndex >= 0) this._useSquadGroup(groupIndex);
                 }
             }
         });
@@ -355,19 +224,127 @@ class InputHandler {
                     this.game.isDragging = false;
                     this.game.draggedFarEnough = false;
                 }
-            } else if (event.key === 'q' || event.key === 'Q') {
-                this.game.isScentMenuKeyHeld = false;
-                if (this.game.handleScentMenuKeyUp) {
-                    this.game.handleScentMenuKeyUp();
-                }
-            } else if (event.key === 'g' || event.key === 'G') {
-                this.game.isGrenadeMenuKeyHeld = false;
-                if (this.game.handleGrenadeMenuKeyUp) {
-                    this.game.handleGrenadeMenuKeyUp();
+            } else {
+                const action = this.game && this.game.keyBindings ? this.game.keyBindings.actionFor(event) : null;
+                if (action === 'SCENT_MARKER') {
+                    this.game.isScentMenuKeyHeld = false;
+                    if (this.game.handleScentMenuKeyUp) {
+                        this.game.handleScentMenuKeyUp();
+                    }
+                } else if (action === 'GRENADE') {
+                    this.game.isGrenadeMenuKeyHeld = false;
+                    if (this.game.handleGrenadeMenuKeyUp) {
+                        this.game.handleGrenadeMenuKeyUp();
+                    }
                 }
             }
             this.updateMouseCursor();
         });
+    }
+
+    _reloadSelectedUnits() {
+        if (!this.game.selectedUnits) return;
+        this.game.selectedUnits.forEach(unit => {
+            if (unit instanceof Raccoon && unit.isAlive() && !unit.isReloading) {
+                const ammoState = unit._getCurrentAmmoState();
+                if (ammoState.reserveAmmo > 0 && ammoState.currentMagazine < ammoState.magazineSize) {
+                    unit.startReload();
+                }
+            }
+        });
+    }
+
+    _toggleHostageHold() {
+        const rescuedHostages = this.game.hostageUnits.filter(h => h.isRescued && h.isAlive());
+        if (rescuedHostages.length === 0) return;
+        const anyHostageFollowing = rescuedHostages.some(h => !h.isHoldingPosition);
+
+        if (anyHostageFollowing) {
+            rescuedHostages.forEach(h => {
+                h.isHoldingPosition = true;
+                h.isMoving = false;
+                h.currentPath = [];
+            });
+            this.game.trySpeech(rescuedHostages[0], 'ON_HOLD', undefined, true);
+            const raccoons = this.game.getLivingPlayerControlledUnits();
+            if (raccoons && raccoons.length > 0) {
+                const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
+                this.game.trySpeech(speaker, 'ON_ORDER_HOLD', undefined, true);
+            }
+        } else {
+            rescuedHostages.forEach(h => {
+                h.isHoldingPosition = false;
+            });
+            this.game.trySpeech(rescuedHostages[0], 'ON_FOLLOW', undefined, true);
+            const raccoons = this.game.getLivingPlayerControlledUnits();
+            if (raccoons && raccoons.length > 0) {
+                const speaker = raccoons[Math.floor(Math.random() * raccoons.length)];
+                this.game.trySpeech(speaker, 'ON_ORDER_FOLLOW', undefined, true);
+            }
+        }
+    }
+
+    // Squad (or, with Ctrl, every enemy) ghosts through obstacles for a second.
+    _forcePhaseOut() {
+        if (this.isCtrlPressed) {
+            const enemyUnits = this.game.enemyUnits;
+            if (enemyUnits && enemyUnits.length > 0) {
+                enemyUnits.forEach(unit => {
+                    if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
+                        unit.forcePhaseOut(1.0);
+                    }
+                });
+            }
+        } else {
+            const playerUnits = this.game.getLivingPlayerControlledUnits();
+            if (playerUnits && playerUnits.length > 0) {
+                playerUnits.forEach(unit => {
+                    if (unit.isAlive() && typeof unit.forcePhaseOut === 'function') {
+                        if (!(unit instanceof RaccoonHostage && !unit.isRescued)) {
+                            unit.forcePhaseOut(1.0);
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    _cancelSelectedGrenadeAims() {
+        if (!this.game.selectedUnits) return;
+        this.game.selectedUnits.forEach(unit => {
+            if (unit instanceof Raccoon && unit.isAimingGrenade) {
+                unit.cancelGrenadeAim();
+            }
+        });
+    }
+
+    // Select one squad member by roster slot (SELECT_UNIT_n, 0-based index).
+    _selectSquadMember(index) {
+        const roster = this.game.deployedSquadRoster;
+        const targetUnit = roster && roster[index];
+        if (!targetUnit || !targetUnit.isAlive()) return;
+        this._cancelSelectedGrenadeAims();
+        this.game.selectedUnits = [targetUnit];
+        this.game.ui.updateSquadPanel();
+        this.updateMouseCursor();
+    }
+
+    // SQUAD_GROUP_n: Ctrl saves the current selection as the group, otherwise recall it.
+    _useSquadGroup(groupIndex) {
+        if (this.isCtrlPressed) {
+            if (this.game.selectedUnits && this.game.selectedUnits.length > 0) {
+                this.game.squadGroups[groupIndex] = [...this.game.selectedUnits];
+            }
+            return;
+        }
+        const group = this.game.squadGroups[groupIndex];
+        if (!group) return;
+        const aliveUnits = group.filter(u => u.isAlive());
+        if (aliveUnits.length === 0) return;
+        this._cancelSelectedGrenadeAims();
+        this.game.selectedUnits = aliveUnits;
+        this.game.ui.updateSquadPanel();
+        this.updateMouseCursor();
     }
 
     _updateMousePositions(event) {

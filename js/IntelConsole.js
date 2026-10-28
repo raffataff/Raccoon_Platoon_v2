@@ -122,7 +122,7 @@ class IntelConsole {
                 ctx.textAlign = 'center';
                 ctx.shadowColor = "rgba(0,0,0,0.9)";
                 ctx.shadowBlur = 4;
-                ctx.fillText("Press E to Hack", this.x + this.width / 2, this.y - 25);
+                ctx.fillText(`Press ${this.game.keyBindings.label('INTERACT')} to Hack`, this.x + this.width / 2, this.y - 25);
                 ctx.shadowBlur = 0;
             }
         }

@@ -48,81 +48,221 @@
             <button id="mainMenuMemorialButton" hidden>Recruit Memorial</button>
             <button id="optionsButton">Options</button>
         </div>
-        <p class="game-version">v0.1.36 Alpha</p>
+        <p class="game-version">v0.1.37 Alpha</p>
     </div>
 
-    <div id="optionsMenuScreen" class="ui-panel" style="display: none;">
-        <h2>OPTIONS</h2>
-        <div id="optionsContent">
-            <div class="options-section">
-                <h3>Audio</h3>
-                <div class="volume-slider-container">
-                    <div class="volume-slider-row">
-                        <label for="masterVolumeSlider">Master</label>
-                        <input type="range" id="masterVolumeSlider" min="0" max="100">
-                        <span id="masterVolValue">100%</span>
+    <!-- Options window: one window for the main menu, mission pause and shootout pause
+         (ui.js, "OPTIONS WINDOW"). Controls are generic: [data-option] names an entry of
+         UI._buildOptionDefs(); .opt-seg holds buttons with data-value, .opt-switch is an
+         on/off button and .opt-slider gets its range input from data-min/max/step/unit.
+         A row's data-desc (and the page's) feeds the info strip. Key binding rows are
+         built from CONFIG.KEY_BINDINGS into the [data-bind-group] cards. -->
+    <div id="optionsMenuScreen" class="ui-panel" style="display: none;" role="dialog" aria-labelledby="optionsTitle">
+        <span class="opt-corner opt-corner-tr"></span>
+        <span class="opt-corner opt-corner-bl"></span>
+        <header class="opt-header">
+            <div class="opt-title-block">
+                <span class="opt-kicker">// Field Configuration</span>
+                <h2 id="optionsTitle">OPTIONS</h2>
+            </div>
+            <span id="optionsContextBadge" class="opt-context-badge">Main Menu</span>
+        </header>
+
+        <nav class="opt-tabs" role="tablist" aria-label="Options categories">
+            <button class="opt-tab" role="tab" data-tab="graphics">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/></svg>
+                <span>Graphics</span>
+            </button>
+            <button class="opt-tab" role="tab" data-tab="audio">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+                <span>Audio</span>
+            </button>
+            <button class="opt-tab" role="tab" data-tab="controls">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="1.5"/><path d="M6 10h1M10 10h1M14 10h1M18 10h0.5M7 14h10"/></svg>
+                <span>Controls</span>
+            </button>
+            <button class="opt-tab" role="tab" data-tab="gameplay">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1"/></svg>
+                <span>Gameplay</span>
+            </button>
+        </nav>
+
+        <div class="opt-pages">
+            <!-- GRAPHICS -->
+            <section class="opt-page" data-page="graphics" role="tabpanel" data-title="Graphics"
+                data-desc="Display mode, resolution and visual effects. Every change applies immediately.">
+                <div class="opt-columns">
+                    <div class="opt-col">
+                        <div class="opt-card">
+                            <h3>Display</h3>
+                            <div class="opt-row" data-desc="Fill the whole screen. Press Esc or turn this off to return to a window.">
+                                <span class="opt-label">Fullscreen</span>
+                                <button class="opt-switch" data-option="fullscreen"></button>
+                            </div>
+                            <div class="opt-row" data-desc="Stretched fills the window edge to edge. Widescreen keeps a true 16:9 view with letterbox bars.">
+                                <span class="opt-label">Display Size</span>
+                                <div class="opt-seg" data-option="displaySize">
+                                    <button data-value="stretched">Stretched</button>
+                                    <button data-value="widescreen">Widescreen</button>
+                                </div>
+                            </div>
+                            <div class="opt-row" data-desc="Battlefield resolution relative to your screen. Lower it for more FPS on weaker GPUs; Native is sharpest.">
+                                <span class="opt-label">Render Scale</span>
+                                <div class="opt-seg" data-option="renderScale">
+                                    <button data-value="1">Native</button>
+                                    <button data-value="0.75">75%</button>
+                                    <button data-value="0.5">50%</button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="volume-slider-row">
-                        <label for="musicVolumeSlider">Music</label>
-                        <input type="range" id="musicVolumeSlider" min="0" max="100">
-                        <span id="musicVolValue">50%</span>
-                    </div>
-                    <div class="volume-slider-row">
-                        <label for="sfxVolumeSlider">SFX</label>
-                        <input type="range" id="sfxVolumeSlider" min="0" max="100">
-                        <span id="sfxVolValue">100%</span>
-                    </div>
-                    <div class="volume-slider-row">
-                        <label for="ambienceVolumeSlider">Ambience</label>
-                        <input type="range" id="ambienceVolumeSlider" min="0" max="100">
-                        <span id="ambienceVolValue">70%</span>
+                    <div class="opt-col">
+                        <div class="opt-card">
+                            <h3>Visual Effects</h3>
+                            <div class="opt-row" data-desc="How hard the camera shakes from explosions. 0% turns screen shake off.">
+                                <span class="opt-label">Screen Shake</span>
+                                <div class="opt-slider" data-option="screenShake" data-min="0" data-max="100" data-step="5" data-unit="%"></div>
+                            </div>
+                            <div class="opt-row" data-desc="The retro CRT scanline overlay drawn over the whole game.">
+                                <span class="opt-label">CRT Scanlines</span>
+                                <button class="opt-switch" data-option="crtScanlines"></button>
+                            </div>
+                            <div class="opt-row" data-desc="Show the frames-per-second counter in the corner during missions.">
+                                <span class="opt-label">FPS Counter</span>
+                                <button class="opt-switch" data-option="showFps"></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="options-section">
-                <h3>Display Size</h3>
-                <select id="displaySizeSelect">
-                    <option value="stretched">Stretched</option>
-                    <option value="widescreen">Widescreen</option>
-                </select>
-            </div>
-            <div class="options-section">
-                <h3>Render Scale</h3>
-                <select id="renderScaleSelect">
-                    <option value="1">Native</option>
-                    <option value="0.75">75%</option>
-                    <option value="0.5">50%</option>
-                </select>
-            </div>
-            <div class="options-section">
-                <h3>Cursors</h3>
-                <button id="cursorOptionsButton" class="cursor-options-open">Customize Cursors</button>
-            </div>
-            <div class="options-section">
-                <h3>Show last objective</h3>
-                <select id="lastObjectiveSelect">
-                    <option value="hide">Hide</option>
-                    <option value="show">Show</option>
-                    <option value="after1min">After 1 min</option>
-                </select>
-            </div>
-            <div class="options-section">
-                <h3>Change Wallpaper</h3>
-                <div id="wallpaperSelectionGrid">
-                    <!-- JS will populate this with wallpaper options -->
+                <div class="opt-card">
+                    <h3>Menu Wallpaper</h3>
+                    <div class="opt-row" data-desc="Show a random wallpaper every time you return to the main menu, instead of the one picked below.">
+                        <span class="opt-label">Shuffle Each Visit</span>
+                        <button class="opt-switch" data-option="menuWallpaperShuffle"></button>
+                    </div>
+                    <div id="wallpaperSelectionGrid">
+                        <!-- JS will populate this with wallpaper options -->
+                    </div>
                 </div>
-                <div class="shuffle-toggle-container">
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="shuffleWallpaperToggle">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span id="shuffleWallpaperLabel">Shuffle: ON</span>
+            </section>
+
+            <!-- AUDIO -->
+            <section class="opt-page" data-page="audio" role="tabpanel" data-title="Audio"
+                data-desc="Volume levels for each sound channel. Master scales all of them.">
+                <div class="opt-columns">
+                    <div class="opt-col">
+                        <div class="opt-card">
+                            <h3>Volume</h3>
+                            <div class="opt-row" data-desc="Overall volume. Scales music, effects and ambience together.">
+                                <span class="opt-label">Master</span>
+                                <div class="opt-slider" data-option="masterVolume" data-min="0" data-max="100" data-step="1" data-unit="%"></div>
+                            </div>
+                            <div class="opt-row" data-desc="Soundtrack volume. Music is muted while a mission is paused.">
+                                <span class="opt-label">Music</span>
+                                <div class="opt-slider" data-option="musicVolume" data-min="0" data-max="100" data-step="1" data-unit="%"></div>
+                            </div>
+                            <div class="opt-row" data-desc="Gunfire, explosions, voices and menu sounds. Release the slider to hear a sample shot.">
+                                <span class="opt-label">Sound Effects</span>
+                                <div class="opt-slider" data-option="sfxVolume" data-min="0" data-max="100" data-step="1" data-unit="%"></div>
+                            </div>
+                            <div class="opt-row" data-desc="Background environment loops: jungle, forest and junkyard atmosphere.">
+                                <span class="opt-label">Ambience</span>
+                                <div class="opt-slider" data-option="ambienceVolume" data-min="0" data-max="100" data-step="1" data-unit="%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="opt-col">
+                        <div class="opt-card">
+                            <h3>Behavior</h3>
+                            <div class="opt-row" data-desc="Silence the game while its window is in the background or minimized.">
+                                <span class="opt-label">Mute in Background</span>
+                                <button class="opt-switch" data-option="muteInBackground"></button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
+
+            <!-- CONTROLS -->
+            <section class="opt-page" data-page="controls" role="tabpanel" data-title="Controls"
+                data-desc="Click a key to rebind it, then press the new key. A key already in use swaps over automatically.">
+                <div class="opt-columns">
+                    <div class="opt-col">
+                        <div class="opt-card" data-bind-group="Squad"><h3>Squad</h3></div>
+                        <div class="opt-card" data-bind-group="Combat"><h3>Combat</h3></div>
+                    </div>
+                    <div class="opt-col">
+                        <div class="opt-card" data-bind-group="Squad Groups"><h3>Squad Groups</h3></div>
+                        <div class="opt-card">
+                            <h3>Mouse</h3>
+                            <div id="optionsFixedControls"></div>
+                            <div class="opt-row" data-desc="Reverse which way the mouse wheel spreads or tightens the formation.">
+                                <span class="opt-label">Invert Wheel Spacing</span>
+                                <button class="opt-switch" data-option="invertWheel"></button>
+                            </div>
+                        </div>
+                        <div class="opt-card">
+                            <h3>Cursors</h3>
+                            <div class="opt-row" data-desc="Style, size and color of the pointer, crosshair, target lock and grenade cursors.">
+                                <span class="opt-label">Cursor Style</span>
+                                <button id="cursorOptionsButton" class="opt-action-button">Customize</button>
+                            </div>
+                        </div>
+                        <div class="opt-card" data-bind-group="Debug"><h3>Debug</h3></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- GAMEPLAY -->
+            <section class="opt-page" data-page="gameplay" role="tabpanel" data-title="Gameplay"
+                data-desc="Mission HUD, squad chatter and how the game behaves around you.">
+                <div class="opt-columns">
+                    <div class="opt-col">
+                        <div class="opt-card">
+                            <h3>Interface</h3>
+                            <div class="opt-row" data-desc="Point the way to the last remaining objective: always, never, or once a mission has run for a minute.">
+                                <span class="opt-label">Last Objective Marker</span>
+                                <div class="opt-seg" data-option="lastObjectiveMode">
+                                    <button data-value="hide">Hide</button>
+                                    <button data-value="show">Show</button>
+                                    <button data-value="after1min">After 1 Min</button>
+                                </div>
+                            </div>
+                            <div class="opt-row" data-desc="Speech bubbles and one-liners from raccoons, hostages and possums.">
+                                <span class="opt-label">Squad Chatter</span>
+                                <button class="opt-switch" data-option="unitChatter"></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="opt-col">
+                        <div class="opt-card">
+                            <h3>Behavior</h3>
+                            <div class="opt-row" data-desc="Pause the mission or shootout round automatically when you switch to another window.">
+                                <span class="opt-label">Pause on Focus Loss</span>
+                                <button class="opt-switch" data-option="pauseOnFocusLoss"></button>
+                            </div>
+                            <div class="opt-row" data-desc="Bring back every confirmation you ticked &quot;Don't show this again&quot; on.">
+                                <span class="opt-label">Confirmation Prompts</span>
+                                <button id="optionsRestorePromptsButton" class="opt-action-button">Restore</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
-        <div class="options-buttons">
-            <button id="backFromOptionsButton">Back</button>
+
+        <div class="opt-info" aria-live="polite">
+            <span class="opt-info-icon" aria-hidden="true">i</span>
+            <p class="opt-info-body"><strong id="optionsInfoTitle"></strong><span id="optionsInfoText"></span></p>
         </div>
+
+        <footer class="opt-footer">
+            <span class="opt-footer-hint"><kbd>Esc</kbd> Back &nbsp;·&nbsp; Changes apply and save instantly</span>
+            <div class="opt-footer-buttons">
+                <button id="optionsResetTabButton" class="opt-btn-secondary">Reset Tab</button>
+                <button id="backFromOptionsButton" class="opt-btn-primary">Back</button>
+            </div>
+        </footer>
     </div>
 
     <div id="preMissionScreen" class="ui-panel" style="display: none;">
@@ -280,68 +420,7 @@
         </div>
     </div>
 
-    <div id="pauseOptionsScreen" class="ui-panel" style="display: none;">
-        <h2>OPTIONS</h2>
-        <div id="pauseOptionsContent">
-            <div class="options-section">
-                <h3>Audio</h3>
-                <div class="volume-slider-container">
-                    <div class="volume-slider-row">
-                        <label for="pauseMasterVolumeSlider">Master</label>
-                        <input type="range" id="pauseMasterVolumeSlider" min="0" max="100">
-                        <span id="pauseMasterVolValue">100%</span>
-                    </div>
-                    <div class="volume-slider-row">
-                        <label for="pauseMusicVolumeSlider">Music</label>
-                        <input type="range" id="pauseMusicVolumeSlider" min="0" max="100">
-                        <span id="pauseMusicVolValue">50%</span>
-                    </div>
-                    <div class="volume-slider-row">
-                        <label for="pauseSfxVolumeSlider">SFX</label>
-                        <input type="range" id="pauseSfxVolumeSlider" min="0" max="100">
-                        <span id="pauseSfxVolValue">100%</span>
-                    </div>
-                    <div class="volume-slider-row">
-                        <label for="pauseAmbienceVolumeSlider">Ambience</label>
-                        <input type="range" id="pauseAmbienceVolumeSlider" min="0" max="100">
-                        <span id="pauseAmbienceVolValue">70%</span>
-                    </div>
-                </div>
-            </div>
-            <div class="options-section">
-                <h3>Display Size</h3>
-                <select id="pauseDisplaySizeSelect">
-                    <option value="stretched">Stretched</option>
-                    <option value="widescreen">Widescreen</option>
-                </select>
-            </div>
-            <div class="options-section">
-                <h3>Render Scale</h3>
-                <select id="pauseRenderScaleSelect">
-                    <option value="1">Native</option>
-                    <option value="0.75">75%</option>
-                    <option value="0.5">50%</option>
-                </select>
-            </div>
-            <div class="options-section">
-                <h3>Cursors</h3>
-                <button id="pauseCursorOptionsButton" class="cursor-options-open">Customize Cursors</button>
-            </div>
-            <div class="options-section">
-                <h3>Show last objective</h3>
-                <select id="pauseLastObjectiveSelect">
-                    <option value="hide">Hide</option>
-                    <option value="show">Show</option>
-                    <option value="after1min">After 1 min</option>
-                </select>
-            </div>
-        </div>
-        <div class="options-buttons">
-            <button id="backFromPauseOptionsButton">Back</button>
-        </div>
-    </div>
-
-    <!-- Cursor customization (opened from either Options screen). Controls are generic:
+    <!-- Cursor customization (opened from Options → Controls). Controls are generic:
          [data-setting] names a CursorManager setting; choice buttons carry data-value,
          and .cursor-swatches containers are filled from CONFIG.CURSORS.COLOR_SWATCHES. -->
     <div id="cursorOptionsScreen" class="ui-panel" style="display: none;">
@@ -761,6 +840,7 @@
         <h2>SHOOTOUT PAUSED</h2>
         <div class="main-menu-buttons" style="width: 80%; margin-top: 20px;">
             <button id="shootoutResumeGameButton">Resume Game</button>
+            <button id="shootoutOptionsButton">Options</button>
             <button id="shootoutRestartButton">Restart Round</button>
             <button id="shootoutMenuPauseButton">Exit to Menu</button>
         </div>
@@ -935,6 +1015,7 @@
     <script src="js/biomes/junkyard.js"></script>
     <script src="js/biomes/index.js"></script>
     <script src="js/cursorManager.js"></script>
+    <script src="js/keyBindings.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/audioManager.js"></script>
     <script src="js/musicManager.js"></script>
