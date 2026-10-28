@@ -88,10 +88,11 @@ UI screens are **DOM panels** in `index.html` shown/hidden by `js/ui.js`; only t
 ### Units (inheritance: all extend `Unit` except turrets)
 | File | Class |
 |---|---|
-| `unit.js` (~1.7k lines) | `Unit` — base: HP, movement, A*-path following, stuck detection/recovery, collision slide, AI states (`PATROLLING`/`IDLE`…), `weaponName` setter binds to `WEAPONS`. |
+| `unit.js` (~2.9k lines) | `Unit` — base: HP, movement, A*-path following, stuck detection/recovery, collision slide, AI states (`PATROLLING`/`IDLE`…), `weaponName` setter binds to `WEAPONS`. **Enemy magazines**: an enemy weapon definition with `magazineSize` + `reloadTime` stops firing for `reloadTime` after that many shots (`_spendEnemyRound` → `startEnemyReload`, hooks `onEnemyReloadStart/End`); weapons without them fire forever. `getStatusBar()` draws the reload/wind-up bar above enemy HP bars (`CONFIG.UI_SETTINGS.STATUS_BAR`). |
 | `raccoon.js` | `Raccoon` — player unit: XP, ranks (Recruit→Private→Corporal→Sergeant→Elite→Ghost), grenades, pickups. |
 | `raccoonHostage.js` | `RaccoonHostage extends Raccoon` — rescue/follow/evacuate logic. |
 | `possum.js` | `PossumGrunt`; `possumHeavy.js`, `possumSniper.js`, `possumElite.js`, `possumEliteGuard.js`, `possumRevolver.js`, `possumBoss1.js`, `possumBoss3.js`, `possumBoss4.js` — enemy variants/bosses. |
+| Boss mechanics | Each boss has one besides shooting (tuning in its `CONFIG.AI.*` block, telegraph visuals in `effects.js`, lines in `SPEECH_CONFIG.BOSS_CALLOUTS`): **Boss 1** fires a reinforcement flare at HP thresholds (`FLARE`); **Boss 3** has frontal armor (bullets only — `takeDamage`'s `source` is the `Projectile`), a spin-up/sweeping minigun and an overheat vent when its magazine empties; **Boss 4** charges a telegraphed rail lance that hits everyone on its line (`LANCE`); **Revolver (Sid)** calls a "High Noon" duel that damage interrupts (`DUEL`). The elite relocates while reloading. |
 | `possumTurret.js`, `PossumAntiAirTurret.js` | Stationary turrets (NOT `Unit` subclasses). |
 | `flyingBird.js`, `ufo.js` | Ambient flyovers (`CONFIG.AMBIENT_EFFECTS`). |
 | `IntelConsole.js` | Hackable intel console objective object. |

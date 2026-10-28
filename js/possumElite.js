@@ -48,9 +48,8 @@ class PossumElite extends Unit {
         this.STRAFE_CHANCE = this.eliteAIConfig.STRAFE_CHANCE || 0.7;
         this.timeSinceLastStrafe = 0;
 
-        this.SHOTS_BEFORE_REPOSITION = this.eliteAIConfig.SHOTS_BEFORE_REPOSITION || 12;
+        this.REPOSITION_ON_RELOAD = this.eliteAIConfig.REPOSITION_ON_RELOAD !== false;
         this.REPOSITION_DISTANCE = this.eliteAIConfig.REPOSITION_DISTANCE || 150;
-        this.shotsFired = 0;
 
         this.RETREAT_HP_THRESHOLD = this.eliteAIConfig.RETREAT_HP_THRESHOLD || 0.35;
         this.RETREAT_MIN_ENEMIES = this.eliteAIConfig.RETREAT_MIN_ENEMIES || 2;
@@ -312,20 +311,22 @@ class PossumElite extends Unit {
             return;
         }
 
-        this.isMoving = false;
+        // While reloading, keep walking to the spot onEnemyReloadStart picked; otherwise plant and shoot.
+        if (!this.isEnemyReloading()) this.isMoving = false;
 
         // --- Strafe while shooting ---
         this._strafeEngaging(target, deltaTime);
 
         if (this.canShootWhileMoving || !this.isMoving) {
             this._executeFire(target.x, target.y);
-            this.shotsFired++;
+        }
+    }
 
-            // --- Reposition after burst ---
-            if (this.shotsFired >= this.SHOTS_BEFORE_REPOSITION) {
-                this.shotsFired = 0;
-                this._repositionAfterBurst(target);
-            }
+    // Magazine empty (Unit._spendEnemyRound): move to a new firing spot while reloading.
+    onEnemyReloadStart() {
+        const target = this.manualTarget || this.autoTarget;
+        if (this.REPOSITION_ON_RELOAD && target && target.isAlive() && this.aiState === 'ENGAGING_SHOOTING') {
+            this._repositionAfterBurst(target);
         }
     }
 
@@ -528,11 +529,9 @@ class PossumElite extends Unit {
             case 'PATROLLING':
                 this.manualTarget = null;
                 this.autoTarget = null;
-                this.shotsFired = 0;
                 break;
             case 'SUSPICIOUS':
                 this.suspiciousTimer = 0.5;
-                this.shotsFired = 0;
                 break;
             case 'ENGAGING_SHOOTING':
             case 'ENGAGING_CHASING':
@@ -545,7 +544,6 @@ class PossumElite extends Unit {
         this.manualTarget = null;
         this.autoTarget = null;
         this.chaseDestination = null;
-        this.shotsFired = 0;
         const arrivalTolerance = this.game.level.gridCellSize * 0.75;
         if (distance(this.x, this.y, this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y) > arrivalTolerance) {
             this.setMoveTarget(this.currentTargetPatrolPoint.x, this.currentTargetPatrolPoint.y);

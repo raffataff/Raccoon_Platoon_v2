@@ -2529,6 +2529,7 @@ class Game {
         if (typeof this.incrementObjectiveEnemyCount === 'function') {
             this.incrementObjectiveEnemyCount(1);
         }
+        return newEnemy;
     }
 
     snapToWalkableCell(worldX, worldY) {
@@ -6182,7 +6183,8 @@ class Game {
     }
 
     addVisualEffect(type, data) {
-        if (type instanceof MuzzleFlashEffect || type instanceof BloodEffect || type instanceof SparkEffect || type instanceof WoodSplinterEffect || type instanceof LaserSightEffect) {
+        if (type instanceof MuzzleFlashEffect || type instanceof BloodEffect || type instanceof SparkEffect || type instanceof WoodSplinterEffect || type instanceof LaserSightEffect ||
+            type instanceof RailLanceEffect || type instanceof DuelMarkEffect) {
             this.visualEffects.push(type);
             return;
         }
@@ -6202,6 +6204,10 @@ class Game {
         }
         if (type === 'plasma_pool' && data) {
             this.visualEffects.push(new PlasmaPoolEffect(data.x, data.y, data, this));
+            return;
+        }
+        if (type === 'flare' && data) {
+            this.visualEffects.push(new FlareEffect(data.x, data.y));
             return;
         }
         if (type === 'arc_lightning' && data) {

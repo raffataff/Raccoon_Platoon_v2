@@ -81,6 +81,13 @@ class Unit {
         // Timed status effects from exotic grenades: slow (cryo), stun (arc), vulnerability (nanite).
         this.statusEffects = {};
 
+        // Enemy magazine (weapons with magazineSize + reloadTime, see _spendEnemyRound). Raccoons keep their own ammo.
+        this.magazineWeapon = null; this.magazineAmmo = 0;
+        this.enemyReloadTimer = 0; this.enemyReloadDuration = 0;
+        this.reloadLabel = '';      // Text over the status bar while reloading (bosses).
+        this._statusBar = null;     // Reused by getStatusBar().
+        this._statusBarTopY = 0; this._statusBarFrame = -1;  // Where it was last drawn (see _renderStatusBar).
+
         this.lastNudgeWasLeft = false;
         this.IMMEDIATE_BUMP_NUDGE_BACK_DISTANCE = this.size * 0.5;
         this.IMMEDIATE_BUMP_NUDGE_SIDE_DISTANCE = this.size * 0.5;
@@ -302,6 +309,11 @@ class Unit {
             this.attackCooldown -= deltaTime * cooldownRate;
             if (this.attackCooldown < 0) this.attackCooldown = 0;
         }
+        if (this.enemyReloadTimer > 0) {
+            const reloadRate = (this.statusEffects.slow && this.statusEffects.slow.cooldownRateMult) || 1;
+            this.enemyReloadTimer -= deltaTime * reloadRate;
+            if (this.enemyReloadTimer <= 0) this._finishEnemyReload();
+        }
 
         const prevX = this.x; const prevY = this.y;
         this.lastDeltaX = 0; this.lastDeltaY = 0;
@@ -332,7 +344,7 @@ class Unit {
         }
 
         const hasTarget = (target && target.isAlive()) || this.isPlayerDirectFiring;
-        const isReadyToFire = (this.attackCooldown <= 0 && this.actionTimer <= 0);
+        const isReadyToFire = (this.attackCooldown <= 0 && this.actionTimer <= 0 && this.enemyReloadTimer <= 0);
         const isOrderedToFire = !(this.isHoldingFire && !this.isPlayerDirectFiring);
 
         let isFiringThisFrame = false;
@@ -2202,7 +2214,7 @@ class Unit {
     }
 
     _executeFire(pointX, pointY) {
-        if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || !this.isAlive()) return;
+        if (!this.weapon || this.actionTimer > 0 || this.attackCooldown > 0 || this.enemyReloadTimer > 0 || !this.isAlive()) return;
         if (this.team === 'player' && this.isHoldingFire && !this.isPlayerDirectFiring) return;
         if (this.isMoving && !this.canShootWhileMoving && !this.isPlayerDirectFiring) return;
 
@@ -2252,6 +2264,63 @@ class Unit {
             const sfxConfig = CONFIG.AUDIO_ASSETS[this.weapon.sfxFireKey];
             if (sfxConfig) { this.game.audioManager.play(this.weapon.sfxFireKey, { volume: sfxConfig.defaultVolume, pitchVariation: sfxConfig.pitchVariation }); }
         }
+        this._spendEnemyRound();
+    }
+
+    // --- Enemy magazines ---
+    // An enemy whose weapon defines magazineSize + reloadTime (CONFIG.WEAPON_DEFINITIONS) stops firing
+    // for reloadTime seconds after that many shots. Custom fire paths (bosses) call
+    // _spendEnemyRound(weapon) per shot and check isEnemyReloading() before firing.
+    isEnemyReloading() {
+        return this.enemyReloadTimer > 0;
+    }
+
+    _spendEnemyRound(weapon = this.weapon) {
+        if (this.team !== 'enemy' || !weapon || !(weapon.magazineSize > 0) || !(weapon.reloadTime > 0)) return;
+        if (this.magazineWeapon !== weapon) { this.magazineWeapon = weapon; this.magazineAmmo = weapon.magazineSize; }
+        if (--this.magazineAmmo <= 0) this.startEnemyReload(weapon.reloadTime);
+    }
+
+    startEnemyReload(duration) {
+        this.magazineAmmo = 0;
+        this.enemyReloadTimer = this.enemyReloadDuration = duration;
+        if (this.game && this.game.trySpeech) this.game.trySpeech(this, 'ON_RELOAD', 0.3);
+        this.onEnemyReloadStart();
+    }
+
+    _finishEnemyReload() {
+        this.enemyReloadTimer = 0;
+        this.magazineAmmo = this.magazineWeapon ? this.magazineWeapon.magazineSize : 0;
+        this.onEnemyReloadEnd();
+    }
+
+    // Subclass hooks (e.g. the elite repositions, Boss 1 swaps weapons, Boss 3 vents).
+    onEnemyReloadStart() {}
+    onEnemyReloadEnd() {}
+
+    // Bar drawn above an enemy's HP bar (CONFIG.UI_SETTINGS.STATUS_BAR); null hides it. Bosses override
+    // it for their own wind-ups. Returns one object per unit, reused every frame.
+    getStatusBar() {
+        if (!(this.enemyReloadTimer > 0)) return null;
+        return this._setStatusBar(1 - this.enemyReloadTimer / this.enemyReloadDuration, CONFIG.UI_SETTINGS.STATUS_BAR.RELOAD_COLOR, this.reloadLabel);
+    }
+
+    _setStatusBar(fraction, color, label) {
+        const bar = this._statusBar || (this._statusBar = { fraction: 0, color: '', label: '' });
+        bar.fraction = Math.max(0, Math.min(1, fraction));
+        bar.color = color;
+        bar.label = label || '';
+        return bar;
+    }
+
+    // Shows a boss line from SPEECH_CONFIG.BOSS_CALLOUTS[key] right away (ignores the speech cooldown/chance).
+    _bossCallout(key) {
+        if (!this.game || !this.game.trySpeech || !SPEECH_CONFIG.GLOBAL.SPEECH_ENABLED) return;
+        const lines = SPEECH_CONFIG.BOSS_CALLOUTS && SPEECH_CONFIG.BOSS_CALLOUTS[key];
+        if (!lines || lines.length === 0) return;
+        const text = lines[Math.floor(Math.random() * lines.length)];
+        this.game.addVisualEffect('speech_bubble', { parentUnit: this, text: text, color: SPEECH_CONFIG.GLOBAL.BUBBLE_COLOR_POSSUM });
+        this.speechCooldown = SPEECH_CONFIG.GLOBAL.COOLDOWN_MIN;
     }
 
     fireAtPoint(pointX, pointY) {
@@ -2260,7 +2329,8 @@ class Unit {
         this.manualTarget = null; this.autoTarget = null;
     }
 
-    takeDamage(amount, attackerUnit = null) {
+    // source: the Projectile for bullet hits (Boss 3's armor reads its direction); null otherwise.
+    takeDamage(amount, attackerUnit = null, source = null) {
         if (!this.isAlive()) return;
 
         // Nanite corrosion: unit takes increased damage while the debuff is active.
@@ -2702,7 +2772,35 @@ class Unit {
             this.game.ctx.fillRect(barX, barY, barWidth * hpPercent, hpBarHeight);
 
             this.game.ctx.restore();
+
+            const status = this.team === 'enemy' ? this.getStatusBar() : null;
+            if (status) this._renderStatusBar(this.game.ctx, status, barX, barY, barWidth);
         }
+    }
+
+    _renderStatusBar(ctx, status, barX, hpBarY, barWidth) {
+        const cfg = CONFIG.UI_SETTINGS.STATUS_BAR;
+        const h = cfg.HEIGHT || 3;
+        const y = hpBarY - 1 - (cfg.GAP || 2) - h;
+        // Read by SpeechBubbleEffect to sit above the bar and label this frame.
+        this._statusBarTopY = status.label ? y - 15 : y - 2;
+        this._statusBarFrame = this.game.renderFrameId;
+        ctx.save();
+        ctx.fillStyle = cfg.BG_COLOR;
+        ctx.fillRect(barX - 1, y - 1, barWidth + 2, h + 2);
+        ctx.fillStyle = status.color;
+        ctx.fillRect(barX, y, barWidth * status.fraction, h);
+        if (status.label) {
+            ctx.font = cfg.LABEL_FONT;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.strokeText(status.label, barX + barWidth / 2, y - 3);
+            ctx.fillStyle = cfg.LABEL_COLOR;
+            ctx.fillText(status.label, barX + barWidth / 2, y - 3);
+        }
+        ctx.restore();
     }
 
     static resolveAllOverlaps(units, maxIterations = 5) {

@@ -45,6 +45,9 @@ function buildWEAPONSFromConfig() {
             def.pelletCount || 1,
             def.spreadAngle || 0
         );
+        // Enemy magazine (Unit._spendEnemyRound). Raccoons read their ammo from the definition itself.
+        weapons[key].magazineSize = def.magazineSize || 0;
+        weapons[key].reloadTime = def.reloadTime || 0;
     }
     
     return weapons;
@@ -142,7 +145,7 @@ class Projectile {
                 const distToTarget = distance(this.x, this.y, obj.x, obj.y);
                 if (distToTarget < obj.size + this.size) {
                     let actualDamage = this.damage;
-                    obj.takeDamage(actualDamage, this.shooterUnit);
+                    obj.takeDamage(actualDamage, this.shooterUnit, this);
                     if (this.shooterUnit && this.shooterTeam === 'player' && obj.team === 'enemy' && typeof this.shooterUnit.addXp === 'function') {
                         this.shooterUnit.addXp(CONFIG.XP_PER_HIT || 1);
                     }

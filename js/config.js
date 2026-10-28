@@ -658,7 +658,6 @@ const CONFIG = {
     POSSUM_BOSS_4_DEAD_SPRITE_FILES: ['possum_boss_4_dead_1.png'],
     POSSUM_BOSS_4_DEAD_SPRITE_SCALE: 0.5,
     PROJECTILE_COLOR_POSSUM_BOSS_4: '#7B68EE',
-    PROJECTILE_COLOR_POSSUM_BOSS_4_CHARGED: '#00FFFF',
     XP_FOR_BOSS_4_KILL: 300,
     POSSUM_BOSS_4_TURN_RATE: 5.0,
 
@@ -940,7 +939,10 @@ const CONFIG = {
             bulletSpritePath: 'assets/images/projectiles/bullet_possumElite_1.png',
             bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
-            magazineSize: 40,
+            // Enemy magazine: after magazineSize shots the unit stops firing for reloadTime seconds
+            // (Unit._spendEnemyRound). Any enemy weapon with both fields reloads; the rest fire forever.
+            magazineSize: 18,
+            reloadTime: 2.2,
             maxAmmo: Infinity
         },
         POSSUM_BOSS_1_WEAPON: {
@@ -958,6 +960,8 @@ const CONFIG = {
             grenadeSpritePath: 'assets/images/projectiles/grenade_boss.png',
             grenadeSpriteScale: 0.2,
             isDefaultWeapon: true,
+            magazineSize: 6,     // Grenade drum; reloads, then he swaps to the repeater.
+            reloadTime: 2.8,
             maxAmmo: Infinity
         },
         POSSUM_BOSS_1_SECONDARY: {
@@ -975,6 +979,8 @@ const CONFIG = {
             bulletSpritePath: 'assets/images/projectiles/bullet_gold_boss.png',
             bulletSpriteScale: 0.2,
             isDefaultWeapon: true,
+            magazineSize: 12,    // Box mag; reloads, then he swaps back to the grenade launcher.
+            reloadTime: 2.2,
             maxAmmo: Infinity
         },
         POSSUM_REVOLVER: {
@@ -992,6 +998,8 @@ const CONFIG = {
             bulletSpritePath: 'assets/images/projectiles/bullet_possumRevolver_1.png',
             bulletSpriteScale: 0.6,
             isDefaultWeapon: true,
+            magazineSize: 8,
+            reloadTime: 2.0,
             maxAmmo: Infinity
         },
         
@@ -1011,6 +1019,8 @@ const CONFIG = {
             bulletSpritePath: 'assets/images/projectiles/bullet_pw001_1.png',
             bulletSpriteScale: 0.4,
             isDefaultWeapon: true,
+            magazineSize: 55,    // Heat capacity: rounds per stream before the barrels overheat.
+            reloadTime: 3.5,     // Vent time (armor open — see AI.POSSUM_BOSS_3.VENT_DAMAGE_TAKEN_MULT).
             maxAmmo: Infinity
         },
         POSSUM_BOSS_4_WEAPON: {
@@ -1029,6 +1039,8 @@ const CONFIG = {
             bulletSpritePath: 'assets/images/projectiles/bullet_gold_boss.png',
             bulletSpriteScale: 0.2,
             isDefaultWeapon: true,
+            magazineSize: 5,     // Capacitor charges.
+            reloadTime: 3.0,     // Capacitor recharge.
             maxAmmo: Infinity
         },
         POSSUM_ELITE_GUARD_WEAPON: {
@@ -1046,6 +1058,8 @@ const CONFIG = {
             bulletSpritePath: 'assets/images/projectiles/bullet_pw001_1.png',
             bulletSpriteScale: 0.35,
             isDefaultWeapon: true,
+            magazineSize: 30,    // Energy cell.
+            reloadTime: 2.6,
             maxAmmo: Infinity
         },
         POSSUM_TURRET_WEAPON: {
@@ -1286,7 +1300,7 @@ const CONFIG = {
             STRAFE_COOLDOWN: 0.4,
             STRAFE_DISTANCE: 120,
             STRAFE_CHANCE: 0.7,
-            SHOTS_BEFORE_REPOSITION: 12,
+            REPOSITION_ON_RELOAD: true,     // Moves to a new firing spot while reloading (magazine: WEAPON_DEFINITIONS.POSSUM_ELITE_WEAPON).
             REPOSITION_DISTANCE: 150,
             RETREAT_HP_THRESHOLD: 0.35,
             RETREAT_MIN_ENEMIES: 2,
@@ -1304,12 +1318,30 @@ const CONFIG = {
             MIN_ENGAGEMENT_DISTANCE: 120,
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1500,
 
+            // Weapon cycle: empties the grenade drum, reloads, swaps to the repeater, empties it,
+            // reloads, swaps back. Drum/box sizes and reload times are on the two weapon definitions.
             GRENADE_COOLDOWN_BETWEEN_SHOTS: 0.6,
-            GRENADES_PER_VOLLEY: 8,
             GRENADE_TARGET_SPREAD_RADIUS: 270,
 
-            MG_BURST_SIZE: 10,
-            MG_COOLDOWN_AFTER_BURST: 1.5,
+            // Reinforcement flare: each time his HP drops below a threshold he stops, winds up
+            // (WINDUP s, not shooting), fires a flare and a squad spawns out of sight around him,
+            // running at the raccoons.
+            FLARE: {
+                ENABLED: true,
+                HP_THRESHOLDS: [0.7, 0.4],
+                WINDUP: 1.4,
+                COUNT_RANGE: [3, 4],
+                COUNT_PER_PHASE_BONUS: 0.15,    // Extra units per campaign phase (floored), like initialGuardPack.
+                MAX_COUNT: 7,
+                SPAWN_DISTANCE_MIN: 450,        // From the boss.
+                SPAWN_DISTANCE_MAX: 700,
+                MIN_DISTANCE_FROM_RACCOONS: 380,
+                UNIT_POOL: [
+                    { type: 'possum_grunt', weight: 3 },
+                    { type: 'possum_heavy', weight: 2 },
+                    { type: 'possum_elite', weight: 1 }
+                ]
+            },
 
             DEATH_EXPLOSION_RADIUS: 200,
             DEATH_EXPLOSION_SFX: 'GRENADE_EXPLODE',
@@ -1332,10 +1364,25 @@ const CONFIG = {
         POSSUM_REVOLVER: {
             ARENA_RADIUS: 450,
             DETECTION_RANGE: 380,
-            RELOAD_TIME_SECONDS: 2.0,
-            BURST_SIZE: 8,
+            // Cylinder size / reload time: WEAPON_DEFINITIONS.POSSUM_REVOLVER.
             STRAFE_DISTANCE: 150,
             STRAFE_CHANCE: 0.85,
+
+            // "High Noon": he plants his feet, marks one raccoon and, after WINDUP seconds, fires one
+            // perfectly accurate shot at it. Deal INTERRUPT_DAMAGE to him during the wind-up to stagger
+            // him instead (STAGGER_TIME s, takes STAGGER_DAMAGE_TAKEN_MULT damage); a marked raccoon
+            // behind hard cover is also safe — the shot is a real bullet.
+            DUEL: {
+                ENABLED: true,
+                FIRST_DELAY: 5.0,           // Seconds of fighting before the first duel.
+                COOLDOWN: 10.0,
+                WINDUP: 1.8,
+                DAMAGE: 45,
+                PROJECTILE_SPEED: 1500,
+                INTERRUPT_DAMAGE: 45,
+                STAGGER_TIME: 2.2,
+                STAGGER_DAMAGE_TAKEN_MULT: 1.4
+            },
             BOSS_SPAWN_MIN_DISTANCE_FROM_PLAYER: 1600,
             initialGuardPack: {
                 enabled: true,
@@ -1363,6 +1410,19 @@ const CONFIG = {
             MIN_CHASE_DEVIATION_UPDATE_INTERVAL: 0.5,
             CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 4,
             CHASE_PREDICTION_TIME_FACTOR: 0.25,
+
+            // Armored front: bullets arriving within FRONT_ARMOR_HALF_ARC radians of his facing do
+            // FRONT_ARMOR_DAMAGE_MULT damage (sparks). Flank him; explosions ignore the armor.
+            FRONT_ARMOR_HALF_ARC: 1.2,
+            FRONT_ARMOR_DAMAGE_MULT: 0.3,
+            // Minigun: spins up (SPIN_UP_TIME s, no shots) before each stream, and the stream sweeps
+            // toward its target at SWEEP_TURN_RATE rad/s instead of tracking — raccoons can outrun it.
+            // After the heat capacity (weapon magazineSize) it overheats and vents for the weapon's
+            // reloadTime: stationary, armor open, takes VENT_DAMAGE_TAKEN_MULT damage from any side.
+            SPIN_UP_TIME: 0.8,
+            SWEEP_TURN_RATE: 0.6,            // ~ a running raccoon's angular speed at 330px (RACCOON_SPEED 200).
+            HEAT_DECAY_PER_SECOND: 10,      // Heat (rounds) shed while not firing.
+            VENT_DAMAGE_TAKEN_MULT: 1.6,
 
             initialGuardPack: {
                 enabled: true,
@@ -1450,7 +1510,21 @@ const CONFIG = {
             CHASE_TARGET_DEVIATION_THRESHOLD_CELLS: 4,
             CHASE_PREDICTION_TIME_FACTOR: 0.3,
 
-            CHARGED_SHOT_COOLDOWN: 4.0,
+            // Rail lance: hovers in place and paints a targeting line at a raccoon; the line tracks
+            // at TRACK_RATE rad/s, locks for the last LOCK_TIME s, then a beam hits every raccoon on
+            // it (within HALF_WIDTH) that hard cover doesn't shield. Step off the line to dodge.
+            // Normal shots come from the capacitor (weapon magazineSize / reloadTime = recharge).
+            LANCE: {
+                ENABLED: true,
+                FIRST_DELAY: 3.0,
+                COOLDOWN: 7.0,
+                CHARGE_TIME: 1.6,
+                LOCK_TIME: 0.5,
+                TRACK_RATE: 0.9,
+                DAMAGE: 60,
+                HALF_WIDTH: 12,
+                RANGE: 900
+            },
 
             initialGuardPack: {
                 enabled: true,
@@ -2295,6 +2369,17 @@ const CONFIG = {
             COLOR_END: 'rgba(255, 0, 0, 0.7)',
             LINE_WIDTH: 2
         },
+        // Boss mechanic telegraphs (effects.js: RailLanceEffect, DuelMarkEffect, FlareEffect).
+        BOSS_TELEGRAPHS: {
+            LANCE_AIM_COLOR: '123, 104, 238',     // r, g, b — tracking line.
+            LANCE_LOCK_COLOR: '0, 255, 255',      // Locked line and beam.
+            LANCE_BEAM_TIME: 0.35,
+            DUEL_MARK_COLOR: '255, 215, 0',
+            DUEL_MARK_RADIUS: 34,
+            FLARE_COLOR: '255, 60, 40',
+            FLARE_TIME: 3.0,
+            FLARE_RISE: 140
+        },
         PICKUP: {
             LIFETIME: 2.7,
             TEXT: "+{QTY}",
@@ -2399,6 +2484,14 @@ const CONFIG = {
             LOW_HP_THRESHOLD_PERCENT: 0.3, MEDIUM_HP_THRESHOLD_PERCENT: 0.6,
             FADE_START_THRESHOLD: 0.25, FADE_MIN_OPACITY: 0.15,
             FLASH_THRESHOLD: 0.25, FLASH_SPEED: 8, FLASH_MIN_OPACITY: 0.3, FLASH_MAX_OPACITY: 1.0
+        },
+        // Thin bar above an enemy's HP bar while it can't shoot or is winding up (reload, overheat,
+        // boss wind-ups — Unit.getStatusBar). Boss states also print a short label above it.
+        STATUS_BAR: {
+            HEIGHT: 3, GAP: 2, BG_COLOR: '#1a1a1a',
+            RELOAD_COLOR: '#9ad0ff',
+            LABEL_FONT: "bold 10px 'Consolas', 'Lucida Console', monospace",
+            LABEL_COLOR: '#ffffff'
         },
         RECRUIT_CARD: { DEFAULT_FACE_BG_COLOR: '#555555' },
         MEMORIAL_CARD: { DEFAULT_FACE_BG_COLOR: '#333333' },

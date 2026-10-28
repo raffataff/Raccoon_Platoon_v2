@@ -1043,6 +1043,205 @@ class LaserSightEffect {
     }
 }
 
+// Boss 4's rail lance: a targeting line while it charges (PossumBoss4 moves it via setLine and sets
+// charge/locked), then a short beam after fire().
+class RailLanceEffect {
+    constructor(shooter) {
+        this.type = 'rail_lance';
+        this.shooter = shooter;
+        this.isMarkedForDeletion = false;
+        this.cfg = CONFIG.VISUAL_EFFECTS.BOSS_TELEGRAPHS;
+        this.x1 = shooter.x; this.y1 = shooter.y; this.x2 = shooter.x; this.y2 = shooter.y;
+        this.charge = 0;        // 0..1 over the charge time.
+        this.locked = false;
+        this.beamTimer = 0;     // > 0 once fired.
+    }
+
+    setLine(x1, y1, x2, y2) {
+        this.x1 = x1; this.y1 = y1; this.x2 = x2; this.y2 = y2;
+    }
+
+    fire() {
+        this.beamTimer = this.cfg.LANCE_BEAM_TIME;
+    }
+
+    getBaseY() { return Infinity; }  // Draw over other effects.
+
+    update(deltaTime) {
+        if (this.beamTimer > 0) {
+            this.beamTimer -= deltaTime;
+            if (this.beamTimer <= 0) this.isMarkedForDeletion = true;
+        } else if (!this.shooter.isAlive()) {
+            this.isMarkedForDeletion = true;
+        }
+    }
+
+    _strokeLine(ctx) {
+        ctx.beginPath();
+        ctx.moveTo(this.x1, this.y1);
+        ctx.lineTo(this.x2, this.y2);
+        ctx.stroke();
+    }
+
+    render(ctx) {
+        if (this.isMarkedForDeletion) return;
+        ctx.save();
+        ctx.lineCap = 'round';
+        if (this.beamTimer > 0) {
+            const t = this.beamTimer / this.cfg.LANCE_BEAM_TIME;
+            ctx.strokeStyle = `rgba(${this.cfg.LANCE_LOCK_COLOR}, ${0.4 * t})`;
+            ctx.lineWidth = 4 + 20 * t;
+            this._strokeLine(ctx);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${t})`;
+            ctx.lineWidth = 1 + 5 * t;
+            this._strokeLine(ctx);
+        } else if (this.locked) {
+            const pulse = 0.7 + 0.3 * Math.sin(performance.now() / 35);
+            ctx.strokeStyle = `rgba(${this.cfg.LANCE_LOCK_COLOR}, ${0.9 * pulse})`;
+            ctx.lineWidth = 3;
+            this._strokeLine(ctx);
+        } else {
+            ctx.setLineDash([10, 8]);
+            ctx.strokeStyle = `rgba(${this.cfg.LANCE_AIM_COLOR}, ${0.55 + 0.4 * this.charge})`;
+            ctx.lineWidth = 2 + 1.5 * this.charge;
+            this._strokeLine(ctx);
+        }
+        ctx.restore();
+    }
+}
+
+// Six-Shooter Sid's duel mark: a closing reticle on the marked raccoon. PossumRevolver sets
+// progress (0..1) and marks it for deletion when the duel ends.
+class DuelMarkEffect {
+    constructor(shooter, target) {
+        this.type = 'duel_mark';
+        this.shooter = shooter;
+        this.target = target;
+        this.progress = 0;
+        this.isMarkedForDeletion = false;
+        this.cfg = CONFIG.VISUAL_EFFECTS.BOSS_TELEGRAPHS;
+    }
+
+    getBaseY() { return Infinity; }
+
+    update(deltaTime) {
+        if (!this.shooter.isAlive() || !this.target.isAlive()) this.isMarkedForDeletion = true;
+    }
+
+    render(ctx) {
+        if (this.isMarkedForDeletion) return;
+        const color = this.cfg.DUEL_MARK_COLOR;
+        const p = this.progress;
+        const r = this.cfg.DUEL_MARK_RADIUS * (1.6 - 0.75 * p);
+        ctx.save();
+        ctx.strokeStyle = `rgba(${color}, ${0.15 + 0.25 * p})`;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath();
+        ctx.moveTo(this.shooter.x, this.shooter.y);
+        ctx.lineTo(this.target.x, this.target.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        ctx.translate(this.target.x, this.target.y);
+        ctx.rotate(p * Math.PI);
+        ctx.strokeStyle = `rgba(${color}, ${0.5 + 0.5 * p})`;
+        ctx.lineWidth = 1.5 + p;
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+            const c = Math.cos(i * Math.PI / 2), s = Math.sin(i * Math.PI / 2);
+            ctx.moveTo(c * r * 0.5, s * r * 0.5);
+            ctx.lineTo(c * r * 1.3, s * r * 1.3);
+        }
+        ctx.stroke();
+        ctx.restore();
+    }
+}
+
+// Boss 1's reinforcement flare: shoots up from the boss, hangs, fades. Also lights night missions.
+class FlareEffect {
+    constructor(x, y) {
+        this.type = 'flare';
+        this.x = x; this.y = y;
+        this.cfg = CONFIG.VISUAL_EFFECTS.BOSS_TELEGRAPHS;
+        this.duration = this.cfg.FLARE_TIME;
+        this.age = 0;
+        this.isMarkedForDeletion = false;
+    }
+
+    getBaseY() { return Infinity; }
+
+    update(deltaTime) {
+        this.age += deltaTime;
+        if (this.age >= this.duration) this.isMarkedForDeletion = true;
+    }
+
+    _flareY() {
+        const t = this.age / this.duration;
+        return this.y - this.cfg.FLARE_RISE * Math.min(1, t / 0.25) + Math.max(0, t - 0.25) * 30;
+    }
+
+    _fade() {
+        const t = this.age / this.duration;
+        return t < 0.75 ? 1 : Math.max(0, (1 - t) / 0.25);
+    }
+
+    render(ctx) {
+        if (this.isMarkedForDeletion) return;
+        const color = this.cfg.FLARE_COLOR;
+        const t = this.age / this.duration;
+        const fade = this._fade();
+        const fy = this._flareY();
+        const flicker = 0.85 + 0.15 * Math.sin(this.age * 47);
+        ctx.save();
+        if (t < 0.4) {
+            ctx.strokeStyle = `rgba(255, 200, 180, ${0.5 * (1 - t / 0.4)})`;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(this.x, this.y);
+            ctx.lineTo(this.x, fy);
+            ctx.stroke();
+        }
+        const ringR = 20 + 160 * Math.min(1, t / 0.5);
+        ctx.strokeStyle = `rgba(${color}, ${0.5 * Math.max(0, 1 - t / 0.5)})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, ringR, 0, Math.PI * 2);
+        ctx.stroke();
+        for (let i = 3; i >= 1; i--) {
+            ctx.fillStyle = `rgba(${color}, ${0.2 * fade * flicker})`;
+            ctx.beginPath();
+            ctx.arc(this.x, fy, 8 * i * i, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.fillStyle = `rgba(255, 240, 220, ${fade})`;
+        ctx.beginPath();
+        ctx.arc(this.x, fy, 5, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    renderLight(ctx, cameraX, cameraY, zoom) {
+        const fade = this._fade();
+        if (fade <= 0) return;
+        const sx = (this.x - cameraX) * zoom;
+        const sy = (this._flareY() - cameraY) * zoom;
+        const radius = 260 * zoom;
+        const grad = ctx.createRadialGradient(sx, sy, radius * 0.2, sx, sy, radius);
+        grad.addColorStop(0, `rgba(255, 80, 60, ${0.85 * fade})`);
+        grad.addColorStop(1, 'rgba(255, 80, 60, 0)');
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalCompositeOperation = 'source-over';
+    }
+}
+
 class PickupEffect {
     constructor(x, y, text, color, iconImage = null) {
         this.x = x;
@@ -1174,7 +1373,10 @@ class SpeechBubbleEffect {
         const bubbleWidth = textWidth + this.padding * 2;
         const bubbleHeight = lines.length * lineHeight + this.padding * 2;
         const renderX = this.parentUnit.x;
-        const renderY = this.parentUnit.y + this.yOffset - bubbleHeight;
+        let renderY = this.parentUnit.y + this.yOffset - bubbleHeight;
+        // Stay above an enemy status bar drawn this frame (Unit._renderStatusBar) so it stays readable.
+        const pu = this.parentUnit;
+        if (pu._statusBarFrame === this.game.renderFrameId) renderY = Math.min(renderY, pu._statusBarTopY - 4 - bubbleHeight);
         const r = 6;
 
         ctx.fillStyle = 'rgba(0, 0, 0, ' + this.bgAlpha * this.opacity + ')';

@@ -1,5 +1,8 @@
 // js/possumBoss3.js
 
+// "Ironhide": armored front (flank him), a minigun that spins up and sweeps instead of tracking,
+// and an overheat after each stream (the weapon's magazine) that leaves him venting — stationary,
+// armor open. Tuning: CONFIG.AI.POSSUM_BOSS_3 and WEAPON_DEFINITIONS.POSSUM_BOSS_3_WEAPON.
 class PossumBoss3 extends Unit {
     constructor(x, y, game, id) {
         super(x, y, game, 'enemy',
@@ -25,6 +28,12 @@ class PossumBoss3 extends Unit {
         this.actionTimer = 0;
         this.xpValue = CONFIG.XP_FOR_BOSS_3_KILL || 250;
 
+        // Minigun: 'IDLE' -> 'SPINNING_UP' -> 'FIRING'; venting is the magazine reload (isEnemyReloading).
+        this.minigunState = 'IDLE';
+        this.spinUpTimer = 0;
+        this.streamAngle = 0;
+        this.ventSparkTimer = 0;
+
         this.CHASE_DESTINATION_REFRESH_INTERVAL = this.bossAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
         this.MIN_CHASE_DEVIATION_UPDATE_INTERVAL = this.bossAIConfig.MIN_CHASE_DEVIATION_UPDATE_INTERVAL || 0.5;
         this.CHASE_TARGET_DEVIATION_THRESHOLD_SQ = (this.bossAIConfig.CHASE_TARGET_DEVIATION_THRESHOLD_CELLS * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2 || (4 * CONFIG.PATHFINDING.GRID_CELL_SIZE) ** 2;
@@ -33,16 +42,23 @@ class PossumBoss3 extends Unit {
 
     update(deltaTime) {
         if (!this.isAlive()) return;
-        if (this.actionTimer > 0) {
-            this.actionTimer -= deltaTime;
-        }
         if (this.aiState === 'ENGAGING_CHASING') {
             this.timeSinceLastChaseDestUpdate += deltaTime;
+        }
+        // Heat bleeds off between streams.
+        const weapon = this.magazineWeapon;
+        if (weapon && this.minigunState !== 'FIRING' && !this.isEnemyReloading() && this.magazineAmmo < weapon.magazineSize) {
+            this.magazineAmmo = Math.min(weapon.magazineSize, this.magazineAmmo + (this.bossAIConfig.HEAT_DECAY_PER_SECOND || 10) * deltaTime);
         }
         super.update(deltaTime);
     }
 
     _handleEnemyCombat(deltaTime, obstacles) {
+        if (this.isEnemyReloading()) {
+            this._updateVenting(deltaTime);
+            return;
+        }
+
         let target = this.manualTarget || this.autoTarget;
         if (!target || !target.isAlive()) {
             this.findAutoTarget(this.game.getLivingPlayerControlledUnits(), obstacles);
@@ -50,6 +66,7 @@ class PossumBoss3 extends Unit {
         }
 
         if (!target) {
+            this.minigunState = 'IDLE';
             this.aiState = 'GUARDING';
             if (distance(this.x, this.y, this.guardPost.x, this.guardPost.y) > 10) {
                 if (!this.isMoving && !this.isAtMoveGoal(this.guardPost.x, this.guardPost.y)) this.setMoveTarget(this.guardPost.x, this.guardPost.y);
@@ -62,21 +79,20 @@ class PossumBoss3 extends Unit {
         this.manualTarget = target;
         const dist = distance(this.x, this.y, target.x, target.y);
         const hasLOS = this.hasLineOfSightTo(target);
+        const angleToTarget = Math.atan2(target.y - this.y, target.x - this.x);
 
-        this.gunAimAngle = Math.atan2(target.y - this.y, target.x - this.x);
+        this.gunAimAngle = angleToTarget;
         this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
 
         if (hasLOS && dist <= this.weapon.range) {
             this.isMoving = false;
             this.currentPath = [];
             this.aiState = 'ENGAGING_SHOOTING';
-
-            if (this.actionTimer <= 0 && this.attackCooldown <= 0) {
-                this._executeFire(target.x, target.y, deltaTime);
-            }
+            this._updateMinigun(deltaTime, angleToTarget);
             return;
         }
 
+        this.minigunState = 'IDLE';
         this.aiState = 'ENGAGING_CHASING';
 
         const needsChaseDestUpdate = this.timeSinceLastChaseDestUpdate >= this.CHASE_DESTINATION_REFRESH_INTERVAL ||
@@ -102,14 +118,95 @@ class PossumBoss3 extends Unit {
         }
     }
 
-    _executeFire(targetX, targetY, deltaTime) {
+    // Spin up (aims, no shots), then fire along streamAngle, which swings toward the target at
+    // SWEEP_TURN_RATE instead of snapping to it.
+    _updateMinigun(deltaTime, angleToTarget) {
+        if (this.minigunState === 'IDLE') {
+            this.minigunState = 'SPINNING_UP';
+            this.spinUpTimer = this.bossAIConfig.SPIN_UP_TIME || 0.8;
+            if (Math.random() < 0.3) this._bossCallout('SPIN_UP');
+        }
+
+        if (this.minigunState === 'SPINNING_UP') {
+            this.streamAngle = angleToTarget;
+            this.spinUpTimer -= deltaTime;
+            if (this.spinUpTimer > 0) return;
+            this.minigunState = 'FIRING';
+        }
+
+        let diff = angleToTarget - this.streamAngle;
+        diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+        const maxTurn = (this.bossAIConfig.SWEEP_TURN_RATE || 0.6) * deltaTime;
+        this.streamAngle += Math.max(-maxTurn, Math.min(maxTurn, diff));
+
+        if (this.actionTimer <= 0 && this.attackCooldown <= 0) {
+            this._executeFire(this.streamAngle, deltaTime);
+        }
+    }
+
+    _updateVenting(deltaTime) {
+        this.isMoving = false;
+        this.currentPath = [];
+        this.aiState = 'VENTING';
+        this.ventSparkTimer -= deltaTime;
+        if (this.ventSparkTimer <= 0 && this.game) {
+            this.ventSparkTimer = 0.15;
+            const a = Math.random() * Math.PI * 2;
+            this.game.addVisualEffect('spark', { x: this.x + Math.cos(a) * this.size * 0.6, y: this.y + Math.sin(a) * this.size * 0.6 });
+        }
+    }
+
+    // Overheated (heat capacity = weapon magazineSize).
+    onEnemyReloadStart() {
+        this.minigunState = 'IDLE';
+        this.isMoving = false;
+        this.currentPath = [];
+        this.ventSparkTimer = 0;
+        this._bossCallout('OVERHEAT');
+    }
+
+    takeDamage(amount, attackerUnit = null, source = null) {
+        if (!this.isAlive()) return;
+        const cfg = this.bossAIConfig;
+        if (this.isEnemyReloading()) {
+            amount *= cfg.VENT_DAMAGE_TAKEN_MULT || 1.6;
+        } else if (source instanceof Projectile && this._isFrontalHit(source)) {
+            amount *= cfg.FRONT_ARMOR_DAMAGE_MULT !== undefined ? cfg.FRONT_ARMOR_DAMAGE_MULT : 0.3;
+            if (this.game) this.game.addVisualEffect('spark', { x: source.x, y: source.y });
+        }
+        // Mid-stream he stays on his target instead of turning to whoever shot him — that's the flank.
+        const committedTarget = this.minigunState !== 'IDLE' ? this.manualTarget : null;
+        super.takeDamage(amount, attackerUnit, source);
+        if (committedTarget && committedTarget.isAlive() && this.isAlive()) this.manualTarget = committedTarget;
+    }
+
+    // The bullet came from within the armored arc around his facing.
+    _isFrontalHit(projectile) {
+        const fromAngle = Math.atan2(-projectile.velocityY, -projectile.velocityX);
+        let diff = fromAngle - this.facingAngle;
+        diff = Math.abs(Math.atan2(Math.sin(diff), Math.cos(diff)));
+        return diff <= (this.bossAIConfig.FRONT_ARMOR_HALF_ARC || 1.2);
+    }
+
+    getStatusBar() {
+        const weapon = this.weapon;
+        if (this.isEnemyReloading()) {
+            return this._setStatusBar(1 - this.enemyReloadTimer / this.enemyReloadDuration, '#ff7a1a', 'VENTING');
+        }
+        if (this.minigunState === 'SPINNING_UP') {
+            return this._setStatusBar(1 - this.spinUpTimer / (this.bossAIConfig.SPIN_UP_TIME || 0.8), '#ffe08a', 'SPIN UP');
+        }
+        if (this.magazineWeapon && weapon && this.magazineAmmo < weapon.magazineSize) {
+            const heat = 1 - this.magazineAmmo / weapon.magazineSize;
+            return this._setStatusBar(heat, heat < 0.6 ? '#ffb347' : '#ff4d2e', '');
+        }
+        return null;
+    }
+
+    _executeFire(fireAngle, deltaTime) {
         if (!this.game || !this.weapon) return;
         const weapon = this.weapon;
 
-        this.gunAimAngle = Math.atan2(targetY - this.y, targetX - this.x);
-        this.facingAngle = lerpAngle(this.facingAngle, this.gunAimAngle, this.turnRate * deltaTime);
-
-        const fireAngle = this.gunAimAngle;
         const accuracy = this.isMoving ? weapon.accuracyMoving : weapon.accuracyStationary;
 
         const muzzleOffset = this.size / 2 + 17;
@@ -133,6 +230,7 @@ class PossumBoss3 extends Unit {
         }
 
         this.attackCooldown = 1 / weapon.rof;
+        this._spendEnemyRound(weapon);
     }
 
     die() {

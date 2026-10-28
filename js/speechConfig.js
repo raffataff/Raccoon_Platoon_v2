@@ -479,7 +479,21 @@ const SPEECH_CONFIG = {
             "No passage!", "Can't squeeze through!",
             "Too tight!", "Obstacle in the way!",
             "Need another path!", "Stuck!"
+        ],
+        ON_RELOAD: [
+            "Reloading!", "Cover me!", "Changing mag!",
+            "Hold on, hold on!", "Out!", "Click? CLICK?!"
         ]
+    },
+
+    // Boss mechanic lines, shown immediately (Unit._bossCallout) — they double as telegraphs.
+    BOSS_CALLOUTS: {
+        FLARE: ["Reinforcements!", "All units, to me!", "Get over here, boys!", "Flare's up!"],
+        OVERHEAT: ["Too hot! Too hot!", "Venting!", "Barrels are cooking!"],
+        SPIN_UP: ["Spinning up!", "Say hello!", "Brrrrrrt time!"],
+        LANCE: ["Target acquired.", "Hold still.", "Calculating..."],
+        DUEL: ["It's high noon...", "Draw!", "You. Me. Now.", "Reach for the sky!"],
+        DUEL_INTERRUPTED: ["Argh! My hat!", "Cheaters!", "Not fair!"]
     },
 
     HOSTAGE: {

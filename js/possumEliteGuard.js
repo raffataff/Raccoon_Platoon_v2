@@ -23,6 +23,7 @@ class PossumEliteGuard extends Unit {
         this.aiState = 'GUARDING';
         this.guardPost = { x: x, y: y };
         this.actionTimer = 0;
+        this.reloadLabel = 'RELOADING';
         this.xpValue = CONFIG.XP_FOR_ELITE_GUARD_KILL || 200;
 
         this.CHASE_DESTINATION_REFRESH_INTERVAL = this.bossAIConfig.CHASE_DESTINATION_REFRESH_INTERVAL || 1.0;
@@ -33,9 +34,6 @@ class PossumEliteGuard extends Unit {
 
     update(deltaTime) {
         if (!this.isAlive()) return;
-        if (this.actionTimer > 0) {
-            this.actionTimer -= deltaTime;
-        }
         if (this.aiState === 'ENGAGING_CHASING') {
             this.timeSinceLastChaseDestUpdate += deltaTime;
         }
@@ -71,7 +69,7 @@ class PossumEliteGuard extends Unit {
             this.currentPath = [];
             this.aiState = 'ENGAGING_SHOOTING';
 
-            if (this.actionTimer <= 0 && this.attackCooldown <= 0) {
+            if (this.actionTimer <= 0 && this.attackCooldown <= 0 && !this.isEnemyReloading()) {
                 this._executeFire(target.x, target.y, deltaTime);
             }
             return;
@@ -133,6 +131,7 @@ class PossumEliteGuard extends Unit {
         }
 
         this.attackCooldown = 1 / weapon.rof;
+        this._spendEnemyRound(weapon);
     }
 
     die() {
